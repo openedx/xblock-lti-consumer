@@ -1,0 +1,12 @@
+language: python
+python: "2.7"
+install:
+  - "make install"
+sudo: false
+script:
+  - make quality
+  - make test
+branches:
+    only:
+      - master
+after_success: coveralls

@@ -1,0 +1,17 @@
+### Python artifacts
+*.pyc
+*.egg-info
+
+### Editor and IDE artifacts
+*~
+*.swp
+*.orig
+/nbproject
+.idea/
+.redcar/
+codekit-config.json
+.pycharm_helpers/
+
+### Testing artifacts
+.coverage
+var/
