@@ -1,0 +1,64 @@
+.xblock-student_view.xblock-student_view-lti_consumer {
+    h2.problem-header {
+        display: inline-block;
+    }
+
+    div.problem-progress {
+        display: inline-block;
+        padding-left: 5px;
+        color: #666;
+        font-weight: 100;
+        font-size: 1em;
+    }
+
+    div.lti_consumer {
+        margin: 0 auto;
+
+        .wrapper-lti-link {
+            font-size: 14px;
+            background-color: #f6f6f6;
+            padding: 20px;
+
+            .lti-link {
+                margin-bottom: 0;
+                text-align: right;
+
+                button {
+                    font-size: 13px;
+                    line-height: 20.72px;
+                }
+            }
+        }
+
+        .lti-modal {
+            top: 80px !important;
+
+            .inner-wrapper {
+                height: 100%;
+                padding: 0 0 0 0;
+            }
+        }
+
+        form.ltiLaunchForm {
+            display: none;
+        }
+
+        iframe.ltiLaunchFrame {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border: 0px;
+        }
+
+        h4.problem-feedback-label {
+            font-weight: 100;
+            font-size: 1em;
+            font-family: "Source Sans", "Open Sans", Verdana, Geneva, sans-serif, sans-serif;
+        }
+
+        div.problem-feedback {
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+    }
+}
