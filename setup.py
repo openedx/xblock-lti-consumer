@@ -28,12 +28,12 @@ setup(
         'lti_consumer',
     ],
     install_requires=[
-        'lxml==3.4.4',
-        'bleach==1.4.2',
-        'oauthlib==1.0.3',
-        'mako==1.0.2',
-        'XBlock==0.4.1',
-        'xblock-utils==v1.0.0',
+        'lxml',
+        'bleach',
+        'oauthlib',
+        'mako',
+        'XBlock',
+        'xblock-utils>=v1.0.0',
     ],
     dependency_links=[
         'https://github.com/edx/xblock-utils/tarball/c39bf653e4f27fb3798662ef64cde99f57603f79#egg=xblock-utils',
