@@ -68,6 +68,14 @@ and committed to the git repo using:
 Changes to style rules should be made to the Sass files, compiled to CSS,
 and committed to the git repository.
 
+Package Requirements
+--------------------
+
+setup.py contains a list of package dependencies which are required for this XBlock package.
+This list is what is used to resolve dependencies when an upstream project is consuming
+this XBlock package. requirements.txt is used to install the same dependencies when running
+the tests for this package.
+
 License
 -------
 
