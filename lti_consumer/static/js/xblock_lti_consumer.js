@@ -7,15 +7,16 @@ function LtiConsumerXBlock(runtime, element) {
         $.fn.extend({
             iframeModal: function (options) {
                 var $trigger = $(this);
+                var modal_id = $trigger.data("target");
                 var defaults = {top: 100, overlay: 0.5, closeButton: null};
-                var overlay = $("<div id='lean_overlay'></div>");
+                var overlay_id = (modal_id + '_lean-overlay').replace('#', '');
+                var overlay = $("<div id='" + overlay_id + "' class='lean-overlay'></div>");
                 $("body").append(overlay);
                 options = $.extend(defaults, options);
                 return this.each(function () {
                     var o = options;
                     $(this).click(function (e) {
-                        var modal_id = $(this).data("target");
-                        $("#lean_overlay").click(function () {
+                        $("#" + overlay_id).click(function () {
                             close_modal(modal_id)
                         });
                         $(o.closeButton).click(function () {
@@ -23,8 +24,8 @@ function LtiConsumerXBlock(runtime, element) {
                         });
                         var modal_height = $(modal_id).outerHeight();
                         var modal_width = $(modal_id).outerWidth();
-                        $("#lean_overlay").css({"display": "block", opacity: 0});
-                        $("#lean_overlay").fadeTo(200, o.overlay);
+                        $("#" + overlay_id).css({"display": "block", opacity: 0});
+                        $("#" + overlay_id).fadeTo(200, o.overlay);
                         $(modal_id).css({
                             "display": "block",
                             "position": "fixed",
@@ -35,11 +36,11 @@ function LtiConsumerXBlock(runtime, element) {
                             "top": o.top + "px"
                         });
                         $(modal_id).fadeTo(200, 1);
+                        $(modal_id).attr('aria-hidden', false);
+
                         e.preventDefault();
 
                         /* Manage focus for modal dialog */
-                        var iframe = $(modal_id).find('iframe')[0].contentWindow;
-
                         /* Set focus on close button */
                         $(o.closeButton).focus();
 
@@ -61,8 +62,9 @@ function LtiConsumerXBlock(runtime, element) {
                 });
                 function close_modal(modal_id) {
                     $('select, input, textarea, button, a').off('focus');
-                    $("#lean_overlay").fadeOut(200);
-                    $(modal_id).css({"display": "none"})
+                    $("#" + overlay_id).fadeOut(200);
+                    $(modal_id).css({"display": "none"});
+                    $(modal_id).attr('aria-hidden', true);
                     $trigger.focus();
                 }
             }
