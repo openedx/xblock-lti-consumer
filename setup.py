@@ -22,7 +22,7 @@ def package_data(pkg, roots):
 
 setup(
     name='lti_consumer-xblock',
-    version='v1.0.0',
+    version='1.0.1',
     description='This XBlock implements the consumer side of the LTI specification.',
     packages=[
         'lti_consumer',
