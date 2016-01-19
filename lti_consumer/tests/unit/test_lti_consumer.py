@@ -4,8 +4,10 @@ Unit tests for LtiConsumerXBlock
 
 import unittest
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from mock import Mock, PropertyMock, patch
+
+from django.utils import timezone
 
 from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_xblock, make_request
 
@@ -206,7 +208,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `is_past_due` when a graceperiod has been defined
         """
-        now = datetime.utcnow()
+        now = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
 
         self.xblock.due = now
@@ -219,7 +221,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `is_past_due` when no graceperiod has been defined
         """
-        now = datetime.utcnow()
+        now = timezone.now()
         self.xblock.graceperiod = None
 
         self.xblock.due = now - timedelta(days=1)
@@ -227,6 +229,19 @@ class TestProperties(TestLtiConsumerXBlock):
 
         self.xblock.due = now + timedelta(days=1)
         self.assertFalse(self.xblock.is_past_due)
+
+    @patch('lti_consumer.lti_consumer.timezone.now')
+    def test_is_past_due_timezone_now_called(self, mock_timezone_now):
+        """
+        Test `is_past_due` calls django.utils.timezone.now to get current datetime
+        """
+        now = timezone.now()
+        self.xblock.graceperiod = None
+        self.xblock.due = now
+        mock_timezone_now.return_value = now
+
+        __ = self.xblock.is_past_due
+        self.assertTrue(mock_timezone_now.called)
 
 
 class TestStudentView(TestLtiConsumerXBlock):
