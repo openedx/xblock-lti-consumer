@@ -56,9 +56,10 @@ import re
 import json
 import urllib
 
-from datetime import datetime
 from collections import namedtuple
 from webob import Response
+
+from django.utils import timezone
 
 from xblock.core import String, Scope, List, XBlock
 from xblock.fields import Boolean, Float, Integer
@@ -597,7 +598,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             close_date = due_date + self.graceperiod  # pylint: disable=no-member
         else:
             close_date = due_date
-        return close_date is not None and datetime.utcnow() > close_date
+        return close_date is not None and timezone.now() > close_date
 
     def student_view(self, context):
         """
