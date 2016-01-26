@@ -27,16 +27,11 @@ function LtiConsumerXBlock(runtime, element) {
                         $("#" + overlay_id).css({"display": "block", opacity: 0});
                         $("#" + overlay_id).fadeTo(200, o.overlay);
                         $(modal_id).css({
-                            "display": "block",
-                            "position": "fixed",
-                            "opacity": 0,
-                            "z-index": 11000,
-                            "left": 50 + "%",
-                            "margin-left": -(modal_width / 2) + "px",
-                            "top": o.top + "px"
+                            "display": "block"
                         });
                         $(modal_id).fadeTo(200, 1);
                         $(modal_id).attr('aria-hidden', false);
+                        $('body').css('overflow', 'hidden');
 
                         e.preventDefault();
 
@@ -65,6 +60,7 @@ function LtiConsumerXBlock(runtime, element) {
                     $("#" + overlay_id).fadeOut(200);
                     $(modal_id).css({"display": "none"});
                     $(modal_id).attr('aria-hidden', true);
+                    $('body').css('overflow', 'auto');
                     $trigger.focus();
                 }
             }
