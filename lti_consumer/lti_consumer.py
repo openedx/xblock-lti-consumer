@@ -339,21 +339,21 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     modal_height = Integer(
         display_name="Modal Height",
         help=(
-            "Enter the desired pixel height of the modal overlay which will contain the LTI tool. "
+            "Enter the desired viewport percentage height of the modal overlay which will contain the LTI tool. "
             "This setting is only used when Hide External Tool is set to False and "
             "LTI Launch Target is set to Modal."
         ),
-        default=405,
+        default=80,
         scope=Scope.settings
     )
     modal_width = Integer(
         display_name="Modal Width",
         help=(
-            "Enter the desired pixel width of the modal overlay which will contain the LTI tool. "
+            "Enter the desired viewport percentage width of the modal overlay which will contain the LTI tool. "
             "This setting is only used when Hide External Tool is set to False and "
             "LTI Launch Target is set to Modal."
         ),
-        default=720,
+        default=80,
         scope=Scope.settings
     )
     has_score = Boolean(
@@ -834,7 +834,22 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'ask_to_send_email': self.ask_to_send_email,
             'button_text': self.button_text,
             'inline_height': self.inline_height,
-            'modal_height': self.modal_height,
+            'modal_vertical_offset': self._get_modal_position_offset(self.modal_height),
+            'modal_horizontal_offset': self._get_modal_position_offset(self.modal_width),
             'modal_width': self.modal_width,
             'accept_grades_past_due': self.accept_grades_past_due,
         }
+
+    def _get_modal_position_offset(self, viewport_percentage):
+        """
+        Returns the css position offset to apply to the modal window
+        element when launch_target is modal. This enables us to position
+        the modal window as a percentage of the viewport dimensions.
+
+        Arguments:
+            viewport_percentage (int): The percentage of the viewport that the modal should occupy
+
+        Returns:
+            float: The css position offset to apply to the modal window
+        """
+        return (100 - viewport_percentage) / 2

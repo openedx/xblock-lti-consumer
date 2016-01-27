@@ -31,7 +31,35 @@
         }
 
         .lti-modal {
-            top: 80px !important;
+            position: fixed;
+            opacity: 0;
+            z-index: 11000;
+            box-sizing: border-box;
+            margin-left: 0;
+            height: auto;
+            padding: 8px;
+            border-radius: 3px;
+            box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.4);
+            background: #464646;
+            color: #3c3c3c;
+
+            .close-modal {
+                display: inline-block;
+                position: absolute;
+                right: 2px;
+                top: 0px;
+                z-index: 100;
+                cursor: pointer;
+                padding: 10px;
+                background: transparent;
+                border: none;
+                text-align: center;
+
+                .fa {
+                    font: normal normal normal 14px/1 FontAwesome;
+                    font-size: inherit;
+                }
+            }
 
             .inner-wrapper {
                 height: 100%;
