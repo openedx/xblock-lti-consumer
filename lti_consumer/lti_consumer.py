@@ -73,6 +73,7 @@ from .exceptions import LtiError
 from .oauth import log_authorization_header
 from .lti import LtiConsumer
 from .outcomes import OutcomeService
+from .utils import _
 
 log = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ def parse_handler_suffix(suffix):
         if match_obj:
             return match_obj.group('anon_id')
     # fall-through handles all error cases
-    msg = "No valid user id found in endpoint URL"
+    msg = _("No valid user id found in endpoint URL")
     log.info("[LTI]: %s", msg)
     raise LtiError(msg)
 
@@ -243,17 +244,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     display_name = String(
-        display_name="Display Name",
-        help=(
-            "Enter the name that students see for this component.  "
+        display_name=_("Display Name"),
+        help=_(
+            "Enter the name that students see for this component. "
             "Analytics reports may also use the display name to identify this component."
         ),
         scope=Scope.settings,
-        default="LTI Consumer",
+        default=_("LTI Consumer"),
     )
     description = String(
-        display_name="LTI Application Information",
-        help=(
+        display_name=_("LTI Application Information"),
+        help=_(
             "Enter a description of the third party application. "
             "If requesting username and/or email, use this text box to inform users "
             "why their username and/or email will be forwarded to a third party application."
@@ -262,9 +263,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     lti_id = String(
-        display_name="LTI ID",
-        help=(
-            "Enter the LTI ID for the external LTI provider.  "
+        display_name=_("LTI ID"),
+        help=_(
+            "Enter the LTI ID for the external LTI provider. "
             "This value must be the same LTI ID that you entered in the "
             "LTI Passports setting on the Advanced Settings page."
             "<br />See the {docs_anchor_open}edX LTI documentation{anchor_close} for more details on this setting."
@@ -276,8 +277,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     launch_url = String(
-        display_name="LTI URL",
-        help=(
+        display_name=_("LTI URL"),
+        help=_(
             "Enter the URL of the external tool that this component launches. "
             "This setting is only used when Hide External Tool is set to False."
             "<br />See the {docs_anchor_open}edX LTI documentation{anchor_close} for more details on this setting."
@@ -289,8 +290,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     custom_parameters = List(
-        display_name="Custom Parameters",
-        help=(
+        display_name=_("Custom Parameters"),
+        help=_(
             "Add the key/value pair for any custom parameters, such as the page your e-book should open to or "
             "the background color for this component. Ex. [\"page=1\", \"color=white\"]"
             "<br />See the {docs_anchor_open}edX LTI documentation{anchor_close} for more details on this setting."
@@ -301,8 +302,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     launch_target = String(
-        display_name="LTI Launch Target",
-        help=(
+        display_name=_("LTI Launch Target"),
+        help=_(
             "Select Inline if you want the LTI content to open in an IFrame in the current page. "
             "Select Modal if you want the LTI content to open in a modal window in the current page. "
             "Select New Window if you want the LTI content to open in a new browser window. "
@@ -317,8 +318,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         ],
     )
     button_text = String(
-        display_name="Button Text",
-        help=(
+        display_name=_("Button Text"),
+        help=_(
             "Enter the text on the button used to launch the third party application. "
             "This setting is only used when Hide External Tool is set to False and "
             "LTI Launch Target is set to Modal or New Window."
@@ -327,8 +328,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     inline_height = Integer(
-        display_name="Inline Height",
-        help=(
+        display_name=_("Inline Height"),
+        help=_(
             "Enter the desired pixel height of the iframe which will contain the LTI tool. "
             "This setting is only used when Hide External Tool is set to False and "
             "LTI Launch Target is set to Inline."
@@ -337,8 +338,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     modal_height = Integer(
-        display_name="Modal Height",
-        help=(
+        display_name=_("Modal Height"),
+        help=_(
             "Enter the desired viewport percentage height of the modal overlay which will contain the LTI tool. "
             "This setting is only used when Hide External Tool is set to False and "
             "LTI Launch Target is set to Modal."
@@ -347,8 +348,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     modal_width = Integer(
-        display_name="Modal Width",
-        help=(
+        display_name=_("Modal Width"),
+        help=_(
             "Enter the desired viewport percentage width of the modal overlay which will contain the LTI tool. "
             "This setting is only used when Hide External Tool is set to False and "
             "LTI Launch Target is set to Modal."
@@ -357,14 +358,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     has_score = Boolean(
-        display_name="Scored",
-        help="Select True if this component will receive a numerical score from the external LTI system.",
+        display_name=_("Scored"),
+        help=_("Select True if this component will receive a numerical score from the external LTI system."),
         default=False,
         scope=Scope.settings
     )
     weight = Float(
         display_name="Weight",
-        help=(
+        help=_(
             "Enter the number of points possible for this component.  "
             "The default value is 1.0.  "
             "This setting is only used when Scored is set to True."
@@ -374,18 +375,18 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         values={"min": 0},
     )
     module_score = Float(
-        help="The score kept in the xblock KVS -- duplicate of the published score in django DB",
+        help=_("The score kept in the xblock KVS -- duplicate of the published score in django DB"),
         default=None,
         scope=Scope.user_state
     )
     score_comment = String(
-        help="Comment as returned from grader, LTI2.0 spec",
+        help=_("Comment as returned from grader, LTI2.0 spec"),
         default="",
         scope=Scope.user_state
     )
     hide_launch = Boolean(
-        display_name="Hide External Tool",
-        help=(
+        display_name=_("Hide External Tool"),
+        help=_(
             "Select True if you want to use this component as a placeholder for syncing with an external grading  "
             "system rather than launch an external tool.  "
             "This setting hides the Launch button and any IFrames for this component."
@@ -394,8 +395,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     accept_grades_past_due = Boolean(
-        display_name="Accept grades past deadline",
-        help="Select True to allow third party systems to post grades past the deadline.",
+        display_name=_("Accept grades past deadline"),
+        help=_("Select True to allow third party systems to post grades past the deadline."),
         default=True,
         scope=Scope.settings
     )
@@ -403,16 +404,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     # party application. When "Open in New Page" is not selected, the tool automatically appears without any
     # user action.
     ask_to_send_username = Boolean(
-        display_name="Request user's username",
+        display_name=_("Request user's username"),
         # Translators: This is used to request the user's username for a third party service.
-        help="Select True to request the user's username.",
+        help=_("Select True to request the user's username."),
         default=False,
         scope=Scope.settings
     )
     ask_to_send_email = Boolean(
-        display_name="Request user's email",
+        display_name=_("Request user's email"),
         # Translators: This is used to request the user's email for a third party service.
-        help="Select True to request the user's email address.",
+        help=_("Select True to request the user's email address."),
         default=False,
         scope=Scope.settings
     )
@@ -473,10 +474,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             try:
                 lti_id, key, secret = [i.strip() for i in lti_passport.split(':')]
             except ValueError:
-                _ = self.runtime.service(self, "i18n").ugettext
-                msg = _('Could not parse LTI passport: {lti_passport}. Should be "id:key:secret" string.').format(
-                    lti_passport='{0!r}'.format(lti_passport)
-                )
+                msg = self.ugettext('Could not parse LTI passport: {lti_passport}. Should be "id:key:secret" string.').\
+                    format(lti_passport='{0!r}'.format(lti_passport))
                 raise LtiError(msg)
 
             if lti_id == self.lti_id.strip():
@@ -491,7 +490,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         user_id = self.runtime.anonymous_student_id
         if user_id is None:
-            raise LtiError("Could not get user id for current request")
+            raise LtiError(self.ugettext("Could not get user id for current request"))
         return unicode(urllib.quote(user_id))
 
     @property
@@ -581,9 +580,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     param_name, param_value = [p.strip() for p in custom_parameter.split('=', 1)]
                 except ValueError:
                     _ = self.runtime.service(self, "i18n").ugettext
-                    msg = _('Could not parse custom parameter: {custom_parameter}. Should be "x=y" string.').format(
-                        custom_parameter="{0!r}".format(custom_parameter)
-                    )
+                    # pylint: disable=line-too-long
+                    msg = self.ugettext('Could not parse custom parameter: {custom_parameter}. Should be "x=y" string.').\
+                        format(custom_parameter="{0!r}".format(custom_parameter))
                     raise LtiError(msg)
 
                 # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
@@ -591,7 +590,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     param_name = 'custom_' + param_name
 
                 custom_parameters[unicode(param_name)] = unicode(param_value)
-
         return custom_parameters
 
     @property
@@ -723,7 +721,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         user = self.runtime.get_real_user(anon_id)
         if not user:  # that means we can't save to database, as we do not have real user id.
-            msg = "[LTI]: Real user not found against anon_id: {}".format(anon_id)
+            msg = _("[LTI]: Real user not found against anon_id: {}").format(anon_id)
             log.info(msg)
             return Response(status=404)  # have to do 404 due to spec, but 400 is better, with error msg in body
 
@@ -828,17 +826,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'element_id': self.location.html_id(),  # pylint: disable=no-member
             'element_class': self.category,  # pylint: disable=no-member
             'launch_target': self.launch_target,
-            'display_name': self.display_name,
+            'display_name': self.ugettext(self.display_name),
             'form_url': self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?'),
             'hide_launch': self.hide_launch,
             'has_score': self.has_score,
             'weight': self.weight,
             'module_score': self.module_score,
-            'comment': sanitized_comment,
+            'comment': self.ugettext(sanitized_comment),
             'description': self.description,
             'ask_to_send_username': self.ask_to_send_username,
             'ask_to_send_email': self.ask_to_send_email,
-            'button_text': self.button_text,
+            'button_text': self.ugettext(self.button_text),
             'inline_height': self.inline_height,
             'modal_vertical_offset': self._get_modal_position_offset(self.modal_height),
             'modal_horizontal_offset': self._get_modal_position_offset(self.modal_width),
