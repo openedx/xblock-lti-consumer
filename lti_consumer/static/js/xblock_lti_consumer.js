@@ -16,6 +16,9 @@ function LtiConsumerXBlock(runtime, element) {
                 return this.each(function () {
                     var o = options;
                     $(this).click(function (e) {
+                        var $modal = $(modal_id);
+                        // Set iframe src attribute to launch LTI provider
+                        $modal.find('iframe').attr('src', $modal.data('launch-url'));
                         $("#" + overlay_id).click(function () {
                             close_modal(modal_id)
                         });
@@ -56,10 +59,12 @@ function LtiConsumerXBlock(runtime, element) {
                     });
                 });
                 function close_modal(modal_id) {
+                    var $modal = $(modal_id);
                     $('select, input, textarea, button, a').off('focus');
                     $("#" + overlay_id).fadeOut(200);
-                    $(modal_id).css({"display": "none"});
-                    $(modal_id).attr('aria-hidden', true);
+                    $modal.css({"display": "none"});
+                    $modal.attr('aria-hidden', true);
+                    $modal.find('iframe').attr('src', '');
                     $('body').css('overflow', 'auto');
                     $trigger.focus();
                 }

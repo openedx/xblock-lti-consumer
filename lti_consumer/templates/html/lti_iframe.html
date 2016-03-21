@@ -1,8 +1,9 @@
+<%page args="initial_launch_url" expression_filter="h"/>
 <iframe
     title="${display_name}"
     class="ltiLaunchFrame"
     name="ltiFrame-${element_id}"
-    src="${form_url}"
+    src="${initial_launch_url}"
     allowfullscreen="true"
     webkitallowfullscreen="true"
     mozallowfullscreen="true"
