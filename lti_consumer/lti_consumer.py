@@ -64,6 +64,7 @@ from django.utils import timezone
 from xblock.core import String, Scope, List, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.fragment import Fragment
+from xblock.validation import ValidationMessage
 
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
@@ -72,7 +73,6 @@ from .exceptions import LtiError
 from .oauth import log_authorization_header
 from .lti import LtiConsumer
 from .outcomes import OutcomeService
-
 
 log = logging.getLogger(__name__)
 
@@ -424,6 +424,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'ask_to_send_username', 'ask_to_send_email'
     )
 
+    def validate_field_data(self, validation, data):
+        if not isinstance(data.custom_parameters, list):
+            _ = self.runtime.service(self, "i18n").ugettext
+            validation.add(ValidationMessage(ValidationMessage.ERROR, unicode(_("Custom Parameters must be a list"))))
+
     @property
     def descriptor(self):
         """
@@ -570,21 +575,22 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         # parsing custom parameters to dict
         custom_parameters = {}
-        for custom_parameter in self.custom_parameters:
-            try:
-                param_name, param_value = [p.strip() for p in custom_parameter.split('=', 1)]
-            except ValueError:
-                _ = self.runtime.service(self, "i18n").ugettext
-                msg = _('Could not parse custom parameter: {custom_parameter}. Should be "x=y" string.').format(
-                    custom_parameter="{0!r}".format(custom_parameter)
-                )
-                raise LtiError(msg)
+        if isinstance(self.custom_parameters, list):
+            for custom_parameter in self.custom_parameters:
+                try:
+                    param_name, param_value = [p.strip() for p in custom_parameter.split('=', 1)]
+                except ValueError:
+                    _ = self.runtime.service(self, "i18n").ugettext
+                    msg = _('Could not parse custom parameter: {custom_parameter}. Should be "x=y" string.').format(
+                        custom_parameter="{0!r}".format(custom_parameter)
+                    )
+                    raise LtiError(msg)
 
-            # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
-            if param_name not in LTI_PARAMETERS:
-                param_name = 'custom_' + param_name
+                # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
+                if param_name not in LTI_PARAMETERS:
+                    param_name = 'custom_' + param_name
 
-            custom_parameters[unicode(param_name)] = unicode(param_value)
+                custom_parameters[unicode(param_name)] = unicode(param_value)
 
         return custom_parameters
 
