@@ -52,6 +52,14 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         self.assertEqual(self.xblock.context_id, unicode(self.xblock.course_id))  # pylint: disable=no-member
 
+    def test_validate(self):
+        """
+        Test that if custom_parameters is empty string, a validation error is added
+        """
+        self.xblock.custom_parameters = ''
+        validation = self.xblock.validate()
+        self.assertFalse(validation.empty)
+
     def test_role(self):
         """
         Test `role` returns the correct LTI role string
