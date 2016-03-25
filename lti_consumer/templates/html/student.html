@@ -51,6 +51,7 @@
             class="modal lti-modal"
             aria-hidden="true"
             style="width:${modal_width}%; left:${modal_horizontal_offset}%; top:${modal_vertical_offset}%; bottom:${modal_vertical_offset}%;"
+            data-launch-url="${form_url}"
         >
             <div class="inner-wrapper" role="dialog">
                 <button class="close-modal">
@@ -58,14 +59,17 @@
                     <span class="sr">Close</span>
                 </button>
                 ## The result of the LTI launch form submit will be rendered here.
-                <%include file="templates/html/lti_iframe.html"/>
+                ## initial_launch_url is set to an empty string here because
+                ## in "modal" launch mode, we use javascript to set the src
+                ## attribute of the iframe when the modal window is opened.
+                <%include file="templates/html/lti_iframe.html" args="initial_launch_url=''"/>
             </div>
         </section>
     % endif
     % if launch_target == 'iframe':
         <div style="height:${inline_height}px;">
             ## The result of the LTI launch form submit will be rendered here.
-            <%include file="templates/html/lti_iframe.html"/>
+            <%include file="templates/html/lti_iframe.html" args="initial_launch_url=form_url"/>
         </div>
     % endif
 % elif not hide_launch:
