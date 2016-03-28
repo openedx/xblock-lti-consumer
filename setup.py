@@ -43,5 +43,5 @@ setup(
             'lti_consumer = lti_consumer:LtiConsumerXBlock',
         ]
     },
-    package_data=package_data("lti_consumer", ["static", "templates", "public"]),
+    package_data=package_data("lti_consumer", ["static", "templates", "public", "translations"]),
 )
