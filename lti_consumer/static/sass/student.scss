@@ -46,12 +46,12 @@
             .close-modal {
                 display: inline-block;
                 position: absolute;
-                right: 2px;
+                right: 0px;
                 top: 0px;
                 z-index: 100;
                 cursor: pointer;
                 padding: 10px;
-                background: transparent;
+                background-color: #fff !important;
                 border: none;
                 text-align: center;
 
