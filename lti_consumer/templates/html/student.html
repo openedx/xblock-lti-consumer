@@ -1,6 +1,7 @@
 <h2 class="problem-header">
     ## Translators:  "External resource" means that this learning module is hosted on a platform external to the edX LMS
-    ${display_name} (External resource)
+    ${display_name}
+    <span class="sr">This is an external resource</span>
 </h2>
 
 % if has_score and weight:
@@ -23,9 +24,6 @@
 % if launch_url and not hide_launch:
     % if launch_target in ['modal', 'new_window']:
         <section class="wrapper-lti-link">
-            % if description:
-                <div class="lti-description">${description}</div>
-            % endif
             <p class="lti-link external">
                 % if launch_target == 'modal':
                     <button
@@ -43,6 +41,9 @@
                     </button>
                 % endif
             </p>
+            % if description:
+                <div class="lti-description">${description}</div>
+            % endif
         </section>
     % endif
     % if launch_target == 'modal':
