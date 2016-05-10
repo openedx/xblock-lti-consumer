@@ -128,7 +128,13 @@ class LtiConsumer(object):
             u'lis_result_sourcedid': self.xblock.lis_result_sourcedid,
 
             u'context_id': self.xblock.context_id,
+            u'custom_component_display_name': self.xblock.display_name,
         }
+
+        if self.xblock.due:
+            lti_parameters['custom_component_due_date'] = self.xblock.due.strftime('%Y-%m-%d %H:%M:%S')
+            if self.xblock.graceperiod:
+                lti_parameters['custom_component_graceperiod'] = str(self.xblock.graceperiod.total_seconds())
 
         if self.xblock.has_score:
             lti_parameters.update({

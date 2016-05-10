@@ -5,7 +5,10 @@ Unit tests for lti_consumer.lti module
 
 import unittest
 
+from datetime import timedelta
 from mock import Mock, PropertyMock, patch
+
+from django.utils import timezone
 
 from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_request
 from lti_consumer.tests.unit.test_lti_consumer import TestLtiConsumerXBlock
@@ -146,6 +149,9 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         """
         Test `get_signed_lti_parameters` returns the correct dict
         """
+        self.lti_consumer.xblock.due = timezone.now()
+        self.lti_consumer.xblock.graceperiod = timedelta(days=1)
+
         expected_lti_parameters = {
             u'user_id': self.lti_consumer.xblock.user_id,
             u'oauth_callback': u'about:blank',
@@ -157,6 +163,9 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
             u'lis_result_sourcedid': self.lti_consumer.xblock.lis_result_sourcedid,
             u'context_id': self.lti_consumer.xblock.context_id,
             u'lis_outcome_service_url': self.lti_consumer.xblock.outcome_service_url,
+            u'custom_component_display_name': self.lti_consumer.xblock.display_name,
+            u'custom_component_due_date': self.lti_consumer.xblock.due.strftime('%Y-%m-%d %H:%M:%S'),
+            u'custom_component_graceperiod': str(self.lti_consumer.xblock.graceperiod.total_seconds()),
             'lis_person_sourcedid': 'edx',
             'lis_person_contact_email_primary': 'edx@example.com',
             u'custom_param_1': 'custom1',

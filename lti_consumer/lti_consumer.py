@@ -119,6 +119,9 @@ LTI_PARAMETERS = [
     'tool_consumer_instance_description',
     'tool_consumer_instance_url',
     'tool_consumer_instance_contact_email',
+    'custom_component_due_date',
+    'custom_component_graceperiod',
+    'custom_component_display_name'
 ]
 
 
