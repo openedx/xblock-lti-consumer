@@ -168,6 +168,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
             u'custom_component_graceperiod': str(self.lti_consumer.xblock.graceperiod.total_seconds()),
             'lis_person_sourcedid': 'edx',
             'lis_person_contact_email_primary': 'edx@example.com',
+            'launch_presentation_locale': 'en',
             u'custom_param_1': 'custom1',
             u'custom_param_2': 'custom2',
             u'oauth_nonce': 'fake_nonce',
@@ -181,14 +182,19 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.lti_consumer.xblock.ask_to_send_username = True
         self.lti_consumer.xblock.ask_to_send_email = True
 
-        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(email='edx@example.com', username='edx')
+        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
+            email='edx@example.com',
+            username='edx',
+            profile=Mock(language='en')
+        )
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
-        # Test that `lis_person_sourcedid` and `lis_person_contact_email_primary` are not included
-        # in the returned LTI parameters when a user cannot be found
+        # Test that `lis_person_sourcedid`, `lis_person_contact_email_primary`, and `launch_presentation_locale`
+        # are not included in the returned LTI parameters when a user cannot be found
         self.lti_consumer.xblock.runtime.get_real_user.return_value = {}
         del expected_lti_parameters['lis_person_sourcedid']
         del expected_lti_parameters['lis_person_contact_email_primary']
+        del expected_lti_parameters['launch_presentation_locale']
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
     def test_get_result(self):
