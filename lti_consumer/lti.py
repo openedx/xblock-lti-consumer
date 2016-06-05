@@ -152,14 +152,7 @@ class LtiConsumer(object):
             real_user_object = self.xblock.runtime.get_real_user(self.xblock.runtime.anonymous_student_id)
             self.xblock.user_email = getattr(real_user_object, "email", "")
             self.xblock.user_username = getattr(real_user_object, "username", "")
-            user_profile = getattr(real_user_object, "profile", None)
-            if user_profile is not None:
-                language_proficiencies = user_profile.language_proficiencies.all()
-                if len(language_proficiencies) == 1:
-                    # We only want to send the user's language preference if the user has
-                    # a single preferred language - having multiple language proficiencies
-                    # isn't an API violation, but can't be set up via the UI.
-                    self.xblock.user_language = language_proficiencies[0].code
+            self.xblock.user_language = getattr(getattr(real_user_object, "profile", ""), "language", "")
 
         if self.xblock.ask_to_send_username and self.xblock.user_username:
             lti_parameters["lis_person_sourcedid"] = self.xblock.user_username

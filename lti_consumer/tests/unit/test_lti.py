@@ -185,7 +185,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
             email='edx@example.com',
             username='edx',
-            profile=Mock(language_proficiencies=Mock(all=Mock(return_value=[Mock(code='en')])))
+            profile=Mock(language='en')
         )
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
@@ -195,20 +195,6 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         del expected_lti_parameters['lis_person_sourcedid']
         del expected_lti_parameters['lis_person_contact_email_primary']
         del expected_lti_parameters['launch_presentation_locale']
-        self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
-
-        # Test that we don't send a language when no preferred language exists
-        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
-            spec=['profile'],
-            profile=Mock(language_proficiencies=Mock(all=Mock(return_value=[])))
-        )
-        self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
-
-        # Test that we don't send a language when multiple preferred languages exist
-        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
-            spec=['profile'],
-            profile=Mock(language_proficiencies=Mock(all=Mock(return_value=[Mock(code='es'), Mock(code='en')])))
-        )
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
     def test_get_result(self):
