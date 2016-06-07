@@ -181,11 +181,10 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.lti_consumer.xblock.has_score = True
         self.lti_consumer.xblock.ask_to_send_username = True
         self.lti_consumer.xblock.ask_to_send_email = True
-
         self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
             email='edx@example.com',
             username='edx',
-            profile=Mock(language='en')
+            preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
         )
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 

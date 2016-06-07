@@ -152,7 +152,12 @@ class LtiConsumer(object):
             real_user_object = self.xblock.runtime.get_real_user(self.xblock.runtime.anonymous_student_id)
             self.xblock.user_email = getattr(real_user_object, "email", "")
             self.xblock.user_username = getattr(real_user_object, "username", "")
-            self.xblock.user_language = getattr(getattr(real_user_object, "profile", ""), "language", "")
+            user_preferences = getattr(real_user_object, "preferences", None)
+
+            if user_preferences is not None:
+                language_preference = user_preferences.filter(key='pref-lang')
+                if len(language_preference) == 1:
+                    self.xblock.user_language = language_preference[0].value
 
         if self.xblock.ask_to_send_username and self.xblock.user_username:
             lti_parameters["lis_person_sourcedid"] = self.xblock.user_username
