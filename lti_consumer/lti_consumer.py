@@ -164,6 +164,8 @@ class LaunchTarget(object):
 
 
 @XBlock.needs('i18n')
+@XBlock.wants('credit')
+@XBlock.wants('reverification')
 class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
     This XBlock provides an LTI consumer interface for integrating
@@ -420,12 +422,42 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default=False,
         scope=Scope.settings
     )
+    transmit_course_mode_and_status = Boolean(
+        display_name=_("Transmit user's course_mode and verification status"),
+        help=_(
+            "Select True for the student's course_mode and verification status as part of the LTI launch parameters"
+        ),
+        default=False,
+        scope=Scope.settings
+    )
+    display_header = Boolean(
+        display_name=_("Display Header"),
+        help=_(
+            "This setting changes whether the header of LTI module is displayed (including any grading information)"
+        ),
+        default=True,
+        scope=Scope.settings
+    )
+    launch_pane_html = String(
+        display_name=_("Launch Pane HTML"),
+        help=_(
+            "(Advanced) Only for 'Modal' or 'New Window' launch targets. This setting allows for optional custom "
+            "HTML to render as the launch pane, including the launch button."
+        ),
+        scope=Scope.settings,
+        # The defailt is set to an empty string.
+        # If this defaults to None, then the word "None" appears in the HTML editor, which may be confusing
+        # to end-users
+        default="",
+        multiline_editor='html'
+    )
 
     # StudioEditableXBlockMixin configuration of fields editable in Studio
     editable_fields = (
         'display_name', 'description', 'lti_id', 'launch_url', 'custom_parameters', 'launch_target', 'button_text',
         'inline_height', 'modal_height', 'modal_width', 'has_score', 'weight', 'hide_launch', 'accept_grades_past_due',
-        'ask_to_send_username', 'ask_to_send_email'
+        'ask_to_send_username', 'ask_to_send_email', 'transmit_course_mode_and_status', 'display_header',
+        'launch_pane_html'
     )
 
     def validate_field_data(self, validation, data):
@@ -845,6 +877,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'modal_horizontal_offset': self._get_modal_position_offset(self.modal_width),
             'modal_width': self.modal_width,
             'accept_grades_past_due': self.accept_grades_past_due,
+            'display_header': self.display_header,
+            'launch_pane_html': self.launch_pane_html,
         }
 
     def _get_modal_position_offset(self, viewport_percentage):

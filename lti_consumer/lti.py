@@ -159,6 +159,32 @@ class LtiConsumer(object):
                 if len(language_preference) == 1:
                     self.xblock.user_language = language_preference[0].value
 
+            credit_service = self.xblock.runtime.service(self.xblock, 'credit')
+            user_id = getattr(real_user_object, "id", None)
+            if self.xblock.transmit_course_mode_and_status and credit_service and user_id:
+                # call out to the credit service to get information about
+                # the user's enrollment mode in the course
+                credit_state_info = credit_service.get_credit_state(user_id, self.xblock.course_id)
+                lti_parameters["custom_student_course_mode"] = credit_state_info['enrollment_mode']
+
+                #
+                # Now get the status of the verification process
+                #
+                # We will get this through the existing 'reverification' service which was extended
+                # To tunnel this information. Note that we check to see if the service has the expected
+                # new method, otherwise we'll get into version skew problems between this xBlock and
+                # the edx-platform container runtime
+                #
+                verification_service = self.xblock.runtime.service(self.xblock, 'reverification')
+                if verification_service and hasattr(verification_service, 'get_course_verification_status'):
+                    verification_status = verification_service.get_course_verification_status(
+                        real_user_object,
+                        self.xblock.course_id
+                    )
+
+                    if verification_status:
+                        lti_parameters["custom_student_verification_status"] = verification_status
+
         if self.xblock.ask_to_send_username and self.xblock.user_username:
             lti_parameters["lis_person_sourcedid"] = self.xblock.user_username
         if self.xblock.ask_to_send_email and self.xblock.user_email:

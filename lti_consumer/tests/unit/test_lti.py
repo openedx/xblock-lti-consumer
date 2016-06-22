@@ -176,16 +176,39 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
             'oauth_version': 'fake_version',
             'oauth_signature_method': 'fake_method',
             'oauth_consumer_key': 'fake_consumer_key',
-            'oauth_signature': u'fake_signature'
+            'oauth_signature': u'fake_signature',
+            u'custom_student_course_mode': 'verified',
+            u'custom_student_verification_status': 'verify_need_to_verify',
         }
         self.lti_consumer.xblock.has_score = True
         self.lti_consumer.xblock.ask_to_send_username = True
         self.lti_consumer.xblock.ask_to_send_email = True
+        self.lti_consumer.xblock.transmit_course_mode_and_status = True
         self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
             email='edx@example.com',
             username='edx',
             preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
         )
+
+        def _mock_services(_, service_name):
+            """
+            Mock out support for two xBlock services
+            """
+            if service_name == 'credit':
+                return Mock(
+                    get_credit_state=Mock(
+                        return_value={
+                            'enrollment_mode': 'verified'
+                        }
+                    )
+                )
+            elif service_name == 'reverification':
+                return Mock(
+                    get_course_verification_status=Mock(return_value='verify_need_to_verify')
+                )
+
+        self.lti_consumer.xblock.runtime.service = _mock_services
+
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
         # Test that `lis_person_sourcedid`, `lis_person_contact_email_primary`, and `launch_presentation_locale`
@@ -194,6 +217,8 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         del expected_lti_parameters['lis_person_sourcedid']
         del expected_lti_parameters['lis_person_contact_email_primary']
         del expected_lti_parameters['launch_presentation_locale']
+        del expected_lti_parameters['custom_student_course_mode']
+        del expected_lti_parameters['custom_student_verification_status']
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
     def test_get_result(self):
