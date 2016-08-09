@@ -325,9 +325,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     button_text = String(
         display_name=_("Button Text"),
         help=_(
-            "Enter the text on the button used to launch the third party application. "
-            "This setting is only used when Hide External Tool is set to False and "
-            "LTI Launch Target is set to Modal or New Window."
+            "Enter the text on the button used to launch the third party application. Applies only if Hide "
+            "External Tool is set to False, LTI Launch Target is set to Modal or New Window, and custom "
+            "launch pane HTML does not include a launch button."
         ),
         default="",
         scope=Scope.settings
@@ -423,26 +423,25 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     transmit_course_mode_and_status = Boolean(
-        display_name=_("Transmit user's course_mode and verification status"),
+        display_name=_("Request user's enrollment data"),
         help=_(
-            "Select True for the student's course_mode and verification status as part of the LTI launch parameters"
+            "Select True to request enrollment track and identity verification status information for users."
         ),
         default=False,
         scope=Scope.settings
     )
     display_header = Boolean(
-        display_name=_("Display Header"),
+        display_name=_("Show Display Name"),
         help=_(
-            "This setting changes whether the header of LTI module is displayed (including any grading information)"
+            "Select True to show both the learner's grade and the Display Name for this component in the LMS."
         ),
         default=True,
         scope=Scope.settings
     )
     launch_pane_html = String(
-        display_name=_("Launch Pane HTML"),
+        display_name=_("Launch Pane HTML Editor"),
         help=_(
-            "(Advanced) Only for 'Modal' or 'New Window' launch targets. This setting allows for optional custom "
-            "HTML to render as the launch pane, including the launch button."
+            "Enter HTML for the launch information, including the launch button, that appears to users."
         ),
         scope=Scope.settings,
         # The defailt is set to an empty string.
@@ -454,10 +453,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     # StudioEditableXBlockMixin configuration of fields editable in Studio
     editable_fields = (
-        'display_name', 'description', 'lti_id', 'launch_url', 'custom_parameters', 'launch_target', 'button_text',
-        'inline_height', 'modal_height', 'modal_width', 'has_score', 'weight', 'hide_launch', 'accept_grades_past_due',
-        'ask_to_send_username', 'ask_to_send_email', 'transmit_course_mode_and_status', 'display_header',
-        'launch_pane_html'
+        'display_name', 'display_header', 'description', 'lti_id', 'launch_url', 'custom_parameters', 'launch_target',
+        'launch_pane_html', 'button_text', 'inline_height', 'modal_height', 'modal_width', 'has_score', 'weight',
+        'hide_launch', 'accept_grades_past_due', 'ask_to_send_username', 'ask_to_send_email',
+        'transmit_course_mode_and_status',
     )
 
     def validate_field_data(self, validation, data):
