@@ -39,12 +39,12 @@ from django.utils.translation import ugettext as _
             % if launch_pane_html:
                 ## it is intended that authors can use HTML in the launch_pane_html parameter
                 ## so we allow this to go through unescaped
-                ${launch_pane_html | n}
+                ${launch_pane_html | n, decode.utf8}
             % else:
                 % if description:
                     ## I believe historically, we have some courses which pipe through some
                     ## HTML in the description field, so let's preserve existing behavior
-                    <div class="lti-description">${description | n}</div>
+                    <div class="lti-description">${description | n, decode.utf8}</div>
                 % endif
                 <p class="lti-link external">
                     % if launch_target == 'modal':
