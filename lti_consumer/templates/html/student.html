@@ -1,6 +1,7 @@
 <%!
 from django.utils.translation import ugettext as _
 %>
+<%page expression_filter="h"/>
 
 % if display_header:
     <h2 class="problem-header">
@@ -36,7 +37,9 @@ from django.utils.translation import ugettext as _
             aria-label="This section of the courseware is delivered by a 3rd party. As such, we cannot make any guarantees that this external resource supports the same level of accessibility."
         >
             % if launch_pane_html:
-                ${launch_pane_html}
+                ## it is intended that authors can use HTML in the launch_pane_html parameter
+                ## so we allow this to go through unescaped
+                ${launch_pane_html | n}
             % else:
                 % if description:
                     <div class="lti-description">${description}</div>
