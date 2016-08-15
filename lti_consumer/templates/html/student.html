@@ -42,7 +42,9 @@ from django.utils.translation import ugettext as _
                 ${launch_pane_html | n}
             % else:
                 % if description:
-                    <div class="lti-description">${description}</div>
+                    ## I believe historically, we have some courses which pipe through some
+                    ## HTML in the description field, so let's preserve existing behavior
+                    <div class="lti-description">${description | n}</div>
                 % endif
                 <p class="lti-link external">
                     % if launch_target == 'modal':
