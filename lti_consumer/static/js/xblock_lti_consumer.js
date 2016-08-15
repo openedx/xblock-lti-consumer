@@ -10,7 +10,7 @@ function LtiConsumerXBlock(runtime, element) {
         $.fn.extend({
             iframeModal: function (options) {
                 var $trigger = $(this);
-                var modal_id = "#"+$element.find(".lti-modal").attr("id");
+                var modal_id = "#" + $element.find(".lti-modal").attr("id");
                 var defaults = {top: 100, overlay: 0.5, closeButton: null};
                 var overlay_id = (modal_id + '_lean-overlay').replace('#', '');
                 var overlay = $("<div id='" + overlay_id + "' class='lean-overlay'></div>");
