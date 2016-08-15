@@ -91,7 +91,7 @@
     % if launch_target == 'iframe':
         <div
             style="height:${inline_height}px;"
-            aria-label="This section of the courseware is delivered by a 3rd party. As such, we cannot make any guarantees that this external resource supports the same level of accessibility."
+            aria-label=${_("This section of the courseware is delivered by a 3rd party. As such, we cannot make any guarantees that this external resource supports the same level of accessibility.")}
         >
             ## The result of the LTI launch form submit will be rendered here.
             <%include file="templates/html/lti_iframe.html" args="initial_launch_url=form_url"/>
