@@ -1,7 +1,9 @@
-<%!
-from django.utils.translation import ugettext as _
-%>
 <%page expression_filter="h"/>
+
+##
+## NOTE: the _() method is being defined via the template context
+## and this is piped through to the i18n xBlock service
+##
 
 % if display_header:
     <h2 class="problem-header">

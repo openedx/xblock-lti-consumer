@@ -655,6 +655,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment = Fragment()
         loader = ResourceLoader(__name__)
         context.update(self._get_context_for_template())
+        i18n_service = self.runtime.service(self, "i18n")
+
+        # add translation services to the student.html Mako template
+        context.update({
+            '_': lambda text: i18n_service.ugettext(text) if i18n_service else text
+        })
+
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
