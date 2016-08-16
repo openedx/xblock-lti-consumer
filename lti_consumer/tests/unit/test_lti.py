@@ -118,6 +118,7 @@ class TestParseResultJson(unittest.TestCase):
             self.assertEqual(score, expected_score)
             self.assertEqual(comment, expected_comment)
 
+
 def _mock_services(_, service_name):
     """
     Mock out support for two xBlock services
@@ -134,6 +135,7 @@ def _mock_services(_, service_name):
         return Mock(
             get_course_verification_status=Mock(return_value='verify_need_to_verify')
         )
+
 
 class TestLtiConsumer(TestLtiConsumerXBlock):
     """
