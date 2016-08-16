@@ -20,8 +20,6 @@
             % endif
         </div>
     % endif
-% else:
-    <span class="sr">${_("This is an external resource")}</span>
 % endif
 
 
@@ -66,6 +64,9 @@
                 % endif
             </p>
         </section>
+        <div class='lti-launcher-external-notice'>
+            ${_('This button opens an external resource.')}
+        </div>
     % endif
     % if launch_target == 'modal':
         <section

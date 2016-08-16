@@ -311,7 +311,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
             preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
         )
 
-        def _mock_services_reverification_none(_, service_name):
+        def _mock_verification_none(_, service_name):
             """
             Mock out support for two xBlock services
             """
@@ -328,7 +328,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
                     get_course_verification_status=Mock(return_value=None)
                 )
 
-        self.lti_consumer.xblock.runtime.service = _mock_services_reverification_none
+        self.lti_consumer.xblock.runtime.service = _mock_verification_none
 
         print self.lti_consumer.get_signed_lti_parameters()
 
@@ -370,7 +370,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
             preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
         )
 
-        def _mock_no_services(_, service_name):
+        def _mock_no_services(_, __):
             """
             Mock out if we don't have desired services registered
             """
