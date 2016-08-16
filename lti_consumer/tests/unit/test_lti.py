@@ -118,6 +118,22 @@ class TestParseResultJson(unittest.TestCase):
             self.assertEqual(score, expected_score)
             self.assertEqual(comment, expected_comment)
 
+def _mock_services(_, service_name):
+    """
+    Mock out support for two xBlock services
+    """
+    if service_name == 'credit':
+        return Mock(
+            get_credit_state=Mock(
+                return_value={
+                    'enrollment_mode': 'verified'
+                }
+            )
+        )
+    elif service_name == 'reverification':
+        return Mock(
+            get_course_verification_status=Mock(return_value='verify_need_to_verify')
+        )
 
 class TestLtiConsumer(TestLtiConsumerXBlock):
     """
@@ -127,6 +143,37 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
     def setUp(self):
         super(TestLtiConsumer, self).setUp()
         self.lti_consumer = LtiConsumer(self.xblock)
+
+    def _get_base_expected_lti_parameters(self):
+        """
+        Helper method to reduce code duplication
+        """
+        return {
+            u'user_id': self.lti_consumer.xblock.user_id,
+            u'oauth_callback': u'about:blank',
+            u'launch_presentation_return_url': '',
+            u'lti_message_type': u'basic-lti-launch-request',
+            u'lti_version': 'LTI-1p0',
+            u'roles': self.lti_consumer.xblock.role,
+            u'resource_link_id': self.lti_consumer.xblock.resource_link_id,
+            u'lis_result_sourcedid': self.lti_consumer.xblock.lis_result_sourcedid,
+            u'context_id': self.lti_consumer.xblock.context_id,
+            u'lis_outcome_service_url': self.lti_consumer.xblock.outcome_service_url,
+            u'custom_component_display_name': self.lti_consumer.xblock.display_name,
+            u'custom_component_due_date': self.lti_consumer.xblock.due.strftime('%Y-%m-%d %H:%M:%S'),
+            u'custom_component_graceperiod': str(self.lti_consumer.xblock.graceperiod.total_seconds()),
+            'lis_person_sourcedid': 'edx',
+            'lis_person_contact_email_primary': 'edx@example.com',
+            'launch_presentation_locale': 'en',
+            u'custom_param_1': 'custom1',
+            u'custom_param_2': 'custom2',
+            u'oauth_nonce': 'fake_nonce',
+            'oauth_timestamp': 'fake_timestamp',
+            'oauth_version': 'fake_version',
+            'oauth_signature_method': 'fake_method',
+            'oauth_consumer_key': 'fake_consumer_key',
+            'oauth_signature': u'fake_signature',
+        }
 
     @patch(
         'lti_consumer.lti.get_oauth_request_signature',
@@ -152,34 +199,12 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.lti_consumer.xblock.due = timezone.now()
         self.lti_consumer.xblock.graceperiod = timedelta(days=1)
 
-        expected_lti_parameters = {
-            u'user_id': self.lti_consumer.xblock.user_id,
-            u'oauth_callback': u'about:blank',
-            u'launch_presentation_return_url': '',
-            u'lti_message_type': u'basic-lti-launch-request',
-            u'lti_version': 'LTI-1p0',
-            u'roles': self.lti_consumer.xblock.role,
-            u'resource_link_id': self.lti_consumer.xblock.resource_link_id,
-            u'lis_result_sourcedid': self.lti_consumer.xblock.lis_result_sourcedid,
-            u'context_id': self.lti_consumer.xblock.context_id,
-            u'lis_outcome_service_url': self.lti_consumer.xblock.outcome_service_url,
-            u'custom_component_display_name': self.lti_consumer.xblock.display_name,
-            u'custom_component_due_date': self.lti_consumer.xblock.due.strftime('%Y-%m-%d %H:%M:%S'),
-            u'custom_component_graceperiod': str(self.lti_consumer.xblock.graceperiod.total_seconds()),
-            'lis_person_sourcedid': 'edx',
-            'lis_person_contact_email_primary': 'edx@example.com',
-            'launch_presentation_locale': 'en',
-            u'custom_param_1': 'custom1',
-            u'custom_param_2': 'custom2',
-            u'oauth_nonce': 'fake_nonce',
-            'oauth_timestamp': 'fake_timestamp',
-            'oauth_version': 'fake_version',
-            'oauth_signature_method': 'fake_method',
-            'oauth_consumer_key': 'fake_consumer_key',
-            'oauth_signature': u'fake_signature',
+        expected_lti_parameters = self._get_base_expected_lti_parameters()
+        expected_lti_parameters.update({
             u'custom_student_course_mode': 'verified',
             u'custom_student_verification_status': 'verify_need_to_verify',
-        }
+        })
+
         self.lti_consumer.xblock.has_score = True
         self.lti_consumer.xblock.ask_to_send_username = True
         self.lti_consumer.xblock.ask_to_send_email = True
@@ -189,23 +214,6 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
             username='edx',
             preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
         )
-
-        def _mock_services(_, service_name):
-            """
-            Mock out support for two xBlock services
-            """
-            if service_name == 'credit':
-                return Mock(
-                    get_credit_state=Mock(
-                        return_value={
-                            'enrollment_mode': 'verified'
-                        }
-                    )
-                )
-            elif service_name == 'reverification':
-                return Mock(
-                    get_course_verification_status=Mock(return_value='verify_need_to_verify')
-                )
 
         self.lti_consumer.xblock.runtime.service = _mock_services
 
@@ -219,6 +227,155 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         del expected_lti_parameters['launch_presentation_locale']
         del expected_lti_parameters['custom_student_course_mode']
         del expected_lti_parameters['custom_student_verification_status']
+        self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
+
+    @patch(
+        'lti_consumer.lti.get_oauth_request_signature',
+        Mock(return_value=(
+            'OAuth oauth_nonce="fake_nonce", '
+            'oauth_timestamp="fake_timestamp", oauth_version="fake_version", oauth_signature_method="fake_method", '
+            'oauth_consumer_key="fake_consumer_key", oauth_signature="fake_signature"'
+        ))
+    )
+    @patch(
+        'lti_consumer.lti_consumer.LtiConsumerXBlock.prefixed_custom_parameters',
+        PropertyMock(return_value={u'custom_param_1': 'custom1', u'custom_param_2': 'custom2'})
+    )
+    @patch(
+        'lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret',
+        PropertyMock(return_value=('t', 's'))
+    )
+    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    def test_get_signed_lti_parameters_no_course_mode(self):
+        """
+        Test `get_signed_lti_parameters` returns the correct dict when the author does not wish to
+        transmit course_mode and verification status
+        """
+        self.lti_consumer.xblock.due = timezone.now()
+        self.lti_consumer.xblock.graceperiod = timedelta(days=1)
+
+        expected_lti_parameters = self._get_base_expected_lti_parameters()
+        self.lti_consumer.xblock.has_score = True
+        self.lti_consumer.xblock.ask_to_send_username = True
+        self.lti_consumer.xblock.ask_to_send_email = True
+        self.lti_consumer.xblock.transmit_course_mode_and_status = False
+        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
+            email='edx@example.com',
+            username='edx',
+            preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
+        )
+
+        self.lti_consumer.xblock.runtime.service = _mock_services
+
+        self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
+
+    @patch(
+        'lti_consumer.lti.get_oauth_request_signature',
+        Mock(return_value=(
+            'OAuth oauth_nonce="fake_nonce", '
+            'oauth_timestamp="fake_timestamp", oauth_version="fake_version", oauth_signature_method="fake_method", '
+            'oauth_consumer_key="fake_consumer_key", oauth_signature="fake_signature"'
+        ))
+    )
+    @patch(
+        'lti_consumer.lti_consumer.LtiConsumerXBlock.prefixed_custom_parameters',
+        PropertyMock(return_value={u'custom_param_1': 'custom1', u'custom_param_2': 'custom2'})
+    )
+    @patch(
+        'lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret',
+        PropertyMock(return_value=('t', 's'))
+    )
+    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    def test_get_signed_lti_parameters_none_verification_status(self):
+        """
+        Test `get_signed_lti_parameters` returns the correct dict when the verification status
+        method returns None
+        """
+        self.lti_consumer.xblock.due = timezone.now()
+        self.lti_consumer.xblock.graceperiod = timedelta(days=1)
+
+        expected_lti_parameters = self._get_base_expected_lti_parameters()
+        expected_lti_parameters.update({
+            u'custom_student_course_mode': 'verified',
+        })
+
+        self.lti_consumer.xblock.has_score = True
+        self.lti_consumer.xblock.ask_to_send_username = True
+        self.lti_consumer.xblock.ask_to_send_email = True
+        self.lti_consumer.xblock.transmit_course_mode_and_status = True
+        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
+            email='edx@example.com',
+            username='edx',
+            preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
+        )
+
+        def _mock_services_reverification_none(_, service_name):
+            """
+            Mock out support for two xBlock services
+            """
+            if service_name == 'credit':
+                return Mock(
+                    get_credit_state=Mock(
+                        return_value={
+                            'enrollment_mode': 'verified'
+                        }
+                    )
+                )
+            elif service_name == 'reverification':
+                return Mock(
+                    get_course_verification_status=Mock(return_value=None)
+                )
+
+        self.lti_consumer.xblock.runtime.service = _mock_services_reverification_none
+
+        print self.lti_consumer.get_signed_lti_parameters()
+
+        self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
+
+    @patch(
+        'lti_consumer.lti.get_oauth_request_signature',
+        Mock(return_value=(
+            'OAuth oauth_nonce="fake_nonce", '
+            'oauth_timestamp="fake_timestamp", oauth_version="fake_version", oauth_signature_method="fake_method", '
+            'oauth_consumer_key="fake_consumer_key", oauth_signature="fake_signature"'
+        ))
+    )
+    @patch(
+        'lti_consumer.lti_consumer.LtiConsumerXBlock.prefixed_custom_parameters',
+        PropertyMock(return_value={u'custom_param_1': 'custom1', u'custom_param_2': 'custom2'})
+    )
+    @patch(
+        'lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret',
+        PropertyMock(return_value=('t', 's'))
+    )
+    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    def test_get_signed_lti_parameters_missing_services(self):
+        """
+        Test `get_signed_lti_parameters` returns the correct dict when the desired
+        xBlock services (credit and reverification) are not available
+        """
+        self.lti_consumer.xblock.due = timezone.now()
+        self.lti_consumer.xblock.graceperiod = timedelta(days=1)
+
+        expected_lti_parameters = self._get_base_expected_lti_parameters()
+        self.lti_consumer.xblock.has_score = True
+        self.lti_consumer.xblock.ask_to_send_username = True
+        self.lti_consumer.xblock.ask_to_send_email = True
+        self.lti_consumer.xblock.transmit_course_mode_and_status = True
+        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
+            email='edx@example.com',
+            username='edx',
+            preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
+        )
+
+        def _mock_no_services(_, service_name):
+            """
+            Mock out if we don't have desired services registered
+            """
+            return None
+
+        self.lti_consumer.xblock.runtime.service = _mock_no_services
+
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
     def test_get_result(self):
