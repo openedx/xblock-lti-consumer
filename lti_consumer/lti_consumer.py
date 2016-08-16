@@ -441,7 +441,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     launch_pane_html = String(
         display_name=_("Launch Pane HTML Editor"),
         help=_(
-            "Enter HTML for the launch information, including the launch button, that appears to users."
+            "Enter HTML for the launch information, including the launch button, that appears to users. In order to make the launch button functional, be sure to add a class='btn-lti-modal' or class='btn-lti-new-window' to the button element."
         ),
         scope=Scope.settings,
         # The defailt is set to an empty string.
