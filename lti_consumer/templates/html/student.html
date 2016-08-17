@@ -108,7 +108,7 @@
     <h4 class="problem-feedback-label">${_('Feedback on your work from the grader:')}</h4>
     <div class="problem-feedback">
         ## sanitized with bleach in view
-        ${comment}
+        ${comment | n, decode.utf8}
     </div>
 % endif
 
