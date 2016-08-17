@@ -178,7 +178,7 @@ class LtiConsumer(object):
                 verification_service = self.xblock.runtime.service(self.xblock, 'reverification')
                 if verification_service and hasattr(verification_service, 'get_course_verification_status'):
                     verification_status = verification_service.get_course_verification_status(
-                        real_user_object,
+                        user_id,
                         self.xblock.course_id
                     )
 
