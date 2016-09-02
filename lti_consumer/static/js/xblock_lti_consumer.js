@@ -1,4 +1,7 @@
 function LtiConsumerXBlock(runtime, element) {
+
+    var $element = $(element);
+
     $(function ($) {
         // Adapted from leanModal v1.1 by Ray Stone - http://finelysliced.com.au
         // Dual licensed under the MIT and GPL
@@ -7,7 +10,7 @@ function LtiConsumerXBlock(runtime, element) {
         $.fn.extend({
             iframeModal: function (options) {
                 var $trigger = $(this);
-                var modal_id = $trigger.data("target");
+                var modal_id = "#" + $element.find(".lti-modal").attr("id");
                 var defaults = {top: 100, overlay: 0.5, closeButton: null};
                 var overlay_id = (modal_id + '_lean-overlay').replace('#', '');
                 var overlay = $("<div id='" + overlay_id + "' class='lean-overlay'></div>");
@@ -71,7 +74,6 @@ function LtiConsumerXBlock(runtime, element) {
             }
         });
 
-        var $element = $(element);
         var $ltiContainer = $element.find('.lti-consumer-container');
         var askToSendUsername = $ltiContainer.data('ask-to-send-username') == 'True';
         var askToSendEmail = $ltiContainer.data('ask-to-send-email') == 'True';

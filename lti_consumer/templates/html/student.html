@@ -1,17 +1,27 @@
-<h2 class="problem-header">
-    ## Translators:  "External resource" means that this learning module is hosted on a platform external to the edX LMS
-    ${display_name} (External resource)
-</h2>
+<%page expression_filter="h"/>
 
-% if has_score and weight:
-    <div class="problem-progress">
-        % if module_score is not None:
-            (${"{points} / {total_points} points".format(points=module_score, total_points=weight)})
-        % else:
-            (${"{total_points} points possible".format(total_points=weight)})
-        % endif
-    </div>
+##
+## NOTE: the _() method is being defined via the template context
+## and this is piped through to the i18n xBlock service
+##
+
+% if display_header:
+    <h2 class="problem-header">
+        ## Translators:  "External resource" means that this learning module is hosted on a platform external to the edX LMS
+        ${display_name} ${_("(External resource)")}
+    </h2>
+
+    % if has_score and weight:
+        <div class="problem-progress">
+            % if module_score is not None:
+                (${"{points} / {total_points} points".format(points=module_score, total_points=weight)})
+            % else:
+                (${_("{total_points} points possible").format(total_points=weight)})
+            % endif
+        </div>
+    % endif
 % endif
+
 
 <div
     id="${element_id}"
@@ -22,28 +32,41 @@
 
 % if launch_url and not hide_launch:
     % if launch_target in ['modal', 'new_window']:
-        <section class="wrapper-lti-link">
-            % if description:
-                <div class="lti-description">${description}</div>
-            % endif
-            <p class="lti-link external">
-                % if launch_target == 'modal':
-                    <button
-                        class="btn btn-pl-primary btn-base btn-lti-modal"
-                        data-target="#${element_id + '-lti-modal'}"
-                    >
-                        ${button_text or 'View resource in a modal window'} <i class="icon fa fa-external-link"></i>
-                    </button>
-                % else:
-                    <button
-                        class="btn btn-pl-primary btn-base btn-lti-new-window"
-                        data-target="${form_url}"
-                    >
-                        ${button_text or 'View resource in a new window'} <i class="icon fa fa-external-link"></i>
-                    </button>
+        <section
+            class="wrapper-lti-link"
+            aria-label="${_('This section of the courseware is delivered by a 3rd party. As such, we cannot make any guarantees that this external resource supports the same level of accessibility.')}"
+        >
+            % if launch_pane_html:
+                ## it is intended that authors can use HTML in the launch_pane_html parameter
+                ## so we allow this to go through unescaped
+                ${launch_pane_html | n, decode.utf8}
+            % else:
+                % if description:
+                    ## I believe historically, we have some courses which pipe through some
+                    ## HTML in the description field, so let's preserve existing behavior
+                    <div class="lti-description">${description | n, decode.utf8}</div>
+                % endif
+                <p class="lti-link external">
+                    % if launch_target == 'modal':
+                        <button
+                            class="btn btn-pl-primary btn-base btn-lti-modal"
+                        >
+                            ${button_text or _('View resource in a modal window')} <i class="icon fa fa-external-link"></i>
+                        </button>
+                    % else:
+                        <button
+                            class="btn btn-pl-primary btn-base btn-lti-new-window"
+                            data-target="${form_url}"
+                        >
+                            ${button_text or _('View resource in a new window')} <i class="icon fa fa-external-link"></i>
+                        </button>
+                    % endif
                 % endif
             </p>
         </section>
+        <div class='lti-launcher-external-notice'>
+            ${_('This button opens an external resource.')}
+        </div>
     % endif
     % if launch_target == 'modal':
         <section
@@ -56,7 +79,7 @@
             <div class="inner-wrapper" role="dialog">
                 <button class="close-modal">
                     <i class="icon fa fa-remove"></i>
-                    <span class="sr">Close</span>
+                    <span class="sr">${_("Close")}</span>
                 </button>
                 ## The result of the LTI launch form submit will be rendered here.
                 ## initial_launch_url is set to an empty string here because
@@ -67,22 +90,25 @@
         </section>
     % endif
     % if launch_target == 'iframe':
-        <div style="height:${inline_height}px;">
+        <div
+            style="height:${inline_height}px;"
+            aria-label="${_('This section of the courseware is delivered by a 3rd party. As such, we cannot make any guarantees that this external resource supports the same level of accessibility.')}"
+        >
             ## The result of the LTI launch form submit will be rendered here.
             <%include file="templates/html/lti_iframe.html" args="initial_launch_url=form_url"/>
         </div>
     % endif
 % elif not hide_launch:
     <h3 class="error_message">
-        Please provide launch_url. Click "Edit", and fill in the required fields.
+        ${_('Please provide launch_url. Click "Edit", and fill in the required fields.')}
     </h3>
 % endif
 
 % if has_score and comment:
-    <h4 class="problem-feedback-label">Feedback on your work from the grader:</h4>
+    <h4 class="problem-feedback-label">${_('Feedback on your work from the grader:')}</h4>
     <div class="problem-feedback">
         ## sanitized with bleach in view
-        ${comment}
+        ${comment | n, decode.utf8}
     </div>
 % endif
 

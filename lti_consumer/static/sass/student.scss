@@ -16,7 +16,6 @@
 
         .wrapper-lti-link {
             font-size: 14px;
-            background-color: #f6f6f6;
             padding: 20px;
 
             .lti-link {
@@ -88,6 +87,14 @@
         div.problem-feedback {
             margin-top: 5px;
             margin-bottom: 5px;
+        }
+
+        div.lti-launcher-external-notice {
+            width: 100%;
+            text-align: right;
+            font-size: 0.8em;
+            font-weight: 400;
+            color: #9A9A9A;
         }
     }
 }

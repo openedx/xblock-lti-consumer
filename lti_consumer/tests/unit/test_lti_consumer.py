@@ -20,6 +20,10 @@ HTML_ERROR_MESSAGE = '<h3 class="error_message">'
 HTML_LAUNCH_MODAL_BUTTON = 'btn-lti-modal'
 HTML_LAUNCH_NEW_WINDOW_BUTTON = 'btn-lti-new-window'
 HTML_IFRAME = '<iframe'
+HTML_CUSTOM_LAUNCH_PANE_HTML = (
+    '<button>Launch me</button><span>This is custom html</span>'
+)
+HTML_HEADER = '<h2 class="problem-header">'
 
 
 class TestLtiConsumerXBlock(unittest.TestCase):
@@ -275,6 +279,26 @@ class TestStudentView(TestLtiConsumerXBlock):
 
         self.assertIn(HTML_PROBLEM_PROGRESS, fragment.content)
 
+    def test_header(self):
+        """
+        Check for the header in the output
+        """
+
+        self.xblock.display_header = True
+        fragment = self.xblock.student_view({})
+
+        self.assertIn(HTML_HEADER, fragment.content)
+
+    def test_hidden_header(self):
+        """
+        Test when we explicitly disable the header from displaying
+        """
+
+        self.xblock.display_header = False
+        fragment = self.xblock.student_view({})
+
+        self.assertNotIn(HTML_HEADER, fragment.content)
+
     def test_launch_target_iframe(self):
         """
         Test when `launch_target` is iframe
@@ -294,6 +318,19 @@ class TestStudentView(TestLtiConsumerXBlock):
         fragment = self.xblock.student_view({})
 
         self.assertIn(HTML_LAUNCH_MODAL_BUTTON, fragment.content)
+        self.assertNotIn(HTML_LAUNCH_NEW_WINDOW_BUTTON, fragment.content)
+        self.assertIn(HTML_IFRAME, fragment.content)
+
+    def test_launch_target_modal_custom_html(self):
+        """
+        Test when we have customer HTML in the launch pane
+        """
+        self.xblock.launch_target = 'modal'
+        self.xblock.launch_pane_html = HTML_CUSTOM_LAUNCH_PANE_HTML
+        fragment = self.xblock.student_view({})
+
+        self.assertIn(HTML_CUSTOM_LAUNCH_PANE_HTML, fragment.content)
+        self.assertNotIn(HTML_LAUNCH_MODAL_BUTTON, fragment.content)
         self.assertNotIn(HTML_LAUNCH_NEW_WINDOW_BUTTON, fragment.content)
         self.assertIn(HTML_IFRAME, fragment.content)
 

@@ -164,6 +164,8 @@ class LaunchTarget(object):
 
 
 @XBlock.needs('i18n')
+@XBlock.wants('credit')
+@XBlock.wants('reverification')
 class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
     This XBlock provides an LTI consumer interface for integrating
@@ -323,9 +325,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     button_text = String(
         display_name=_("Button Text"),
         help=_(
-            "Enter the text on the button used to launch the third party application. "
-            "This setting is only used when Hide External Tool is set to False and "
-            "LTI Launch Target is set to Modal or New Window."
+            "Enter the text on the button used to launch the third party application. Applies only if Hide "
+            "External Tool is set to False, LTI Launch Target is set to Modal or New Window, and custom "
+            "launch pane HTML does not include a launch button."
         ),
         default="",
         scope=Scope.settings
@@ -420,12 +422,43 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default=False,
         scope=Scope.settings
     )
+    transmit_course_mode_and_status = Boolean(
+        display_name=_("Request user's enrollment data"),
+        help=_(
+            "Select True to request enrollment track and identity verification status information for users."
+        ),
+        default=False,
+        scope=Scope.settings
+    )
+    display_header = Boolean(
+        display_name=_("Show Display Name"),
+        help=_(
+            "Select True to show both the learner's grade and the Display Name for this component in the LMS."
+        ),
+        default=True,
+        scope=Scope.settings
+    )
+    launch_pane_html = String(
+        display_name=_("Launch Pane HTML Editor"),
+        help=_(
+            "Enter HTML for the launch information, including the launch button, that appears to users. In order "
+            "to make the launch button functional, be sure to add a class='btn-lti-modal' or "
+            "class='btn-lti-new-window' to the button element."
+        ),
+        scope=Scope.settings,
+        # The defailt is set to an empty string.
+        # If this defaults to None, then the word "None" appears in the HTML editor, which may be confusing
+        # to end-users
+        default="",
+        multiline_editor='html'
+    )
 
     # StudioEditableXBlockMixin configuration of fields editable in Studio
     editable_fields = (
-        'display_name', 'description', 'lti_id', 'launch_url', 'custom_parameters', 'launch_target', 'button_text',
-        'inline_height', 'modal_height', 'modal_width', 'has_score', 'weight', 'hide_launch', 'accept_grades_past_due',
-        'ask_to_send_username', 'ask_to_send_email'
+        'display_name', 'display_header', 'description', 'lti_id', 'launch_url', 'custom_parameters', 'launch_target',
+        'launch_pane_html', 'button_text', 'inline_height', 'modal_height', 'modal_width', 'has_score', 'weight',
+        'hide_launch', 'accept_grades_past_due', 'ask_to_send_username', 'ask_to_send_email',
+        'transmit_course_mode_and_status',
     )
 
     def validate_field_data(self, validation, data):
@@ -624,6 +657,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment = Fragment()
         loader = ResourceLoader(__name__)
         context.update(self._get_context_for_template())
+        i18n_service = self.runtime.service(self, "i18n")
+
+        # add translation services to the student.html Mako template
+        context.update({
+            '_': lambda text: i18n_service.ugettext(text) if i18n_service else text
+        })
+
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
@@ -845,6 +885,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'modal_horizontal_offset': self._get_modal_position_offset(self.modal_width),
             'modal_width': self.modal_width,
             'accept_grades_past_due': self.accept_grades_past_due,
+            'display_header': self.display_header,
+            'launch_pane_html': self.launch_pane_html,
         }
 
     def _get_modal_position_offset(self, viewport_percentage):
