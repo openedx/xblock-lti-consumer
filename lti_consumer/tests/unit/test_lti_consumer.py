@@ -185,6 +185,17 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'outcome_service_handler', thirdparty=True)
         self.assertEqual(url, handler_url)
 
+    def test_result_service_url(self):
+        """
+        Test `result_service_url` calls `runtime.handler_url` with thirdparty kwarg
+        """
+        handler_url = 'http://localhost:8005/result_service_handler'
+        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        url = self.xblock.result_service_url
+
+        self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'result_service_handler', thirdparty=True)
+        self.assertEqual(url, handler_url)
+
     def test_prefixed_custom_parameters(self):
         """
         Test `prefixed_custom_parameters` appropriately prefixes the configured custom params
@@ -527,6 +538,39 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
         assert mock_delete_result.called
         self.assertEqual(response.status_code, 200)
+
+    def test_get_outcome_service_url_with_default_parameter(self):
+        """
+        Test `get_outcome_service_url` with default parameter
+        """
+        handler_url = 'http://localhost:8005/outcome_service_handler'
+        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        url = self.xblock.get_outcome_service_url()
+
+        self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'outcome_service_handler', thirdparty=True)
+        self.assertEqual(url, handler_url)
+
+    def test_get_outcome_service_url_with_service_name_grade_handler(self):
+        """
+        Test `get_outcome_service_url` calls service name grade_handler
+        """
+        handler_url = 'http://localhost:8005/outcome_service_handler'
+        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        url = self.xblock.get_outcome_service_url('grade_handler')
+
+        self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'outcome_service_handler', thirdparty=True)
+        self.assertEqual(url, handler_url)
+
+    def test_get_outcome_service_url_with_service_name_lti_2_0_result_rest_handler(self):
+        """
+        Test `get_outcome_service_url` calls with service name lti_2_0_result_rest_handler
+        """
+        handler_url = 'http://localhost:8005/result_service_handler'
+        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        url = self.xblock.get_outcome_service_url('lti_2_0_result_rest_handler')
+
+        self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'result_service_handler', thirdparty=True)
+        self.assertEqual(url, handler_url)
 
 
 class TestMaxScore(TestLtiConsumerXBlock):
