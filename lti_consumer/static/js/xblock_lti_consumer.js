@@ -46,7 +46,10 @@ function LtiConsumerXBlock(runtime, element) {
                         $(o.closeButton).on('keydown', function (e) {
                            if (e.which === 9) {
                                e.preventDefault();
-                               $(modal_id).find('iframe')[0].contentWindow.focus();
+                               // This is a workaround due to Firefox triggering focus calls oddly.
+                               setTimeout(function () {
+                                   $modal.find('iframe')[0].contentWindow.focus();
+                               }, 1);
                            }
                         });
 
