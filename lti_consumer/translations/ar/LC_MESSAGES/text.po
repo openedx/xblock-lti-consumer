@@ -1,0 +1,227 @@
+# 
+# Translators:
+# shefaa abu jabel <shefaa.aj@gmail.com>, 2016
+msgid ""
+msgstr ""
+"Project-Id-Version: XBlocks\n"
+"POT-Creation-Date: 2016-03-18 15:09+0500\n"
+"PO-Revision-Date: 2016-08-25 05:47+0000\n"
+"Last-Translator: shefaa abu jabel <shefaa.aj@gmail.com>\n"
+"Language-Team: Arabic (http://www.transifex.com/open-edx/xblocks/language/ar/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ar\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+"X-Generator: Poedit 1.8.7\n"
+"X-Poedit-Basepath: ../../..\n"
+"X-Poedit-SearchPath-0: lti_consumer.py\n"
+
+#: lti_consumer.py
+msgid "No valid user id found in endpoint URL"
+msgstr "لم يتم العثور على هوية صالحة للمستخدم في URL نقطة النهاية"
+
+#: lti_consumer.py
+msgid "Display Name"
+msgstr "عرض الاسم"
+
+#: lti_consumer.py
+msgid ""
+"Enter the name that students see for this component. Analytics reports may "
+"also use the display name to identify this component."
+msgstr "أدخل الاسم الذي يراه الطلاب لهذا المكون. يمكن أن تستخدم تقارير التحليلات أيضاً الاسم المعروض من أجل تعريف هذا المكون."
+
+#: lti_consumer.py
+msgid "LTI Consumer"
+msgstr "مستخدم  LTI"
+
+#: lti_consumer.py:256
+msgid "LTI Application Information"
+msgstr "معلومات تطبيق LTI"
+
+#: lti_consumer.py
+msgid ""
+"Enter a description of the third party application. If requesting username "
+"and/or email, use this text box to inform users why their username and/or "
+"email will be forwarded to a third party application."
+msgstr "قم بإدخال وصف لتطبيق الطرف الثالث. إذا تم طلب اسم مستخدم و/أو بريد إلكتروني، استخدم مربع النص هذا لإبلاغ المستخدمين عن سبب تحويل اسم المستخدم و/أو البريد الإلكتروني الخاص بهم إلى تطبيق طرف ثالث."
+
+#: lti_consumer.py
+msgid "LTI ID"
+msgstr "هوية LTI"
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Enter the LTI ID for the external LTI provider. This value must be the same "
+"LTI ID that you entered in the LTI Passports setting on the Advanced "
+"Settings page.<br />See the {docs_anchor_open}edX LTI "
+"documentation{anchor_close} for more details on this setting."
+msgstr "أدخل هوية LTI لمورد LTI الخارجي. يجب أن تكون هذه القيمة هي نفس قيمة هوية LTI التي أدخلتها في إعدادات جوازات مرور LTI في صفحة الإعدادات المتقدمة.<br />اطلع على مستندات {docs_anchor_open} edX LTI{anchor_close} للمزيد من التفاصيل عن هذا الإعداد."
+
+#: lti_consumer.py
+msgid "LTI URL"
+msgstr "LTI URL"
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Enter the URL of the external tool that this component launches. This "
+"setting is only used when Hide External Tool is set to False.<br />See the "
+"{docs_anchor_open}edX LTI documentation{anchor_close} for more details on "
+"this setting."
+msgstr "أدخل URL الأداة الخارجية التي يقوم هذا المكون بتشغيلها. يتم استخدام هذا الإعداد فقط عند تحديد إخفاء الأداة الخارجية  على خيار خاطئ.<br />اطلع على مستندات {docs_anchor_open} edX LTI{anchor_close} للمزيد من التفاصيل عن هذا الإعداد."
+
+#: lti_consumer.py
+msgid "Custom Parameters"
+msgstr "العوامل المخصصة"
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Add the key/value pair for any custom parameters, such as the page your "
+"e-book should open to or the background color for this component. Ex. "
+"[\"page=1\", \"color=white\"]<br />See the {docs_anchor_open}edX LTI "
+"documentation{anchor_close} for more details on this setting."
+msgstr "أضف زوج المفتاح/القيمة لأي عوامل مخصصة، مثل الصفحة التي يجب أن يفتحها كتابك الإلكتروني أو لون خلفية هذا المكون. مثال. Ex. [\"page=1\", \"color=white\"]<br />اطلع على مستندات {docs_anchor_open} edX LTI{anchor_close} للمزيد من التفاصيل عن هذا الإعداد."
+
+#: lti_consumer.py
+msgid "LTI Launch Target"
+msgstr "هدف تشغيل LTI"
+
+#: lti_consumer.py
+msgid ""
+"Select Inline if you want the LTI content to open in an IFrame in the "
+"current page. Select Modal if you want the LTI content to open in a modal "
+"window in the current page. Select New Window if you want the LTI content to"
+" open in a new browser window. This setting is only used when Hide External "
+"Tool is set to False."
+msgstr "قم بتحديد خط داخلي إذا كنت تريد أن يتم فتح محتويات LTI في إطار IFrame في الصفحة الحالية. حدد  الشكل إذا كنت تريد أن يتم فتح محتويات LTI في نافذة موضعية في الصفحة الحالية. اختر نافذة جديدة إذا كنت تريد أن يتم فتح محتويات LTI في نافذة متصفح جديد. ‏‫سيتم استخدام هذا الإعداد فقط عندما يتم ضبط إخفاء الأداة الخارجية على خاطىء ."
+
+#: lti_consumer.py
+msgid "Button Text"
+msgstr "نص الزر"
+
+#: lti_consumer.py
+msgid ""
+"Enter the text on the button used to launch the third party application. "
+"This setting is only used when Hide External Tool is set to False and LTI "
+"Launch Target is set to Modal or New Window."
+msgstr "أدخل النص على الزر المستخدم لبدء تشغيل تطبيق الطرف الثالث. لا يتم استخدام هذا الإعداد إلا عند ضبط إخفاء الأداة الخارجية على خاطئ، وضبط هدف بدء تشغيل LTI على نموذج  أو نافذة جديدة ."
+
+#: lti_consumer.py
+msgid "Inline Height"
+msgstr "ارتفاع ضمن الخطوط"
+
+#: lti_consumer.py
+msgid ""
+"Enter the desired pixel height of the iframe which will contain the LTI "
+"tool. This setting is only used when Hide External Tool is set to False and "
+"LTI Launch Target is set to Inline."
+msgstr "أدخل ارتفاع البيكسل المرغوب لإطار iframe الذي سوف يحتوي على أداة LTI. لا يتم استخدام هذا الإعداد إلا عند ضبط إخفاء الأداة الخارجية على خاطئ، وضبط هدف بدء تشغيل LTI ضمن الخطوط."
+
+#: lti_consumer.py
+msgid "Modal Height"
+msgstr "ارتفاع شكلي"
+
+#: lti_consumer.py
+msgid ""
+"Enter the desired viewport percentage height of the modal overlay which will"
+" contain the LTI tool. This setting is only used when Hide External Tool is "
+"set to False and LTI Launch Target is set to Modal."
+msgstr "أدخل الارتفاع المرغوب لمنفذ العرض بالنسبة المئوية للتداخل الشكلي الذي سوف يحتوي على أداة LTI. لا يتم استخدام هذا الإعداد إلا عند ضبط إخفاء الأداة الخارجية على خاطئ، وضبط هدف بدء تشغيل LTI على نموذج."
+
+#: lti_consumer.py
+msgid "Modal Width"
+msgstr "العرض الشكلي"
+
+#: lti_consumer.py
+msgid ""
+"Enter the desired viewport percentage width of the modal overlay which will "
+"contain the LTI tool. This setting is only used when Hide External Tool is "
+"set to False and LTI Launch Target is set to Modal."
+msgstr "أدخل العرض المرغوب لمنفذ العرض بالنسبة المئوية للتداخل الشكلي الذي سوف يحتوي على أداة LTI. لا يتم استخدام هذا الإعداد إلا عند ضبط إخفاء الأداة الخارجية على خاطئ، وضبط هدف بدء تشغيل LTI على نموذج."
+
+#: lti_consumer.py
+msgid "Scored"
+msgstr "النتيجة"
+
+#: lti_consumer.py
+msgid ""
+"Select True if this component will receive a numerical score from the "
+"external LTI system."
+msgstr "اختر صحيح إذا كان هذا المكون سيحصل على نتيجة رقمية من نظام LTI خارجي."
+
+#: lti_consumer.py
+msgid ""
+"Enter the number of points possible for this component.  The default value "
+"is 1.0.  This setting is only used when Scored is set to True."
+msgstr "أدخل عدد النقاط المتاحة لهذا المكون.  القيمة الافتراضية هي 1.0.  ‏‫يتم استخدام هذا الإعداد فقط عند تحديد النتيجة المنشورة صحيح."
+
+#: lti_consumer.py
+msgid ""
+"The score kept in the xblock KVS -- duplicate of the published score in "
+"django DB"
+msgstr "النتيجة المحفوظة في xblock KVS -- هي نسخة عن النتيجة المنشورة في django DB"
+
+#: lti_consumer.py
+msgid "Comment as returned from grader, LTI2.0 spec"
+msgstr "الملاحظات التي تم إرجاعها من مانح العلامة، مواصفات LTI2.0"
+
+#: lti_consumer.py
+msgid "Hide External Tool"
+msgstr "إخفاء الأداء الخارجية"
+
+#: lti_consumer.py
+msgid ""
+"Select True if you want to use this component as a placeholder for syncing "
+"with an external grading  system rather than launch an external tool.  This "
+"setting hides the Launch button and any IFrames for this component."
+msgstr "اختر صحيح إذا كنت ترغب في استخدام هذا المكون كحافظ للمكان للمزامنة مع نظام خارجي لوضع العلامات بدلاً نت استخدام أداة خارجية.  يقوم هذا الإعداد بإخفاء زر بدء التشغيل وأي IFrames لهذا المكون."
+
+#: lti_consumer.py
+msgid "Accept grades past deadline"
+msgstr "قبول العلامات بعد انقضاء الموعد المحدد"
+
+#: lti_consumer.py
+msgid ""
+"Select True to allow third party systems to post grades past the deadline."
+msgstr "اختر صحيح  للسماح لأنظمة الطرف الثالث بوضع علامات بعد انقضاء الموعد المحدد."
+
+#: lti_consumer.py
+msgid "Request user's username"
+msgstr "اطلب اسم المستخدم الخاص بالمستخدم"
+
+#: lti_consumer.py
+msgid "Select True to request the user's username."
+msgstr "اختر ״ صحيح״  لطلب اسم مستخدم خاص بالمستخدم."
+
+#: lti_consumer.py
+msgid "Request user's email"
+msgstr "اطلب البريد الإلكتروني الخاص بالمستخدم"
+
+#: lti_consumer.py
+msgid "Select True to request the user's email address."
+msgstr "اختر صحيح لطلب عنوان البريد الإلكتروني الخاص بالمستخدم."
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Could not parse LTI passport: {lti_passport}. Should be \"id:key:secret\" "
+"string."
+msgstr "تعذر تحليل جواز مرورLTI : {lti_passport}. يجب أن يكون سلسلة \"id:key:secret\"."
+
+#: lti_consumer.py
+msgid "Could not get user id for current request"
+msgstr "تعذر الحصول على هوية مستخدم للطلب الحالي"
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Could not parse custom parameter: {custom_parameter}. Should be \"x=y\" "
+"string."
+msgstr "تعذر تحليل العامل المخصص: {custom_parameter}. يجب أن يكون سلسلة \"x=y\"."
+
+#: lti_consumer.py
+msgid "[LTI]: Real user not found against anon_id: {}"
+msgstr "[LTI]: لم يتم العثور على مستخدم حقيقي مقابل هوية غير معرفة: {}"

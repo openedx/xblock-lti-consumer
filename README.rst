@@ -76,6 +76,17 @@ This list is what is used to resolve dependencies when an upstream project is co
 this XBlock package. requirements.txt is used to install the same dependencies when running
 the tests for this package.
 
+Downloading translations from Transifex
+-------------------------------------
+
+If you want to download translations from Transifex install
+`transifex client <https://docs.transifex.com/client/installing-the-client/>`_ and run this command while
+inside project root directory
+
+.. code:: bash
+
+    $ tx pull -f --mode=reviewed -l en,ar,es_419,fr,he,hi,ko_KR,pt_BR,ru,zh_CN
+
 License
 -------
 
