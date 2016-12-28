@@ -1,0 +1,226 @@
+# 
+# Translators:
+msgid ""
+msgstr ""
+"Project-Id-Version: XBlocks\n"
+"POT-Creation-Date: 2016-03-18 15:09+0500\n"
+"PO-Revision-Date: 2016-06-08 14:38+0000\n"
+"Last-Translator: \n"
+"Language-Team: Russian (http://www.transifex.com/open-edx/xblocks/language/ru/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+"X-Generator: Poedit 1.8.7\n"
+"X-Poedit-Basepath: ../../..\n"
+"X-Poedit-SearchPath-0: lti_consumer.py\n"
+
+#: lti_consumer.py
+msgid "No valid user id found in endpoint URL"
+msgstr ""
+
+#: lti_consumer.py
+msgid "Display Name"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Enter the name that students see for this component. Analytics reports may "
+"also use the display name to identify this component."
+msgstr ""
+
+#: lti_consumer.py
+msgid "LTI Consumer"
+msgstr ""
+
+#: lti_consumer.py:256
+msgid "LTI Application Information"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Enter a description of the third party application. If requesting username "
+"and/or email, use this text box to inform users why their username and/or "
+"email will be forwarded to a third party application."
+msgstr ""
+
+#: lti_consumer.py
+msgid "LTI ID"
+msgstr ""
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Enter the LTI ID for the external LTI provider. This value must be the same "
+"LTI ID that you entered in the LTI Passports setting on the Advanced "
+"Settings page.<br />See the {docs_anchor_open}edX LTI "
+"documentation{anchor_close} for more details on this setting."
+msgstr ""
+
+#: lti_consumer.py
+msgid "LTI URL"
+msgstr ""
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Enter the URL of the external tool that this component launches. This "
+"setting is only used when Hide External Tool is set to False.<br />See the "
+"{docs_anchor_open}edX LTI documentation{anchor_close} for more details on "
+"this setting."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Custom Parameters"
+msgstr ""
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Add the key/value pair for any custom parameters, such as the page your "
+"e-book should open to or the background color for this component. Ex. "
+"[\"page=1\", \"color=white\"]<br />See the {docs_anchor_open}edX LTI "
+"documentation{anchor_close} for more details on this setting."
+msgstr ""
+
+#: lti_consumer.py
+msgid "LTI Launch Target"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Select Inline if you want the LTI content to open in an IFrame in the "
+"current page. Select Modal if you want the LTI content to open in a modal "
+"window in the current page. Select New Window if you want the LTI content to"
+" open in a new browser window. This setting is only used when Hide External "
+"Tool is set to False."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Button Text"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Enter the text on the button used to launch the third party application. "
+"This setting is only used when Hide External Tool is set to False and LTI "
+"Launch Target is set to Modal or New Window."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Inline Height"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Enter the desired pixel height of the iframe which will contain the LTI "
+"tool. This setting is only used when Hide External Tool is set to False and "
+"LTI Launch Target is set to Inline."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Modal Height"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Enter the desired viewport percentage height of the modal overlay which will"
+" contain the LTI tool. This setting is only used when Hide External Tool is "
+"set to False and LTI Launch Target is set to Modal."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Modal Width"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Enter the desired viewport percentage width of the modal overlay which will "
+"contain the LTI tool. This setting is only used when Hide External Tool is "
+"set to False and LTI Launch Target is set to Modal."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Scored"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Select True if this component will receive a numerical score from the "
+"external LTI system."
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Enter the number of points possible for this component.  The default value "
+"is 1.0.  This setting is only used when Scored is set to True."
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"The score kept in the xblock KVS -- duplicate of the published score in "
+"django DB"
+msgstr ""
+
+#: lti_consumer.py
+msgid "Comment as returned from grader, LTI2.0 spec"
+msgstr ""
+
+#: lti_consumer.py
+msgid "Hide External Tool"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Select True if you want to use this component as a placeholder for syncing "
+"with an external grading  system rather than launch an external tool.  This "
+"setting hides the Launch button and any IFrames for this component."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Accept grades past deadline"
+msgstr ""
+
+#: lti_consumer.py
+msgid ""
+"Select True to allow third party systems to post grades past the deadline."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Request user's username"
+msgstr ""
+
+#: lti_consumer.py
+msgid "Select True to request the user's username."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Request user's email"
+msgstr ""
+
+#: lti_consumer.py
+msgid "Select True to request the user's email address."
+msgstr ""
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Could not parse LTI passport: {lti_passport}. Should be \"id:key:secret\" "
+"string."
+msgstr ""
+
+#: lti_consumer.py
+msgid "Could not get user id for current request"
+msgstr ""
+
+#: lti_consumer.py
+#, python-brace-format
+msgid ""
+"Could not parse custom parameter: {custom_parameter}. Should be \"x=y\" "
+"string."
+msgstr ""
+
+#: lti_consumer.py
+msgid "[LTI]: Real user not found against anon_id: {}"
+msgstr ""

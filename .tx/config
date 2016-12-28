@@ -1,0 +1,8 @@
+[main]
+host = https://www.transifex.com
+
+[xblocks.lti-consumer]
+file_filter = lti_consumer/translations/<lang>/LC_MESSAGES/text.po
+source_file = lti_consumer/translations/en/LC_MESSAGES/text.po
+source_lang = en
+type = PO
