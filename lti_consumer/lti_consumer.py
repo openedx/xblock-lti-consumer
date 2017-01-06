@@ -563,6 +563,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return self.runtime.handler_url(self, "outcome_service_handler", thirdparty=True).rstrip('/?')
 
     @property
+    def result_service_url(self):
+        """
+        Return URL for results.
+
+        To test LTI on sandbox we must use http scheme.
+
+        While testing locally and on Jenkins, mock_lti_server use http.referer
+        to obtain scheme, so it is ok to have http(s) anyway.
+
+        The scheme logic is handled in lms/lib/xblock/runtime.py
+        """
+        return self.runtime.handler_url(self, "result_service_handler", thirdparty=True).rstrip('/?')
+
+    @property
     def prefixed_custom_parameters(self):
         """
         Apply prefix to configured custom LTI parameters
@@ -860,3 +874,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             float: The css position offset to apply to the modal window
         """
         return (100 - viewport_percentage) / 2
+
+    def get_outcome_service_url(self, service_name="grade_handler"):
+        """
+        This function is called by get_course_lti_endpoints when using LTI result service to
+        discover the LTI result endpoints.
+        """
+
+        # using string as mapped value instead of attributes to avoid unnecessary calls as both urls
+        # are @property.
+        mapping = {
+            'grade_handler': 'outcome_service_url',
+            'lti_2_0_result_rest_handler': 'result_service_url'
+        }
+        return getattr(self, mapping[service_name])
