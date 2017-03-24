@@ -164,6 +164,7 @@ class LaunchTarget(object):
 
 
 @XBlock.needs('i18n')
+@XBlock.wants('lti-configuration')
 class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
     This XBlock provides an LTI consumer interface for integrating
@@ -421,17 +422,41 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
 
-    # StudioEditableXBlockMixin configuration of fields editable in Studio
-    editable_fields = (
-        'display_name', 'description', 'lti_id', 'launch_url', 'custom_parameters', 'launch_target', 'button_text',
-        'inline_height', 'modal_height', 'modal_width', 'has_score', 'weight', 'hide_launch', 'accept_grades_past_due',
-        'ask_to_send_username', 'ask_to_send_email'
+    # Possible editable fields
+    editable_field_names = (
+        'display_name', 'description', 'lti_id', 'launch_url', 'custom_parameters',
+        'launch_target', 'button_text', 'inline_height', 'modal_height', 'modal_width',
+        'has_score', 'weight', 'hide_launch', 'accept_grades_past_due', 'ask_to_send_username',
+        'ask_to_send_email'
     )
 
     def validate_field_data(self, validation, data):
         if not isinstance(data.custom_parameters, list):
             _ = self.runtime.service(self, "i18n").ugettext
             validation.add(ValidationMessage(ValidationMessage.ERROR, unicode(_("Custom Parameters must be a list"))))
+
+    @property
+    def editable_fields(self):
+        """
+        Returns the fields which are editable.
+        """
+        editable_fields = self.editable_field_names
+        # update the editable fields if this XBlock is configured to not to allow the
+        # editing of 'ask_to_send_username' and 'ask_to_send_email'.
+        config_service = self.runtime.service(self, 'lti-configuration')
+        if config_service:
+            is_already_sharing_learner_info = self.ask_to_send_email or self.ask_to_send_username
+            if not config_service.configuration.lti_access_to_learners_editable(
+                    self.course_id,
+                    is_already_sharing_learner_info,
+            ):
+                editable_fields = tuple(
+                    field
+                    for field in self.editable_field_names
+                    if field not in ('ask_to_send_username', 'ask_to_send_email')
+                )
+
+        return editable_fields
 
     @property
     def descriptor(self):
