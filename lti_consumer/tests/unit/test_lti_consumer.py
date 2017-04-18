@@ -263,6 +263,64 @@ class TestProperties(TestLtiConsumerXBlock):
         self.assertTrue(mock_timezone_now.called)
 
 
+class TestEditableFields(TestLtiConsumerXBlock):
+    """
+    Unit tests for LtiConsumerXBlock.editable_fields
+    """
+    def get_mock_lti_configuration(self, editable):
+        """
+        Returns a mock object of lti-configuration service
+
+        Arguments:
+            editable (bool): This indicates whether the LTI fields (i.e. 'ask_to_send_username' and
+            'ask_to_send_email') are editable.
+        """
+        lti_configuration = Mock()
+        lti_configuration.configuration = Mock()
+        lti_configuration.configuration.lti_access_to_learners_editable = Mock(
+            return_value=editable
+        )
+        return lti_configuration
+
+    def are_fields_editable(self, fields):
+        """
+        Returns whether the fields passed in as an argument, are editable.
+
+        Arguments:
+            fields (list): list containing LTI Consumer XBlock's field names.
+        """
+        return all(field in self.xblock.editable_fields for field in fields)
+
+    def test_editable_fields_with_no_config(self):
+        """
+        Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
+        are editable when lti-configuration service is not provided.
+        """
+        self.xblock.runtime.service.return_value = None
+        # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
+        self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+
+    def test_editable_fields_when_editing_allowed(self):
+        """
+        Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
+        are editable when this XBlock is configured to allow it.
+        """
+        # this XBlock is configured to allow editing of LTI fields
+        self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=True)
+        # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
+        self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+
+    def test_editable_fields_when_editing_not_allowed(self):
+        """
+        Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
+        are not editable when this XBlock is configured to not to allow it.
+        """
+        # this XBlock is configured to not to allow editing of LTI fields
+        self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=False)
+        # Assert that 'ask_to_send_username' and 'ask_to_send_email' are not editable.
+        self.assertFalse(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+
+
 class TestStudentView(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock.student_view()
