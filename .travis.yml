@@ -10,4 +10,5 @@ script:
 branches:
     only:
       - master
+      - mrehan/convert-lti-to-django-app
 after_success: coveralls
