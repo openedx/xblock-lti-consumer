@@ -1,0 +1,4 @@
+# .coveragerc for xblock-lti-consumer
+[run]
+data_file = .coverage
+source = lti_consumer

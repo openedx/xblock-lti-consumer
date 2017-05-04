@@ -1,5 +1,6 @@
 -r requirements.txt
 
+django-nose==1.4.4
 astroid==1.3.8  # Pinning to avoid backwards incompatibility issue with pylint/pylint-django
 coveralls
 pep8
