@@ -141,9 +141,15 @@ class LtiConsumer(object):
                 u'lis_outcome_service_url': self.xblock.outcome_service_url
             })
 
-        self.xblock.user_email = ""
-        self.xblock.user_username = ""
-        self.xblock.user_language = ""
+        properties = [
+            'user_email',
+            'user_username',
+            'user_full_name',
+            'user_language',
+            'real_user_id'
+        ]
+        for prop in properties:
+            setattr(self.xblock, prop, "")
 
         # Username, email, and language can't be sent in studio mode, because the user object is not defined.
         # To test functionality test in LMS
@@ -152,17 +158,37 @@ class LtiConsumer(object):
             real_user_object = self.xblock.runtime.get_real_user(self.xblock.runtime.anonymous_student_id)
             self.xblock.user_email = getattr(real_user_object, "email", "")
             self.xblock.user_username = getattr(real_user_object, "username", "")
-            user_preferences = getattr(real_user_object, "preferences", None)
+            profile = getattr(real_user_object, "profile", None)
+            if profile is not None:
+                full_name = profile.filter(key='name')
+                if len(full_name) == 1:
+                    self.xblock.user_full_name = full_name[0].value
 
+            user_preferences = getattr(real_user_object, "preferences", None)
             if user_preferences is not None:
                 language_preference = user_preferences.filter(key='pref-lang')
                 if len(language_preference) == 1:
                     self.xblock.user_language = language_preference[0].value
 
+            self.xblock.real_user_id = getattr(real_user_object, "id", "")
+
+        if self.xblock.real_user_id:
+            lti_parameters.update({
+                u'custom_user_id': unicode(self.xblock.real_user_id)
+            })
         if self.xblock.ask_to_send_username and self.xblock.user_username:
             lti_parameters["lis_person_sourcedid"] = self.xblock.user_username
         if self.xblock.ask_to_send_email and self.xblock.user_email:
             lti_parameters["lis_person_contact_email_primary"] = self.xblock.user_email
+        if self.xblock.ask_to_send_first_name and self.xblock.user_full_name:
+            lti_parameters["lis_person_name_given"] = self.xblock.user_full_name.split(' ', 1)[0]
+        if self.xblock.ask_to_send_last_name and self.xblock.user_full_name:
+            if len(self.xblock.user_full_name.split(' ', 1)) > 1:
+                lti_parameters["lis_person_name_family"] = self.xblock.user_full_name.split(' ', 1)[1]
+            else:
+                lti_parameters["lis_person_name_family"] = ''
+        if self.xblock.ask_to_send_full_name and self.xblock.user_full_name:
+            lti_parameters["lis_person_name_full"] = self.xblock.user_full_name
         if self.xblock.user_language:
             lti_parameters["launch_presentation_locale"] = self.xblock.user_language
 

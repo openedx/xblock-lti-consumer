@@ -780,9 +780,10 @@ class TestGetContext(TestLtiConsumerXBlock):
         """
         context_keys = (
             'launch_url', 'element_id', 'element_class', 'launch_target', 'display_name', 'form_url', 'hide_launch',
-            'has_score', 'weight', 'module_score', 'comment', 'description', 'ask_to_send_username',
-            'ask_to_send_email', 'button_text', 'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
-            'accept_grades_past_due'
+            'has_score', 'weight', 'module_score', 'comment', 'description', 'ask_permission_to_send',
+            'ask_to_send_username', 'ask_to_send_email', 'ask_to_send_first_name', 'ask_to_send_last_name',
+            'ask_to_send_full_name', 'button_text', 'modal_vertical_offset', 'modal_horizontal_offset',
+            'modal_width', 'accept_grades_past_due'
         )
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
 

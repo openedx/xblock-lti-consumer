@@ -166,8 +166,12 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
             u'custom_component_display_name': self.lti_consumer.xblock.display_name,
             u'custom_component_due_date': self.lti_consumer.xblock.due.strftime('%Y-%m-%d %H:%M:%S'),
             u'custom_component_graceperiod': str(self.lti_consumer.xblock.graceperiod.total_seconds()),
+            u'custom_user_id': unicode(5),
             'lis_person_sourcedid': 'edx',
             'lis_person_contact_email_primary': 'edx@example.com',
+            'lis_person_name_given': 'Jane',
+            'lis_person_name_family': 'Doe',
+            'lis_person_name_full': 'Jane Doe',
             'launch_presentation_locale': 'en',
             u'custom_param_1': 'custom1',
             u'custom_param_2': 'custom2',
@@ -181,18 +185,44 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.lti_consumer.xblock.has_score = True
         self.lti_consumer.xblock.ask_to_send_username = True
         self.lti_consumer.xblock.ask_to_send_email = True
+        self.lti_consumer.xblock.ask_to_send_first_name = True
+        self.lti_consumer.xblock.ask_to_send_last_name = True
+        self.lti_consumer.xblock.ask_to_send_full_name = True
         self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
+            id=5,
             email='edx@example.com',
             username='edx',
+            profile=Mock(filter=Mock(return_value=[Mock(value='Jane Doe')])),
             preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
         )
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
-        # Test that `lis_person_sourcedid`, `lis_person_contact_email_primary`, and `launch_presentation_locale`
-        # are not included in the returned LTI parameters when a user cannot be found
+        # Test that `lis_person_name_family` returns empty string when `lis_person_name_full`
+        # contains only one name
+        expected_lti_parameters.update({
+            "lis_person_name_family": "",
+            "lis_person_name_full": "Jane"
+        })
+        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
+            id=5,
+            email='edx@example.com',
+            username='edx',
+            profile=Mock(filter=Mock(return_value=[Mock(value='Jane')])),
+            preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
+        )
+        self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
+
+        # Test that `custom_user_id`, `lis_person_sourcedid`, `lis_person_contact_email_primary`,
+        # `lis_person_name_given`, `lis_person_name_family`, `lis_person_name_full`
+        # and `launch_presentation_locale` are not included in the returned
+        # LTI parameters when a user cannot be found
         self.lti_consumer.xblock.runtime.get_real_user.return_value = {}
+        del expected_lti_parameters['custom_user_id']
         del expected_lti_parameters['lis_person_sourcedid']
         del expected_lti_parameters['lis_person_contact_email_primary']
+        del expected_lti_parameters['lis_person_name_given']
+        del expected_lti_parameters['lis_person_name_family']
+        del expected_lti_parameters['lis_person_name_full']
         del expected_lti_parameters['launch_presentation_locale']
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 

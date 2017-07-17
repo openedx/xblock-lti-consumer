@@ -76,6 +76,7 @@ function LtiConsumerXBlock(runtime, element) {
 
         var $element = $(element);
         var $ltiContainer = $element.find('.lti-consumer-container');
+        var askPermissionToSend = $ltiContainer.data('ask-permission-to-send') == 'True';
         var askToSendUsername = $ltiContainer.data('ask-to-send-username') == 'True';
         var askToSendEmail = $ltiContainer.data('ask-to-send-email') == 'True';
 
@@ -88,12 +89,14 @@ function LtiConsumerXBlock(runtime, element) {
 
             // If this instance is configured to require username and/or email, ask user if it is okay to send them
             // Do not launch if it is not okay
-            if(askToSendUsername && askToSendEmail) {
-                launch = confirm(gettext("Click OK to have your username and e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
-            } else if (askToSendUsername) {
-                launch = confirm(gettext("Click OK to have your username sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
-            } else if (askToSendEmail) {
-                launch = confirm(gettext("Click OK to have your e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
+            if(askPermissionToSend){
+                if(askToSendUsername && askToSendEmail) {
+                    launch = confirm(gettext("Click OK to have your username and e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
+                } else if (askToSendUsername) {
+                    launch = confirm(gettext("Click OK to have your username sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
+                } else if (askToSendEmail) {
+                    launch = confirm(gettext("Click OK to have your e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
+                }
             }
 
             if (launch) {

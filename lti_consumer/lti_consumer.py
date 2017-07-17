@@ -407,6 +407,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     # Users will be presented with a message indicating that their e-mail/username would be sent to a third
     # party application. When "Open in New Page" is not selected, the tool automatically appears without any
     # user action.
+    ask_permission_to_send = Boolean(
+        display_name=_("Enable permission pop-up"),
+        # Translators: This is used to request the user's permission to share information with a third party service.
+        help=_("Select True to show pop-up asking user to allow information sharing when launched in new window."),
+        default=True,
+        scope=Scope.settings
+    )
     ask_to_send_username = Boolean(
         display_name=_("Request user's username"),
         # Translators: This is used to request the user's username for a third party service.
@@ -421,13 +428,35 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default=False,
         scope=Scope.settings
     )
+    ask_to_send_first_name = Boolean(
+        display_name=_("Request user's first name"),
+        # Translators: This is used to request the user's first name for a third party service.
+        help=_("Select True to request the user's first name."),
+        default=False,
+        scope=Scope.settings
+    )
+    ask_to_send_last_name = Boolean(
+        display_name=_("Request user's last name"),
+        # Translators: This is used to request the user's last name for a third party service.
+        help=_("Select True to request the user's last name."),
+        default=False,
+        scope=Scope.settings
+    )
+    ask_to_send_full_name = Boolean(
+        display_name=_("Request user's full name"),
+        # Translators: This is used to request the user's full name for a third party service.
+        help=_("Select True to request the user's full name."),
+        default=False,
+        scope=Scope.settings
+    )
 
     # Possible editable fields
     editable_field_names = (
         'display_name', 'description', 'lti_id', 'launch_url', 'custom_parameters',
         'launch_target', 'button_text', 'inline_height', 'modal_height', 'modal_width',
-        'has_score', 'weight', 'hide_launch', 'accept_grades_past_due', 'ask_to_send_username',
-        'ask_to_send_email'
+        'has_score', 'weight', 'hide_launch', 'accept_grades_past_due', 'ask_permission_to_send',
+        'ask_to_send_username', 'ask_to_send_email', 'ask_to_send_first_name', 'ask_to_send_last_name',
+        'ask_to_send_full_name'
     )
 
     def validate_field_data(self, validation, data):
@@ -877,8 +906,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'module_score': self.module_score,
             'comment': sanitized_comment,
             'description': self.description,
+            'ask_permission_to_send': self.ask_permission_to_send,
             'ask_to_send_username': self.ask_to_send_username,
             'ask_to_send_email': self.ask_to_send_email,
+            'ask_to_send_first_name': self.ask_to_send_first_name,
+            'ask_to_send_last_name': self.ask_to_send_last_name,
+            'ask_to_send_full_name': self.ask_to_send_full_name,
             'button_text': self.button_text,
             'inline_height': self.inline_height,
             'modal_vertical_offset': self._get_modal_position_offset(self.modal_height),
