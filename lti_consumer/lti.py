@@ -206,7 +206,7 @@ class LtiConsumer(object):
         Returns:
             webob.response:  response to this request, in JSON format with status 200 if success
         """
-        self.xblock.runtime.rebind_noauth_module_to_user(self, user)
+        self.xblock.runtime.rebind_noauth_module_to_user(self.xblock, user)
 
         response = {
             "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
