@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Unit tests for lti_consumer.outcomes module
 """
@@ -287,6 +288,45 @@ class TestParseGradeXmlBody(unittest.TestCase):
         """
         with self.assertRaises(LtiError):
             __, __, __, __ = parse_grade_xml_body('<xml>')
+
+    def test_string_with_unicode_chars(self):
+        """
+        Test that system is tolerant to data which has unicode chars in
+        strings which are not specified as unicode.
+        """
+        request_body_template = textwrap.dedent("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <imsx_POXEnvelopeRequest xmlns="http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0">
+              <imsx_POXHeader>
+                <imsx_POXRequestHeaderInfo>
+                  <imsx_version>V1.0</imsx_version>
+                  <imsx_messageIdentifier>ţéšţ_message_id</imsx_messageIdentifier>
+                </imsx_POXRequestHeaderInfo>
+              </imsx_POXHeader>
+              <imsx_POXBody>
+                <ţéšţ_action>
+                  <resultRecord>
+                    <sourcedGUID>
+                      <sourcedId>ţéšţ_sourced_id</sourcedId>
+                    </sourcedGUID>
+                    <result>
+                      <resultScore>
+                        <language>en-us</language>
+                        <textString>1.0</textString>
+                      </resultScore>
+                    </result>
+                  </resultRecord>
+                </ţéšţ_action>
+              </imsx_POXBody>
+            </imsx_POXEnvelopeRequest>
+        """)
+
+        msg_id, sourced_id, score, action = parse_grade_xml_body(request_body_template)
+
+        self.assertEqual(msg_id, u'ţéšţ_message_id')
+        self.assertEqual(sourced_id, u'ţéšţ_sourced_id')
+        self.assertEqual(score, 1.0)
+        self.assertEqual(action, u'ţéšţ_action')
 
 
 class TestOutcomeService(TestLtiConsumerXBlock):
