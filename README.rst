@@ -15,6 +15,31 @@ root folder:
 
     $ pip install -r requirements.txt
 
+Installing in Docker Devstack
+-----------------------------
+
+Assuming that your ``devstack`` repo lives at ``~/code/devstack``
+and that ``edx-platform`` lives right alongside that directory, you'll want
+to checkout ``xblock-lti-consumer`` and have it live in ``~/code/src/xblock-lti-consumer``.
+This will make it so that you can access it inside an LMS container shell
+and easily make modifications for local testing.
+
+Run ``make lms-shell`` from your ``devstack`` directory to enter a running LMS container.
+Once in there, you can do the following to have your devstack pointing at a local development
+version of ``xblock-lti-consumer``:
+
+.. code:: bash
+
+    $ pushd /edx/src/xblock-lti-consumer
+    $ virtualenv venv/
+    $ source venv/bin/activate
+    $ make install
+    $ make test  # optional, if you want to see that everything works
+    $ deactivate
+    $ pushd  # should take you back to /edx/app/edxapp/edx-platform
+    $ pip uninstall -y lti_consumer_xblock
+    $ pip install -e /edx/src/xblock-lti-consumer
+
 Enabling in Studio
 ------------------
 
@@ -26,6 +51,30 @@ advanced settings.
 2. Check for the ``advanced_modules`` policy key, and add
    ``"lti_consumer"`` to the policy value list.
 3. Click the "Save changes" button.
+
+Testing Against an LTI Provider
+-------------------------------
+
+http://lti.tools/saltire/ provides a "Test Tool Provider" service that allows
+you to see messages sent by an LTI consumer.
+
+We have some useful documentation on how to set this up here:
+http://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/latest/exercises_tools/lti_component.html#lti-authentication-information
+
+1. In Studio Advanced settings, set the value of the "LTI Passports" field to "test:test:secret" -
+   this will set the oauth client key and secret used to send a message to the test LTI provider.
+2. Create an LTI Consumer problem in a course in studio (after enabling it in "advanced_modules"
+   as seen above).  Make a unit, select "Advanced", then "LTI Consumer".
+3. Click edit and fill in the following fields:
+   ``LTI ID``: "test"
+   ``LTI URL``: "http://lti.tools/saltire/tp"
+4. Click save.  The unit should refresh and you should see "Passed" in the "Verification" field of
+   the message tab in the LTI Tool Provider emulator.
+5. Click the "Publish" button.
+6. View the unit in your local LMS.  If you get an ``ImportError: No module named lti_consumer``, you
+   should ``docker-compose restart lms`` (since we previously uninstalled the lti_consumer to get the
+   tests for this repo running inside an LMS container).  From here, you can see the contents of the
+   messages that we are sending as an LTI Consumer in the "Message Parameters" part of the "Message" tab.
 
 Workbench installation and settings
 -----------------------------------

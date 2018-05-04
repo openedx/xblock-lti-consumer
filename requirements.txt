@@ -2,6 +2,7 @@ lxml
 bleach
 oauthlib
 mako
+lazy
 git+https://github.com/edx/XBlock.git#egg=XBlock
 git+https://github.com/edx/xblock-utils.git@v1.0.0#egg=xblock-utils==v1.0.0
 -e .
