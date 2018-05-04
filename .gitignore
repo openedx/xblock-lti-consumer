@@ -15,3 +15,6 @@ codekit-config.json
 ### Testing artifacts
 .coverage
 var/
+
+# virtualenvironment
+venv/

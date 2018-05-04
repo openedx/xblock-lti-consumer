@@ -7,6 +7,7 @@ import unittest
 
 from datetime import timedelta
 from mock import Mock, PropertyMock, patch
+from six import text_type
 
 from django.utils import timezone
 
@@ -153,30 +154,32 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.lti_consumer.xblock.graceperiod = timedelta(days=1)
 
         expected_lti_parameters = {
-            u'user_id': self.lti_consumer.xblock.user_id,
-            u'oauth_callback': u'about:blank',
-            u'launch_presentation_return_url': '',
-            u'lti_message_type': u'basic-lti-launch-request',
-            u'lti_version': 'LTI-1p0',
-            u'roles': self.lti_consumer.xblock.role,
-            u'resource_link_id': self.lti_consumer.xblock.resource_link_id,
-            u'lis_result_sourcedid': self.lti_consumer.xblock.lis_result_sourcedid,
-            u'context_id': self.lti_consumer.xblock.context_id,
-            u'lis_outcome_service_url': self.lti_consumer.xblock.outcome_service_url,
-            u'custom_component_display_name': self.lti_consumer.xblock.display_name,
-            u'custom_component_due_date': self.lti_consumer.xblock.due.strftime('%Y-%m-%d %H:%M:%S'),
-            u'custom_component_graceperiod': str(self.lti_consumer.xblock.graceperiod.total_seconds()),
+            text_type('user_id'): self.lti_consumer.xblock.user_id,
+            text_type('oauth_callback'): 'about:blank',
+            text_type('launch_presentation_return_url'): '',
+            text_type('lti_message_type'): 'basic-lti-launch-request',
+            text_type('lti_version'): 'LTI-1p0',
+            text_type('roles'): self.lti_consumer.xblock.role,
+            text_type('resource_link_id'): self.lti_consumer.xblock.resource_link_id,
+            text_type('lis_result_sourcedid'): self.lti_consumer.xblock.lis_result_sourcedid,
+            text_type('context_id'): self.lti_consumer.xblock.context_id,
+            text_type('lis_outcome_service_url'): self.lti_consumer.xblock.outcome_service_url,
+            text_type('custom_component_display_name'): self.lti_consumer.xblock.display_name,
+            text_type('custom_component_due_date'): self.lti_consumer.xblock.due.strftime('%Y-%m-%d %H:%M:%S'),
+            text_type('custom_component_graceperiod'): str(self.lti_consumer.xblock.graceperiod.total_seconds()),
             'lis_person_sourcedid': 'edx',
             'lis_person_contact_email_primary': 'edx@example.com',
             'launch_presentation_locale': 'en',
-            u'custom_param_1': 'custom1',
-            u'custom_param_2': 'custom2',
-            u'oauth_nonce': 'fake_nonce',
+            text_type('custom_param_1'): 'custom1',
+            text_type('custom_param_2'): 'custom2',
+            text_type('oauth_nonce'): 'fake_nonce',
             'oauth_timestamp': 'fake_timestamp',
             'oauth_version': 'fake_version',
             'oauth_signature_method': 'fake_method',
             'oauth_consumer_key': 'fake_consumer_key',
-            'oauth_signature': u'fake_signature'
+            'oauth_signature': 'fake_signature',
+            text_type('context_label'): self.lti_consumer.xblock.course.display_org_with_default,
+            text_type('context_title'): self.lti_consumer.xblock.course.display_name_with_default,
         }
         self.lti_consumer.xblock.has_score = True
         self.lti_consumer.xblock.ask_to_send_username = True

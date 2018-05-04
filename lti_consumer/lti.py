@@ -9,6 +9,8 @@ import logging
 import urllib
 import json
 
+from six import text_type
+
 from .exceptions import LtiError
 from .oauth import get_oauth_request_signature, verify_oauth_body_signature
 
@@ -116,19 +118,22 @@ class LtiConsumer(object):
 
         # Must have parameters for correct signing from LTI:
         lti_parameters = {
-            u'user_id': self.xblock.user_id,
-            u'oauth_callback': u'about:blank',
-            u'launch_presentation_return_url': '',
-            u'lti_message_type': u'basic-lti-launch-request',
-            u'lti_version': 'LTI-1p0',
-            u'roles': self.xblock.role,
+            text_type('user_id'): self.xblock.user_id,
+            text_type('oauth_callback'): text_type('about:blank'),
+            text_type('launch_presentation_return_url'): '',
+            text_type('lti_message_type'): text_type('basic-lti-launch-request'),
+            text_type('lti_version'): text_type('LTI-1p0'),
+            text_type('roles'): self.xblock.role,
 
             # Parameters required for grading:
-            u'resource_link_id': self.xblock.resource_link_id,
-            u'lis_result_sourcedid': self.xblock.lis_result_sourcedid,
+            text_type('resource_link_id'): self.xblock.resource_link_id,
+            text_type('lis_result_sourcedid'): self.xblock.lis_result_sourcedid,
 
-            u'context_id': self.xblock.context_id,
-            u'custom_component_display_name': self.xblock.display_name,
+            text_type('context_id'): self.xblock.context_id,
+            text_type('custom_component_display_name'): self.xblock.display_name,
+
+            text_type('context_title'): self.xblock.course.display_name_with_default,
+            text_type('context_label'): self.xblock.course.display_org_with_default,
         }
 
         if self.xblock.due:
@@ -138,7 +143,7 @@ class LtiConsumer(object):
 
         if self.xblock.has_score:
             lti_parameters.update({
-                u'lis_outcome_service_url': self.xblock.outcome_service_url
+                text_type('lis_outcome_service_url'): self.xblock.outcome_service_url
             })
 
         self.xblock.user_email = ""
