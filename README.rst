@@ -67,7 +67,7 @@ http://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/lat
    as seen above).  Make a unit, select "Advanced", then "LTI Consumer".
 3. Click edit and fill in the following fields:
    ``LTI ID``: "test"
-   ``LTI URL``: "http://lti.tools/saltire/tp"
+   ``LTI URL``: "https://lti.tools/saltire/tp"
 4. Click save.  The unit should refresh and you should see "Passed" in the "Verification" field of
    the message tab in the LTI Tool Provider emulator.
 5. Click the "Publish" button.
