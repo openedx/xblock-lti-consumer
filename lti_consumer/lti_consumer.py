@@ -121,6 +121,8 @@ LTI_PARAMETERS = [
     'tool_consumer_instance_contact_email',
     'custom_component_due_date',
     'custom_component_graceperiod',
+    'custom_cohort',
+    'custom_team',
     'custom_component_display_name'
 ]
 

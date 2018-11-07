@@ -14,6 +14,8 @@ from six import text_type
 from .exceptions import LtiError
 from .oauth import get_oauth_request_signature, verify_oauth_body_signature
 
+from .utils import get_cohort_name, get_team_name
+
 
 log = logging.getLogger(__name__)
 
@@ -149,6 +151,8 @@ class LtiConsumer(object):
         self.xblock.user_email = ""
         self.xblock.user_username = ""
         self.xblock.user_language = ""
+        self.xblock.cohort = None
+        self.xblock.team = None
 
         # Username, email, and language can't be sent in studio mode, because the user object is not defined.
         # To test functionality test in LMS
@@ -158,6 +162,16 @@ class LtiConsumer(object):
             self.xblock.user_email = getattr(real_user_object, "email", "")
             self.xblock.user_username = getattr(real_user_object, "username", "")
             user_preferences = getattr(real_user_object, "preferences", None)
+
+            self.xblock.cohort = get_cohort_name(
+                course_key=self.xblock.context_id,
+                user=real_user_object,
+            )
+
+            self.xblock.team = get_team_name(
+                course_key=self.xblock.context_id,
+                user_id=self.xblock.real_user_id,
+            )
 
             if user_preferences is not None:
                 language_preference = user_preferences.filter(key='pref-lang')
@@ -170,6 +184,9 @@ class LtiConsumer(object):
             lti_parameters["lis_person_contact_email_primary"] = self.xblock.user_email
         if self.xblock.user_language:
             lti_parameters["launch_presentation_locale"] = self.xblock.user_language
+
+        lti_parameters["custom_cohort"] = self.xblock.cohort or ''
+        lti_parameters["custom_team"] = self.xblock.team or ''
 
         # Appending custom parameter for signing.
         lti_parameters.update(self.xblock.prefixed_custom_parameters)
