@@ -170,7 +170,7 @@ class LtiConsumer(object):
 
             self.xblock.team = get_team_name(
                 course_key=self.xblock.context_id,
-                user_id=self.xblock.real_user_id,
+                user=real_user_object,
             )
 
             if user_preferences is not None:

@@ -22,7 +22,7 @@ def get_cohort_name(course_key, user):
     return cohort.name if cohort else None
 
 
-def get_team_name(course_key, user_id):
+def get_team_name(course_key, user):
     from django.conf import settings
     features = getattr(settings, 'FEATURES', {})
 
@@ -35,7 +35,7 @@ def get_team_name(course_key, user_id):
 
     try:
         membership = CourseTeamMembership.objects.get(
-            user_id=user_id,
+            user=user,
             team__course_id=CourseKey.from_string(course_key),
         )
     except CourseTeamMembership.DoesNotExist:
