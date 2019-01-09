@@ -53,6 +53,7 @@ What is supported:
 import logging
 import bleach
 import re
+from importlib import import_module
 import json
 import urllib
 
@@ -164,6 +165,7 @@ class LaunchTarget(object):
 
 
 @XBlock.needs('i18n')
+@XBlock.wants('settings')
 @XBlock.wants('lti-configuration')
 class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
@@ -246,6 +248,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         Otherwise error message from LTI provider is generated.
     """
+
+    block_settings_key = 'lti_consumer'
 
     display_name = String(
         display_name=_("Display Name"),
@@ -421,19 +425,84 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default=False,
         scope=Scope.settings
     )
+    enable_processors = Boolean(
+        display_name=_("Send extra parameters"),
+        help=_("Select True to send the extra parameters, which might contain Personally Identifiable Information. "
+               "The processors are site-wide, please consult the site administrator if you have any questions."),
+        default=False,
+        scope=Scope.settings
+    )
 
     # Possible editable fields
     editable_field_names = (
         'display_name', 'description', 'lti_id', 'launch_url', 'custom_parameters',
         'launch_target', 'button_text', 'inline_height', 'modal_height', 'modal_width',
         'has_score', 'weight', 'hide_launch', 'accept_grades_past_due', 'ask_to_send_username',
-        'ask_to_send_email'
+        'ask_to_send_email', 'enable_processors',
     )
+
+    @staticmethod
+    def workbench_scenarios():
+        """
+        Gather scenarios to be displayed in the workbench
+        """
+        scenarios = [
+            ('LTI Consumer XBlock',
+             '''<sequence_demo>
+                    <lti_consumer
+                        display_name="LTI Consumer - New Window"
+                        lti_id="test"
+                        description=""
+                        ask_to_send_username="False"
+                        ask_to_send_email="False"
+                        enable_processors="True"
+                        launch_target="new_window"
+                        launch_url="https://lti.tools/saltire/tp" />
+
+                    <lti_consumer
+                        display_name="LTI Consumer - IFrame"
+                        lti_id="test"
+                        ask_to_send_username="False"
+                        ask_to_send_email="False"
+                        enable_processors="True"
+                        description=""
+                        launch_target="iframe"
+                        launch_url="https://lti.tools/saltire/tp" />
+                </sequence_demo>
+             '''),
+        ]
+        return scenarios
 
     def validate_field_data(self, validation, data):
         if not isinstance(data.custom_parameters, list):
             _ = self.runtime.service(self, "i18n").ugettext
             validation.add(ValidationMessage(ValidationMessage.ERROR, unicode(_("Custom Parameters must be a list"))))
+
+    def get_settings(self):
+        """
+        Get the XBlock settings bucket via the SettingsService.
+        """
+        settings_service = self.runtime.service(self, 'settings')
+        if settings_service:
+            return settings_service.get_settings_bucket(self)
+
+        return {}
+
+    def get_parameter_processors(self):
+        """
+        Read the parameter processor functions from the settings and return their functions.
+        """
+        if not self.enable_processors:
+            return
+
+        try:
+            for path in self.get_settings().get('parameter_processors', []):
+                module_path, func_name = path.split(':', 1)
+                module = import_module(module_path)
+                yield getattr(module, func_name)
+        except Exception:
+            log.exception('Something went wrong in reading the LTI XBlock configuration.')
+            raise
 
     @property
     def editable_fields(self):

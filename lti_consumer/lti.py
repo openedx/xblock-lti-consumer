@@ -174,6 +174,16 @@ class LtiConsumer(object):
         # Appending custom parameter for signing.
         lti_parameters.update(self.xblock.prefixed_custom_parameters)
 
+        for processor in self.xblock.get_parameter_processors():
+            try:
+                default_params = getattr(processor, 'lti_xblock_default_params', {})
+                lti_parameters.update(default_params)
+                lti_parameters.update(processor(self.xblock) or {})
+            except Exception:  # pylint: disable=broad-except
+                # Log the error without causing a 500-error.
+                # Useful for catching casual runtime errors in the processors.
+                log.exception('Error in XBlock LTI parameter processor "%s"', processor)
+
         headers = {
             # This is needed for body encoding:
             'Content-Type': 'application/x-www-form-urlencoded',

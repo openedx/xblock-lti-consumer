@@ -11,7 +11,7 @@ from six import text_type
 
 from django.utils import timezone
 
-from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_request
+from lti_consumer.tests.unit.test_utils import make_request, patch_signed_parameters
 from lti_consumer.tests.unit.test_lti_consumer import TestLtiConsumerXBlock
 
 from lti_consumer.lti import parse_result_json, LtiConsumer
@@ -129,30 +129,27 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         super(TestLtiConsumer, self).setUp()
         self.lti_consumer = LtiConsumer(self.xblock)
 
-    @patch(
-        'lti_consumer.lti.get_oauth_request_signature',
-        Mock(return_value=(
-            'OAuth oauth_nonce="fake_nonce", '
-            'oauth_timestamp="fake_timestamp", oauth_version="fake_version", oauth_signature_method="fake_method", '
-            'oauth_consumer_key="fake_consumer_key", oauth_signature="fake_signature"'
-        ))
-    )
-    @patch(
-        'lti_consumer.lti_consumer.LtiConsumerXBlock.prefixed_custom_parameters',
-        PropertyMock(return_value={u'custom_param_1': 'custom1', u'custom_param_2': 'custom2'})
-    )
-    @patch(
-        'lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret',
-        PropertyMock(return_value=('t', 's'))
-    )
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    def _update_xblock_for_signed_parameters(self):
+        """
+        Prepare the LTI XBlock for signing the parameters.
+        """
+        self.lti_consumer.xblock.due = timezone.now()
+        self.lti_consumer.xblock.graceperiod = timedelta(days=1)
+        self.lti_consumer.xblock.has_score = True
+        self.lti_consumer.xblock.ask_to_send_username = True
+        self.lti_consumer.xblock.ask_to_send_email = True
+        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
+            email='edx@example.com',
+            username='edx',
+            preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
+        )
+
+    @patch_signed_parameters
     def test_get_signed_lti_parameters(self):
         """
         Test `get_signed_lti_parameters` returns the correct dict
         """
-        self.lti_consumer.xblock.due = timezone.now()
-        self.lti_consumer.xblock.graceperiod = timedelta(days=1)
-
+        self._update_xblock_for_signed_parameters()
         expected_lti_parameters = {
             text_type('user_id'): self.lti_consumer.xblock.user_id,
             text_type('oauth_callback'): 'about:blank',
@@ -181,14 +178,6 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
             text_type('context_label'): self.lti_consumer.xblock.course.display_org_with_default,
             text_type('context_title'): self.lti_consumer.xblock.course.display_name_with_default,
         }
-        self.lti_consumer.xblock.has_score = True
-        self.lti_consumer.xblock.ask_to_send_username = True
-        self.lti_consumer.xblock.ask_to_send_email = True
-        self.lti_consumer.xblock.runtime.get_real_user.return_value = Mock(
-            email='edx@example.com',
-            username='edx',
-            preferences=Mock(filter=Mock(return_value=[Mock(value='en')]))
-        )
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
 
         # Test that `lis_person_sourcedid`, `lis_person_contact_email_primary`, and `launch_presentation_locale`
@@ -198,6 +187,53 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         del expected_lti_parameters['lis_person_contact_email_primary']
         del expected_lti_parameters['launch_presentation_locale']
         self.assertEqual(self.lti_consumer.get_signed_lti_parameters(), expected_lti_parameters)
+
+    @patch_signed_parameters
+    @patch('lti_consumer.lti.log')
+    def test_parameter_processors(self, mock_log):
+        self._update_xblock_for_signed_parameters()
+        self.xblock.enable_processors = True
+
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
+            'parameter_processors': [
+                'lti_consumer.tests.unit.test_utils:dummy_processor',
+            ],
+        }):
+            params = self.lti_consumer.get_signed_lti_parameters()
+            assert '' == params['custom_author_country']
+            assert 'author@example.com' == params['custom_author_email']
+            assert not mock_log.exception.called
+
+    @patch_signed_parameters
+    @patch('lti_consumer.lti.log')
+    def test_default_params(self, mock_log):
+        self._update_xblock_for_signed_parameters()
+        self.xblock.enable_processors = True
+
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
+            'parameter_processors': [
+                'lti_consumer.tests.unit.test_utils:defaulting_processor',
+            ],
+        }):
+            params = self.lti_consumer.get_signed_lti_parameters()
+            assert '' == params['custom_country']
+            assert 'Lex' == params['custom_name']
+            assert not mock_log.exception.called
+
+    @patch_signed_parameters
+    @patch('lti_consumer.lti.log')
+    def test_default_params_with_error(self, mock_log):
+        self._update_xblock_for_signed_parameters()
+        self.xblock.enable_processors = True
+
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
+            'parameter_processors': [
+                'lti_consumer.tests.unit.test_utils:faulty_processor',
+            ],
+        }):
+            params = self.lti_consumer.get_signed_lti_parameters()
+            assert 'Lex' == params['custom_name']
+            assert mock_log.exception.called
 
     def test_get_result(self):
         """
@@ -259,7 +295,8 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
 
         with self.assertRaises(LtiError):
             self.lti_consumer.verify_result_headers(request)
-            self.assertTrue(mock_log.called)
+
+        assert mock_log.error.called
 
     @patch('lti_consumer.lti.verify_oauth_body_signature', Mock(return_value=True))
     @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
@@ -297,7 +334,8 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
 
         with self.assertRaises(LtiError):
             self.lti_consumer.verify_result_headers(request)
-            self.assertTrue(mock_log.called)
+
+        assert mock_log.error.called
 
     @patch('lti_consumer.lti.verify_oauth_body_signature', Mock(side_effect=ValueError))
     @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
@@ -311,4 +349,5 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
 
         with self.assertRaises(LtiError):
             self.lti_consumer.verify_result_headers(request)
-            self.assertTrue(mock_log.called)
+
+        assert mock_log.error.called
