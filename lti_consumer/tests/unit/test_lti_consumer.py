@@ -2,17 +2,18 @@
 Unit tests for LtiConsumerXBlock
 """
 
-import unittest
-
 from datetime import timedelta
+import ddt
 from mock import Mock, PropertyMock, patch
 
+from django.test.testcases import TestCase
 from django.utils import timezone
 
 from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_xblock, make_request
 
 from lti_consumer.lti_consumer import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.exceptions import LtiError
+from lti_consumer.tests.unit import test_utils
 
 
 HTML_PROBLEM_PROGRESS = '<div class="problem-progress">'
@@ -22,7 +23,7 @@ HTML_LAUNCH_NEW_WINDOW_BUTTON = 'btn-lti-new-window'
 HTML_IFRAME = '<iframe'
 
 
-class TestLtiConsumerXBlock(unittest.TestCase):
+class TestLtiConsumerXBlock(TestCase):
     """
     Unit tests for LtiConsumerXBlock.max_score()
     """
@@ -45,6 +46,41 @@ class TestProperties(TestLtiConsumerXBlock):
         Test `descriptor` returns the XBLock object
         """
         self.assertEqual(self.xblock.descriptor, self.xblock)
+
+    def test_workbench_scenarios(self):
+        """
+        Basic tests that `workbench_scenarios()` returns a well formed scenario.
+        """
+        scenarios = self.xblock.workbench_scenarios()
+        assert isinstance(scenarios, list)
+        assert len(scenarios) == 1, 'Keep it to a single scenario with multiple squences.'
+
+        scenario = scenarios[0]
+        assert scenario[0] == 'LTI Consumer XBlock'
+        assert '<lti_consumer' in scenario[1]
+
+    def test_settings(self):
+        """
+        Test that the XBlock is using the SettingsService correctly.
+        """
+        sample_settings_bucket = {
+            'parameter_processors': [],
+        }
+
+        self.xblock.runtime.service = Mock(
+            return_value=Mock(
+                get_settings_bucket=Mock(return_value=sample_settings_bucket)
+            )
+        )
+
+        assert self.xblock.get_settings() == sample_settings_bucket
+
+    def test_settings_without_service(self):
+        """
+        Test that the XBlock can work without the SettingsService.
+        """
+        self.xblock.runtime.service = Mock(return_value=None)
+        assert self.xblock.get_settings() == {}
 
     def test_context_id(self):
         """
@@ -788,6 +824,59 @@ class TestGetContext(TestLtiConsumerXBlock):
 
         for key in context_keys:
             self.assertIn(key, context)
+
+
+@ddt.ddt
+class TestProcessorSettings(TestLtiConsumerXBlock):
+    """
+    Unit tests for the adding custom LTI parameters.
+    """
+    def test_no_processors_by_default(self):
+        processors = list(self.xblock.get_parameter_processors())
+        assert not processors, 'The processor list should empty by default.'
+
+    def test_enable_processor(self):
+        self.xblock.enable_processors = True
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
+            'parameter_processors': [
+                'lti_consumer.tests.unit.test_utils:dummy_processor',
+            ],
+        }):
+            processors = list(self.xblock.get_parameter_processors())
+            assert len(processors) == 1, 'One processor should be enabled'
+            assert processors[0] == test_utils.dummy_processor, 'Should load the correct function'
+
+    def test_disabled_processors(self):
+        self.xblock.enable_processors = False
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
+            'parameter_processors': [
+                'lti_consumer.tests.unit.test_utils:dummy_processor',
+            ],
+        }):
+            processors = list(self.xblock.get_parameter_processors())
+            assert not processors, 'No processor should be enabled'
+
+    @ddt.data({
+        # Bad processor list
+        'parameter_processors': False,
+    }, {
+        # Bad object path, no separator
+        'parameter_processors': [
+            'zzzzz',
+        ],
+    }, {
+        # Non-existent processor
+        'parameter_processors': [
+            'lti_consumer.tests.unit.test_utils:non_existent',
+        ],
+    })
+    @patch('lti_consumer.lti_consumer.log')
+    def test_faulty_configs(self, settings, mock_log):
+        self.xblock.enable_processors = True
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=settings):
+            with self.assertRaises(Exception):
+                list(self.xblock.get_parameter_processors())
+            assert mock_log.exception.called
 
 
 class TestGetModalPositionOffset(TestLtiConsumerXBlock):
