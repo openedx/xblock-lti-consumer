@@ -2,6 +2,11 @@
 # http://open-edx-proposals.readthedocs.io/en/latest/oeps/oep-0002.html#specification
 
 nick: lti
-oeps: {}
-owner: edx/teaching-and-learning
+oeps:
+    oep-2: true
+    oep-7: false
+    oep-18: false
+owner: scottrish
 track-pulls: true
+tags:
+    - library
