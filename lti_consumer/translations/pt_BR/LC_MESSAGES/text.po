@@ -1,11 +1,12 @@
 # 
 # Translators:
+# Renata Barboza, 2016
 msgid ""
 msgstr ""
 "Project-Id-Version: XBlocks\n"
 "POT-Creation-Date: 2016-03-18 15:09+0500\n"
-"PO-Revision-Date: 2016-06-08 14:38+0000\n"
-"Last-Translator: \n"
+"PO-Revision-Date: 2018-10-02 18:41+0000\n"
+"Last-Translator: Fabio Oliveira Silva <fabio.oliv.silva@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/open-edx/xblocks/language/pt_BR/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -18,25 +19,25 @@ msgstr ""
 
 #: lti_consumer.py
 msgid "No valid user id found in endpoint URL"
-msgstr ""
+msgstr "Nenhuma ID de usuário válido encontrada no ponto de extremidade da URL"
 
 #: lti_consumer.py
 msgid "Display Name"
-msgstr ""
+msgstr "Nome de exibição"
 
 #: lti_consumer.py
 msgid ""
 "Enter the name that students see for this component. Analytics reports may "
 "also use the display name to identify this component."
-msgstr ""
+msgstr "Forneça o nome que os alunos verão para este componente. Os relatórios de análise também poderão usar o nome de exibição para identificar este componente. "
 
 #: lti_consumer.py
 msgid "LTI Consumer"
-msgstr ""
+msgstr "Consumidor de LTI"
 
 #: lti_consumer.py:256
 msgid "LTI Application Information"
-msgstr ""
+msgstr "Informações do aplicativo LTI"
 
 #: lti_consumer.py
 msgid ""
@@ -47,7 +48,7 @@ msgstr ""
 
 #: lti_consumer.py
 msgid "LTI ID"
-msgstr ""
+msgstr "ID do LTI"
 
 #: lti_consumer.py
 #, python-brace-format
@@ -110,7 +111,7 @@ msgstr ""
 
 #: lti_consumer.py
 msgid "Inline Height"
-msgstr ""
+msgstr "Altura do embutido"
 
 #: lti_consumer.py
 msgid ""
@@ -121,7 +122,7 @@ msgstr ""
 
 #: lti_consumer.py
 msgid "Modal Height"
-msgstr ""
+msgstr "Altura do modal"
 
 #: lti_consumer.py
 msgid ""
@@ -132,7 +133,7 @@ msgstr ""
 
 #: lti_consumer.py
 msgid "Modal Width"
-msgstr ""
+msgstr "Largura do modal"
 
 #: lti_consumer.py
 msgid ""
