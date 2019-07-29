@@ -1,56 +1,53 @@
 # 
 # Translators:
-# Albeiro Gonzalez <albeiro.gonzalez@edunext.co>, 2018
-# Juan Camilo Montoya Franco <juan.montoya@edunext.co>, 2017
-# Laura Silva <lingison@edx.org>, 2016
 msgid ""
 msgstr ""
 "Project-Id-Version: XBlocks\n"
 "POT-Creation-Date: 2016-03-18 15:09+0500\n"
-"PO-Revision-Date: 2018-02-16 21:43+0000\n"
-"Last-Translator: Albeiro Gonzalez <albeiro.gonzalez@edunext.co>\n"
-"Language-Team: Spanish (Latin America) (http://www.transifex.com/open-edx/xblocks/language/es_419/)\n"
+"PO-Revision-Date: 2017-09-23 22:34+0000\n"
+"Last-Translator: Pierre Mailhot <pierre.mailhot@gmail.com>\n"
+"Language-Team: French (Canada) (http://www.transifex.com/open-edx/xblocks/language/fr_CA/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: es_419\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: fr_CA\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 "X-Generator: Poedit 1.8.7\n"
 "X-Poedit-Basepath: ../../..\n"
 "X-Poedit-SearchPath-0: lti_consumer.py\n"
 
 #: lti_consumer.py
 msgid "No valid user id found in endpoint URL"
-msgstr "No se encontró un id de usuario válido en el URL del endpoint"
+msgstr ""
 
 #: lti_consumer.py
 msgid "Display Name"
-msgstr "Nombre a mostrar"
+msgstr "Nom d'affichage"
 
 #: lti_consumer.py
 msgid ""
 "Enter the name that students see for this component. Analytics reports may "
 "also use the display name to identify this component."
-msgstr "Ingrese el nombre que los estudiantes verán para este componente. Los reportes de Analytics también pueden utilizar el nombre para mostrar para identificar este componente."
+msgstr ""
 
 #: lti_consumer.py
 msgid "LTI Consumer"
-msgstr "Consumidor LTI"
+msgstr ""
 
 #: lti_consumer.py:256
 msgid "LTI Application Information"
-msgstr "Información sobre la aplicación LTI"
+msgstr "Information à propos de l'application LTI"
 
 #: lti_consumer.py
 msgid ""
 "Enter a description of the third party application. If requesting username "
 "and/or email, use this text box to inform users why their username and/or "
 "email will be forwarded to a third party application."
-msgstr "Provea una descripción de la aplicación de un tercero. Si se solicita el nombre del usuario o su correo, use este cuadro de texto para informar al usuario que su nombre de usuario y su correo serán redireccionados a una aplicación de un tercero."
+msgstr "Entrer une description de l'application tierce. Si vous demandez le nom d'utilisateur et/ou courriel, utilisez cette boîte de dialogue pour informer les utilisateurs pourquoi leur nom d'utilisateur et/ou courriel seront transmis à une application tierce."
 
 #: lti_consumer.py
 msgid "LTI ID"
-msgstr "ID de LTI"
+msgstr "Identifiant LTI"
 
 #: lti_consumer.py
 #, python-brace-format
@@ -59,11 +56,11 @@ msgid ""
 "LTI ID that you entered in the LTI Passports setting on the Advanced "
 "Settings page.<br />See the {docs_anchor_open}edX LTI "
 "documentation{anchor_close} for more details on this setting."
-msgstr "Introduzca el ID LTI para el proveedor LTI externo. Este valor debe ser el mismo ID LTI que ingresó en la configuración de Pasaportes LTI en la página Configuración avanzada.<br />Consulte la {docs_anchor_open} documentación de edX LTI {anchor_close} para obtener más detalles sobre esta configuración."
+msgstr ""
 
 #: lti_consumer.py
 msgid "LTI URL"
-msgstr "URL de LTI"
+msgstr "URL LTI"
 
 #: lti_consumer.py
 #, python-brace-format
@@ -72,11 +69,11 @@ msgid ""
 "setting is only used when Hide External Tool is set to False.<br />See the "
 "{docs_anchor_open}edX LTI documentation{anchor_close} for more details on "
 "this setting."
-msgstr "Ingrese la URL de la herramienta externa que este componente inicia. Esta configuración sólo se utiliza cuando Ocultar herramienta externa se establece en Falso.<br />Consulte la {docs_anchor_open} documentación de edX LTI {anchor_close} para obtener más detalles sobre esta configuración."
+msgstr ""
 
 #: lti_consumer.py
 msgid "Custom Parameters"
-msgstr "Parámetros personalizados"
+msgstr "Paramètres personnalisés"
 
 #: lti_consumer.py
 #, python-brace-format
@@ -85,11 +82,11 @@ msgid ""
 "e-book should open to or the background color for this component. Ex. "
 "[\"page=1\", \"color=white\"]<br />See the {docs_anchor_open}edX LTI "
 "documentation{anchor_close} for more details on this setting."
-msgstr "Agregue el par clave / valor para cualquier parámetro personalizado, como la página a la que su libro electrónico debe abrirse o el color de fondo para este componente. Ej. [\"page=1\", \"color=white\"]<br />Consulte la {docs_anchor_open} documentación de edX LTI {anchor_close} para obtener más detalles sobre esta configuración"
+msgstr ""
 
 #: lti_consumer.py
 msgid "LTI Launch Target"
-msgstr "Target para el LTI"
+msgstr ""
 
 #: lti_consumer.py
 msgid ""
@@ -98,132 +95,132 @@ msgid ""
 "window in the current page. Select New Window if you want the LTI content to"
 " open in a new browser window. This setting is only used when Hide External "
 "Tool is set to False."
-msgstr "Seleccione Inline si desea que el contenido LTI se abra en un IFrame en la página actual. Seleccione Modal si desea que el contenido LTI se abra en una ventana modal en la página actual. Seleccione Nueva ventana si desea que el contenido LTI se abra en una nueva ventana del navegador. Esta configuración sólo se utiliza cuando Ocultar herramienta externa se establece en Falso."
+msgstr ""
 
 #: lti_consumer.py
 msgid "Button Text"
-msgstr "Texto para el botón"
+msgstr "Texte du bouton"
 
 #: lti_consumer.py
 msgid ""
 "Enter the text on the button used to launch the third party application. "
 "This setting is only used when Hide External Tool is set to False and LTI "
 "Launch Target is set to Modal or New Window."
-msgstr "Ingrese el texto en el botón usado para iniciar la aplicación de terceros. Esta opción sólo se utiliza cuando Ocultar herramienta externa se establece en Falso y el Target para el LTI se establece en Modal o Nueva Ventana."
+msgstr ""
 
 #: lti_consumer.py
 msgid "Inline Height"
-msgstr "Altura Inline"
+msgstr ""
 
 #: lti_consumer.py
 msgid ""
 "Enter the desired pixel height of the iframe which will contain the LTI "
 "tool. This setting is only used when Hide External Tool is set to False and "
 "LTI Launch Target is set to Inline."
-msgstr "Introduzca la altura en píxeles deseada del iframe que contendrá la herramienta LTI. Esta opción sólo se utiliza cuando Ocultar herramienta externa se establece en False y Target para el LTI se establece en Inline."
+msgstr ""
 
 #: lti_consumer.py
 msgid "Modal Height"
-msgstr "Altura del modal"
+msgstr ""
 
 #: lti_consumer.py
 msgid ""
 "Enter the desired viewport percentage height of the modal overlay which will"
 " contain the LTI tool. This setting is only used when Hide External Tool is "
 "set to False and LTI Launch Target is set to Modal."
-msgstr "Ingrese la altura de porcentaje de visualización deseada de la superposición modal que contendrá la herramienta LTI. Esta opción sólo se utiliza cuando Ocultar herramienta externa se establece en False y Target para el LTI se establece en Modal."
+msgstr ""
 
 #: lti_consumer.py
 msgid "Modal Width"
-msgstr "Ancho del modal"
+msgstr ""
 
 #: lti_consumer.py
 msgid ""
 "Enter the desired viewport percentage width of the modal overlay which will "
 "contain the LTI tool. This setting is only used when Hide External Tool is "
 "set to False and LTI Launch Target is set to Modal."
-msgstr "Ingrese el ancho de porcentaje de la ventana de visualización de la superposición modal que contendrá la herramienta LTI. Esta opción sólo se utiliza cuando Ocultar herramienta externa se establece en False y Target para el LTI se establece en Modal."
+msgstr ""
 
 #: lti_consumer.py
 msgid "Scored"
-msgstr "Puntuado"
+msgstr "Noté"
 
 #: lti_consumer.py
 msgid ""
 "Select True if this component will receive a numerical score from the "
 "external LTI system."
-msgstr "Seleccione True si este componente recibirá una puntuación numérica desde un sistema LTI externo."
+msgstr "Sélectionner vrai (true) si ce composant va recevoir une note numérique de la part du système externe LTI."
 
 #: lti_consumer.py
 msgid ""
 "Enter the number of points possible for this component.  The default value "
 "is 1.0.  This setting is only used when Scored is set to True."
-msgstr "Ingrese el número de puntos posibles para este componente. El valor por defecto es 1.0. Este valor solo se utiliza cuando el parámetro de calificación está definido como True."
+msgstr "Entrer le nombre de points possible pour ce composant. La valeur de défaut est 1.0. Ce paramètre est uniquement utilisé quand Noté est initialisé à Vrai (True)."
 
 #: lti_consumer.py
 msgid ""
 "The score kept in the xblock KVS -- duplicate of the published score in "
 "django DB"
-msgstr "La calificación almacenada en xblock KVS -- un duplicado de la calificación publicada en django DB"
+msgstr "La note conservée dans le xblock KVS -- duplicat de la note publiée dans django DB"
 
 #: lti_consumer.py
 msgid "Comment as returned from grader, LTI2.0 spec"
-msgstr "El comentario tal y como fue enviado por el evaluador, LTI2.0 spec"
+msgstr "Commentaire comme retourné par l'évaluateur, spécification LTI2.0"
 
 #: lti_consumer.py
 msgid "Hide External Tool"
-msgstr "Ocultar la herramienta externa"
+msgstr "Cacher les outils externes"
 
 #: lti_consumer.py
 msgid ""
 "Select True if you want to use this component as a placeholder for syncing "
 "with an external grading  system rather than launch an external tool.  This "
 "setting hides the Launch button and any IFrames for this component."
-msgstr "Seleccione True si desea usar este componente como marcador para sincronizarse con un servicio externo en lugar de lanzar una herramienta externa. Esta opción oculta el botón de Lanzar y cualquier iframe para este componente."
+msgstr "Sélectionner vrai (true) si vous voulez utiliser ce composant comme un espace réservé pour synchroniser avec un système d'évaluation externe au lieu de démarrer un outil externe.  Ce paramètre cache le bouton Démarrage et tout IFrames pour ce composant."
 
 #: lti_consumer.py
 msgid "Accept grades past deadline"
-msgstr "Aceptar notas después de la fecha límite"
+msgstr "Accepter les notes après la date limite"
 
 #: lti_consumer.py
 msgid ""
 "Select True to allow third party systems to post grades past the deadline."
-msgstr "Seleccione True para permitir que sistemas de terceros publiquen calificaciones después de la fecha límite."
+msgstr "Sélectionner vrai (true) pour permettre aux systèmes tierces de poster des notes après la date limite."
 
 #: lti_consumer.py
 msgid "Request user's username"
-msgstr "Solicite el nombre público del usuario"
+msgstr "Demander le nom d'utilisateur"
 
 #: lti_consumer.py
 msgid "Select True to request the user's username."
-msgstr "Seleccione True para solicitar el nombre de usuario."
+msgstr "Choisir vrai (true) afin de demander le nom d'utilisateur."
 
 #: lti_consumer.py
 msgid "Request user's email"
-msgstr "Solicitar la dirección de correo del usuario"
+msgstr "Demander l'adresse courriel de l'utilisateur"
 
 #: lti_consumer.py
 msgid "Select True to request the user's email address."
-msgstr "Seleccione True para solicitar el correo electrónico del usuario."
+msgstr "Choisir vrai (true) afin de demander l'adresse courriel de l'utilisateur."
 
 #: lti_consumer.py
 #, python-brace-format
 msgid ""
 "Could not parse LTI passport: {lti_passport}. Should be \"id:key:secret\" "
 "string."
-msgstr "No ha sido posible leer el pasaporte LTI: {lti_passport}. Debería ser una cadena \"id:key:secret\"."
+msgstr "Impossible d'analyser le passeport LTI: {lti_passport}. Devrait être une chaîne \"id:key:secret\"."
 
 #: lti_consumer.py
 msgid "Could not get user id for current request"
-msgstr "No se pudo obtener el id de usuario para esta petición"
+msgstr ""
 
 #: lti_consumer.py
 #, python-brace-format
 msgid ""
 "Could not parse custom parameter: {custom_parameter}. Should be \"x=y\" "
 "string."
-msgstr "No se pudo leer el parámetro personalizado: {custom_parameter}. Debería ser una cadena \"x=y\"."
+msgstr "Impossible d'analyser le paramètre personnalisé: {custom_parameter}. Devrait être une chaîne \"x=y\"."
 
 #: lti_consumer.py
 msgid "[LTI]: Real user not found against anon_id: {}"
-msgstr "[LTI]: No se encontró un usuario que coincidiera con anon_id: {}"
+msgstr ""
