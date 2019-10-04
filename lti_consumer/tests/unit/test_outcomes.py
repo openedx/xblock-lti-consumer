@@ -3,18 +3,18 @@
 Unit tests for lti_consumer.outcomes module
 """
 
-import unittest
-import textwrap
+from __future__ import absolute_import, unicode_literals
 
+import textwrap
+import unittest
 from copy import copy
+
 from mock import Mock, PropertyMock, patch
 
-from lti_consumer.tests.unit.test_utils import make_request
-from lti_consumer.tests.unit.test_lti_consumer import TestLtiConsumerXBlock
-
-from lti_consumer.outcomes import parse_grade_xml_body, OutcomeService
 from lti_consumer.exceptions import LtiError
-
+from lti_consumer.outcomes import OutcomeService, parse_grade_xml_body
+from lti_consumer.tests.unit.test_lti_consumer import TestLtiConsumerXBlock
+from lti_consumer.tests.unit.test_utils import make_request
 
 REQUEST_BODY_TEMPLATE_VALID = textwrap.dedent("""
     <?xml version="1.0" encoding="UTF-8"?>
@@ -211,7 +211,7 @@ class TestParseGradeXmlBody(unittest.TestCase):
         Test missing <imsx_messageIdentifier> raises LtiError
         """
         with self.assertRaises(LtiError):
-            __, __, __, __ = parse_grade_xml_body(
+            _, _, _, _ = parse_grade_xml_body(
                 REQUEST_BODY_TEMPLATE_MISSING_MSG_ID.format(**REQUEST_TEMPLATE_DEFAULTS)
             )
 
@@ -220,7 +220,7 @@ class TestParseGradeXmlBody(unittest.TestCase):
         Test missing <sourcedId> raises LtiError
         """
         with self.assertRaises(LtiError):
-            __, __, __, __ = parse_grade_xml_body(
+            _, _, _, _ = parse_grade_xml_body(
                 REQUEST_BODY_TEMPLATE_MISSING_SOURCED_ID.format(**REQUEST_TEMPLATE_DEFAULTS)
             )
 
@@ -229,7 +229,7 @@ class TestParseGradeXmlBody(unittest.TestCase):
         Test missing <imsx_POXBody> raises LtiError
         """
         with self.assertRaises(LtiError):
-            __, __, __, __ = parse_grade_xml_body(
+            _, _, _, _ = parse_grade_xml_body(
                 REQUEST_BODY_TEMPLATE_MISSING_BODY.format(**REQUEST_TEMPLATE_DEFAULTS)
             )
 
@@ -238,7 +238,7 @@ class TestParseGradeXmlBody(unittest.TestCase):
         Test missing <replaceResultRequest> raises LtiError
         """
         with self.assertRaises(LtiError):
-            __, __, __, __ = parse_grade_xml_body(
+            _, _, _, _ = parse_grade_xml_body(
                 REQUEST_BODY_TEMPLATE_MISSING_ACTION.format(**REQUEST_TEMPLATE_DEFAULTS)
             )
 
@@ -247,7 +247,7 @@ class TestParseGradeXmlBody(unittest.TestCase):
         Test missing score <textString> raises LtiError
         """
         with self.assertRaises(LtiError):
-            __, __, __, __ = parse_grade_xml_body(
+            _, _, _, _ = parse_grade_xml_body(
                 REQUEST_BODY_TEMPLATE_MISSING_SCORE.format(**REQUEST_TEMPLATE_DEFAULTS)
             )
 
@@ -259,11 +259,11 @@ class TestParseGradeXmlBody(unittest.TestCase):
 
         with self.assertRaises(LtiError):
             data['score'] = 10
-            __, __, __, __ = parse_grade_xml_body(REQUEST_BODY_TEMPLATE_VALID.format(**data))
+            _, _, _, _ = parse_grade_xml_body(REQUEST_BODY_TEMPLATE_VALID.format(**data))
 
         with self.assertRaises(LtiError):
             data['score'] = -10
-            __, __, __, __ = parse_grade_xml_body(REQUEST_BODY_TEMPLATE_VALID.format(**data))
+            _, _, _, _ = parse_grade_xml_body(REQUEST_BODY_TEMPLATE_VALID.format(**data))
 
     def test_invalid_score(self):
         """
@@ -273,21 +273,21 @@ class TestParseGradeXmlBody(unittest.TestCase):
         data['score'] = '1,0'
 
         with self.assertRaises(Exception):
-            __, __, __, __ = parse_grade_xml_body(REQUEST_BODY_TEMPLATE_VALID.format(**data))
+            _, _, _, _ = parse_grade_xml_body(REQUEST_BODY_TEMPLATE_VALID.format(**data))
 
     def test_empty_xml(self):
         """
         Test empty xml raises exception
         """
         with self.assertRaises(LtiError):
-            __, __, __, __ = parse_grade_xml_body('')
+            _, _, _, _ = parse_grade_xml_body('')
 
     def test_invalid_xml(self):
         """
         Test invalid xml raises exception
         """
         with self.assertRaises(LtiError):
-            __, __, __, __ = parse_grade_xml_body('<xml>')
+            _, _, _, _ = parse_grade_xml_body('<xml>')
 
     def test_string_with_unicode_chars(self):
         """

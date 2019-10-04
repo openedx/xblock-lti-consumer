@@ -7,4 +7,3 @@ class LtiError(Exception):
     """
     General error class for LTI XBlock.
     """
-    pass

@@ -5,17 +5,19 @@ For more details see:
 https://www.imsglobal.org/specs/ltiomv1p0
 """
 
-import logging
-import urllib
+from __future__ import absolute_import, unicode_literals
 
-from lxml import etree
+import logging
 from xml.sax.saxutils import escape
 
+import six.moves.urllib.error
+import six.moves.urllib.parse
+from lxml import etree
 from xblockutils.resources import ResourceLoader
+
 
 from .exceptions import LtiError
 from .oauth import verify_oauth_body_signature
-
 
 log = logging.getLogger(__name__)
 
@@ -40,13 +42,13 @@ def parse_grade_xml_body(body):
     """
     lti_spec_namespace = "http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0"
     namespaces = {'def': lti_spec_namespace}
-    data = body.strip()
+    data = body.strip().encode('utf-8')
 
     try:
         parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')  # pylint: disable=no-member
         root = etree.fromstring(data, parser=parser)  # pylint: disable=no-member
     except etree.XMLSyntaxError as ex:
-        raise LtiError(ex.message or 'Body is not valid XML')
+        raise LtiError(str(ex) or 'Body is not valid XML')
 
     try:
         imsx_message_identifier = root.xpath("//def:imsx_messageIdentifier", namespaces=namespaces)[0].text or ''
@@ -81,7 +83,7 @@ def parse_grade_xml_body(body):
     return imsx_message_identifier, sourced_id, score, action
 
 
-class OutcomeService(object):
+class OutcomeService(object):  # pylint: disable=bad-option-value, useless-object-inheritance
     """
     Service for handling LTI Outcome Management Service requests.
 
@@ -166,8 +168,8 @@ class OutcomeService(object):
             imsx_message_identifier, sourced_id, score, action = parse_grade_xml_body(request.body)
         except LtiError as ex:  # pylint: disable=no-member
             body = escape(request.body) if request.body else ''
-            error_message = "Request body XML parsing error: {} {}".format(ex.message, body)
-            log.debug("[LTI]: %s" + error_message)
+            error_message = "Request body XML parsing error: {} {}".format(str(ex), body)
+            log.debug("[LTI]: %s", error_message)
             failure_values['imsx_description'] = error_message
             return response_xml_template.format(**failure_values)
 
@@ -177,12 +179,12 @@ class OutcomeService(object):
             verify_oauth_body_signature(request, secret, self.xblock.outcome_service_url)
         except (ValueError, LtiError) as ex:
             failure_values['imsx_messageIdentifier'] = escape(imsx_message_identifier)
-            error_message = "OAuth verification error: " + escape(ex.message)
+            error_message = "OAuth verification error: " + escape(str(ex))
             failure_values['imsx_description'] = error_message
-            log.debug("[LTI]: " + error_message)
+            log.debug("[LTI]: %s", error_message)
             return response_xml_template.format(**failure_values)
 
-        real_user = self.xblock.runtime.get_real_user(urllib.unquote(sourced_id.split(':')[-1]))
+        real_user = self.xblock.runtime.get_real_user(six.moves.urllib.parse.unquote(sourced_id.split(':')[-1]))
         if not real_user:  # that means we can't save to database, as we do not have real user id.
             failure_values['imsx_messageIdentifier'] = escape(imsx_message_identifier)
             failure_values['imsx_description'] = "User not found."
@@ -197,9 +199,9 @@ class OutcomeService(object):
                 'imsx_messageIdentifier': escape(imsx_message_identifier),
                 'response': '<replaceResultResponse/>'
             }
-            log.debug("[LTI]: Grade is saved.")
+            log.debug(u"[LTI]: Grade is saved.")
             return response_xml_template.format(**values)
 
         unsupported_values['imsx_messageIdentifier'] = escape(imsx_message_identifier)
-        log.debug("[LTI]: Incorrect action.")
+        log.debug(u"[LTI]: Incorrect action.")
         return response_xml_template.format(**unsupported_values)

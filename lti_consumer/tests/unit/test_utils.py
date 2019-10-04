@@ -2,14 +2,14 @@
 Utility functions used within unit tests
 """
 
+from __future__ import absolute_import
+
+import six
+from mock import Mock, PropertyMock, patch
 from webob import Request
-from mock import patch, Mock, PropertyMock
-
-from xblock.fields import ScopeIds
-from xblock.runtime import KvsFieldData, DictKeyValueStore
-
 from workbench.runtime import WorkbenchRuntime
-
+from xblock.fields import ScopeIds
+from xblock.runtime import DictKeyValueStore, KvsFieldData
 
 FAKE_USER_ID = 'fake_user_id'
 
@@ -31,7 +31,7 @@ def make_xblock(xblock_name, xblock_cls, attributes):
         hostname='localhost',
     )
     xblock.course_id = 'course-v1:edX+DemoX+Demo_Course'
-    for key, value in attributes.iteritems():
+    for key, value in six.iteritems(attributes):
         setattr(xblock, key, value)
     return xblock
 
@@ -100,7 +100,6 @@ def defaulting_processor(_xblock):
     """
     A dummy LTI parameter processor with default params.
     """
-    pass
 
 
 defaulting_processor.lti_xblock_default_params = {

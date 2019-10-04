@@ -3,6 +3,8 @@
 """
 Run tests for the LTI Consumer XBlock
 """
+from __future__ import absolute_import
+
 import os
 import sys
 

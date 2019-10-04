@@ -3,20 +3,21 @@
 Unit tests for lti_consumer.lti module
 """
 
-import unittest
+from __future__ import absolute_import, unicode_literals
 
+import unittest
 from datetime import timedelta
-from mock import Mock, PropertyMock, patch
-from six import text_type
 
 from django.utils import timezone
+from mock import Mock, PropertyMock, patch
+from six import text_type
+import six
 
-from lti_consumer.tests.unit.test_utils import make_request, patch_signed_parameters
-from lti_consumer.tests.unit.test_lti_consumer import TestLtiConsumerXBlock
-
-from lti_consumer.lti import parse_result_json, LtiConsumer
 from lti_consumer.exceptions import LtiError
-
+from lti_consumer.lti import LtiConsumer, parse_result_json
+from lti_consumer.tests.unit.test_lti_consumer import TestLtiConsumerXBlock
+from lti_consumer.tests.unit.test_utils import (make_request,
+                                                patch_signed_parameters)
 
 INVALID_JSON_INPUTS = [
     ([
@@ -107,7 +108,7 @@ class TestParseResultJson(unittest.TestCase):
         """
         for error_inputs, error_message in INVALID_JSON_INPUTS:
             for error_input in error_inputs:
-                with self.assertRaisesRegexp(LtiError, error_message):
+                with six.assertRaisesRegex(self, LtiError, error_message):
                     parse_result_json(error_input)
 
     def test_valid_json(self):
@@ -194,14 +195,13 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self._update_xblock_for_signed_parameters()
         self.xblock.enable_processors = True
 
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
-            'parameter_processors': [
-                'lti_consumer.tests.unit.test_utils:dummy_processor',
-            ],
-        }):
+        mock_value = {
+            'parameter_processors': ['lti_consumer.tests.unit.test_utils:dummy_processor']
+        }
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=mock_value):
             params = self.lti_consumer.get_signed_lti_parameters()
-            assert '' == params['custom_author_country']
-            assert 'author@example.com' == params['custom_author_email']
+            assert params['custom_author_country'] == u''
+            assert params['custom_author_email'] == u'author@example.com'
             assert not mock_log.exception.called
 
     @patch_signed_parameters
@@ -210,14 +210,13 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self._update_xblock_for_signed_parameters()
         self.xblock.enable_processors = True
 
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
-            'parameter_processors': [
-                'lti_consumer.tests.unit.test_utils:defaulting_processor',
-            ],
-        }):
+        mock_value = {
+            'parameter_processors': ['lti_consumer.tests.unit.test_utils:defaulting_processor']
+        }
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=mock_value):
             params = self.lti_consumer.get_signed_lti_parameters()
-            assert '' == params['custom_country']
-            assert 'Lex' == params['custom_name']
+            assert params['custom_country'] == u''
+            assert params['custom_name'] == u'Lex'
             assert not mock_log.exception.called
 
     @patch_signed_parameters
@@ -226,13 +225,12 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self._update_xblock_for_signed_parameters()
         self.xblock.enable_processors = True
 
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
-            'parameter_processors': [
-                'lti_consumer.tests.unit.test_utils:faulty_processor',
-            ],
-        }):
+        mock_value = {
+            'parameter_processors': ['lti_consumer.tests.unit.test_utils:faulty_processor']
+        }
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=mock_value):
             params = self.lti_consumer.get_signed_lti_parameters()
-            assert 'Lex' == params['custom_name']
+            assert params['custom_name'] == u'Lex'
             assert mock_log.exception.called
 
     def test_get_result(self):

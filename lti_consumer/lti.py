@@ -5,15 +5,17 @@ For more details see:
 https://www.imsglobal.org/activity/learning-tools-interoperability
 """
 
-import logging
-import urllib
-import json
+from __future__ import absolute_import, unicode_literals
 
+import json
+import logging
+
+import six.moves.urllib.error
+import six.moves.urllib.parse
 from six import text_type
 
 from .exceptions import LtiError
 from .oauth import get_oauth_request_signature, verify_oauth_body_signature
-
 
 log = logging.getLogger(__name__)
 
@@ -83,14 +85,14 @@ def parse_result_json(json_str):
                 log.error("[LTI] %s", msg)
                 raise LtiError(msg)
         except (TypeError, ValueError) as err:
-            msg = "Could not convert resultScore to float: {}".format(err.message)
+            msg = "Could not convert resultScore to float: {}".format(str(err))
             log.error("[LTI] %s", msg)
             raise LtiError(msg)
 
     return score, json_obj.get('comment', "")
 
 
-class LtiConsumer(object):
+class LtiConsumer(object):  # pylint: disable=bad-option-value, useless-object-inheritance
     """
     Limited implementation of the LTI 1.1/2.0 specification.
 
@@ -202,7 +204,9 @@ class LtiConsumer(object):
         # so '='' becomes '%3D'.
         # We send form via browser, so browser will encode it again,
         # So we need to decode signature back:
-        oauth_signature[u'oauth_signature'] = urllib.unquote(oauth_signature[u'oauth_signature']).decode('utf8')
+        oauth_signature[u'oauth_signature'] = six.moves.urllib.parse.unquote(
+            oauth_signature[u'oauth_signature']
+        )
 
         # Add LTI parameters to OAuth parameters for sending in form.
         lti_parameters.update(oauth_signature)
@@ -290,15 +294,15 @@ class LtiConsumer(object):
         content_type = request.headers.get('Content-Type')
         if verify_content_type and content_type != LtiConsumer.CONTENT_TYPE_RESULT_JSON:
             log.error("[LTI]: v2.0 result service -- bad Content-Type: %s", content_type)
-            raise LtiError(
-                "For LTI 2.0 result service, Content-Type must be %s.  Got %s",
+            error_msg = "For LTI 2.0 result service, Content-Type must be {}.  Got {}".format(
                 LtiConsumer.CONTENT_TYPE_RESULT_JSON,
                 content_type
             )
+            raise LtiError(error_msg)
 
         __, secret = self.xblock.lti_provider_key_secret
         try:
             return verify_oauth_body_signature(request, secret, self.xblock.outcome_service_url)
         except (ValueError, LtiError) as err:
-            log.error("[LTI]: v2.0 result service -- OAuth body verification failed: %s", err.message)
-            raise LtiError(err.message)
+            log.error("[LTI]: v2.0 result service -- OAuth body verification failed: %s", str(err))
+            raise LtiError(str(err))
