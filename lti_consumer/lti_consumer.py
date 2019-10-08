@@ -50,29 +50,29 @@ What is supported:
             GET / PUT / DELETE HTTP methods respectively
 """
 
+from __future__ import absolute_import, unicode_literals
+
 import logging
-import bleach
 import re
-from importlib import import_module
-import json
-import urllib
-
 from collections import namedtuple
-from webob import Response
+from importlib import import_module
 
+import six.moves.urllib.error
+import six.moves.urllib.parse
+import six
+import bleach
 from django.utils import timezone
-
-from xblock.core import String, Scope, List, XBlock
+from webob import Response
+from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.fragment import Fragment
 from xblock.validation import ValidationMessage
-
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .exceptions import LtiError
-from .oauth import log_authorization_header
 from .lti import LtiConsumer
+from .oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .utils import _
 
@@ -155,7 +155,7 @@ def parse_handler_suffix(suffix):
 LaunchTargetOption = namedtuple('LaunchTargetOption', ['display_name', 'value'])
 
 
-class LaunchTarget(object):
+class LaunchTarget(object):  # pylint: disable=bad-option-value, useless-object-inheritance
     """
     Constants for launch_target field options
     """
@@ -476,7 +476,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     def validate_field_data(self, validation, data):
         if not isinstance(data.custom_parameters, list):
             _ = self.runtime.service(self, "i18n").ugettext
-            validation.add(ValidationMessage(ValidationMessage.ERROR, unicode(_("Custom Parameters must be a list"))))
+            validation.add(ValidationMessage(ValidationMessage.ERROR, six.text_type(
+                _("Custom Parameters must be a list")
+            )))
 
     def get_settings(self):
         """
@@ -547,7 +549,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context_id is an opaque identifier that uniquely identifies the context (e.g., a course)
         that contains the link being launched.
         """
-        return unicode(self.course_id)  # pylint: disable=no-member
+        return six.text_type(self.course_id)  # pylint: disable=no-member
 
     @property
     def role(self):
@@ -589,7 +591,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         user_id = self.runtime.anonymous_student_id
         if user_id is None:
             raise LtiError(self.ugettext("Could not get user id for current request"))
-        return unicode(urllib.quote(user_id))
+        return six.text_type(six.moves.urllib.parse.quote(user_id))
 
     @property
     def resource_link_id(self):
@@ -623,7 +625,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         i4x-2-3-lti-31de800015cf4afb973356dbe81496df this part of resource_link_id:
         makes resource_link_id to be unique among courses inside same system.
         """
-        return unicode(urllib.quote(
+        return six.text_type(six.moves.urllib.parse.quote(
             "{}-{}".format(self.runtime.hostname, self.location.html_id())  # pylint: disable=no-member
         ))
 
@@ -638,7 +640,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         This field is generally optional, but is required for grading.
         """
         return "{context}:{resource_link}:{user_id}".format(
-            context=urllib.quote(self.context_id),
+            context=six.moves.urllib.parse.quote(self.context_id),
             resource_link=self.resource_link_id,
             user_id=self.user_id
         )
@@ -701,7 +703,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 if param_name not in LTI_PARAMETERS:
                     param_name = 'custom_' + param_name
 
-                custom_parameters[unicode(param_name)] = unicode(param_value)
+                custom_parameters[six.text_type(param_name)] = six.text_type(param_value)
         return custom_parameters
 
     @property
@@ -849,7 +851,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(status=404)
 
         return Response(
-            json.dumps(response_body),
+            json_body=response_body,
             content_type=LtiConsumer.CONTENT_TYPE_RESULT_JSON,
         )
 

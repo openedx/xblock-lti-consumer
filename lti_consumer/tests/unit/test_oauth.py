@@ -2,19 +2,17 @@
 Unit tests for lti_consumer.oauth module
 """
 
+from __future__ import absolute_import
+
 import unittest
 
 from mock import Mock, patch
 
-from lti_consumer.tests.unit.test_utils import make_request
-
 from lti_consumer.exceptions import LtiError
-from lti_consumer.oauth import (
-    get_oauth_request_signature,
-    verify_oauth_body_signature,
-    log_authorization_header,
-)
-
+from lti_consumer.oauth import (get_oauth_request_signature,
+                                log_authorization_header,
+                                verify_oauth_body_signature)
+from lti_consumer.tests.unit.test_utils import make_request
 
 OAUTH_PARAMS = [
     (u'oauth_nonce', u'80966668944732164491378916897'),

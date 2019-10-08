@@ -1,6 +1,9 @@
 """Setup for lti_consumer XBlock."""
 
+from __future__ import absolute_import
+
 import os
+
 from setuptools import setup
 
 
@@ -22,7 +25,7 @@ def package_data(pkg, roots):
 
 setup(
     name='lti_consumer-xblock',
-    version='1.2.0',
+    version='1.2.1',
     description='This XBlock implements the consumer side of the LTI specification.',
     packages=[
         'lti_consumer',

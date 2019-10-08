@@ -2,19 +2,21 @@
 Unit tests for LtiConsumerXBlock
 """
 
-from datetime import timedelta
-import ddt
-from mock import Mock, PropertyMock, patch
+from __future__ import absolute_import
 
+from datetime import timedelta
+
+import ddt
+import six
 from django.test.testcases import TestCase
 from django.utils import timezone
+from mock import Mock, PropertyMock, patch
 
-from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_xblock, make_request
-
-from lti_consumer.lti_consumer import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.exceptions import LtiError
+from lti_consumer.lti_consumer import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.tests.unit import test_utils
-
+from lti_consumer.tests.unit.test_utils import (FAKE_USER_ID, make_request,
+                                                make_xblock)
 
 HTML_PROBLEM_PROGRESS = '<div class="problem-progress">'
 HTML_ERROR_MESSAGE = '<h3 class="error_message">'
@@ -86,7 +88,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `context_id` returns unicode course id
         """
-        self.assertEqual(self.xblock.context_id, unicode(self.xblock.course_id))  # pylint: disable=no-member
+        self.assertEqual(self.xblock.context_id, six.text_type(self.xblock.course_id))  # pylint: disable=no-member
 
     def test_validate(self):
         """
@@ -165,7 +167,7 @@ class TestProperties(TestLtiConsumerXBlock):
         type(mock_course).lti_passports = PropertyMock(return_value=["{}{}{}".format(provider, key, secret)])
 
         with self.assertRaises(LtiError):
-            __, __ = self.xblock.lti_provider_key_secret
+            _, _ = self.xblock.lti_provider_key_secret
 
     def test_user_id(self):
         """
@@ -285,18 +287,16 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.due = now + timedelta(days=1)
         self.assertFalse(self.xblock.is_past_due)
 
-    @patch('lti_consumer.lti_consumer.timezone.now')
-    def test_is_past_due_timezone_now_called(self, mock_timezone_now):
+    def test_is_past_due_timezone_now_called(self):
         """
         Test `is_past_due` calls django.utils.timezone.now to get current datetime
         """
         now = timezone.now()
         self.xblock.graceperiod = None
         self.xblock.due = now
-        mock_timezone_now.return_value = now
-
-        __ = self.xblock.is_past_due
-        self.assertTrue(mock_timezone_now.called)
+        with patch('lti_consumer.lti_consumer.timezone.now', wraps=timezone.now) as mock_timezone_now:
+            __ = self.xblock.is_past_due
+            self.assertTrue(mock_timezone_now.called)
 
 
 class TestEditableFields(TestLtiConsumerXBlock):
@@ -831,28 +831,25 @@ class TestProcessorSettings(TestLtiConsumerXBlock):
     """
     Unit tests for the adding custom LTI parameters.
     """
+    settings = {
+        'parameter_processors': ['lti_consumer.tests.unit.test_utils:dummy_processor']
+    }
+
     def test_no_processors_by_default(self):
         processors = list(self.xblock.get_parameter_processors())
         assert not processors, 'The processor list should empty by default.'
 
     def test_enable_processor(self):
         self.xblock.enable_processors = True
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
-            'parameter_processors': [
-                'lti_consumer.tests.unit.test_utils:dummy_processor',
-            ],
-        }):
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=self.settings):
             processors = list(self.xblock.get_parameter_processors())
             assert len(processors) == 1, 'One processor should be enabled'
+            # pylint: disable=bad-option-value, comparison-with-callable
             assert processors[0] == test_utils.dummy_processor, 'Should load the correct function'
 
     def test_disabled_processors(self):
         self.xblock.enable_processors = False
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value={
-            'parameter_processors': [
-                'lti_consumer.tests.unit.test_utils:dummy_processor',
-            ],
-        }):
+        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=self.settings):
             processors = list(self.xblock.get_parameter_processors())
             assert not processors, 'No processor should be enabled'
 
