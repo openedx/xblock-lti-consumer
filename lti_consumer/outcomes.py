@@ -12,6 +12,7 @@ from xml.sax.saxutils import escape
 
 import six.moves.urllib.error
 import six.moves.urllib.parse
+from six import text_type
 from lxml import etree
 from xblockutils.resources import ResourceLoader
 
@@ -42,7 +43,8 @@ def parse_grade_xml_body(body):
     """
     lti_spec_namespace = "http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0"
     namespaces = {'def': lti_spec_namespace}
-    data = body.strip().encode('utf-8')
+    if isinstance(body, text_type):
+        data = body.strip().encode('utf-8')
 
     try:
         parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')  # pylint: disable=no-member
