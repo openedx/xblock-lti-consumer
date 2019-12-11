@@ -43,6 +43,7 @@ def parse_grade_xml_body(body):
     """
     lti_spec_namespace = "http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0"
     namespaces = {'def': lti_spec_namespace}
+    data = body.strip()
     if isinstance(body, text_type):
         data = body.strip().encode('utf-8')
 
