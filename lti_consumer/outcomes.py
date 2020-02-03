@@ -162,15 +162,16 @@ class OutcomeService(object):  # pylint: disable=bad-option-value, useless-objec
             'imsx_messageIdentifier': 'unknown',
             'response': ''
         }
+        request_body = request.body.decode('utf-8')
 
         if not self.xblock.accept_grades_past_due and self.xblock.is_past_due:
             failure_values['imsx_description'] = "Grade is past due"
             return response_xml_template.format(**failure_values)
 
         try:
-            imsx_message_identifier, sourced_id, score, action = parse_grade_xml_body(request.body)
+            imsx_message_identifier, sourced_id, score, action = parse_grade_xml_body(request_body)
         except LtiError as ex:  # pylint: disable=no-member
-            body = escape(request.body) if request.body else ''
+            body = escape(request_body) if request_body else ''
             error_message = "Request body XML parsing error: {} {}".format(str(ex), body)
             log.debug("[LTI]: %s", error_message)
             failure_values['imsx_description'] = error_message
