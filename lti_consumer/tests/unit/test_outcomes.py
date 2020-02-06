@@ -371,6 +371,20 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.assertIn('Grade is past due', response)
 
     @patch('lti_consumer.outcomes.parse_grade_xml_body')
+    def test_lti_error_not_raises_type_error(self, mock_parse):
+        """
+        Test XML parsing LtiError exception doesn't raise TypeError exception
+        while escaping the request body.
+        """
+        request = make_request('test_string')
+
+        mock_parse.side_effect = LtiError
+        response = self.outcome_servce.handle_request(request)
+        self.assertNotIn('TypeError', response)
+        self.assertNotIn('a bytes-like object is required', response)
+        self.assertIn('Request body XML parsing error', response)
+
+    @patch('lti_consumer.outcomes.parse_grade_xml_body')
     def test_xml_parse_lti_error(self, mock_parse):
         """
         Test XML parsing LtiError returns failure response
