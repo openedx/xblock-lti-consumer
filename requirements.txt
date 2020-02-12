@@ -1,6 +1,6 @@
 lxml
 bleach
-django==1.11.25
+django==1.11.28
 oauthlib
 mako
 lazy
