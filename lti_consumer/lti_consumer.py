@@ -574,8 +574,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             try:
                 lti_id, key, secret = [i.strip() for i in lti_passport.split(':')]
             except ValueError:
-                msg = self.ugettext('Could not parse LTI passport: {lti_passport}. Should be "id:key:secret" string.').\
-                    format(lti_passport='{0!r}'.format(lti_passport))
+                msg = 'Could not parse LTI passport: {lti_passport!r}. Should be "id:key:secret" string.'
+                msg = self.ugettext(msg).format(lti_passport=lti_passport)
                 raise LtiError(msg)
 
             if lti_id == self.lti_id.strip():
@@ -694,9 +694,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     param_name, param_value = [p.strip() for p in custom_parameter.split('=', 1)]
                 except ValueError:
                     _ = self.runtime.service(self, "i18n").ugettext
-                    # pylint: disable=line-too-long
-                    msg = self.ugettext('Could not parse custom parameter: {custom_parameter}. Should be "x=y" string.').\
-                        format(custom_parameter="{0!r}".format(custom_parameter))
+                    msg = 'Could not parse custom parameter: {custom_parameter!r}. Should be "x=y" string.'
+                    msg = self.ugettext(msg).format(custom_parameter=custom_parameter)
                     raise LtiError(msg)
 
                 # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
@@ -923,17 +922,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             dict: Context variables for templates
         """
 
-        # use bleach defaults. see https://github.com/jsocol/bleach/blob/master/bleach/__init__.py
-        # ALLOWED_TAGS are
-        # ['a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i', 'li', 'ol',  'strong', 'ul']
-        #
-        # ALLOWED_ATTRIBUTES are
-        #     'a': ['href', 'title'],
-        #     'abbr': ['title'],
-        #     'acronym': ['title'],
-        #
+        # For more context on ALLOWED_TAGS and ALLOWED_ATTRIBUTES
+        # Look into this documentation URL see https://bleach.readthedocs.io/en/latest/clean.html#allowed-tags-tags
         # This lets all plaintext through.
-        sanitized_comment = bleach.clean(self.score_comment)
+        allowed_tags = bleach.sanitizer.ALLOWED_TAGS + ['img']
+        allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
+        sanitized_comment = bleach.clean(self.score_comment, tags=allowed_tags, attributes=allowed_attributes)
 
         return {
             'launch_url': self.launch_url.strip(),

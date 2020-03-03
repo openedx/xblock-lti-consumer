@@ -303,6 +303,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock.editable_fields
     """
+
     def get_mock_lti_configuration(self, editable):
         """
         Returns a mock object of lti-configuration service
@@ -805,6 +806,7 @@ class TestParseSuffix(TestLtiConsumerXBlock):
         self.assertEqual(parsed, FAKE_USER_ID)
 
 
+@ddt.ddt
 class TestGetContext(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock._get_context_for_template()
@@ -824,6 +826,27 @@ class TestGetContext(TestLtiConsumerXBlock):
 
         for key in context_keys:
             self.assertIn(key, context)
+
+    @ddt.data('a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i', 'li', 'ol', 'strong', 'ul', 'img')
+    def test_comment_allowed_tags(self, tag):
+        """
+        Test that allowed tags are not escaped in context['comment']
+        """
+        comment = u'<{0}>This is a comment</{0}>!'.format(tag)
+        self.xblock.set_user_module_score(Mock(), 0.92, 1.0, comment)
+        context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
+
+        self.assertIn('<{}>'.format(tag), context['comment'])
+
+    def test_comment_retains_image_src(self):
+        """
+        Test that image tag has src and other attrs are sanitized
+        """
+        comment = u'<img src="example.com/image.jpeg" onerror="myFunction()">'
+        self.xblock.set_user_module_score(Mock(), 0.92, 1.0, comment)
+        context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
+
+        self.assertIn(u'<img src="example.com/image.jpeg">', context['comment'])
 
 
 @ddt.ddt
