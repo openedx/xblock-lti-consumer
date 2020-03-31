@@ -65,8 +65,8 @@ from django.utils import timezone
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
-from xblock.fragment import Fragment
 from xblock.validation import ValidationMessage
+from web_fragments.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
