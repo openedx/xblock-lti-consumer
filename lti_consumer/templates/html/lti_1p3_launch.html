@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>LTI</title>
+    </head>
+    <body>
+        <form
+            id="lti-launch"
+            action="${launch_url}"
+            method="post"
+            style="display: none;"
+            encType="application/x-www-form-urlencoded"
+        >
+            % for param_name, param_value in launch_request.items():
+                <input name="${param_name}" value="${param_value}" />
+            % endfor
+
+            <input type="submit" value="Press to Launch" />
+        </form>
+        <script type="text/javascript">
+            (function (d) {
+                var element = d.getElementById("lti-launch");
+                if (element) {
+                    element.submit();
+                }
+            }(document));
+        </script>
+    </body>
+</html>

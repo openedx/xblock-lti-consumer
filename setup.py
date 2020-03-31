@@ -25,7 +25,7 @@ def package_data(pkg, roots):
 
 setup(
     name='lti_consumer-xblock',
-    version='1.2.5',
+    version='2.0.0',
     description='This XBlock implements the consumer side of the LTI specification.',
     packages=[
         'lti_consumer',
@@ -44,6 +44,9 @@ setup(
     entry_points={
         'xblock.v1': [
             'lti_consumer = lti_consumer:LtiConsumerXBlock',
+        ],
+        'lms.djangoapp': [
+            "lti_consumer = lti_consumer:LTIConsumerApp",
         ]
     },
     package_data=package_data("lti_consumer", ["static", "templates", "public", "translations"]),
