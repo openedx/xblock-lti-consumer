@@ -54,6 +54,7 @@ from __future__ import absolute_import, unicode_literals
 
 import logging
 import re
+import uuid
 from collections import namedtuple
 from importlib import import_module
 
@@ -61,6 +62,7 @@ import six.moves.urllib.error
 import six.moves.urllib.parse
 import six
 import bleach
+from Crypto.PublicKey import RSA
 from django.utils import timezone
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
@@ -72,9 +74,16 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .exceptions import LtiError
 from .lti import LtiConsumer
+from .lti_1p3.consumer import LtiConsumer1p3
 from .oauth import log_authorization_header
 from .outcomes import OutcomeService
-from .utils import _
+from .utils import (
+    _,
+    get_lms_base,
+    get_lms_lti_keyset_link,
+    get_lms_lti_launch_link,
+)
+
 
 log = logging.getLogger(__name__)
 
@@ -165,6 +174,7 @@ class LaunchTarget(object):  # pylint: disable=bad-option-value, useless-object-
 
 
 @XBlock.needs('i18n')
+@XBlock.wants('user')
 @XBlock.wants('settings')
 @XBlock.wants('lti-configuration')
 class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
@@ -270,6 +280,48 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default="",
         scope=Scope.settings
     )
+
+    # LTI 1.3 fields
+    lti_version = String(
+        display_name=_("LTI Version"),
+        scope=Scope.settings,
+        values=[
+            {"display_name": "LTI 1.1/1.2", "value": "lti_1p1"},
+            {"display_name": "LTI 1.3", "value": "lti_1p3"},
+        ],
+        default="lti_1p1",
+    )
+    lti_1p3_launch_url = String(
+        display_name=_("LTI 1.3 Launch URL"),
+        default='',
+        scope=Scope.settings
+    )
+    lti_1p3_oidc_url = String(
+        display_name=_("LTI 1.3 OIDC URL"),
+        default='',
+        scope=Scope.settings
+    )
+    lti_1p3_tool_public_key = String(
+        display_name=_("LTI 1.3 Tool Public Key"),
+        default='',
+        scope=Scope.settings
+    )
+    # Client ID and block key
+    lti_1p3_client_id = String(
+        display_name=_("LTI 1.3 Block Client ID"),
+        default=str(uuid.uuid4()),
+        scope=Scope.settings
+    )
+    # This key isn't editable, and should be regenerated
+    # for every block created (and not be carried over)
+    # This isn't what happens right now though
+    lti_1p3_block_key = String(
+        display_name=_("LTI 1.3 Block Key"),
+        default=RSA.generate(2048).export_key('PEM'),
+        scope=Scope.settings
+    )
+
+    # LTI 1.1 fields
     lti_id = String(
         display_name=_("LTI ID"),
         help=_(
@@ -297,6 +349,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default='',
         scope=Scope.settings
     )
+
+    # Misc
     custom_parameters = List(
         display_name=_("Custom Parameters"),
         help=_(
@@ -435,11 +489,22 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     # Possible editable fields
     editable_field_names = (
-        'display_name', 'description', 'lti_id', 'launch_url', 'custom_parameters',
-        'launch_target', 'button_text', 'inline_height', 'modal_height', 'modal_width',
-        'has_score', 'weight', 'hide_launch', 'accept_grades_past_due', 'ask_to_send_username',
-        'ask_to_send_email', 'enable_processors',
+        'display_name', 'description',
+        # LTI 1.3 variables
+        'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key',
+        # TODO: implement a proper default setter method on XBlock Fields API.
+        # This is just a workaround the issue.
+        'lti_1p3_client_id', 'lti_1p3_block_key',
+        # LTI 1.1 variables
+        'lti_id', 'launch_url',
+        # Other parameters
+        'custom_parameters', 'launch_target', 'button_text', 'inline_height', 'modal_height',
+        'modal_width', 'has_score', 'weight', 'hide_launch', 'accept_grades_past_due',
+        'ask_to_send_username', 'ask_to_send_email', 'enable_processors',
     )
+
+    # Author view
+    has_author_view = True
 
     @staticmethod
     def workbench_scenarios():
@@ -723,6 +788,52 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             close_date = due_date
         return close_date is not None and timezone.now() > close_date
 
+    def _get_lti1p3_consumer(self):
+        """
+        Returns a preconfigured LTI 1.3 consumer.
+
+        If the block is configured to use LTI 1.3, set up a
+        base LTI 1.3 consumer class with all block related
+        configuration services.
+
+        This class does NOT store state between calls.
+        """
+        return LtiConsumer1p3(
+            iss=get_lms_base(),
+            lti_oidc_url=self.lti_1p3_oidc_url,
+            lti_launch_url=self.lti_1p3_launch_url,
+            client_id=self.lti_1p3_client_id,
+            deployment_id="1",
+            rsa_key=self.lti_1p3_block_key,
+            rsa_key_id=self.lti_1p3_client_id
+        )
+
+    def author_view(self, context):
+        """
+        XBlock author view of this component.
+
+        If using LTI 1.1 it shows a launch preview of the XBlock.
+        If using LTI 1.3 it displays a fragment with parameters that
+        need to be set on the LTI Tool to make the integration work.
+        """
+        if self.lti_version == "lti_1p1":
+            return self.student_view(context)
+
+        fragment = Fragment()
+        loader = ResourceLoader(__name__)
+        context = {
+            "client": self.lti_1p3_client_id,
+            "deployment_id": "1",
+            "keyset_url": get_lms_lti_keyset_link(self.location),  # pylint: disable=no-member
+            "oidc_callback": get_lms_lti_launch_link(),
+            "launch_url": self.lti_1p3_launch_url,
+        }
+        fragment.add_content(loader.render_mako_template('/templates/html/lti_1p3_studio.html', context))
+        fragment.add_css(loader.load_unicode('static/css/student.css'))
+        fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
+        fragment.initialize_js('LtiConsumerXBlock')
+        return fragment
+
     def student_view(self, context):
         """
         XBlock student view of this component.
@@ -749,7 +860,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     @XBlock.handler
     def lti_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
         """
-        XBlock handler for launching the LTI provider.
+        XBlock handler for launching LTI 1.1 tools.
 
         Displays a form which is submitted via Javascript
         to send the LTI launch POST request to the LTI
@@ -769,6 +880,91 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context.update({'lti_parameters': lti_parameters})
         template = loader.render_mako_template('/templates/html/lti_launch.html', context)
         return Response(template, content_type='text/html')
+
+    @XBlock.handler
+    def lti_1p3_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+        XBlock handler for launching the LTI 1.3 tools.
+
+        Displays a form with the OIDC preflight request and
+        submits it to the tool.
+
+        Arguments:
+            request (xblock.django.request.DjangoWebobRequest): Request object for current HTTP request
+
+        Returns:
+            webob.response: HTML LTI launch form
+        """
+        lti_consumer = self._get_lti1p3_consumer()
+        context = lti_consumer.prepare_preflight_url(
+            callback_url=get_lms_lti_launch_link(),
+            hint=six.text_type(self.location),  # pylint: disable=no-member
+            lti_hint=six.text_type(self.location)  # pylint: disable=no-member
+        )
+
+        loader = ResourceLoader(__name__)
+        template = loader.render_mako_template('/templates/html/lti_1p3_oidc.html', context)
+        return Response(template, content_type='text/html')
+
+    @XBlock.handler
+    def lti_1p3_launch_callback(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+        XBlock handler for launching the LTI 1.3 tool.
+
+        This endpoint is only valid when a LTI 1.3 tool is being used.
+
+        Returns:
+            webob.response: HTML LTI launch form or error page if misconfigured
+        """
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+
+        loader = ResourceLoader(__name__)
+        context = {}
+
+        lti_consumer = self._get_lti1p3_consumer()
+
+        # Pass user data
+        lti_consumer.set_user_data(
+            user_id=self.runtime.user_id,
+            # Pass django user role to library
+            role=self.runtime.get_user_role()
+        )
+
+        # Set launch context
+        # Hardcoded for now, but we need to translate from
+        # self.launch_target to one of the LTI compliant names,
+        # either `iframe`, `frame` or `window`
+        # This is optional though
+        lti_consumer.set_launch_presentation_claim('iframe')
+
+        context.update({
+            "preflight_response": dict(request.GET),
+            "launch_request": lti_consumer.generate_launch_request(
+                resource_link=self.resource_link_id,
+                preflight_response=request.GET
+            )
+        })
+
+        context.update({
+            'launch_url': self.lti_1p3_launch_url,
+            'user': self.runtime.user_id
+        })
+        template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
+        return Response(template, content_type='text/html')
+
+    @XBlock.handler
+    def public_keyset_endpoint(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+        XBlock handler for launching the LTI provider.
+        """
+        if self.lti_version == "lti_1p3":
+            return Response(
+                json_body=self._get_lti1p3_consumer().get_public_keyset(),
+                content_type='application/json',
+                content_disposition='attachment; filename=keyset.json'
+            )
+        return Response(status=404)
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument
@@ -935,13 +1131,19 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
         sanitized_comment = bleach.clean(self.score_comment, tags=allowed_tags, attributes=allowed_attributes)
 
+        # Set launch handler depending on LTI version
+        lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
+        if self.lti_version == 'lti_1p3':
+            lti_block_launch_handler = self.runtime.handler_url(self, 'lti_1p3_launch_handler').rstrip('/?')
+
         return {
             'launch_url': self.launch_url.strip(),
+            'lti_1p3_launch_url': self.lti_1p3_launch_url.strip(),
             'element_id': self.location.html_id(),  # pylint: disable=no-member
             'element_class': self.category,  # pylint: disable=no-member
             'launch_target': self.launch_target,
             'display_name': self.display_name,
-            'form_url': self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?'),
+            'form_url': lti_block_launch_handler,
             'hide_launch': self.hide_launch,
             'has_score': self.has_score,
             'weight': self.weight,

@@ -1,0 +1,20 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>LTI</title>
+    </head>
+    <body>
+        <a id="launch-link" href="${oidc_url}">
+            Click here to launch activity.
+        </a>
+        <script type="text/javascript">
+            (function (d) {
+                var element = d.getElementById("launch-link");
+                if (element) {
+                    element.click();
+                }
+            }(document));
+        </script>
+    </body>
+</html>

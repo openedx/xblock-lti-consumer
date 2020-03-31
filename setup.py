@@ -50,7 +50,7 @@ with open('README.rst') as _f:
 
 setup(
     name='lti-consumer-xblock',
-    version='1.4.2',
+    version='2.0.0',
     description='This XBlock implements the consumer side of the LTI specification.',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -64,6 +64,9 @@ setup(
     entry_points={
         'xblock.v1': [
             'lti_consumer = lti_consumer:LtiConsumerXBlock',
+        ],
+        'lms.djangoapp': [
+            "lti_consumer = lti_consumer:LTIConsumerApp",
         ]
     },
     package_data=package_data("lti_consumer", ["static", "templates", "public", "translations"]),
