@@ -15,6 +15,7 @@ from jwkest.jwk import load_jwks
 from jwkest.jws import JWS
 
 from lti_consumer.lti_1p3.consumer import LtiConsumer1p3
+from lti_consumer.lti_1p3 import exceptions
 
 
 # Variables required for testing and verification
@@ -47,7 +48,9 @@ class TestLti1p3Consumer(TestCase):
             client_id=CLIENT_ID,
             deployment_id=DEPLOYMENT_ID,
             rsa_key=RSA_KEY,
-            rsa_key_id=RSA_KEY_ID
+            rsa_key_id=RSA_KEY_ID,
+            # Use the same key for testing purposes
+            tool_key=RSA_KEY
         )
 
     def _setup_lti_user(self):
@@ -321,3 +324,63 @@ class TestLti1p3Consumer(TestCase):
         """
         with self.assertRaises(ValueError):
             self.lti_consumer.set_custom_parameters("invalid")
+
+    def test_access_token_missing_params(self):
+        """
+        Check if access token with missing request data raises.
+        """
+        with self.assertRaises(exceptions.MissingRequiredClaim):
+            self.lti_consumer.access_token({})
+
+    def test_access_token_invalid_jwt(self):
+        """
+        Check if access token with invalid request data raises.
+        """
+        request_data = {
+            "grant_type": "client_credentials",
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            # This should be a valid JWT
+            "client_assertion": "invalid-jwt",
+            # Scope can be empty
+            "scope": "",
+        }
+
+        with self.assertRaises(exceptions.MalformedJwtToken):
+            self.lti_consumer.access_token(request_data)
+
+    def test_access_token(self):
+        """
+        Check if a valid access token is returned.
+
+        Since we're using the same key for both tool and
+        platform here, we can make use of the internal
+        _decode_token to check validity.
+        """
+        # Generate a dummy, but valid JWT
+        token = self.lti_consumer.key_handler.encode_and_sign(
+            {
+                "test": "test"
+            },
+            expiration=1000
+        )
+
+        request_data = {
+            # We don't actually care about these 2 first values
+            "grant_type": "client_credentials",
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            # This should be a valid JWT
+            "client_assertion": token,
+            # Scope can be empty
+            "scope": "",
+        }
+
+        response = self.lti_consumer.access_token(request_data)
+
+        # Check response contents
+        self.assertIn('access_token', response)
+        self.assertEqual(response.get('token_type'), 'bearer')
+        self.assertEqual(response.get('expires_in'), 3600)
+        self.assertEqual(response.get('scope'), '')
+
+        # Check if token is valid
+        self._decode_token(response.get('access_token'))

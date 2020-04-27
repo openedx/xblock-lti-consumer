@@ -1,18 +1,17 @@
 """
 LTI 1.3 Consumer implementation
 """
-import json
-import time
-
 # Quality checks failing due to know pylint bug
 from six.moves.urllib.parse import urlencode
 
-from Crypto.PublicKey import RSA
-from jwkest.jwk import RSAKey
-from jwkest.jws import JWS
-from jwkest import jwk
-
-from .constants import LTI_1P3_ROLE_MAP, LTI_BASE_MESSAGE
+from . import exceptions
+from .constants import (
+    LTI_1P3_ROLE_MAP,
+    LTI_BASE_MESSAGE,
+    LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS,
+    LTI_1P3_ACCESS_TOKEN_SCOPES,
+)
+from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 
 
 class LtiConsumer1p3:
@@ -27,7 +26,9 @@ class LtiConsumer1p3:
             client_id,
             deployment_id,
             rsa_key,
-            rsa_key_id
+            rsa_key_id,
+            tool_key=None,
+            tool_keyset_url=None,
     ):
         """
         Initialize LTI 1.3 Consumer class
@@ -38,31 +39,19 @@ class LtiConsumer1p3:
         self.client_id = client_id
         self.deployment_id = deployment_id
 
-        # Generate JWK from RSA key
-        self.jwk = RSAKey(
-            # Using the same key ID as client id
-            # This way we can easily serve multiple public
-            # keys on teh same endpoint and keep all
-            # LTI 1.3 blocks working
-            kid=rsa_key_id,
-            key=RSA.import_key(rsa_key)
+        # Set up platform message signature class
+        self.key_handler = PlatformKeyHandler(rsa_key, rsa_key_id)
+
+        # Set up tool public key verification class
+        self.tool_jwt = ToolKeyHandler(
+            public_key=tool_key,
+            keyset_url=tool_keyset_url
         )
 
         # IMS LTI Claim data
         self.lti_claim_user_data = None
         self.lti_claim_launch_presentation = None
         self.lti_claim_custom_parameters = None
-
-    def _encode_and_sign(self, message):
-        """
-        Encode and sign JSON with RSA key
-        """
-        # The class instance that sets up the signing operation
-        # An RS 256 key is required for LTI 1.3
-        _jws = JWS(message, alg="RS256", cty="JWT")
-
-        # Encode and sign LTI message
-        return _jws.sign_compact([self.jwk])
 
     @staticmethod
     def _get_user_roles(role):
@@ -256,15 +245,12 @@ class LtiConsumer1p3:
         if self.lti_claim_custom_parameters:
             lti_message.update(self.lti_claim_custom_parameters)
 
-        # Add `exp` and `iat` JWT attributes
-        lti_message.update({
-            "iat": int(round(time.time())),
-            "exp": int(round(time.time()) + 3600)
-        })
-
         return {
             "state": preflight_response.get("state"),
-            "id_token": self._encode_and_sign(lti_message)
+            "id_token": self.key_handler.encode_and_sign(
+                message=lti_message,
+                expiration=300
+            )
         }
 
     def get_public_keyset(self):
@@ -290,3 +276,72 @@ class LtiConsumer1p3:
             assert response.get("redirect_uri") == self.launch_url
         except AssertionError:
             raise ValueError("Preflight reponse failed validation")
+
+        return self.key_handler.get_public_jwk()
+
+    def access_token(self, token_request_data):
+        """
+        Validate request and return JWT access token.
+
+        This complies to IMS Security Framework and accepts a JWT
+        as a secret for the client credentials grant.
+        See this section:
+        https://www.imsglobal.org/spec/security/v1p0/#securing_web_services
+
+        Full spec reference:
+        https://www.imsglobal.org/spec/security/v1p0/
+
+        Parameters:
+            token_request_data: Dict of parameters sent by LTI tool as form_data.
+
+        Returns:
+            A dict containing the JSON response containing a JWT and some extra
+            parameters required by LTI tools. This token gives access to all
+            supported LTI Scopes from this tool.
+        """
+        # Check if all required claims are present
+        for required_claim in LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS:
+            if required_claim not in token_request_data.keys():
+                raise exceptions.MissingRequiredClaim()
+
+        # Check that grant type is `client_credentials`
+        if token_request_data['grant_type'] != 'client_credentials':
+            raise exceptions.UnsupportedGrantType()
+
+        # Validate JWT token
+        self.tool_jwt.validate_and_decode(
+            token_request_data['client_assertion']
+        )
+
+        # Check scopes and only return valid and supported ones
+        valid_scopes = []
+        requested_scopes = token_request_data['scope'].split(' ')
+
+        for scope in requested_scopes:
+            # TODO: Add additional checks for permitted scopes
+            # Currently there are no scopes, because there is no use for
+            # these access tokens until a tool needs to access the LMS.
+            # LTI Advantage extensions make use of this.
+            if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
+                valid_scopes.append(scope)
+
+        # Scopes are space separated as described in
+        # https://tools.ietf.org/html/rfc6749
+        scopes_str = " ".join(valid_scopes)
+
+        # This response is compliant with RFC 6749
+        # https://tools.ietf.org/html/rfc6749#section-4.4.3
+        return {
+            "access_token": self.key_handler.encode_and_sign(
+                {
+                    "sub": self.client_id,
+                    "scopes": scopes_str
+                },
+                # Create token valid for 3600 seconds (1h) as per specification
+                # https://www.imsglobal.org/spec/security/v1p0/#expires_in-values-and-renewing-the-access-token
+                expiration=3600
+            ),
+            "token_type": "bearer",
+            "expires_in": 3600,
+            "scope": scopes_str
+        }
