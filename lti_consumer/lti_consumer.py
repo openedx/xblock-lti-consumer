@@ -58,10 +58,9 @@ import uuid
 from collections import namedtuple
 from importlib import import_module
 
-import six.moves.urllib.error
-import six.moves.urllib.parse
-import six
 import bleach
+import six
+from six.moves.urllib import parse
 from Crypto.PublicKey import RSA
 from django.utils import timezone
 from webob import Response
@@ -74,12 +73,21 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .exceptions import LtiError
 from .lti import LtiConsumer
+from .lti_1p3.exceptions import (
+    UnsupportedGrantType,
+    MalformedJwtToken,
+    MissingRequiredClaim,
+    NoSuitableKeys,
+    TokenSignatureExpired,
+    UnknownClientId,
+)
 from .lti_1p3.consumer import LtiConsumer1p3
 from .oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .utils import (
     _,
     get_lms_base,
+    get_lms_lti_access_token_link,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
 )
@@ -307,6 +315,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default='',
         scope=Scope.settings
     )
+    lti_1p3_tool_public_key_id = String(
+        display_name=_("LTI 1.3 Tool Public Key ID"),
+        default='',
+        scope=Scope.settings
+    )
     # Client ID and block key
     lti_1p3_client_id = String(
         display_name=_("LTI 1.3 Block Client ID"),
@@ -493,6 +506,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'display_name', 'description',
         # LTI 1.3 variables
         'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key',
+        'lti_1p3_tool_public_key_id',
         # LTI 1.1 variables
         'lti_id', 'launch_url',
         # Other parameters
@@ -796,8 +810,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             lti_launch_url=self.lti_1p3_launch_url,
             client_id=self.lti_1p3_client_id,
             deployment_id="1",
+            # XBlock Private RSA Key
             rsa_key=self.lti_1p3_block_key,
-            rsa_key_id=self.lti_1p3_client_id
+            rsa_key_id=self.lti_1p3_client_id,
+            # LTI 1.3 Tool key/keyset url
+            tool_key=self.lti_1p3_tool_public_key,
+            tool_keyset_url=None,
         )
 
     def studio_view(self, context):
@@ -852,6 +870,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "deployment_id": "1",
             "keyset_url": get_lms_lti_keyset_link(self.location),  # pylint: disable=no-member
             "oidc_callback": get_lms_lti_launch_link(),
+            "token_url": get_lms_lti_access_token_link(self.location),  # pylint: disable=no-member
             "launch_url": self.lti_1p3_launch_url,
         }
         fragment.add_content(loader.render_mako_template('/templates/html/lti_1p3_studio.html', context))
@@ -991,6 +1010,66 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 content_disposition='attachment; filename=keyset.json'
             )
         return Response(status=404)
+
+    @XBlock.handler
+    def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+        XBlock handler for creating access tokens for the LTI 1.3 tool.
+
+        This endpoint is only valid when a LTI 1.3 tool is being used.
+
+        Returns:
+            webob.response:
+                Either an access token or error message detailing the failure.
+                All responses are RFC 6749 compliant.
+
+        References:
+            Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
+            Failure: https://tools.ietf.org/html/rfc6749#section-5.2
+        """
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+        elif request.method != "POST":
+            return Response(status=405)
+
+        lti_consumer = self._get_lti1p3_consumer()
+        try:
+            token = lti_consumer.access_token(
+                dict(parse.parse_qsl(
+                    request.body.decode('utf-8'),
+                    keep_blank_values=True
+                ))
+            )
+            # The returned `token` is compliant with RFC 6749 so we just
+            # need to return a 200 OK response with the token as Json body
+            return Response(json_body=token, content_type="application/json")
+
+        # Handle errors and return a proper response
+        # pylint: disable=bare-except
+        except MissingRequiredClaim:
+            # Missing request attibutes
+            return Response(
+                json_body={"error": "invalid_request"},
+                status=400
+            )
+        except (MalformedJwtToken, TokenSignatureExpired):
+            # Triggered when a invalid grant token is used
+            return Response(
+                json_body={"error": "invalid_grant"},
+                status=400,
+            )
+        except (NoSuitableKeys, UnknownClientId):
+            # Client ID is not registered in the block or
+            # isn't possible to validate token using available keys.
+            return Response(
+                json_body={"error": "invalid_client"},
+                status=400,
+            )
+        except UnsupportedGrantType:
+            return Response(
+                json_body={"error": "unsupported_grant_type"},
+                status=400,
+            )
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument

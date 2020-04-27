@@ -33,3 +33,13 @@ LTI_1P3_ROLE_MAP = {
         'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student'
     ],
 }
+
+
+LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS = set([
+    "grant_type",
+    "client_assertion_type",
+    "client_assertion",
+    "scope",
+])
+
+LTI_1P3_ACCESS_TOKEN_SCOPES = []
