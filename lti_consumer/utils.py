@@ -46,3 +46,15 @@ def get_lms_lti_launch_link():
     return u"{lms_base}/api/lti_consumer/v1/launch/".format(
         lms_base=get_lms_base(),
     )
+
+
+def get_lms_lti_access_token_link(location):
+    """
+    Returns an LMS link to LTI Launch endpoint
+
+    :param location: the location of the block
+    """
+    return u"{lms_base}/api/lti_consumer/v1/token/{location}".format(
+        lms_base=get_lms_base(),
+        location=text_type(location),
+    )
