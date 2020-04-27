@@ -250,6 +250,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     block_settings_key = 'lti_consumer'
+    icon_class = 'problem'
 
     display_name = String(
         display_name=_("Display Name"),
