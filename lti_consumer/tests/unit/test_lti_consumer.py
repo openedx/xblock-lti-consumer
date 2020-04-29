@@ -942,6 +942,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         self.xblock_attributes = {
             'lti_version': 'lti_1p3',
+            'lti_1p3_client_id': '1',
             'lti_1p3_launch_url': 'http://tool.example/launch',
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
             # We need to set the values below because they are not automatically
@@ -980,7 +981,8 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         # Craft request sent back by LTI tool
         request = make_request('', 'GET')
-        request.query_string = "state=state_test_123&nonce=nonce&login_hint=oidchint&lti_message_hint=ltihint"
+        request.query_string = "client_id=1&redirect_uri=http://tool.example/launch&state=state_test_123&nonce=nonce\
+&login_hint=oidchint&lti_message_hint=ltihint"
 
         response = self.xblock.lti_1p3_launch_callback(request)
 
