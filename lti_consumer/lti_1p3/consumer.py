@@ -5,7 +5,6 @@ import json
 import time
 
 # Quality checks failing due to know pylint bug
-# pylint: disable=relative-import
 from six.moves.urllib.parse import urlencode
 
 from Crypto.PublicKey import RSA
@@ -16,7 +15,7 @@ from jwkest import jwk
 from .constants import LTI_1P3_ROLE_MAP, LTI_BASE_MESSAGE
 
 
-class LtiConsumer1p3(object):
+class LtiConsumer1p3:
     """
     LTI 1.3 Consumer Implementation
     """
@@ -199,10 +198,12 @@ class LtiConsumer1p3(object):
         This will add all required parameters from the LTI 1.3 spec and any additional ones set in
         the configuration and JTW encode the message using the provided key.
         """
+        # Validate preflight response
+        self._validate_preflight_response(preflight_response)
+
         # Start from base message
         lti_message = LTI_BASE_MESSAGE.copy()
 
-        # TODO: Validate preflight response
         # Add base parameters
         lti_message.update({
             # Issuer
@@ -273,3 +274,19 @@ class LtiConsumer1p3(object):
         public_keys = jwk.KEYS()
         public_keys.append(self.jwk)
         return json.loads(public_keys.dump_jwks())
+
+    def _validate_preflight_response(self, response):
+        """
+        Validates a preflight response to be used in a launch request
+
+        Raises ValueError in case of validation failure
+
+        :param response: the preflight response to be validated
+        """
+        try:
+            assert response.get("nonce")
+            assert response.get("state")
+            assert response.get("client_id") == self.client_id
+            assert response.get("redirect_uri") == self.launch_url
+        except AssertionError:
+            raise ValueError("Preflight reponse failed validation")
