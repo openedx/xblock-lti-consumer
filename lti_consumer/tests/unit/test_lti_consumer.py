@@ -812,14 +812,17 @@ class TestGetContext(TestLtiConsumerXBlock):
     Unit tests for LtiConsumerXBlock._get_context_for_template()
     """
 
-    def test_context_keys(self):
+    @ddt.data('lti_1p1', 'lti_1p3')
+    def test_context_keys(self, lti_version):
         """
         Test `_get_context_for_template` returns dict with correct keys
         """
+        self.xblock.lti_version = lti_version
         context_keys = (
-            'launch_url', 'element_id', 'element_class', 'launch_target', 'display_name', 'form_url', 'hide_launch',
-            'has_score', 'weight', 'module_score', 'comment', 'description', 'ask_to_send_username',
-            'ask_to_send_email', 'button_text', 'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
+            'launch_url', 'lti_1p3_launch_url', 'element_id', 'element_class', 'launch_target',
+            'display_name', 'form_url', 'hide_launch', 'has_score', 'weight', 'module_score',
+            'comment', 'description', 'ask_to_send_username', 'ask_to_send_email', 'button_text',
+            'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
             'accept_grades_past_due'
         )
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
@@ -912,3 +915,84 @@ class TestGetModalPositionOffset(TestLtiConsumerXBlock):
 
         # modal_height defaults to 80, so offset should equal 10
         self.assertEqual(offset, 10)
+
+
+class TestLtiConsumer1p3XBlock(TestCase):
+    """
+    Unit tests for LtiConsumerXBlock when using an LTI 1.3 tool.
+    """
+    def setUp(self):
+        super(TestLtiConsumer1p3XBlock, self).setUp()
+
+        self.xblock_attributes = {
+            'lti_version': 'lti_1p3',
+            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_oidc_url': 'http://tool.example/oidc',
+            'lti_1p3_tool_public_key': ''
+        }
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_launch_request(self, mock_url, mock_url_2):
+        """
+        Test LTI 1.3 launch request
+        """
+        response = self.xblock.lti_1p3_launch_handler(make_request('', 'GET'))
+        self.assertEqual(response.status_code, 200)
+
+        # Check if tool OIDC url is on page
+        self.assertIn(self.xblock_attributes['lti_1p3_oidc_url'], response.body)
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_launch_callback_endpoint(self, mock_url, mock_url_2):
+        """
+        Test that the LTI 1.3 callback endpoind.
+        """
+        self.xblock.runtime.get_user_role.return_value = 'student'
+        self.xblock.runtime.user_id = 2
+
+        # Craft request sent back by LTI tool
+        request = make_request('', 'GET')
+        request.query_string = "state=state_test_123&nonce=nonce&login_hint=oidchint&lti_message_hint=ltihint"
+
+        response = self.xblock.lti_1p3_launch_callback(request)
+
+        # Check response and assert that state was inserted
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("state", response.body)
+        self.assertIn("state_test_123", response.body)
+
+    def test_launch_callback_endpoint_when_using_lti_1p1(self):
+        """
+        Test that the LTI 1.3 callback endpoind is unavailable when using 1.1.
+        """
+        self.xblock.lti_version = 'lti_1p1'
+        self.xblock.save()
+        response = self.xblock.lti_1p3_launch_callback(make_request('', 'GET'))
+        self.assertEqual(response.status_code, 404)
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_keyset_endpoint(self, mock_url, mock_url_2):
+        """
+        Test that the LTI 1.3 keyset endpoind.
+        """
+        response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'application/json')
+        self.assertEqual(response.content_disposition, 'attachment; filename=keyset.json')
+
+    def test_keyset_endpoint_when_using_lti_1p1(self):
+        """
+        Test that the LTI 1.3 keyset endpoind is unavailable when using 1.1.
+        """
+        self.xblock.lti_version = 'lti_1p1'
+        self.xblock.save()
+
+        response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
+        self.assertEqual(response.status_code, 404)

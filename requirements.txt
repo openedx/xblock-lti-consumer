@@ -4,6 +4,8 @@ django==1.11.25
 oauthlib
 mako
 lazy
+pyjwkest==1.4.2
+pycryptodome==3.9.7
 -e git+https://github.com/edx/XBlock.git#egg=XBlock
 -e git+https://github.com/edx/xblock-utils.git#egg=xblock-utils
 -e .
