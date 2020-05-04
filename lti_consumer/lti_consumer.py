@@ -808,6 +808,18 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             rsa_key_id=self.lti_1p3_client_id
         )
 
+    def studio_view(self, context):
+        """
+        Get Studio View fragment
+        """
+        loader = ResourceLoader(__name__)
+        fragment = super(LtiConsumerXBlock, self).studio_view(context)
+
+        fragment.add_javascript(loader.load_unicode("static/js/xblock_studio_view.js"))
+        fragment.initialize_js('LtiConsumerXBlockInitStudio')
+
+        return fragment
+
     def author_view(self, context):
         """
         XBlock author view of this component.
