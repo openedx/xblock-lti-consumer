@@ -6,12 +6,12 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
     StudioEditableXBlockMixin(runtime, element);
 
     // Define LTI 1.1 and 1.3 fields
-    const Lti1P1FieldList = [
+    const lti1P1FieldList = [
         "lti_id",
         "launch_url"
     ];
 
-    const Lti1P3FieldList = [
+    const lti1P3FieldList = [
         "lti_1p3_launch_url",
         "lti_1p3_oidc_url",
         "lti_1p3_tool_public_key"
@@ -28,7 +28,6 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
         const componentQuery = '[data-field-name="'+ field + '"]';
         const fieldContainer = element.find(componentQuery);
 
-        console.log(field);
         if (visible) {
             fieldContainer.show();
         } else {
@@ -44,14 +43,14 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
         const ltiVersionField = $(element).find('#xb-field-edit-lti_version');
         const selectedVersion = ltiVersionField.children("option:selected").val();
 
-        Lti1P1FieldList.forEach(function (field) {
+        lti1P1FieldList.forEach(function (field) {
             toggleFieldVisibility(
                 field,
                 selectedVersion === "lti_1p1"
             );
         });
 
-        Lti1P3FieldList.forEach(function (field) {
+        lti1P3FieldList.forEach(function (field) {
             toggleFieldVisibility(
                 field,
                 selectedVersion === "lti_1p3"
