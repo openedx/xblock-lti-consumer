@@ -309,7 +309,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     # Client ID and block key
     lti_1p3_client_id = String(
         display_name=_("LTI 1.3 Block Client ID"),
-        default=str(uuid.uuid4()),
+        default='',
         scope=Scope.settings
     )
     # This key isn't editable, and should be regenerated
@@ -317,7 +317,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     # This isn't what happens right now though
     lti_1p3_block_key = String(
         display_name=_("LTI 1.3 Block Key"),
-        default=RSA.generate(2048).export_key('PEM'),
+        default='',
         scope=Scope.settings
     )
 
@@ -492,9 +492,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'display_name', 'description',
         # LTI 1.3 variables
         'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key',
-        # TODO: implement a proper default setter method on XBlock Fields API.
-        # This is just a workaround the issue.
-        'lti_1p3_client_id', 'lti_1p3_block_key',
         # LTI 1.1 variables
         'lti_id', 'launch_url',
         # Other parameters
@@ -801,6 +798,40 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             rsa_key=self.lti_1p3_block_key,
             rsa_key_id=self.lti_1p3_client_id
         )
+
+    def studio_view(self, context):
+        """
+        Get Studio View fragment
+        """
+        loader = ResourceLoader(__name__)
+        fragment = super(LtiConsumerXBlock, self).studio_view(context)
+
+        fragment.add_javascript(loader.load_unicode("static/js/xblock_studio_view.js"))
+        fragment.initialize_js('LtiConsumerXBlockInitStudio')
+
+        return fragment
+
+    def clean_studio_edits(self, data):
+        """
+        This is a handler to set hidden Studio variables for LTI 1.3.
+
+        These variables shouldn't be editable by the user, but need
+        to be automatically generated for each instance:
+        * lti_1p3_client_id: random uuid (requirement: must be unique)
+        * lti_1p3_block_key: PEM export of 2048-bit RSA key.
+
+        TODO: Remove this once the XBlock Fields API support using
+        a default computed value.
+        """
+        if data.get('lti_version') == 'lti_1p3':
+            # Check if values already exist before populating
+            # to avoid overwriting these keys on every edit.
+            if not self.lti_1p3_client_id:
+                data['lti_1p3_client_id'] = str(uuid.uuid4())
+            if not self.lti_1p3_block_key:
+                data['lti_1p3_block_key'] = RSA.generate(2048).export_key('PEM')
+
+        return super(LtiConsumerXBlock, self).clean_studio_edits(data)
 
     def author_view(self, context):
         """

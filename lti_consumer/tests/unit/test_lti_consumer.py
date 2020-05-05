@@ -5,9 +5,11 @@ Unit tests for LtiConsumerXBlock
 from __future__ import absolute_import
 
 from datetime import timedelta
+import uuid
 
 import ddt
 import six
+from Crypto.PublicKey import RSA
 from django.test.testcases import TestCase
 from django.utils import timezone
 from mock import Mock, PropertyMock, patch
@@ -928,7 +930,12 @@ class TestLtiConsumer1p3XBlock(TestCase):
             'lti_version': 'lti_1p3',
             'lti_1p3_launch_url': 'http://tool.example/launch',
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
-            'lti_1p3_tool_public_key': ''
+            'lti_1p3_tool_public_key': '',
+            # We need to set the values below because they are not automatically
+            # generated until the user selects `lti_version == 'lti_1p3'` on the
+            # Studio configuration view.
+            'lti_1p3_client_id': str(uuid.uuid4()),
+            'lti_1p3_block_key': RSA.generate(2048).export_key('PEM'),
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
@@ -996,3 +1003,52 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
         self.assertEqual(response.status_code, 404)
+
+    def test_studio_view(self):
+        """
+        Test that the studio settings view load the custom js.
+        """
+        response = self.xblock.studio_view({})
+        self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
+
+    @patch('lti_consumer.lti_consumer.RSA')
+    @patch('lti_consumer.lti_consumer.uuid')
+    def test_clean_studio_edits(self, mock_uuid, mock_rsa):
+        """
+        Test that the clean studio edits function properly sets LTI 1.3 variables.
+        """
+        data = {'lti_version': 'lti_1p3'}
+        # Setup mocks
+        mock_uuid.uuid4.return_value = 'generated_uuid'
+        mock_rsa.generate().export_key.return_value = 'generated_rsa_key'
+
+        # Test that values are not overwriten if already present
+        self.xblock.clean_studio_edits(data)
+        self.assertEqual(data, {'lti_version': 'lti_1p3'})
+
+        # Set empty variables to allow automatic generation
+        self.xblock.lti_1p3_client_id = ''
+        self.xblock.lti_1p3_block_key = ''
+        self.xblock.save()
+
+        # Check that variables are generated if empty
+        self.xblock.clean_studio_edits(data)
+        self.assertEqual(
+            data,
+            {
+                'lti_version': 'lti_1p3',
+                'lti_1p3_client_id': 'generated_uuid',
+                'lti_1p3_block_key': 'generated_rsa_key'
+            }
+        )
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_author_view(self, mock_url, mock_url_2):
+        """
+        Test that the studio view loads LTI 1.3 view.
+        """
+        response = self.xblock.author_view({})
+        self.assertIn(self.xblock.lti_1p3_client_id, response.content)
+        self.assertIn("https://example.com", response.content)
