@@ -1,0 +1,13 @@
+# Requirements for test runs
+-c constraints.txt
+
+-r base.txt               # Core dependencies for the cookiecutter
+
+django-nose
+ddt
+coveralls
+mock
+pep8
+django-pyfs
+edx_lint
+-e git+https://github.com/edx/xblock-sdk.git#egg=xblock-sdk
