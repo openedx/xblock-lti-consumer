@@ -671,6 +671,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return six.text_type(six.moves.urllib.parse.quote(user_id))
 
     @property
+    def external_user_id(self):
+        """
+        Returns the opaque external user id for the current user.
+        """
+        user_id = self.runtime.service(self, 'user').get_external_user_id('lti')
+        if user_id is None:
+            raise LtiError(self.ugettext("Could not get user id for current request"))
+        return six.text_type(six.moves.urllib.parse.quote(user_id))
+
+    @property
     def resource_link_id(self):
         """
         This is an opaque unique identifier that the LTI Tool Consumer guarantees will be unique
@@ -971,7 +981,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Pass user data
         lti_consumer.set_user_data(
-            user_id=self.runtime.user_id,
+            user_id=self.external_user_id,
             # Pass django user role to library
             role=self.runtime.get_user_role()
         )
@@ -991,10 +1001,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
         })
 
-        context.update({
-            'launch_url': self.lti_1p3_launch_url,
-            'user': self.runtime.user_id
-        })
+        context.update({'launch_url': self.lti_1p3_launch_url})
         template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
         return Response(template, content_type='text/html')
 
