@@ -964,7 +964,10 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.assertEqual(response.status_code, 200)
 
         # Check if tool OIDC url is on page
-        self.assertIn(self.xblock_attributes['lti_1p3_oidc_url'], response.body)
+        self.assertIn(
+            self.xblock_attributes['lti_1p3_oidc_url'],
+            response.body.decode('utf-8')
+        )
 
     # pylint: disable=unused-argument
     @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
@@ -985,8 +988,10 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         # Check response and assert that state was inserted
         self.assertEqual(response.status_code, 200)
-        self.assertIn("state", response.body)
-        self.assertIn("state_test_123", response.body)
+
+        response_body = response.body.decode('utf-8')
+        self.assertIn("state", response_body)
+        self.assertIn("state_test_123", response_body)
 
     def test_launch_callback_endpoint_when_using_lti_1p1(self):
         """
