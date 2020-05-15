@@ -114,7 +114,7 @@ class TestLti1p3Consumer(TestCase):
         Check that user roles are correctly translated to LTI 1.3 compliant rolenames.
         """
         roles = self.lti_consumer._get_user_roles(role)  # pylint: disable=protected-access
-        self.assertItemsEqual(roles, expected_output)
+        self.assertCountEqual(roles, expected_output)
 
     def test_get_user_roles_invalid(self):
         """
@@ -135,7 +135,7 @@ class TestLti1p3Consumer(TestCase):
 
         # Extract and check parameters from OIDC launch request url
         parameters = parse_qs(urlparse(preflight_request_data['oidc_url']).query)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             parameters.keys(),
             [
                 'iss',
@@ -265,7 +265,7 @@ class TestLti1p3Consumer(TestCase):
         self.assertEqual(mock_time.call_count, 2)
 
         # Check launch request contents
-        self.assertItemsEqual(launch_request.keys(), ['state', 'id_token'])
+        self.assertCountEqual(launch_request.keys(), ['state', 'id_token'])
         self.assertEqual(launch_request['state'], 'state')
         # TODO: Decode and check token
 
