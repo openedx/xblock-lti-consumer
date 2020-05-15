@@ -16,4 +16,4 @@ six==1.14.0               # via packaging, tox, virtualenv
 toml==0.10.1              # via tox
 tox==3.15.0               # via -r requirements/tox.in
 virtualenv==20.0.20       # via tox
-zipp==3.1.0               # via importlib-metadata
+zipp==1.1.1               # via -c requirements/constraints.txt, importlib-metadata
