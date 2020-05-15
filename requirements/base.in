@@ -9,3 +9,5 @@ mako
 lazy
 XBlock
 xblock-utils
+pyjwkest
+pycryptodome
