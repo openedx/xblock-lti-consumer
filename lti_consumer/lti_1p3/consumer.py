@@ -1,7 +1,6 @@
 """
 LTI 1.3 Consumer implementation
 """
-# Quality checks failing due to know pylint bug
 from six.moves.urllib.parse import urlencode
 
 from . import exceptions
