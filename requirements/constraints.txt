@@ -15,3 +15,6 @@ Django<2.3.0
 
 # mock version 4.0.0 drops support for python 3.5
 mock<4.0.0
+
+# Zip > 1.2.0 drops support for python 3.5
+zipp<1.2.0
