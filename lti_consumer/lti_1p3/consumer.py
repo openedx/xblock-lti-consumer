@@ -1,8 +1,6 @@
 """
 LTI 1.3 Consumer implementation
 """
-# Quality checks failing due to know pylint bug
-# pylint: disable=relative-import
 from six.moves.urllib.parse import urlencode
 
 from . import exceptions
@@ -15,7 +13,7 @@ from .constants import (
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 
 
-class LtiConsumer1p3(object):
+class LtiConsumer1p3:
     """
     LTI 1.3 Consumer Implementation
     """

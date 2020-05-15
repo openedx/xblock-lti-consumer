@@ -18,7 +18,7 @@ from jwkest.jwt import JWT
 from . import exceptions
 
 
-class ToolKeyHandler(object):
+class ToolKeyHandler:
     """
     LTI 1.3 Tool Jwt Handler.
 
@@ -121,7 +121,7 @@ class ToolKeyHandler(object):
             raise exceptions.MalformedJwtToken()
 
 
-class PlatformKeyHandler(object):
+class PlatformKeyHandler:
     """
     Platform RSA Key handler.
 

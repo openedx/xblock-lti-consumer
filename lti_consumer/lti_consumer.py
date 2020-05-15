@@ -1029,7 +1029,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         if self.lti_version != "lti_1p3":
             return Response(status=404)
-        elif request.method != "POST":
+        if request.method != "POST":
             return Response(status=405)
 
         lti_consumer = self._get_lti1p3_consumer()
