@@ -210,6 +210,8 @@ class LtiConsumer(object):  # pylint: disable=bad-option-value, useless-object-i
 
         # Add LTI parameters to OAuth parameters for sending in form.
         lti_parameters.update(oauth_signature)
+        if ':' in key:
+            lti_parameters['oauth_consumer_key'] = key
         return lti_parameters
 
     def get_result(self, user):  # pylint: disable=unused-argument
