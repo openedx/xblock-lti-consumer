@@ -250,7 +250,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     block_settings_key = 'lti_consumer'
-    icon_class = 'problem'
 
     display_name = String(
         display_name=_("Display Name"),
@@ -593,6 +592,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if user_id is None:
             raise LtiError(self.ugettext("Could not get user id for current request"))
         return six.text_type(six.moves.urllib.parse.quote(user_id))
+
+    def get_icon_class(self):
+        """ Returns the icon class """
+        if self.graded and self.has_score:  # pylint: disable=no-member
+            return 'problem'
+        return 'other'
 
     @property
     def resource_link_id(self):

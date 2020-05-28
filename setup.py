@@ -46,7 +46,7 @@ def is_requirement(line):
 
 setup(
     name='lti_consumer-xblock',
-    version='1.3.0',
+    version='1.3.1',
     description='This XBlock implements the consumer side of the LTI specification.',
     packages=[
         'lti_consumer',
