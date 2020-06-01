@@ -22,6 +22,27 @@ def package_data(pkg, roots):
 
     return {pkg: data}
 
+def load_requirements(*requirements_paths):
+    """
+    Load all requirements from the specified requirements files.
+    Returns a list of requirement strings.
+    """
+    requirements = set()
+    for path in requirements_paths:
+        with open(path) as reqs:
+            requirements.update(
+                line.split('#')[0].strip() for line in reqs
+                if is_requirement(line.strip())
+            )
+    return list(requirements)
+
+
+def is_requirement(line):
+    """
+    Return True if the requirement line is a package requirement;
+    that is, it is not blank, a comment, a URL, or an included file.
+    """
+    return line and not line.startswith(('-r', '#', '-e', 'git+', '-c'))
 
 setup(
     name='lti_consumer-xblock',
@@ -30,14 +51,7 @@ setup(
     packages=[
         'lti_consumer',
     ],
-    install_requires=[
-        'lxml',
-        'bleach',
-        'oauthlib',
-        'mako',
-        'XBlock',
-        'xblock-utils>=v1.0.0',
-    ],
+    install_requires=load_requirements('requirements/base.in'),
     dependency_links=[
         'https://github.com/edx/xblock-utils/tarball/c39bf653e4f27fb3798662ef64cde99f57603f79#egg=xblock-utils',
     ],
@@ -50,4 +64,15 @@ setup(
         ]
     },
     package_data=package_data("lti_consumer", ["static", "templates", "public", "translations"]),
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Framework :: Django',
+        'Framework :: Django :: 2.2',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: Apache Software License',
+        'Natural Language :: English',
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.8",
+    ]
 )

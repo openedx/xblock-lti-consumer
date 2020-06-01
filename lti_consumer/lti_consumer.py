@@ -58,10 +58,9 @@ import uuid
 from collections import namedtuple
 from importlib import import_module
 
-import six.moves.urllib.error
-import six.moves.urllib.parse
-import six
 import bleach
+import six
+from six.moves.urllib import parse
 from Crypto.PublicKey import RSA
 from django.utils import timezone
 from webob import Response
@@ -74,12 +73,21 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .exceptions import LtiError
 from .lti import LtiConsumer
+from .lti_1p3.exceptions import (
+    UnsupportedGrantType,
+    MalformedJwtToken,
+    MissingRequiredClaim,
+    NoSuitableKeys,
+    TokenSignatureExpired,
+    UnknownClientId,
+)
 from .lti_1p3.consumer import LtiConsumer1p3
 from .oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .utils import (
     _,
     get_lms_base,
+    get_lms_lti_access_token_link,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
 )
@@ -260,6 +268,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     block_settings_key = 'lti_consumer'
+    icon_class = 'problem'
 
     display_name = String(
         display_name=_("Display Name"),
@@ -306,10 +315,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default='',
         scope=Scope.settings
     )
+    lti_1p3_tool_public_key_id = String(
+        display_name=_("LTI 1.3 Tool Public Key ID"),
+        default='',
+        scope=Scope.settings
+    )
     # Client ID and block key
     lti_1p3_client_id = String(
         display_name=_("LTI 1.3 Block Client ID"),
-        default=str(uuid.uuid4()),
+        default='',
         scope=Scope.settings
     )
     # This key isn't editable, and should be regenerated
@@ -317,7 +331,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     # This isn't what happens right now though
     lti_1p3_block_key = String(
         display_name=_("LTI 1.3 Block Key"),
-        default=RSA.generate(2048).export_key('PEM'),
+        default='',
         scope=Scope.settings
     )
 
@@ -492,9 +506,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'display_name', 'description',
         # LTI 1.3 variables
         'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key',
-        # TODO: implement a proper default setter method on XBlock Fields API.
-        # This is just a workaround the issue.
-        'lti_1p3_client_id', 'lti_1p3_block_key',
+        'lti_1p3_tool_public_key_id',
         # LTI 1.1 variables
         'lti_id', 'launch_url',
         # Other parameters
@@ -659,6 +671,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return six.text_type(six.moves.urllib.parse.quote(user_id))
 
     @property
+    def external_user_id(self):
+        """
+        Returns the opaque external user id for the current user.
+        """
+        user_id = self.runtime.service(self, 'user').get_external_user_id('lti')
+        if user_id is None:
+            raise LtiError(self.ugettext("Could not get user id for current request"))
+        return six.text_type(six.moves.urllib.parse.quote(user_id))
+
+    @property
     def resource_link_id(self):
         """
         This is an opaque unique identifier that the LTI Tool Consumer guarantees will be unique
@@ -798,9 +820,47 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             lti_launch_url=self.lti_1p3_launch_url,
             client_id=self.lti_1p3_client_id,
             deployment_id="1",
+            # XBlock Private RSA Key
             rsa_key=self.lti_1p3_block_key,
-            rsa_key_id=self.lti_1p3_client_id
+            rsa_key_id=self.lti_1p3_client_id,
+            # LTI 1.3 Tool key/keyset url
+            tool_key=self.lti_1p3_tool_public_key,
+            tool_keyset_url=None,
         )
+
+    def studio_view(self, context):
+        """
+        Get Studio View fragment
+        """
+        loader = ResourceLoader(__name__)
+        fragment = super(LtiConsumerXBlock, self).studio_view(context)
+
+        fragment.add_javascript(loader.load_unicode("static/js/xblock_studio_view.js"))
+        fragment.initialize_js('LtiConsumerXBlockInitStudio')
+
+        return fragment
+
+    def clean_studio_edits(self, data):
+        """
+        This is a handler to set hidden Studio variables for LTI 1.3.
+
+        These variables shouldn't be editable by the user, but need
+        to be automatically generated for each instance:
+        * lti_1p3_client_id: random uuid (requirement: must be unique)
+        * lti_1p3_block_key: PEM export of 2048-bit RSA key.
+
+        TODO: Remove this once the XBlock Fields API support using
+        a default computed value.
+        """
+        if data.get('lti_version') == 'lti_1p3':
+            # Check if values already exist before populating
+            # to avoid overwriting these keys on every edit.
+            if not self.lti_1p3_client_id:
+                data['lti_1p3_client_id'] = str(uuid.uuid4())
+            if not self.lti_1p3_block_key:
+                data['lti_1p3_block_key'] = RSA.generate(2048).export_key('PEM')
+
+        return super(LtiConsumerXBlock, self).clean_studio_edits(data)
 
     def author_view(self, context):
         """
@@ -820,6 +880,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "deployment_id": "1",
             "keyset_url": get_lms_lti_keyset_link(self.location),  # pylint: disable=no-member
             "oidc_callback": get_lms_lti_launch_link(),
+            "token_url": get_lms_lti_access_token_link(self.location),  # pylint: disable=no-member
             "launch_url": self.lti_1p3_launch_url,
         }
         fragment.add_content(loader.render_mako_template('/templates/html/lti_1p3_studio.html', context))
@@ -920,7 +981,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Pass user data
         lti_consumer.set_user_data(
-            user_id=self.runtime.user_id,
+            user_id=self.external_user_id,
             # Pass django user role to library
             role=self.runtime.get_user_role()
         )
@@ -940,10 +1001,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
         })
 
-        context.update({
-            'launch_url': self.lti_1p3_launch_url,
-            'user': self.runtime.user_id
-        })
+        context.update({'launch_url': self.lti_1p3_launch_url})
         template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
         return Response(template, content_type='text/html')
 
@@ -959,6 +1017,66 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 content_disposition='attachment; filename=keyset.json'
             )
         return Response(status=404)
+
+    @XBlock.handler
+    def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+        XBlock handler for creating access tokens for the LTI 1.3 tool.
+
+        This endpoint is only valid when a LTI 1.3 tool is being used.
+
+        Returns:
+            webob.response:
+                Either an access token or error message detailing the failure.
+                All responses are RFC 6749 compliant.
+
+        References:
+            Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
+            Failure: https://tools.ietf.org/html/rfc6749#section-5.2
+        """
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+        if request.method != "POST":
+            return Response(status=405)
+
+        lti_consumer = self._get_lti1p3_consumer()
+        try:
+            token = lti_consumer.access_token(
+                dict(parse.parse_qsl(
+                    request.body.decode('utf-8'),
+                    keep_blank_values=True
+                ))
+            )
+            # The returned `token` is compliant with RFC 6749 so we just
+            # need to return a 200 OK response with the token as Json body
+            return Response(json_body=token, content_type="application/json")
+
+        # Handle errors and return a proper response
+        # pylint: disable=bare-except
+        except MissingRequiredClaim:
+            # Missing request attibutes
+            return Response(
+                json_body={"error": "invalid_request"},
+                status=400
+            )
+        except (MalformedJwtToken, TokenSignatureExpired):
+            # Triggered when a invalid grant token is used
+            return Response(
+                json_body={"error": "invalid_grant"},
+                status=400,
+            )
+        except (NoSuitableKeys, UnknownClientId):
+            # Client ID is not registered in the block or
+            # isn't possible to validate token using available keys.
+            return Response(
+                json_body={"error": "invalid_client"},
+                status=400,
+            )
+        except UnsupportedGrantType:
+            return Response(
+                json_body={"error": "unsupported_grant_type"},
+                status=400,
+            )
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument
