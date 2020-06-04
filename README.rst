@@ -13,7 +13,7 @@ root folder:
 
 .. code:: bash
 
-    $ pip install -r requirements.txt
+    $ pip install -r requirements/base.txt
 
 Installing in Docker Devstack
 -----------------------------

@@ -1,7 +1,7 @@
 all: install compile-sass quality test
 
 install-test:
-	pip install -q -r test_requirements.txt
+	pip install -q -r requirements/test.txt
 
 install: install-test
 
