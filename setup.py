@@ -44,10 +44,16 @@ def is_requirement(line):
     """
     return line and not line.startswith(('-r', '#', '-e', 'git+', '-c'))
 
+
+with open('README.rst') as _f:
+    long_description = _f.read()
+
 setup(
-    name='lti_consumer-xblock',
-    version='1.3.1',
+    name='lti-consumer-xblock',
+    version='1.4.0',
     description='This XBlock implements the consumer side of the LTI specification.',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     packages=[
         'lti_consumer',
     ],
@@ -61,6 +67,8 @@ setup(
         ]
     },
     package_data=package_data("lti_consumer", ["static", "templates", "public", "translations"]),
+    keywords='lti consumer xblock',
+    url='https://github.com/edx/xblock-lti-consumer',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Framework :: Django',
