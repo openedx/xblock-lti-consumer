@@ -8,9 +8,6 @@ install:
 script:
 - make quality
 - make test
-branches:
-  only:
-  - master
 after_success: coveralls
 env:
   global:
