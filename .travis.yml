@@ -1,20 +1,17 @@
 language: python
-
 python:
-  - 3.5
-  - 3.8
-
+- 3.5
+- 3.8
 sudo: false
-
 install:
-  - pip install -r requirements/travis.txt
-
+- pip install -r requirements/travis.txt
 script:
-  - make quality
-  - make test
-
+- make quality
+- make test
 branches:
-    only:
-      - master
-
+  only:
+  - master
 after_success: coveralls
+env:
+  global:
+    secure: AuuqhAgQEkI96lauuaWuRBXKKCIBJ8hKpc1YzA6lGJGIsIoU7sH9IqNBk3mAr8kMOgodFoI5zYLGJhEgc/tEvzsHpp7NWFXC0yhJQjgMHzi7JgFzhoRAFfEBOb08+dSfjNyvXP+ULegoKHpt8AkJ3konSSKavOWy0IPr42p7YsHnj1F8uOr7kXO+LZVPStFuWTS56HCO38Gxeq/rnfsNJadlffJu5AFitkxoMWrvML4D10fzsJSgcIUi8MLhueQ6z7gaD0SH9UDJicSU+7u6ERP5mqzuamdW0JgAOwGJLS3fTgDyIlnn8jqe2nsoZlHGLet80096lmfqkVK8RA52H+tbXM3m157pmrJO90eJXIfW10fliPizKG0aO3lX54Ebl0DCfo7J7/kwRcPbjw1REGVOwHCpkzUzWgsLug5brvgft7uHxMSTvFhzUhGCqUnad/T5gmR7wVvHCB+XIWAt/iMFGt6wMHyoYnvzq7tUA4GP9qaEZnGbyQi4JgzpCcfbtWniAumxzAyOJKMWp8/1D0xIRo4xP3yHy/uUb/GQQHwnxE5FVMbSs0LmL3zsdIhldhjwCXl9yGuIqhlfUNbCBguHQAAB2xlKu17RgBVyzWxY2POjF4pe0839ohUU8S9oYEhb+3ydk+Gni8X93CelwMTBwks08tkpl1xFtar0yao=
