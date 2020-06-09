@@ -81,12 +81,13 @@ from .lti_1p3.exceptions import (
     TokenSignatureExpired,
     UnknownClientId,
 )
-from .lti_1p3.consumer import LtiConsumer1p3
+from .lti_1p3.consumer import LtiAdvantageConsumer
 from .oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .utils import (
     _,
     get_lms_base,
+    get_lms_ags_endpoint,
     get_lms_lti_access_token_link,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
@@ -814,7 +815,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         This class does NOT store state between calls.
         """
-        return LtiConsumer1p3(
+        lti_consumer = LtiAdvantageConsumer(
             iss=get_lms_base(),
             lti_oidc_url=self.lti_1p3_oidc_url,
             lti_launch_url=self.lti_1p3_launch_url,
@@ -826,6 +827,109 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             # LTI 1.3 Tool key/keyset url
             tool_key=self.lti_1p3_tool_public_key,
             tool_keyset_url=None,
+        )
+        # Workarounds
+        lineitems_url = get_lms_ags_endpoint(self.location)
+        lineitem_url = get_lms_ags_endpoint(self.location, 1)
+        lti_consumer.enable_ags(
+            lineitems_url=lineitems_url.replace("http://localhost:18000/", "http://3c0c42469fd0.ngrok.io/"),
+            lineitem_url=lineitem_url.replace("http://localhost:18000/", "http://3c0c42469fd0.ngrok.io/")
+        )
+        return lti_consumer
+
+    @property
+    def ags_block_lineitem(self):  # pylint: disable=unused-argument
+        """
+        LTI Advantage AGS Lineitem list endpoint.
+
+        Since the XBlock only has one place to store grades, there's only
+        one lineitem for this context/deployment. Se we hardcode the lineitem
+        URL to /1.
+        """
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+
+        lineitems_url = '{}/1'.format(
+            self.runtime.handler_url(
+                self,
+                'lti_ags_lineitem_retrieve',
+                thirdparty=True
+            )
+        )
+
+        return {
+            "id": lineitems_url.replace("http://localhost:18000/", "http://3c0c42469fd0.ngrok.io/"),
+            "scoreMaximum": self.max_score(),
+            "resourceId": self.resource_link_id,
+            "resourceLinkId": self.resource_link_id,
+            "tag": "grade",
+        }
+
+    @XBlock.handler
+    def lti_ags_lineitem_list(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+        Return a list of lineitems.
+
+        This currently returns a single item because the block currently only accepts a
+        single grade.
+        """
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+
+        lti_consumer = self._get_lti1p3_consumer()
+        lti_consumer.check_token(
+            request.authorization.params,
+            ''
+        )
+
+        return Response(
+            json_body=[self.ags_block_lineitem],
+            status=200,
+            content_type="application/vnd.ims.lis.v2.lineitemcontainer+json",
+        )
+
+    @XBlock.handler
+    def lti_ags_lineitem_retrieve(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+        Return the lineitem related to the block.
+
+        Retrieves data related to the grade that can be pushed back into the platform by
+        a LTI 1.3 tool.
+        """
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+
+        return Response(
+            json_body=self.ags_block_lineitem,
+            status=200,
+            content_type="application/vnd.ims.lis.v2.lineitem+json",
+        )
+
+    @XBlock.handler
+    def lti_ags_scores(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+
+        """
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+
+        lti_consumer = self._get_lti1p3_consumer()
+        return Response(
+            json_body=self.ags_block_lineitem,
+            status=200,
+        )
+
+    @XBlock.handler
+    def lti_ags_results(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+
+        """
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+
+        return Response(
+            json_body=self.ags_block_lineitem,
+            status=200,
         )
 
     def studio_view(self, context):

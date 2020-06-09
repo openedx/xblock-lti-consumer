@@ -4,6 +4,7 @@ LTI 1.3 Consumer implementation
 from six.moves.urllib.parse import urlencode
 
 from . import exceptions
+from .ags import LtiAgs
 from .constants import (
     LTI_1P3_ROLE_MAP,
     LTI_BASE_MESSAGE,
@@ -51,6 +52,9 @@ class LtiConsumer1p3:
         self.lti_claim_user_data = None
         self.lti_claim_launch_presentation = None
         self.lti_claim_custom_parameters = None
+
+        # Allows adding additional claims to the LTI message
+        self.additional_lti_message_claims = {}
 
     @staticmethod
     def _get_user_roles(role):
@@ -175,6 +179,20 @@ class LtiConsumer1p3:
             "https://purl.imsglobal.org/spec/lti/claim/custom": custom_parameters
         }
 
+    def set_extra_claim(self, additional_claim):
+        """
+        Set extra claims on LTI message.
+
+        This allows the user to set additional claims in the LTI message
+        as well as allowing extensions of this class to modify LTI claims.
+
+        This can override any previously set claims.
+
+        Parameters:
+          * additional_claim: a dict containing one or more additional claims.
+        """
+        self.additional_lti_message_claims.update(additional_claim)
+
     def generate_launch_request(
             self,
             preflight_response,
@@ -241,6 +259,10 @@ class LtiConsumer1p3:
         # Custom variables claim
         if self.lti_claim_custom_parameters:
             lti_message.update(self.lti_claim_custom_parameters)
+
+        # Inject additional claims inside message
+        if self.additional_lti_message_claims:
+            lti_message.update(self.additional_lti_message_claims)
 
         return {
             "state": preflight_response.get("state"),
@@ -322,3 +344,74 @@ class LtiConsumer1p3:
             "expires_in": 3600,
             "scope": scopes_str
         }
+
+    def check_token(self, token, allowed_scope=''):
+        """
+        Check if token has access to allowed scopes.
+        """
+        token_contents = self.key_handler.validate_and_decode(
+            token,
+            # The issuer of the token is the platform
+            iss=self.iss,
+        )
+        # Tokens are space separated
+        token_scopes = token_contents['scopes'].split(' ')
+
+        # Check if token has permission for the requested scope,
+        # and throws exception if not.
+        if allowed_scope not in token_scopes:
+            raise exceptions.UnauthorizedToken()
+
+
+class LtiAdvantageConsumer(LtiConsumer1p3):
+    """
+    LTI Advantage  Consumer Implementation.
+
+    Builds on top of the LTI 1.3 consumer and adds support for
+    the following LTI Advantage Services:
+
+    * Assignments and Grades Service (LTI-AGS): Allows tools to
+      retrieve and send back grades into the platform.
+      Note: this is a partial implementation with read-only LineItems.
+      Reference spec: https://www.imsglobal.org/spec/lti-ags/v2p0
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        Override parent class and set up required LTI Advantage variables.
+        """
+        super(LtiAdvantageConsumer, self).__init__(*args, **kwargs)
+
+        # LTI AGS Variables
+        self.ags = None
+
+    @property
+    def lti_ags(self):
+        """
+        Returns LTI AGS class or throw exception if not set up.
+        """
+        if not self.ags:
+            return
+
+        return self.ags
+
+    def enable_ags(
+        self,
+        lineitems_url,
+        lineitem_url=None,
+    ):
+        """
+        Enable LTI Advantage Assignments and Grades Service.
+
+        This will include the LTI AGS Claim in the LTI message
+        and set up the required class.
+        """
+        self.ags = LtiAgs(
+            lineitems_url=lineitems_url,
+            allow_creating_lineitems=False,
+            results_service_enabled=True,
+            scores_service_enabled=True
+        )
+        self.ags.include_lineitem_retrieve_url(lineitem_url)
+
+        # Include LTI AGS claim inside the LTI Launch message
+        self.set_extra_claim(self.ags.get_lti_ags_launch_claim())

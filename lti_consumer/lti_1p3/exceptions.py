@@ -36,3 +36,11 @@ class InvalidRsaKey(Exception):
 
 class RsaKeyNotSet(Exception):
     pass
+
+
+class InvalidClaimValue(Exception):
+    pass
+
+
+class UnauthorizedToken(Exception):
+    pass

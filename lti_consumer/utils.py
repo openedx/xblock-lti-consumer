@@ -58,3 +58,26 @@ def get_lms_lti_access_token_link(location):
         lms_base=get_lms_base(),
         location=text_type(location),
     )
+
+
+def get_lms_ags_endpoint(location, pk=None, action=""):
+    """
+    Returns an LMS link to LTI Launch endpoint
+
+    :param location: the location of the block
+    :param pk: unique id of lineitem if being requested
+    :param action: path to custom actions, like score and results
+
+    Note: This will be replaced by a Django Viewset on BD-24.
+    """
+    if pk:
+        return u"{lms_base}/api/lti_consumer/v1/lti_ags/{location}/1/{action}".format(
+            lms_base=get_lms_base(),
+            location=text_type(location),
+            action=action
+        )
+
+    return u"{lms_base}/api/lti_consumer/v1/lti_ags/{location}".format(
+        lms_base=get_lms_base(),
+        location=text_type(location),
+    )
