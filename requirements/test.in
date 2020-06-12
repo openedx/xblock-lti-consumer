@@ -10,4 +10,4 @@ mock
 pep8
 django-pyfs
 edx_lint
--e git+https://github.com/edx/xblock-sdk.git#egg=xblock-sdk
+xblock-sdk

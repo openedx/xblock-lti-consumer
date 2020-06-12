@@ -4,23 +4,22 @@
 #
 #    make upgrade
 #
--e git+https://github.com/edx/xblock-sdk.git#egg=xblock-sdk  # via -r requirements/test.txt
-appdirs==1.4.3            # via -r requirements/test.txt, -r requirements/tox.txt, fs, virtualenv
+appdirs==1.4.4            # via -r requirements/test.txt, -r requirements/tox.txt, fs, virtualenv
 astroid==2.3.3            # via -r requirements/test.txt, pylint, pylint-celery
 bleach==3.1.5             # via -r requirements/test.txt
-boto3==1.13.4             # via -r requirements/test.txt, fs-s3fs
-botocore==1.16.4          # via -r requirements/test.txt, boto3, s3transfer
-certifi==2020.4.5.1       # via -r requirements/test.txt, requests
+boto3==1.14.1             # via -r requirements/test.txt, fs-s3fs
+botocore==1.17.1          # via -r requirements/test.txt, boto3, s3transfer
+certifi==2020.4.5.2       # via -r requirements/test.txt, requests
 chardet==3.0.4            # via -r requirements/test.txt, requests
 click-log==0.3.2          # via -r requirements/test.txt, edx-lint
 click==7.1.2              # via -r requirements/test.txt, click-log, edx-lint
 coverage==5.1             # via -r requirements/test.txt, coveralls
 coveralls==2.0.0          # via -r requirements/test.txt
-ddt==1.3.1                # via -r requirements/test.txt
+ddt==1.4.1                # via -r requirements/test.txt
 distlib==0.3.0            # via -r requirements/tox.txt, virtualenv
 django-nose==1.4.6        # via -r requirements/test.txt
 django-pyfs==2.1          # via -r requirements/test.txt
-django==2.2.12            # via -c requirements/constraints.txt, -r requirements/test.txt, django-pyfs, xblock-sdk
+django==2.2.13            # via -c requirements/constraints.txt, -r requirements/test.txt, django-pyfs, xblock-sdk
 docopt==0.6.2             # via -r requirements/test.txt, coveralls
 docutils==0.15.2          # via -r requirements/test.txt, botocore
 edx-lint==1.4.1           # via -r requirements/test.txt
@@ -28,20 +27,20 @@ filelock==3.0.12          # via -r requirements/tox.txt, tox, virtualenv
 fs-s3fs==1.1.1            # via -r requirements/test.txt, django-pyfs
 fs==2.4.11                # via -r requirements/test.txt, django-pyfs, fs-s3fs, xblock
 idna==2.9                 # via -r requirements/test.txt, requests
-importlib-metadata==1.6.0  # via -r requirements/tox.txt, importlib-resources, pluggy, tox, virtualenv
+importlib-metadata==1.6.1  # via -r requirements/tox.txt, importlib-resources, pluggy, tox, virtualenv
 importlib-resources==1.5.0  # via -r requirements/tox.txt, virtualenv
 isort==4.3.21             # via -r requirements/test.txt, pylint
-jmespath==0.9.5           # via -r requirements/test.txt, boto3, botocore
+jmespath==0.10.0          # via -r requirements/test.txt, boto3, botocore
 lazy-object-proxy==1.4.3  # via -r requirements/test.txt, astroid
 lazy==1.4                 # via -r requirements/test.txt
-lxml==4.5.0               # via -r requirements/test.txt, xblock
-mako==1.1.2               # via -r requirements/test.txt, xblock-utils
+lxml==4.5.1               # via -r requirements/test.txt, xblock
+mako==1.1.3               # via -r requirements/test.txt, xblock-utils
 markupsafe==1.1.1         # via -r requirements/test.txt, mako, xblock
 mccabe==0.6.1             # via -r requirements/test.txt, pylint
 mock==3.0.5               # via -c requirements/constraints.txt, -r requirements/test.txt
 nose==1.3.7               # via -r requirements/test.txt, django-nose
 oauthlib==3.1.0           # via -r requirements/test.txt
-packaging==20.3           # via -r requirements/test.txt, -r requirements/tox.txt, bleach, tox
+packaging==20.4           # via -r requirements/test.txt, -r requirements/tox.txt, bleach, tox
 pep8==1.7.1               # via -r requirements/test.txt
 pluggy==0.13.1            # via -r requirements/tox.txt, tox
 py==1.8.1                 # via -r requirements/tox.txt, tox
@@ -56,19 +55,20 @@ pyyaml==5.3.1             # via -r requirements/test.txt, xblock
 requests==2.23.0          # via -r requirements/test.txt, coveralls
 s3transfer==0.3.3         # via -r requirements/test.txt, boto3
 simplejson==3.17.0        # via -r requirements/test.txt, xblock-utils
-six==1.14.0               # via -r requirements/test.txt, -r requirements/tox.txt, -r requirements/travis.in, astroid, bleach, django-pyfs, edx-lint, fs, fs-s3fs, mock, packaging, python-dateutil, tox, virtualenv, xblock
+six==1.15.0               # via -r requirements/test.txt, -r requirements/tox.txt, -r requirements/travis.in, astroid, bleach, django-pyfs, edx-lint, fs, fs-s3fs, mock, packaging, python-dateutil, tox, virtualenv, xblock
 sqlparse==0.3.1           # via -r requirements/test.txt, django
-toml==0.10.0              # via -r requirements/tox.txt, tox
-tox==3.15.0               # via -r requirements/tox.txt
+toml==0.10.1              # via -r requirements/tox.txt, tox
+tox==3.15.2               # via -r requirements/tox.txt
 typed-ast==1.4.1          # via -r requirements/test.txt, astroid
 typing==3.7.4.1           # via -r requirements/test.txt, fs
 urllib3==1.25.9           # via -r requirements/test.txt, botocore, requests
-virtualenv==20.0.20       # via -r requirements/tox.txt, tox
-web-fragments==0.3.1      # via -r requirements/test.txt, xblock, xblock-utils
+virtualenv==20.0.21       # via -r requirements/tox.txt, tox
+web-fragments==0.3.2      # via -r requirements/test.txt, xblock, xblock-utils
 webencodings==0.5.1       # via -r requirements/test.txt, bleach
 webob==1.8.6              # via -r requirements/test.txt, xblock
 wrapt==1.11.2             # via -r requirements/test.txt, astroid
-xblock-utils==2.0.0       # via -r requirements/test.txt
+xblock-sdk==0.2.0         # via -r requirements/test.txt
+xblock-utils==2.1.1       # via -r requirements/test.txt
 xblock==1.3.1             # via -r requirements/test.txt, xblock-utils
 zipp==1.2.0               # via -r requirements/tox.txt, importlib-metadata, importlib-resources
 
