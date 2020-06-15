@@ -1,8 +1,6 @@
 """
 LTI 1.3 Consumer implementation
 """
-import json
-import time
 from six.moves.urllib.parse import urlencode
 
 from . import exceptions
@@ -260,10 +258,6 @@ class LtiConsumer1p3:
         """
         return self.key_handler.get_public_jwk()
 
-        public_keys = jwk.KEYS()
-        public_keys.append(self.jwk)
-        return json.loads(public_keys.dump_jwks())
-
     def access_token(self, token_request_data):
         """
         Validate request and return JWT access token.
@@ -344,5 +338,5 @@ class LtiConsumer1p3:
             assert response.get("state")
             assert response.get("client_id") == self.client_id
             assert response.get("redirect_uri") == self.launch_url
-        except AssertionError as e:
-            raise ValueError("Preflight reponse failed validation")
+        except AssertionError:
+            raise exceptions.PreflightRequestValidationFailure()

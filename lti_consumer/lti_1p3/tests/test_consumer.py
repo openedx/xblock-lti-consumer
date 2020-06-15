@@ -6,7 +6,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import ddt
 
-from mock import Mock, patch
+from mock import patch
 from django.test.testcases import TestCase
 from six.moves.urllib.parse import urlparse, parse_qs
 
@@ -24,6 +24,8 @@ OIDC_URL = "http://test-platform/oidc"
 LAUNCH_URL = "http://test-platform/launch"
 CLIENT_ID = "1"
 DEPLOYMENT_ID = "1"
+NONCE = "1234"
+STATE = "ABCD"
 # Consider storing a fixed key
 RSA_KEY_ID = "1"
 RSA_KEY = RSA.generate(2048).export_key('PEM')
@@ -76,7 +78,12 @@ class TestLti1p3Consumer(TestCase):
         parameters, but allows overriding them.
         """
         if preflight_response is None:
-            preflight_response = {"nonce": "", "state": ""}
+            preflight_response = {
+                "nonce": NONCE,
+                "state": STATE,
+                "client_id": CLIENT_ID,
+                "redirect_uri": LAUNCH_URL,
+            }
 
         return self.lti_consumer.generate_launch_request(
             preflight_response,
@@ -243,10 +250,7 @@ class TestLti1p3Consumer(TestCase):
         Check if the launch request fails if no user data is set.
         """
         with self.assertRaises(ValueError):
-            self.lti_consumer.generate_launch_request(
-                preflight_response=Mock(),
-                resource_link=Mock()
-            )
+            self._get_lti_message()
 
     @patch('time.time', return_value=1000)
     def test_launch_request(self, mock_time):
@@ -254,19 +258,13 @@ class TestLti1p3Consumer(TestCase):
         Check if the launch request works if user data is set.
         """
         self._setup_lti_user()
-        launch_request = self._get_lti_message(
-            preflight_response={
-                "nonce": "test",
-                "state": "state"
-            },
-            resource_link="link"
-        )
+        launch_request = self._get_lti_message()
 
         self.assertEqual(mock_time.call_count, 2)
 
         # Check launch request contents
         self.assertCountEqual(launch_request.keys(), ['state', 'id_token'])
-        self.assertEqual(launch_request['state'], 'state')
+        self.assertEqual(launch_request['state'], STATE)
         # TODO: Decode and check token
 
     def test_custom_parameters(self):
@@ -359,3 +357,19 @@ class TestLti1p3Consumer(TestCase):
 
         # Check if token is valid
         self._decode_token(response.get('access_token'))
+
+    @ddt.data(
+        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, True),
+        ({"client_id": "2", "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, False),
+        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL[::-1], "nonce": STATE, "state": STATE}, False),
+        ({"redirect_uri": LAUNCH_URL, "nonce": NONCE, "state": STATE}, False),
+        ({"client_id": CLIENT_ID, "nonce": NONCE, "state": STATE}, False),
+        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "state": STATE}, False),
+        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "nonce": NONCE}, False),
+    )
+    @ddt.unpack
+    def test_preflight_validation(self, preflight_response, success):
+        if success:
+            return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access
+        with self.assertRaises(exceptions.PreflightRequestValidationFailure):
+            return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access

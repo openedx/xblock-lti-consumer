@@ -43,6 +43,16 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
         const ltiVersionField = $(element).find('#xb-field-edit-lti_version');
         const selectedVersion = ltiVersionField.children("option:selected").val();
 
+        // If LTI version field isn't present, then LTI 1.3 support is disabled
+        // so show all LTI 1.1 fields.
+        if (selectedVersion === undefined) {
+            lti1P1FieldList.forEach(function (field) {
+                toggleFieldVisibility(field, true);
+            });
+
+            return false;
+        }
+
         lti1P1FieldList.forEach(function (field) {
             toggleFieldVisibility(
                 field,
