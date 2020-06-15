@@ -6,33 +6,41 @@ Custom exceptions for LTI 1.3 consumer
 # pylint: disable=missing-docstring
 
 
-class TokenSignatureExpired(Exception):
+class Lti1p3Exception(Exception):
     pass
 
 
-class NoSuitableKeys(Exception):
+class TokenSignatureExpired(Lti1p3Exception):
     pass
 
 
-class UnknownClientId(Exception):
+class NoSuitableKeys(Lti1p3Exception):
     pass
 
 
-class MalformedJwtToken(Exception):
+class UnknownClientId(Lti1p3Exception):
     pass
 
 
-class MissingRequiredClaim(Exception):
+class MalformedJwtToken(Lti1p3Exception):
     pass
 
 
-class UnsupportedGrantType(Exception):
+class MissingRequiredClaim(Lti1p3Exception):
     pass
 
 
-class InvalidRsaKey(Exception):
+class UnsupportedGrantType(Lti1p3Exception):
     pass
 
 
-class RsaKeyNotSet(Exception):
+class InvalidRsaKey(Lti1p3Exception):
+    pass
+
+
+class RsaKeyNotSet(Lti1p3Exception):
+    pass
+
+
+class PreflightRequestValidationFailure(Lti1p3Exception):
     pass

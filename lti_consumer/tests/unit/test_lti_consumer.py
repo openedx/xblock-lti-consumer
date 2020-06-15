@@ -335,7 +335,8 @@ class TestEditableFields(TestLtiConsumerXBlock):
         """
         return all(field in self.xblock.editable_fields for field in fields)
 
-    def test_editable_fields_with_no_config(self):
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    def test_editable_fields_with_no_config(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are editable when lti-configuration service is not provided.
@@ -343,8 +344,10 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = None
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        lti_1p3_enabled_mock.assert_called()
 
-    def test_editable_fields_when_editing_allowed(self):
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    def test_editable_fields_when_editing_allowed(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are editable when this XBlock is configured to allow it.
@@ -353,8 +356,10 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=True)
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        lti_1p3_enabled_mock.assert_called()
 
-    def test_editable_fields_when_editing_not_allowed(self):
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    def test_editable_fields_when_editing_not_allowed(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are not editable when this XBlock is configured to not to allow it.
@@ -363,6 +368,24 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=False)
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are not editable.
         self.assertFalse(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        lti_1p3_enabled_mock.assert_called()
+
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=True)
+    def test_lti_1p3_fields_appear_when_enabled(self, lti_1p3_enabled_mock):
+        """
+        Test that LTI 1.3 XBlock's fields appear when `lti_1p3_enabled` returns True.
+        """
+        self.assertTrue(
+            self.are_fields_editable(
+                fields=[
+                    'lti_version',
+                    'lti_1p3_launch_url',
+                    'lti_1p3_oidc_url',
+                    'lti_1p3_tool_public_key',
+                ]
+            )
+        )
+        lti_1p3_enabled_mock.assert_called()
 
 
 class TestStudentView(TestLtiConsumerXBlock):
@@ -942,7 +965,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         self.xblock_attributes = {
             'lti_version': 'lti_1p3',
-            'lti_1p3_client_id': '1',
             'lti_1p3_launch_url': 'http://tool.example/launch',
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
             # We need to set the values below because they are not automatically
@@ -977,12 +999,19 @@ class TestLtiConsumer1p3XBlock(TestCase):
         Test that the LTI 1.3 callback endpoind.
         """
         self.xblock.runtime.get_user_role.return_value = 'student'
-        self.xblock.runtime.user_id = 2
+        mock_user_service = Mock()
+        mock_user_service.get_external_user_id.return_value = 2
+        self.xblock.runtime.service.return_value = mock_user_service
 
         # Craft request sent back by LTI tool
         request = make_request('', 'GET')
-        request.query_string = "client_id=1&redirect_uri=http://tool.example/launch&state=state_test_123&nonce=nonce\
-&login_hint=oidchint&lti_message_hint=ltihint"
+        request.query_string = (
+            "client_id={}&".format(self.xblock_attributes['lti_1p3_client_id']) +
+            "redirect_uri=http://tool.example/launch&" +
+            "state=state_test_123&" +
+            "nonce=nonce&" +
+            "login_hint=oidchint"
+        )
 
         response = self.xblock.lti_1p3_launch_callback(request)
 
@@ -992,6 +1021,28 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response_body = response.body.decode('utf-8')
         self.assertIn("state", response_body)
         self.assertIn("state_test_123", response_body)
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_launch_callback_endpoint_fails(self, mock_url, mock_url_2):
+        """
+        Test that the LTI 1.3 callback endpoint correctly display an error message.
+        """
+        self.xblock.runtime.get_user_role.return_value = 'student'
+        mock_user_service = Mock()
+        mock_user_service.get_external_user_id.return_value = 2
+        self.xblock.runtime.service.return_value = mock_user_service
+
+        # Make a fake invalid preflight request, with empty parameters
+        request = make_request('', 'GET')
+        response = self.xblock.lti_1p3_launch_callback(request)
+
+        # Check response and assert that state was inserted
+        self.assertEqual(response.status_code, 400)
+
+        response_body = response.body.decode('utf-8')
+        self.assertIn("There was an error launching the LTI 1.3 tool.", response_body)
 
     def test_launch_callback_endpoint_when_using_lti_1p1(self):
         """
@@ -1024,7 +1075,8 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
         self.assertEqual(response.status_code, 404)
 
-    def test_studio_view(self):
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=True)
+    def test_studio_view(self, mock_lti_1p3_flag):
         """
         Test that the studio settings view load the custom js.
         """

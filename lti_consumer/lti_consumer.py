@@ -74,6 +74,7 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 from .exceptions import LtiError
 from .lti import LtiConsumer
 from .lti_1p3.exceptions import (
+    Lti1p3Exception,
     UnsupportedGrantType,
     MalformedJwtToken,
     MissingRequiredClaim,
@@ -90,6 +91,7 @@ from .utils import (
     get_lms_lti_access_token_link,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
+    lti_1p3_enabled,
 )
 
 
@@ -298,32 +300,58 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             {"display_name": "LTI 1.3", "value": "lti_1p3"},
         ],
         default="lti_1p1",
+        help=_(
+            "Select the LTI version that your tool supports."
+            "<br />The XBlock LTI Consumer fully supports LTI 1.1.1 "
+            "and partially supports LTI 1.3 (only launches, no grade support)."
+        ),
     )
     lti_1p3_launch_url = String(
-        display_name=_("LTI 1.3 Launch URL"),
+        display_name=_("LTI 1.3 Tool Launch URL"),
         default='',
-        scope=Scope.settings
+        scope=Scope.settings,
+        help=_(
+            "Enter the LTI 1.3 Tool Launch URL. "
+            "<br />This is the URL the LMS will use to launch the LTI Tool."
+        ),
     )
     lti_1p3_oidc_url = String(
         display_name=_("LTI 1.3 OIDC URL"),
         default='',
-        scope=Scope.settings
+        scope=Scope.settings,
+        help=_(
+            "Enter the LTI 1.3 Tool OIDC Authorization url (can also be called login or login initiation URL)."
+            "<br />This is the URL the LMS will use to start a LTI authorization "
+            "prior to doing the launch request."
+        ),
     )
     lti_1p3_tool_public_key = String(
         display_name=_("LTI 1.3 Tool Public Key"),
+        multiline_editor=True,
         default='',
-        scope=Scope.settings
-    )
-    lti_1p3_tool_public_key_id = String(
-        display_name=_("LTI 1.3 Tool Public Key ID"),
-        default='',
-        scope=Scope.settings
+        scope=Scope.settings,
+        help=_(
+            "Enter the LTI 1.3 Tool's public key."
+            "<br />This is a string that starts with '-----BEGIN PUBLIC KEY-----' and is required "
+            "so that the LMS can check if the messages and launch requests received have the signature "
+            "from the tool."
+            "<br /><b>This is not required when doing LTI 1.3 Launches without LTI Advantage nor Basic Outcomes requests.</b>"
+        ),
     )
     # Client ID and block key
     lti_1p3_client_id = String(
         display_name=_("LTI 1.3 Block Client ID"),
         default='',
-        scope=Scope.settings
+        scope=Scope.settings,
+        help=_(
+            "Enter the LTI ID for the external LTI provider. "
+            "This value must be the same LTI ID that you entered in the "
+            "LTI Passports setting on the Advanced Settings page."
+            "<br />See the {docs_anchor_open}edX LTI documentation{anchor_close} for more details on this setting."
+        ).format(
+            docs_anchor_open=DOCS_ANCHOR_TAG_OPEN,
+            anchor_close="</a>"
+        ),
     )
     # This key isn't editable, and should be regenerated
     # for every block created (and not be carried over)
@@ -505,7 +533,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'display_name', 'description',
         # LTI 1.3 variables
         'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key',
-        'lti_1p3_tool_public_key_id',
         # LTI 1.1 variables
         'lti_id', 'launch_url',
         # Other parameters
@@ -604,6 +631,21 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     if field not in ('ask_to_send_username', 'ask_to_send_email')
                 )
 
+        # Hide LTI 1.3 fields if flag is disabled
+        if not lti_1p3_enabled():
+            editable_fields = tuple(
+                field
+                # Transform data from `editable_fields` not to override the fields
+                # settings applied above
+                for field in editable_fields
+                if field not in (
+                    'lti_version',
+                    'lti_1p3_launch_url',
+                    'lti_1p3_oidc_url',
+                    'lti_1p3_tool_public_key',
+                )
+            )
+
         return editable_fields
 
     @property
@@ -683,7 +725,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         user_id = self.runtime.service(self, 'user').get_external_user_id('lti')
         if user_id is None:
             raise LtiError(self.ugettext("Could not get user id for current request"))
-        return six.text_type(six.moves.urllib.parse.quote(user_id))
+        return six.text_type(user_id)
 
     @property
     def resource_link_id(self):
@@ -984,31 +1026,35 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         lti_consumer = self._get_lti1p3_consumer()
 
-        # Pass user data
-        lti_consumer.set_user_data(
-            user_id=self.external_user_id,
-            # Pass django user role to library
-            role=self.runtime.get_user_role()
-        )
-
-        # Set launch context
-        # Hardcoded for now, but we need to translate from
-        # self.launch_target to one of the LTI compliant names,
-        # either `iframe`, `frame` or `window`
-        # This is optional though
-        lti_consumer.set_launch_presentation_claim('iframe')
-
-        context.update({
-            "preflight_response": dict(request.GET),
-            "launch_request": lti_consumer.generate_launch_request(
-                resource_link=self.resource_link_id,
-                preflight_response=request.GET
+        try:
+            # Pass user data
+            lti_consumer.set_user_data(
+                user_id=self.external_user_id,
+                # Pass django user role to library
+                role=self.runtime.get_user_role()
             )
-        })
 
-        context.update({'launch_url': self.lti_1p3_launch_url})
-        template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
-        return Response(template, content_type='text/html')
+            # Set launch context
+            # Hardcoded for now, but we need to translate from
+            # self.launch_target to one of the LTI compliant names,
+            # either `iframe`, `frame` or `window`
+            # This is optional though
+            lti_consumer.set_launch_presentation_claim('iframe')
+
+            context.update({
+                "preflight_response": dict(request.GET),
+                "launch_request": lti_consumer.generate_launch_request(
+                    resource_link=self.resource_link_id,
+                    preflight_response=dict(request.GET)
+                )
+            })
+
+            context.update({'launch_url': self.lti_1p3_launch_url})
+            template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
+            return Response(template, content_type='text/html')
+        except Lti1p3Exception:
+            template = loader.render_mako_template('/templates/html/lti_1p3_launch_error.html', context)
+            return Response(template, status=400, content_type='text/html')
 
     @XBlock.handler
     def public_keyset_endpoint(self, request, suffix=''):  # pylint: disable=unused-argument
