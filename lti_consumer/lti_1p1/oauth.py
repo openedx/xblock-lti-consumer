@@ -5,7 +5,7 @@ Utility functions for working with OAuth signatures.
 import base64
 import hashlib
 import logging
-import urllib.parse
+import urllib
 
 from oauthlib import oauth1
 

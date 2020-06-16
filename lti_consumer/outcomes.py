@@ -6,7 +6,7 @@ https://www.imsglobal.org/specs/ltiomv1p0
 """
 
 import logging
-import urllib.parse
+import urllib
 from xml.sax.saxutils import escape
 
 from lxml import etree

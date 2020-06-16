@@ -52,8 +52,8 @@ What is supported:
 
 import logging
 import re
-import urllib.parse
 import uuid
+import urllib
 from collections import namedtuple
 from importlib import import_module
 
