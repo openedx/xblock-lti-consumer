@@ -2,8 +2,6 @@
 Utility functions for working with OAuth signatures.
 """
 
-from __future__ import absolute_import, unicode_literals
-
 import base64
 import hashlib
 import logging

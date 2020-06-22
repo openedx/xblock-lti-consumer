@@ -3,7 +3,6 @@
 """
 Run tests for the LTI Consumer XBlock
 """
-from __future__ import absolute_import
 
 import os
 import sys
@@ -12,7 +11,7 @@ if __name__ == '__main__':
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', u'workbench.settings')
 
     try:
-        from django.conf import settings # pylint: disable=wrong-import-position
+        from django.conf import settings  # pylint: disable=wrong-import-position
         from django.core.management import execute_from_command_line  # pylint: disable=wrong-import-position
     except ImportError:
         # The above import may fail for some other reason. Ensure that the
@@ -22,9 +21,9 @@ if __name__ == '__main__':
             import django  # pylint: disable=unused-import, wrong-import-position
         except ImportError:
             raise ImportError(
-             "Couldn't import Django. Are you sure it's installed and "
-             "available on your PYTHONPATH environment variable? Did you "
-             "forget to activate a virtual environment?"
+                "Couldn't import Django. Are you sure it's installed and "
+                "available on your PYTHONPATH environment variable? Did you "
+                "forget to activate a virtual environment?"
             )
         raise
 

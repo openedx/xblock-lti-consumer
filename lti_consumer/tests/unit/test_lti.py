@@ -3,15 +3,13 @@
 Unit tests for lti_consumer.lti module
 """
 
-from __future__ import absolute_import, unicode_literals
-
 import unittest
 from datetime import timedelta
 
+import six
 from django.utils import timezone
 from mock import Mock, PropertyMock, patch
 from six import text_type
-import six
 
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti import LtiConsumer, parse_result_json

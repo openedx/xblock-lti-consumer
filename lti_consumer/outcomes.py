@@ -5,17 +5,14 @@ For more details see:
 https://www.imsglobal.org/specs/ltiomv1p0
 """
 
-from __future__ import absolute_import, unicode_literals
-
 import logging
 from xml.sax.saxutils import escape
 
 import six.moves.urllib.error
 import six.moves.urllib.parse
-from six import text_type
 from lxml import etree
+from six import text_type
 from xblockutils.resources import ResourceLoader
-
 
 from .exceptions import LtiError
 from .oauth import verify_oauth_body_signature

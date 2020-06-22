@@ -2,8 +2,6 @@
 Unit tests for lti_consumer.oauth module
 """
 
-from __future__ import absolute_import
-
 import unittest
 
 from mock import Mock, patch
