@@ -256,26 +256,6 @@ class LtiConsumer1p3:
         """
         Export Public JWK
         """
-        public_keys = jwk.KEYS()
-        public_keys.append(self.jwk)
-        return json.loads(public_keys.dump_jwks())
-
-    def _validate_preflight_response(self, response):
-        """
-        Validates a preflight response to be used in a launch request
-
-        Raises ValueError in case of validation failure
-
-        :param response: the preflight response to be validated
-        """
-        try:
-            assert response.get("nonce")
-            assert response.get("state")
-            assert response.get("client_id") == self.client_id
-            assert response.get("redirect_uri") == self.launch_url
-        except AssertionError:
-            raise ValueError("Preflight reponse failed validation")
-
         return self.key_handler.get_public_jwk()
 
     def access_token(self, token_request_data):

@@ -114,7 +114,7 @@ class TestLti1p3Consumer(TestCase):
     def test_preflight_validation(self, preflight_response, success):
         if success:
             return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access
-        with self.assertRaises(ValueError):
+        with self.assertRaises(exceptions.PreflightRequestValidationFailure):
             return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access
 
     @ddt.data(
@@ -373,19 +373,3 @@ class TestLti1p3Consumer(TestCase):
 
         # Check if token is valid
         self._decode_token(response.get('access_token'))
-
-    @ddt.data(
-        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, True),
-        ({"client_id": "2", "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, False),
-        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL[::-1], "nonce": STATE, "state": STATE}, False),
-        ({"redirect_uri": LAUNCH_URL, "nonce": NONCE, "state": STATE}, False),
-        ({"client_id": CLIENT_ID, "nonce": NONCE, "state": STATE}, False),
-        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "state": STATE}, False),
-        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "nonce": NONCE}, False),
-    )
-    @ddt.unpack
-    def test_preflight_validation(self, preflight_response, success):
-        if success:
-            return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access
-        with self.assertRaises(exceptions.PreflightRequestValidationFailure):
-            return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access

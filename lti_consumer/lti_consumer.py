@@ -335,7 +335,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "<br />This is a string that starts with '-----BEGIN PUBLIC KEY-----' and is required "
             "so that the LMS can check if the messages and launch requests received have the signature "
             "from the tool."
-            "<br /><b>This is not required when doing LTI 1.3 Launches without LTI Advantage nor Basic Outcomes requests.</b>"
+            "<br /><b>This is not required when doing LTI 1.3 Launches without LTI Advantage nor "
+            "Basic Outcomes requests.</b>"
         ),
     )
     # Client ID and block key

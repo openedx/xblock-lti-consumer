@@ -1042,7 +1042,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.assertEqual(response.status_code, 400)
 
         response_body = response.body.decode('utf-8')
-        self.assertIn("There was an error launching the LTI 1.3 tool.", response_body)
+        self.assertIn("There was an error while launching the LTI 1.3 tool.", response_body)
 
     def test_launch_callback_endpoint_when_using_lti_1p1(self):
         """
