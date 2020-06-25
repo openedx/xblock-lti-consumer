@@ -20,7 +20,7 @@
     data-ask-to-send-email="${ask_to_send_email}"
 >
 
-% if launch_url and not hide_launch:
+% if (launch_url or lti_1p3_launch_url) and not hide_launch:
     % if launch_target in ['modal', 'new_window']:
         <section class="wrapper-lti-link">
             % if description:

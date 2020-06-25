@@ -5,11 +5,16 @@ Unit tests for LtiConsumerXBlock
 from __future__ import absolute_import
 
 from datetime import timedelta
+import json
+import uuid
 
 import ddt
 import six
+from six.moves.urllib import parse
+from Crypto.PublicKey import RSA
 from django.test.testcases import TestCase
 from django.utils import timezone
+from jwkest.jwk import RSAKey
 from mock import Mock, PropertyMock, patch
 
 from lti_consumer.exceptions import LtiError
@@ -17,6 +22,8 @@ from lti_consumer.lti_consumer import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.tests.unit import test_utils
 from lti_consumer.tests.unit.test_utils import (FAKE_USER_ID, make_request,
                                                 make_xblock)
+from lti_consumer.lti_1p3.tests.utils import create_jwt
+
 
 HTML_PROBLEM_PROGRESS = '<div class="problem-progress">'
 HTML_ERROR_MESSAGE = '<h3 class="error_message">'
@@ -328,7 +335,8 @@ class TestEditableFields(TestLtiConsumerXBlock):
         """
         return all(field in self.xblock.editable_fields for field in fields)
 
-    def test_editable_fields_with_no_config(self):
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    def test_editable_fields_with_no_config(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are editable when lti-configuration service is not provided.
@@ -336,8 +344,10 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = None
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        lti_1p3_enabled_mock.assert_called()
 
-    def test_editable_fields_when_editing_allowed(self):
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    def test_editable_fields_when_editing_allowed(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are editable when this XBlock is configured to allow it.
@@ -346,8 +356,10 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=True)
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        lti_1p3_enabled_mock.assert_called()
 
-    def test_editable_fields_when_editing_not_allowed(self):
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    def test_editable_fields_when_editing_not_allowed(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are not editable when this XBlock is configured to not to allow it.
@@ -356,6 +368,24 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=False)
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are not editable.
         self.assertFalse(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        lti_1p3_enabled_mock.assert_called()
+
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=True)
+    def test_lti_1p3_fields_appear_when_enabled(self, lti_1p3_enabled_mock):
+        """
+        Test that LTI 1.3 XBlock's fields appear when `lti_1p3_enabled` returns True.
+        """
+        self.assertTrue(
+            self.are_fields_editable(
+                fields=[
+                    'lti_version',
+                    'lti_1p3_launch_url',
+                    'lti_1p3_oidc_url',
+                    'lti_1p3_tool_public_key',
+                ]
+            )
+        )
+        lti_1p3_enabled_mock.assert_called()
 
 
 class TestStudentView(TestLtiConsumerXBlock):
@@ -432,6 +462,15 @@ class TestStudentView(TestLtiConsumerXBlock):
         fragment = self.xblock.student_view({})
 
         self.assertNotIn(HTML_ERROR_MESSAGE, fragment.content)
+
+    def test_author_view(self):
+        """
+        Test that the `author_view` is the same as student view when using LTI 1.1.
+        """
+        self.assertEqual(
+            self.xblock.student_view({}).content,
+            self.xblock.author_view({}).content
+        )
 
 
 class TestLtiLaunchHandler(TestLtiConsumerXBlock):
@@ -812,14 +851,17 @@ class TestGetContext(TestLtiConsumerXBlock):
     Unit tests for LtiConsumerXBlock._get_context_for_template()
     """
 
-    def test_context_keys(self):
+    @ddt.data('lti_1p1', 'lti_1p3')
+    def test_context_keys(self, lti_version):
         """
         Test `_get_context_for_template` returns dict with correct keys
         """
+        self.xblock.lti_version = lti_version
         context_keys = (
-            'launch_url', 'element_id', 'element_class', 'launch_target', 'display_name', 'form_url', 'hide_launch',
-            'has_score', 'weight', 'module_score', 'comment', 'description', 'ask_to_send_username',
-            'ask_to_send_email', 'button_text', 'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
+            'launch_url', 'lti_1p3_launch_url', 'element_id', 'element_class', 'launch_target',
+            'display_name', 'form_url', 'hide_launch', 'has_score', 'weight', 'module_score',
+            'comment', 'description', 'ask_to_send_username', 'ask_to_send_email', 'button_text',
+            'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
             'accept_grades_past_due'
         )
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
@@ -912,3 +954,320 @@ class TestGetModalPositionOffset(TestLtiConsumerXBlock):
 
         # modal_height defaults to 80, so offset should equal 10
         self.assertEqual(offset, 10)
+
+
+class TestLtiConsumer1p3XBlock(TestCase):
+    """
+    Unit tests for LtiConsumerXBlock when using an LTI 1.3 tool.
+    """
+    def setUp(self):
+        super(TestLtiConsumer1p3XBlock, self).setUp()
+
+        self.xblock_attributes = {
+            'lti_version': 'lti_1p3',
+            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_oidc_url': 'http://tool.example/oidc',
+            # We need to set the values below because they are not automatically
+            # generated until the user selects `lti_version == 'lti_1p3'` on the
+            # Studio configuration view.
+            'lti_1p3_client_id': str(uuid.uuid4()),
+            'lti_1p3_block_key': RSA.generate(2048).export_key('PEM'),
+        }
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_launch_request(self, mock_url, mock_url_2):
+        """
+        Test LTI 1.3 launch request
+        """
+        response = self.xblock.lti_1p3_launch_handler(make_request('', 'GET'))
+        self.assertEqual(response.status_code, 200)
+
+        # Check if tool OIDC url is on page
+        self.assertIn(
+            self.xblock_attributes['lti_1p3_oidc_url'],
+            response.body.decode('utf-8')
+        )
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_launch_callback_endpoint(self, mock_url, mock_url_2):
+        """
+        Test that the LTI 1.3 callback endpoind.
+        """
+        self.xblock.runtime.get_user_role.return_value = 'student'
+        mock_user_service = Mock()
+        mock_user_service.get_external_user_id.return_value = 2
+        self.xblock.runtime.service.return_value = mock_user_service
+
+        # Craft request sent back by LTI tool
+        request = make_request('', 'GET')
+        request.query_string = (
+            "client_id={}&".format(self.xblock_attributes['lti_1p3_client_id']) +
+            "redirect_uri=http://tool.example/launch&" +
+            "state=state_test_123&" +
+            "nonce=nonce&" +
+            "login_hint=oidchint"
+        )
+
+        response = self.xblock.lti_1p3_launch_callback(request)
+
+        # Check response and assert that state was inserted
+        self.assertEqual(response.status_code, 200)
+
+        response_body = response.body.decode('utf-8')
+        self.assertIn("state", response_body)
+        self.assertIn("state_test_123", response_body)
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_launch_callback_endpoint_fails(self, mock_url, mock_url_2):
+        """
+        Test that the LTI 1.3 callback endpoint correctly display an error message.
+        """
+        self.xblock.runtime.get_user_role.return_value = 'student'
+        mock_user_service = Mock()
+        mock_user_service.get_external_user_id.return_value = 2
+        self.xblock.runtime.service.return_value = mock_user_service
+
+        # Make a fake invalid preflight request, with empty parameters
+        request = make_request('', 'GET')
+        response = self.xblock.lti_1p3_launch_callback(request)
+
+        # Check response and assert that state was inserted
+        self.assertEqual(response.status_code, 400)
+
+        response_body = response.body.decode('utf-8')
+        self.assertIn("There was an error while launching the LTI 1.3 tool.", response_body)
+
+    def test_launch_callback_endpoint_when_using_lti_1p1(self):
+        """
+        Test that the LTI 1.3 callback endpoind is unavailable when using 1.1.
+        """
+        self.xblock.lti_version = 'lti_1p1'
+        self.xblock.save()
+        response = self.xblock.lti_1p3_launch_callback(make_request('', 'GET'))
+        self.assertEqual(response.status_code, 404)
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_keyset_endpoint(self, mock_url, mock_url_2):
+        """
+        Test that the LTI 1.3 keyset endpoind.
+        """
+        response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'application/json')
+        self.assertEqual(response.content_disposition, 'attachment; filename=keyset.json')
+
+    def test_keyset_endpoint_when_using_lti_1p1(self):
+        """
+        Test that the LTI 1.3 keyset endpoind is unavailable when using 1.1.
+        """
+        self.xblock.lti_version = 'lti_1p1'
+        self.xblock.save()
+
+        response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
+        self.assertEqual(response.status_code, 404)
+
+    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=True)
+    def test_studio_view(self, mock_lti_1p3_flag):
+        """
+        Test that the studio settings view load the custom js.
+        """
+        response = self.xblock.studio_view({})
+        self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
+
+    @patch('lti_consumer.lti_consumer.RSA')
+    @patch('lti_consumer.lti_consumer.uuid')
+    def test_clean_studio_edits(self, mock_uuid, mock_rsa):
+        """
+        Test that the clean studio edits function properly sets LTI 1.3 variables.
+        """
+        data = {'lti_version': 'lti_1p3'}
+        # Setup mocks
+        mock_uuid.uuid4.return_value = 'generated_uuid'
+        mock_rsa.generate().export_key.return_value = 'generated_rsa_key'
+
+        # Test that values are not overwriten if already present
+        self.xblock.clean_studio_edits(data)
+        self.assertEqual(data, {'lti_version': 'lti_1p3'})
+
+        # Set empty variables to allow automatic generation
+        self.xblock.lti_1p3_client_id = ''
+        self.xblock.lti_1p3_block_key = ''
+        self.xblock.save()
+
+        # Check that variables are generated if empty
+        self.xblock.clean_studio_edits(data)
+        self.assertEqual(
+            data,
+            {
+                'lti_version': 'lti_1p3',
+                'lti_1p3_client_id': 'generated_uuid',
+                'lti_1p3_block_key': 'generated_rsa_key'
+            }
+        )
+
+    # pylint: disable=unused-argument
+    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    def test_author_view(self, mock_url, mock_url_2):
+        """
+        Test that the studio view loads LTI 1.3 view.
+        """
+        response = self.xblock.author_view({})
+        self.assertIn(self.xblock.lti_1p3_client_id, response.content)
+        self.assertIn("https://example.com", response.content)
+
+
+# pylint: disable=unused-argument
+@patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
+@patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+class TestLti1p3AccessTokenEndpoint(TestCase):
+    """
+    Unit tests for LtiConsumerXBlock Access Token endpoint when using an LTI 1.3.
+    """
+    def setUp(self):
+        super(TestLti1p3AccessTokenEndpoint, self).setUp()
+
+        self.rsa_key_id = "1"
+        # Generate RSA and save exports
+        rsa_key = RSA.generate(2048)
+        self.key = RSAKey(
+            key=rsa_key,
+            kid=self.rsa_key_id
+        )
+        self.public_key = rsa_key.publickey().export_key()
+
+        self.xblock_attributes = {
+            'lti_version': 'lti_1p3',
+            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_oidc_url': 'http://tool.example/oidc',
+            # We need to set the values below because they are not automatically
+            # generated until the user selects `lti_version == 'lti_1p3'` on the
+            # Studio configuration view.
+            'lti_1p3_client_id': self.rsa_key_id,
+            'lti_1p3_block_key': rsa_key.export_key('PEM'),
+            # Use same key for tool key to make testing easier
+            'lti_1p3_tool_public_key': self.public_key,
+        }
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+
+    def test_access_token_endpoint_when_using_lti_1p1(self, *args, **kwargs):
+        """
+        Test that the LTI 1.3 access token endpoind is unavailable when using 1.1.
+        """
+        self.xblock.lti_version = 'lti_1p1'
+        self.xblock.save()
+
+        request = make_request(json.dumps({}), 'POST')
+        request.content_type = 'application/json'
+
+        response = self.xblock.lti_1p3_access_token(request)
+        self.assertEqual(response.status_code, 404)
+
+    def test_access_token_endpoint_no_post(self, *args, **kwargs):
+        """
+        Test that the LTI 1.3 access token endpoind is unavailable when using 1.1.
+        """
+        request = make_request('', 'GET')
+
+        response = self.xblock.lti_1p3_access_token(request)
+        self.assertEqual(response.status_code, 405)
+
+    def test_access_token_missing_claims(self, *args, **kwargs):
+        """
+        Test request with missing parameters.
+        """
+        request = make_request(json.dumps({}), 'POST')
+        request.content_type = 'application/json'
+
+        response = self.xblock.lti_1p3_access_token(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json_body, {'error': 'invalid_request'})
+
+    def test_access_token_malformed(self, *args, **kwargs):
+        """
+        Test request with invalid JWT.
+        """
+        request = make_request(
+            parse.urlencode({
+                "grant_type": "client_credentials",
+                "client_assertion_type": "something",
+                "client_assertion": "invalid-jwt",
+                "scope": "",
+            }),
+            'POST'
+        )
+        request.content_type = 'application/x-www-form-urlencoded'
+
+        response = self.xblock.lti_1p3_access_token(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json_body, {'error': 'invalid_grant'})
+
+    def test_access_token_invalid_grant(self, *args, **kwargs):
+        """
+        Test request with invalid grant.
+        """
+        request = make_request(
+            parse.urlencode({
+                "grant_type": "password",
+                "client_assertion_type": "something",
+                "client_assertion": "invalit-jwt",
+                "scope": "",
+            }),
+            'POST'
+        )
+        request.content_type = 'application/x-www-form-urlencoded'
+
+        response = self.xblock.lti_1p3_access_token(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json_body, {'error': 'unsupported_grant_type'})
+
+    def test_access_token_invalid_client(self, *args, **kwargs):
+        """
+        Test request with valid JWT but no matching key to check signature.
+        """
+        self.xblock.lti_1p3_tool_public_key = ''
+        self.xblock.save()
+
+        jwt = create_jwt(self.key, {})
+        request = make_request(
+            parse.urlencode({
+                "grant_type": "client_credentials",
+                "client_assertion_type": "something",
+                "client_assertion": jwt,
+                "scope": "",
+            }),
+            'POST'
+        )
+        request.content_type = 'application/x-www-form-urlencoded'
+
+        response = self.xblock.lti_1p3_access_token(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json_body, {'error': 'invalid_client'})
+
+    def test_access_token(self, *args, **kwargs):
+        """
+        Test request with valid JWT.
+        """
+        jwt = create_jwt(self.key, {})
+        request = make_request(
+            parse.urlencode({
+                "grant_type": "client_credentials",
+                "client_assertion_type": "something",
+                "client_assertion": jwt,
+                "scope": "",
+            }),
+            'POST'
+        )
+        request.content_type = 'application/x-www-form-urlencoded'
+
+        response = self.xblock.lti_1p3_access_token(request)
+        self.assertEqual(response.status_code, 200)
