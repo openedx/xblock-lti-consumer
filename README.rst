@@ -15,6 +15,15 @@ root folder:
 
     $ pip install -r requirements.txt
 
+Addtitionally, to enable LTI 1.3 Launch support, the following FEATURE flag needs to be set in `studio.yml`:
+
+.. code:: yaml
+
+    FEATURES:
+        LTI_1P3_ENABLED: true
+
+_Note: only LTI 1.3 launch is supported, and there's no implementation to pass back grades into the platform._
+
 Installing in Docker Devstack
 -----------------------------
 
@@ -55,6 +64,9 @@ advanced settings.
 Testing Against an LTI Provider
 -------------------------------
 
+LTI 1.1
+=======
+
 http://lti.tools/saltire/ provides a "Test Tool Provider" service that allows
 you to see messages sent by an LTI consumer.
 
@@ -75,6 +87,47 @@ http://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/lat
    should ``docker-compose restart lms`` (since we previously uninstalled the lti_consumer to get the
    tests for this repo running inside an LMS container).  From here, you can see the contents of the
    messages that we are sending as an LTI Consumer in the "Message Parameters" part of the "Message" tab.
+
+
+LTI 1.3
+=======
+
+IMS Global provides a reference implementation of LTI 1.3 that can be used to test the XBlock.
+
+On LTI 1.3 the authentication mechanism used is OAuth2 using the Client Credentials grant, this means
+that to configure the tool, the LMS needs to know the Keyset URL or public key of the tool, and the tool
+needs to know the LMS's one.
+
+Intructions:
+
+1. Set up a local tunnel tunneling the LMS (using `ngrok` or a similar tool) to get a URL accessible from the internet.
+3. Create a new course, and add the `lti_consumer` block to the advanced modules list.
+4. In the course, create a new unit and add the LTI block.
+5. In studio, you'll see a few parameters being displayed in the preview:
+```
+Client: f0532860-cb34-47a9-b16c-53deb077d4de
+Deployment ID: 1
+# Note that these are LMS URLS
+Keyset URL: http://localhost:18000/api/lti_consumer/v1/public_keysets/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
+OAuth Token URL: http://localhost:18000/api/lti_consumer/v1/token/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
+OIDC Callback URL: http://localhost:18000/api/lti_consumer/v1/launch/
+```
+6. Add the tunnel url to the keyset url as it'll need to be accessed by the tool (hosted externally).
+```
+# This is <LMS_URL>/api/lti_consumer/v1/launch/<BLOCK_LOCATION>
+https://647dd2e1.ngrok.io/api/lti_consumer/v1/public_keysets/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@996c72b16070434098bc598bd7d6dbde
+```
+7. Set up a tool in the IMS Global reference implementation (https://lti-ri.imsglobal.org/lti/tools/).
+ * Click on __Add tool__ at the top of the page (https://lti-ri.imsglobal.org/lti/tools).
+ * Add the parameters and URLs provided by the block, and generate a private key on https://lti-ri.imsglobal.org/keygen/index and paste it there (don't close the tab, you'll need the public key later).
+8. Go back to Studio, and edit the block adding it's settings (you'll find them by scrolling down https://lti-ri.imsglobal.org/lti/tools/ until you find the tool you just created):
+```
+Tool launch URL: https://lti-ri.imsglobal.org/lti/tools/[tool_id]/launches
+Tool OIDC Login Initiation URL: https://lti-ri.imsglobal.org/lti/tools/[tool_id]/login_initiations
+Tool public key: Public key from key page.
+```
+8. Publish block, log into LMS and navigate to the LTI block page.
+9. Check that the LTI launch was successful.
 
 Custom LTI Parameters
 ---------------------

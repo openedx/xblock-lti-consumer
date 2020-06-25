@@ -186,10 +186,12 @@ class LtiConsumer1p3:
         This will add all required parameters from the LTI 1.3 spec and any additional ones set in
         the configuration and JTW encode the message using the provided key.
         """
+        # Validate preflight response
+        self._validate_preflight_response(preflight_response)
+
         # Start from base message
         lti_message = LTI_BASE_MESSAGE.copy()
 
-        # TODO: Validate preflight response
         # Add base parameters
         lti_message.update({
             # Issuer
@@ -322,3 +324,19 @@ class LtiConsumer1p3:
             "expires_in": 3600,
             "scope": scopes_str
         }
+
+    def _validate_preflight_response(self, response):
+        """
+        Validates a preflight response to be used in a launch request
+
+        Raises ValueError in case of validation failure
+
+        :param response: the preflight response to be validated
+        """
+        try:
+            assert response.get("nonce")
+            assert response.get("state")
+            assert response.get("client_id") == self.client_id
+            assert response.get("redirect_uri") == self.launch_url
+        except AssertionError:
+            raise exceptions.PreflightRequestValidationFailure()
