@@ -1,7 +1,5 @@
 """Setup for lti_consumer XBlock."""
 
-from __future__ import absolute_import
-
 import os
 
 from setuptools import setup
@@ -21,6 +19,7 @@ def package_data(pkg, roots):
                 data.append(os.path.relpath(os.path.join(dirname, fname), pkg))
 
     return {pkg: data}
+
 
 def load_requirements(*requirements_paths):
     """

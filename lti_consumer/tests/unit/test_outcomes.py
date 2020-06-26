@@ -3,8 +3,6 @@
 Unit tests for lti_consumer.outcomes module
 """
 
-from __future__ import absolute_import, unicode_literals
-
 import textwrap
 import unittest
 from copy import copy

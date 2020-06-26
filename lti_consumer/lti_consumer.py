@@ -58,11 +58,11 @@ import uuid
 from collections import namedtuple
 from importlib import import_module
 
-import bleach
 import six
 from six.moves.urllib import parse
-from Crypto.PublicKey import RSA
 from django.utils import timezone
+import bleach
+from Crypto.PublicKey import RSA
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer

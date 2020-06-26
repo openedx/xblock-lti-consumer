@@ -2,8 +2,6 @@
 Unit tests for LtiConsumerXBlock
 """
 
-from __future__ import absolute_import
-
 from datetime import timedelta
 import json
 import uuid
