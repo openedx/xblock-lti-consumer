@@ -68,17 +68,17 @@ def patch_signed_parameters(func):
     )(func)
 
     func = patch(
-        'lti_consumer.lti_consumer.LtiConsumerXBlock.prefixed_custom_parameters',
+        'lti_consumer.lti_xblock.LtiConsumerXBlock.prefixed_custom_parameters',
         PropertyMock(return_value={u'custom_param_1': 'custom1', u'custom_param_2': 'custom2'})
     )(func)
 
     func = patch(
-        'lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret',
+        'lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret',
         PropertyMock(return_value=('t', 's'))
     )(func)
 
     func = patch(
-        'lti_consumer.lti_consumer.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID)
+        'lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID)
     )(func)
 
     return func

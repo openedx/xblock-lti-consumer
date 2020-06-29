@@ -196,7 +196,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         mock_value = {
             'parameter_processors': ['lti_consumer.tests.unit.test_utils:dummy_processor']
         }
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=mock_value):
+        with patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_settings', return_value=mock_value):
             params = self.lti_consumer.get_signed_lti_parameters()
             assert params['custom_author_country'] == u''
             assert params['custom_author_email'] == u'author@example.com'
@@ -211,7 +211,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         mock_value = {
             'parameter_processors': ['lti_consumer.tests.unit.test_utils:defaulting_processor']
         }
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=mock_value):
+        with patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_settings', return_value=mock_value):
             params = self.lti_consumer.get_signed_lti_parameters()
             assert params['custom_country'] == u''
             assert params['custom_name'] == u'Lex'
@@ -226,7 +226,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         mock_value = {
             'parameter_processors': ['lti_consumer.tests.unit.test_utils:faulty_processor']
         }
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=mock_value):
+        with patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_settings', return_value=mock_value):
             params = self.lti_consumer.get_signed_lti_parameters()
             assert params['custom_name'] == u'Lex'
             assert mock_log.exception.called
@@ -248,7 +248,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.xblock.score_comment = ''
         self.assertEqual(self.lti_consumer.get_result(Mock()), GET_RESULT_RESPONSE)
 
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.clear_user_module_score')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.clear_user_module_score')
     def test_delete_result(self, mock_clear):
         """
         Test `delete_result` calls `LtiConsumerXBlock.clear_user_module_score`
@@ -259,9 +259,9 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         mock_clear.assert_called_with(user)
         self.assertEqual(response, {})
 
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.max_score', Mock(return_value=1.0))
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.set_user_module_score')
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.clear_user_module_score')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.max_score', Mock(return_value=1.0))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.set_user_module_score')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.clear_user_module_score')
     @patch('lti_consumer.lti.parse_result_json')
     def test_put_result(self, mock_parse, mock_clear, mock_set):
         """
@@ -295,7 +295,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         assert mock_log.error.called
 
     @patch('lti_consumer.lti.verify_oauth_body_signature', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
     def test_verify_result_headers_verify_content_type_false(self):
         """
         Test content type check skipped if `verify_content_type` is False
@@ -307,7 +307,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.assertTrue(response)
 
     @patch('lti_consumer.lti.verify_oauth_body_signature', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
     def test_verify_result_headers_valid(self):
         """
         Test True is returned if request is valid
@@ -319,7 +319,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         self.assertTrue(response)
 
     @patch('lti_consumer.lti.verify_oauth_body_signature', Mock(side_effect=LtiError))
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
     @patch('lti_consumer.lti.log')
     def test_verify_result_headers_lti_error(self, mock_log):
         """
@@ -334,7 +334,7 @@ class TestLtiConsumer(TestLtiConsumerXBlock):
         assert mock_log.error.called
 
     @patch('lti_consumer.lti.verify_oauth_body_signature', Mock(side_effect=ValueError))
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
     @patch('lti_consumer.lti.log')
     def test_verify_result_headers_value_error(self, mock_log):
         """
