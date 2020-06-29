@@ -337,7 +337,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.outcome_servce = OutcomeService(self.xblock)
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
     @patch('lti_consumer.outcomes.parse_grade_xml_body', Mock(return_value=('', '', 0.5, 'replaceResultRequest')))
     def test_handle_replace_result_success(self):
         """
@@ -356,7 +356,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
             RESPONSE_BODY_TEMPLATE.format(**values).strip()
         )
 
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.is_past_due', PropertyMock(return_value=True))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.is_past_due', PropertyMock(return_value=True))
     def test_grade_past_due(self):
         """
         Test late grade returns failure response
@@ -395,7 +395,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.assertIn('Request body XML parsing error', response)
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature')
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
     @patch('lti_consumer.outcomes.parse_grade_xml_body', Mock(return_value=('', '', 0.5, 'replaceResultRequest')))
     def test_invalid_signature(self, mock_verify):
         """
@@ -410,7 +410,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.assertIn('failure', self.outcome_servce.handle_request(request))
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
     @patch('lti_consumer.outcomes.parse_grade_xml_body', Mock(return_value=('', '', 0.5, 'replaceResultRequest')))
     def test_user_not_found(self):
         """
@@ -424,7 +424,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.assertIn('User not found', response)
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
     @patch('lti_consumer.outcomes.parse_grade_xml_body', Mock(return_value=('', '', 0.5, 'unsupportedRequest')))
     def test_unsupported_action(self):
         """

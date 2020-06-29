@@ -16,7 +16,7 @@ from jwkest.jwk import RSAKey
 from mock import Mock, PropertyMock, patch
 
 from lti_consumer.exceptions import LtiError
-from lti_consumer.lti_consumer import LtiConsumerXBlock, parse_handler_suffix
+from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.tests.unit import test_utils
 from lti_consumer.tests.unit.test_utils import (FAKE_USER_ID, make_request,
                                                 make_xblock)
@@ -130,7 +130,7 @@ class TestProperties(TestLtiConsumerXBlock):
         self.assertTrue(mock_get_course.called)
         self.assertIsNone(course)
 
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.course')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     def test_lti_provider_key_secret(self, mock_course):
         """
         Test `lti_provider_key_secret` returns correct key and secret
@@ -145,7 +145,7 @@ class TestProperties(TestLtiConsumerXBlock):
         self.assertEqual(lti_provider_key, key)
         self.assertEqual(lti_provider_secret, secret)
 
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.course')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     def test_lti_provider_key_secret_not_found(self, mock_course):
         """
         Test `lti_provider_key_secret` returns correct key and secret
@@ -160,7 +160,7 @@ class TestProperties(TestLtiConsumerXBlock):
         self.assertEqual(lti_provider_key, '')
         self.assertEqual(lti_provider_secret, '')
 
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.course')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     def test_lti_provider_key_secret_corrupt_lti_passport(self, mock_course):
         """
         Test `lti_provider_key_secret` when a corrupt lti_passport is encountered
@@ -205,9 +205,9 @@ class TestProperties(TestLtiConsumerXBlock):
             "{}-{}".format(self.xblock.runtime.hostname, self.xblock.location.html_id())  # pylint: disable=no-member
         )
 
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.context_id')
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.resource_link_id')
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.resource_link_id')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
     def test_lis_result_sourcedid(self, mock_resource_link_id, mock_context_id):
         """
         Test `lis_result_sourcedid` returns appropriate string
@@ -299,7 +299,7 @@ class TestProperties(TestLtiConsumerXBlock):
         now = timezone.now()
         self.xblock.graceperiod = None
         self.xblock.due = now
-        with patch('lti_consumer.lti_consumer.timezone.now', wraps=timezone.now) as mock_timezone_now:
+        with patch('lti_consumer.lti_xblock.timezone.now', wraps=timezone.now) as mock_timezone_now:
             __ = self.xblock.is_past_due
             self.assertTrue(mock_timezone_now.called)
 
@@ -333,7 +333,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
         """
         return all(field in self.xblock.editable_fields for field in fields)
 
-    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
     def test_editable_fields_with_no_config(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
@@ -344,7 +344,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
         lti_1p3_enabled_mock.assert_called()
 
-    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
     def test_editable_fields_when_editing_allowed(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
@@ -356,7 +356,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
         lti_1p3_enabled_mock.assert_called()
 
-    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=False)
+    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
     def test_editable_fields_when_editing_not_allowed(self, lti_1p3_enabled_mock):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
@@ -368,7 +368,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.assertFalse(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
         lti_1p3_enabled_mock.assert_called()
 
-    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=True)
+    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
     def test_lti_1p3_fields_appear_when_enabled(self, lti_1p3_enabled_mock):
         """
         Test that LTI 1.3 XBlock's fields appear when `lti_1p3_enabled` returns True.
@@ -520,8 +520,8 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.xblock.runtime.get_real_user = Mock()
         self.xblock.accept_grades_past_due = True
 
-    @patch('lti_consumer.lti_consumer.log_authorization_header')
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.lti_provider_key_secret')
+    @patch('lti_consumer.lti_xblock.log_authorization_header')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret')
     def test_runtime_debug_true(self, mock_lti_provider_key_secret, mock_log_auth_header):
         """
         Test `log_authorization_header` is called when runtime.debug is True
@@ -533,7 +533,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
         mock_log_auth_header.assert_called_with(request, self.lti_provider_key, self.lti_provider_secret)
 
-    @patch('lti_consumer.lti_consumer.log_authorization_header')
+    @patch('lti_consumer.lti_xblock.log_authorization_header')
     def test_runtime_debug_false(self, mock_log_auth_header):
         """
         Test `log_authorization_header` is not called when runtime.debug is False
@@ -543,7 +543,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
         assert not mock_log_auth_header.called
 
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.is_past_due')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.is_past_due')
     def test_accept_grades_past_due_false_and_is_past_due_true(self, mock_is_past_due):
         """
         Test 404 response returned when `accept_grades_past_due` is False
@@ -557,8 +557,8 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
     @patch('lti_consumer.lti.LtiConsumer.get_result')
     @patch('lti_consumer.lti.LtiConsumer.verify_result_headers', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
-    @patch('lti_consumer.lti_consumer.LtiConsumerXBlock.is_past_due')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.is_past_due')
     def test_accept_grades_past_due_true_and_is_past_due_true(self, mock_is_past_due, mock_parse_suffix,
                                                               mock_get_result):
         """
@@ -571,7 +571,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
         self.assertEqual(response.status_code, 200)
 
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
     def test_parse_suffix_raises_error(self, mock_parse_suffix):
         """
         Test 404 response returned when the user id cannot be parsed from the request path suffix
@@ -582,7 +582,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.assertEqual(response.status_code, 404)
 
     @patch('lti_consumer.lti.LtiConsumer.verify_result_headers')
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
     def test_verify_headers_raises_error(self, mock_parse_suffix, mock_verify_result_headers):
         """
         Test 401 response returned when `verify_result_headers` raises LtiError
@@ -594,7 +594,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.assertEqual(response.status_code, 401)
 
     @patch('lti_consumer.lti.LtiConsumer.verify_result_headers', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
     def test_bad_user_id(self, mock_parse_suffix):
         """
         Test 404 response returned when a user cannot be found
@@ -606,7 +606,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.assertEqual(response.status_code, 404)
 
     @patch('lti_consumer.lti.LtiConsumer.verify_result_headers', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
     def test_bad_request_method(self, mock_parse_suffix):
         """
         Test 404 response returned when the request contains an unsupported method
@@ -618,7 +618,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
     @patch('lti_consumer.lti.LtiConsumer.get_result')
     @patch('lti_consumer.lti.LtiConsumer.verify_result_headers', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
     def test_get_result_raises_error(self, mock_parse_suffix, mock_get_result):
         """
         Test 404 response returned when the LtiConsumer result service handler methods raise an exception
@@ -631,7 +631,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
     @patch('lti_consumer.lti.LtiConsumer.get_result')
     @patch('lti_consumer.lti.LtiConsumer.verify_result_headers', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
     def test_get_result_called(self, mock_parse_suffix, mock_get_result):
         """
         Test 200 response and LtiConsumer.get_result is called on a GET request
@@ -645,7 +645,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
     @patch('lti_consumer.lti.LtiConsumer.put_result')
     @patch('lti_consumer.lti.LtiConsumer.verify_result_headers', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
     def test_put_result_called(self, mock_parse_suffix, mock_put_result):
         """
         Test 200 response and LtiConsumer.put_result is called on a PUT request
@@ -659,7 +659,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
     @patch('lti_consumer.lti.LtiConsumer.delete_result')
     @patch('lti_consumer.lti.LtiConsumer.verify_result_headers', Mock(return_value=True))
-    @patch('lti_consumer.lti_consumer.parse_handler_suffix')
+    @patch('lti_consumer.lti_xblock.parse_handler_suffix')
     def test_delete_result_called(self, mock_parse_suffix, mock_delete_result):
         """
         Test 200 response and LtiConsumer.delete_result is called on a DELETE request
@@ -904,7 +904,7 @@ class TestProcessorSettings(TestLtiConsumerXBlock):
 
     def test_enable_processor(self):
         self.xblock.enable_processors = True
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=self.settings):
+        with patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_settings', return_value=self.settings):
             processors = list(self.xblock.get_parameter_processors())
             assert len(processors) == 1, 'One processor should be enabled'
             # pylint: disable=bad-option-value, comparison-with-callable
@@ -912,7 +912,7 @@ class TestProcessorSettings(TestLtiConsumerXBlock):
 
     def test_disabled_processors(self):
         self.xblock.enable_processors = False
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=self.settings):
+        with patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_settings', return_value=self.settings):
             processors = list(self.xblock.get_parameter_processors())
             assert not processors, 'No processor should be enabled'
 
@@ -930,10 +930,10 @@ class TestProcessorSettings(TestLtiConsumerXBlock):
             'lti_consumer.tests.unit.test_utils:non_existent',
         ],
     })
-    @patch('lti_consumer.lti_consumer.log')
+    @patch('lti_consumer.lti_xblock.log')
     def test_faulty_configs(self, settings, mock_log):
         self.xblock.enable_processors = True
-        with patch('lti_consumer.lti_consumer.LtiConsumerXBlock.get_settings', return_value=settings):
+        with patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_settings', return_value=settings):
             with self.assertRaises(Exception):
                 list(self.xblock.get_parameter_processors())
             assert mock_log.exception.called
@@ -975,7 +975,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
     # pylint: disable=unused-argument
     @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
     def test_launch_request(self, mock_url, mock_url_2):
         """
         Test LTI 1.3 launch request
@@ -991,7 +991,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
     # pylint: disable=unused-argument
     @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
     def test_launch_callback_endpoint(self, mock_url, mock_url_2):
         """
         Test that the LTI 1.3 callback endpoind.
@@ -1022,7 +1022,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
     # pylint: disable=unused-argument
     @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
     def test_launch_callback_endpoint_fails(self, mock_url, mock_url_2):
         """
         Test that the LTI 1.3 callback endpoint correctly display an error message.
@@ -1053,7 +1053,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
     # pylint: disable=unused-argument
     @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
     def test_keyset_endpoint(self, mock_url, mock_url_2):
         """
         Test that the LTI 1.3 keyset endpoind.
@@ -1073,7 +1073,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
         self.assertEqual(response.status_code, 404)
 
-    @patch('lti_consumer.lti_consumer.lti_1p3_enabled', return_value=True)
+    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
     def test_studio_view(self, mock_lti_1p3_flag):
         """
         Test that the studio settings view load the custom js.
@@ -1081,8 +1081,8 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.studio_view({})
         self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
 
-    @patch('lti_consumer.lti_consumer.RSA')
-    @patch('lti_consumer.lti_consumer.uuid')
+    @patch('lti_consumer.lti_xblock.RSA')
+    @patch('lti_consumer.lti_xblock.uuid')
     def test_clean_studio_edits(self, mock_uuid, mock_rsa):
         """
         Test that the clean studio edits function properly sets LTI 1.3 variables.
@@ -1114,7 +1114,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
     # pylint: disable=unused-argument
     @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
     def test_author_view(self, mock_url, mock_url_2):
         """
         Test that the studio view loads LTI 1.3 view.
@@ -1126,7 +1126,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
 # pylint: disable=unused-argument
 @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-@patch('lti_consumer.lti_consumer.get_lms_base', return_value="https://example.com")
+@patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
 class TestLti1p3AccessTokenEndpoint(TestCase):
     """
     Unit tests for LtiConsumerXBlock Access Token endpoint when using an LTI 1.3.
