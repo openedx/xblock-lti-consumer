@@ -49,12 +49,14 @@ with open('README.rst') as _f:
 
 setup(
     name='lti-consumer-xblock',
-    version='2.0.1',
+    version='2.0.1.1',
     description='This XBlock implements the consumer side of the LTI specification.',
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=[
         'lti_consumer',
+        'lti_consumer.lti_1p3',
+        'lti_consumer.plugin',
     ],
     install_requires=load_requirements('requirements/base.in'),
     dependency_links=[
