@@ -2,7 +2,7 @@
 
 import os
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def package_data(pkg, roots):
@@ -53,11 +53,7 @@ setup(
     description='This XBlock implements the consumer side of the LTI specification.',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    packages=[
-        'lti_consumer',
-        'lti_consumer.lti_1p3',
-        'lti_consumer.plugin',
-    ],
+    packages=find_packages(),
     install_requires=load_requirements('requirements/base.in'),
     dependency_links=[
         'https://github.com/edx/xblock-utils/tarball/c39bf653e4f27fb3798662ef64cde99f57603f79#egg=xblock-utils',
