@@ -1,9 +1,9 @@
 """
-Exceptions for the LTI Consumer XBlock.
+Exceptions for the LTI Consumer.
 """
 
 
 class LtiError(Exception):
     """
-    General error class for LTI XBlock.
+    General error class for LTI Consumer usage.
     """

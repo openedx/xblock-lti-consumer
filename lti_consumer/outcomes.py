@@ -6,16 +6,14 @@ https://www.imsglobal.org/specs/ltiomv1p0
 """
 
 import logging
+import urllib.parse
 from xml.sax.saxutils import escape
 
-import six.moves.urllib.error
-import six.moves.urllib.parse
 from lxml import etree
-from six import text_type
 from xblockutils.resources import ResourceLoader
 
 from .exceptions import LtiError
-from .oauth import verify_oauth_body_signature
+from .lti_1p1.oauth import verify_oauth_body_signature
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +39,7 @@ def parse_grade_xml_body(body):
     lti_spec_namespace = "http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0"
     namespaces = {'def': lti_spec_namespace}
     data = body.strip()
-    if isinstance(body, text_type):
+    if isinstance(body, str):
         data = body.strip().encode('utf-8')
 
     try:
@@ -185,7 +183,7 @@ class OutcomeService(object):  # pylint: disable=bad-option-value, useless-objec
             log.debug("[LTI]: %s", error_message)
             return response_xml_template.format(**failure_values)
 
-        real_user = self.xblock.runtime.get_real_user(six.moves.urllib.parse.unquote(sourced_id.split(':')[-1]))
+        real_user = self.xblock.runtime.get_real_user(urllib.parse.unquote(sourced_id.split(':')[-1]))
         if not real_user:  # that means we can't save to database, as we do not have real user id.
             failure_values['imsx_messageIdentifier'] = escape(imsx_message_identifier)
             failure_values['imsx_description'] = "User not found."

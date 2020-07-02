@@ -6,10 +6,10 @@ import unittest
 
 from mock import Mock, patch
 
-from lti_consumer.exceptions import LtiError
-from lti_consumer.oauth import (get_oauth_request_signature,
-                                log_authorization_header,
-                                verify_oauth_body_signature)
+from lti_consumer.lti_1p1.exceptions import Lti1p1Error
+from lti_consumer.lti_1p1.oauth import (get_oauth_request_signature,
+                                        log_authorization_header,
+                                        verify_oauth_body_signature)
 from lti_consumer.tests.unit.test_utils import make_request
 
 OAUTH_PARAMS = [
@@ -46,7 +46,7 @@ class TestGetOauthRequestSignature(unittest.TestCase):
         """
         mock_client_sign.side_effect = ValueError
 
-        with self.assertRaises(LtiError):
+        with self.assertRaises(Lti1p1Error):
             __ = get_oauth_request_signature('test', 'secret', '', {}, '')
 
 
@@ -69,7 +69,7 @@ class TestVerifyOauthBodySignature(unittest.TestCase):
         """
         Test exception is raised when the request signature is invalid
         """
-        with self.assertRaises(LtiError):
+        with self.assertRaises(Lti1p1Error):
             verify_oauth_body_signature(make_request(''), 'test', 'secret')
 
     @patch('oauthlib.oauth1.rfc5849.signature.verify_hmac_sha1', Mock(return_value=False))
@@ -78,7 +78,7 @@ class TestVerifyOauthBodySignature(unittest.TestCase):
         """
         Test exception is raised when the request signature is missing oauth_body_hash
         """
-        with self.assertRaises(LtiError):
+        with self.assertRaises(Lti1p1Error):
             verify_oauth_body_signature(make_request(''), 'test', 'secret')
 
 
@@ -87,7 +87,7 @@ class TestLogCorrectAuthorizationHeader(unittest.TestCase):
     Unit tests for `lti_consumer.oauth.log_authorization_header`
     """
 
-    @patch('lti_consumer.oauth.log')
+    @patch('lti_consumer.lti_1p1.oauth.log')
     def test_log_auth_header(self, mock_log):
         """
         Test that log.debug is called

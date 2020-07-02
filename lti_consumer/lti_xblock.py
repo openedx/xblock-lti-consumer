@@ -50,29 +50,28 @@ What is supported:
             GET / PUT / DELETE HTTP methods respectively
 """
 
-from __future__ import absolute_import, unicode_literals
-
 import logging
 import re
+import urllib.parse
 import uuid
 from collections import namedtuple
 from importlib import import_module
 
-import six
-from six.moves.urllib import parse
-from django.utils import timezone
 import bleach
+from django.utils import timezone
+from web_fragments.fragment import Fragment
+
 from Crypto.PublicKey import RSA
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.validation import ValidationMessage
-from web_fragments.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .exceptions import LtiError
-from .lti import LtiConsumer
+from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
+from .lti_1p1.oauth import log_authorization_header
 from .lti_1p3.exceptions import (
     Lti1p3Exception,
     UnsupportedGrantType,
@@ -83,7 +82,6 @@ from .lti_1p3.exceptions import (
     UnknownClientId,
 )
 from .lti_1p3.consumer import LtiConsumer1p3
-from .oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .utils import (
     _,
@@ -111,38 +109,6 @@ ROLE_MAP = {
     'staff': u'Administrator',
     'instructor': u'Instructor',
 }
-LTI_PARAMETERS = [
-    'lti_message_type',
-    'lti_version',
-    'resource_link_title',
-    'resource_link_description',
-    'user_image',
-    'lis_person_name_given',
-    'lis_person_name_family',
-    'lis_person_name_full',
-    'lis_person_contact_email_primary',
-    'lis_person_sourcedid',
-    'role_scope_mentor',
-    'context_type',
-    'context_title',
-    'context_label',
-    'launch_presentation_locale',
-    'launch_presentation_document_target',
-    'launch_presentation_css_url',
-    'launch_presentation_width',
-    'launch_presentation_height',
-    'launch_presentation_return_url',
-    'tool_consumer_info_product_family_code',
-    'tool_consumer_info_version',
-    'tool_consumer_instance_guid',
-    'tool_consumer_instance_name',
-    'tool_consumer_instance_description',
-    'tool_consumer_instance_url',
-    'tool_consumer_instance_contact_email',
-    'custom_component_due_date',
-    'custom_component_graceperiod',
-    'custom_component_display_name'
-]
 
 
 def parse_handler_suffix(suffix):
@@ -580,7 +546,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     def validate_field_data(self, validation, data):
         if not isinstance(data.custom_parameters, list):
             _ = self.runtime.service(self, "i18n").ugettext
-            validation.add(ValidationMessage(ValidationMessage.ERROR, six.text_type(
+            validation.add(ValidationMessage(ValidationMessage.ERROR, str(
                 _("Custom Parameters must be a list")
             )))
 
@@ -668,7 +634,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context_id is an opaque identifier that uniquely identifies the context (e.g., a course)
         that contains the link being launched.
         """
-        return six.text_type(self.course_id)  # pylint: disable=no-member
+        return str(self.course_id)  # pylint: disable=no-member
 
     @property
     def role(self):
@@ -710,7 +676,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         user_id = self.runtime.anonymous_student_id
         if user_id is None:
             raise LtiError(self.ugettext("Could not get user id for current request"))
-        return six.text_type(six.moves.urllib.parse.quote(user_id))
+        return str(urllib.parse.quote(user_id))
 
     def get_icon_class(self):
         """ Returns the icon class """
@@ -726,7 +692,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         user_id = self.runtime.service(self, 'user').get_external_user_id('lti')
         if user_id is None:
             raise LtiError(self.ugettext("Could not get user id for current request"))
-        return six.text_type(user_id)
+        return str(user_id)
 
     @property
     def resource_link_id(self):
@@ -760,7 +726,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         i4x-2-3-lti-31de800015cf4afb973356dbe81496df this part of resource_link_id:
         makes resource_link_id to be unique among courses inside same system.
         """
-        return six.text_type(six.moves.urllib.parse.quote(
+        return str(urllib.parse.quote(
             "{}-{}".format(self.runtime.hostname, self.location.html_id())  # pylint: disable=no-member
         ))
 
@@ -775,7 +741,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         This field is generally optional, but is required for grading.
         """
         return "{context}:{resource_link}:{user_id}".format(
-            context=six.moves.urllib.parse.quote(self.context_id),
+            context=urllib.parse.quote(self.context_id),
             resource_link=self.resource_link_id,
             user_id=self.user_id
         )
@@ -837,7 +803,19 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 if param_name not in LTI_PARAMETERS:
                     param_name = 'custom_' + param_name
 
-                custom_parameters[six.text_type(param_name)] = six.text_type(param_value)
+                custom_parameters[param_name] = param_value
+
+        custom_parameters['custom_component_display_name'] = str(self.display_name)
+
+        if self.due:  # pylint: disable=no-member
+            custom_parameters.update({
+                'custom_component_due_date': self.due.strftime('%Y-%m-%d %H:%M:%S')  # pylint: disable=no-member
+            })
+            if self.graceperiod:  # pylint: disable=no-member
+                custom_parameters.update({
+                    'custom_component_graceperiod': str(self.graceperiod.total_seconds())  # pylint: disable=no-member
+                })
+
         return custom_parameters
 
     @property
@@ -851,6 +829,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         else:
             close_date = due_date
         return close_date is not None and timezone.now() > close_date
+
+    def _get_lti1p1_consumer(self):
+        """
+        Returns a preconfigured LTI 1.1 consumer.
+
+        If the block is configured to use LTI 1.1, set up a
+        base LTI 1.1 consumer class.
+        This class does NOT store state between calls.
+        """
+        key, secret = self.lti_provider_key_secret
+        return LtiConsumer1p1(self.launch_url, key, secret)
 
     def _get_lti1p3_consumer(self):
         """
@@ -875,6 +864,29 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             tool_key=self.lti_1p3_tool_public_key,
             tool_keyset_url=None,
         )
+
+    def extract_real_user_data(self):
+        """
+        Extract and return real user data from the runtime
+        """
+        user_data = {
+            'user_email': None,
+            'user_username': None,
+            'user_language': None,
+        }
+
+        if callable(self.runtime.get_real_user):
+            real_user_object = self.runtime.get_real_user(self.runtime.anonymous_student_id)
+            user_data['user_email'] = getattr(real_user_object, "email", "")
+            user_data['user_username'] = getattr(real_user_object, "username", "")
+            user_preferences = getattr(real_user_object, "preferences", None)
+
+            if user_preferences is not None:
+                language_preference = user_preferences.filter(key='pref-lang')
+                if len(language_preference) == 1:
+                    user_data['user_language'] = language_preference[0].value
+
+        return user_data
 
     def studio_view(self, context):
         """
@@ -976,8 +988,39 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response: HTML LTI launch form
         """
-        lti_consumer = LtiConsumer(self)
-        lti_parameters = lti_consumer.get_signed_lti_parameters()
+        real_user_data = self.extract_real_user_data()
+
+        lti_consumer = self._get_lti1p1_consumer()
+
+        username = None
+        email = None
+        if self.ask_to_send_username and real_user_data['user_username']:
+            username = real_user_data['user_username']
+        if self.ask_to_send_email and real_user_data['user_email']:
+            email = real_user_data['user_email']
+
+        lti_consumer.set_user_data(
+            self.user_id,
+            self.role,
+            result_sourcedid=self.lis_result_sourcedid,
+            person_sourcedid=username,
+            person_contact_email_primary=email
+        )
+        lti_consumer.set_context_data(
+            self.context_id,
+            self.course.display_name_with_default,
+            self.course.display_org_with_default
+        )
+
+        if self.has_score:
+            lti_consumer.set_outcome_service_url(self.outcome_service_url)
+
+        if real_user_data['user_language']:
+            lti_consumer.set_launch_presentation_locale(real_user_data['user_language'])
+
+        lti_consumer.set_custom_parameters(self.prefixed_custom_parameters)
+
+        lti_parameters = lti_consumer.generate_launch_request(self.resource_link_id)
         loader = ResourceLoader(__name__)
         context = self._get_context_for_template()
         context.update({'lti_parameters': lti_parameters})
@@ -1001,8 +1044,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         lti_consumer = self._get_lti1p3_consumer()
         context = lti_consumer.prepare_preflight_url(
             callback_url=get_lms_lti_launch_link(),
-            hint=six.text_type(self.location),  # pylint: disable=no-member
-            lti_hint=six.text_type(self.location)  # pylint: disable=no-member
+            hint=str(self.location),  # pylint: disable=no-member
+            lti_hint=str(self.location)  # pylint: disable=no-member
         )
 
         loader = ResourceLoader(__name__)
@@ -1094,7 +1137,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         lti_consumer = self._get_lti1p3_consumer()
         try:
             token = lti_consumer.access_token(
-                dict(parse.parse_qsl(
+                dict(urllib.parse.parse_qsl(
                     request.body.decode('utf-8'),
                     keep_blank_values=True
                 ))
@@ -1180,7 +1223,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response:  response to this request.  See above for details.
         """
-        lti_consumer = LtiConsumer(self)
+        lti_consumer = self._get_lti1p1_consumer()
+        lti_consumer.set_outcome_service_url(self.outcome_service_url)
 
         if self.runtime.debug:
             lti_provider_key, lti_provider_secret = self.lti_provider_key_secret
@@ -1205,20 +1249,82 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(status=404)  # have to do 404 due to spec, but 400 is better, with error msg in body
 
         try:
-            # Call the appropriate LtiConsumer method
-            args = []
+            # Call the appropriate LtiConsumer1p1 method
+            args = [lti_consumer, user]
             if request.method == 'PUT':
                 # Request body should be passed as an argument
                 # to result handler method on PUT
                 args.append(request.body)
-            response_body = getattr(lti_consumer, "{}_result".format(request.method.lower()))(user, *args)
+            response_body = getattr(
+                self,
+                "_result_service_{}".format(request.method.lower())
+            )(*args)
         except (AttributeError, LtiError):
             return Response(status=404)
 
         return Response(
             json_body=response_body,
-            content_type=LtiConsumer.CONTENT_TYPE_RESULT_JSON,
+            content_type=LtiConsumer1p1.CONTENT_TYPE_RESULT_JSON,
         )
+
+    def _result_service_get(self, lti_consumer, user):
+        """
+        Helper request handler for GET requests to LTI 2.0 result endpoint
+
+        GET handler for lti_2_0_result.  Assumes all authorization has been checked.
+
+        Arguments:
+            lti_consumer (lti_consumer.lti_1p1.LtiConsumer1p1):  LtiConsumer object that manages Lti1.1 interaction
+            user (django.contrib.auth.models.User):  Actual user linked to anon_id in request path suffix
+
+        Returns:
+            dict:  response to this request as dictated by the LtiConsumer
+        """
+        self.runtime.rebind_noauth_module_to_user(self, user)
+        args = []
+        if self.module_score:
+            args.extend([self.module_score, self.score_comment])
+        return lti_consumer.get_result(*args)
+
+    def _result_service_delete(self, lti_consumer, user):
+        """
+        Helper request handler for DELETE requests to LTI 2.0 result endpoint
+
+        DELETE handler for lti_2_0_result.  Assumes all authorization has been checked.
+
+        Arguments:
+            lti_consumer (lti_consumer.lti_1p1.LtiConsumer1p1):  LtiConsumer object that manages Lti1.1 interaction
+            user (django.contrib.auth.models.User):  Actual user linked to anon_id in request path suffix
+
+        Returns:
+            dict:  response to this request as dictated by the LtiConsumer
+        """
+        self.clear_user_module_score(user)
+        return lti_consumer.delete_result()
+
+    def _result_service_put(self, lti_consumer, user, result_json):
+        """
+        Helper request handler for PUT requests to LTI 2.0 result endpoint
+
+        PUT handler for lti_2_0_result.  Assumes all authorization has been checked.
+
+        Arguments:
+            lti_consumer (lti_consumer.lti_1p1.LtiConsumer1p1):  LtiConsumer object that manages Lti1.1 interaction
+            request (xblock.django.request.DjangoWebobRequest):  Request object
+            real_user (django.contrib.auth.models.User):  Actual user linked to anon_id in request path suffix
+
+        Returns:
+            dict:  response to this request as dictated by the LtiConsumer
+        """
+        score, comment = parse_result_json(result_json)
+
+        if score is None:
+            # According to http://www.imsglobal.org/lti/ltiv2p0/ltiIMGv2p0.html#_Toc361225514
+            # PUTting a JSON object with no "resultScore" field is equivalent to a DELETE.
+            self.clear_user_module_score(user)
+        else:
+            self.set_user_module_score(user, score, self.max_score(), comment)
+        return lti_consumer.put_result()
 
     def max_score(self):
         """
