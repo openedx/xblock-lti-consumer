@@ -3,5 +3,3 @@
 
 -r test.txt
 -r tox.txt
-
-six
