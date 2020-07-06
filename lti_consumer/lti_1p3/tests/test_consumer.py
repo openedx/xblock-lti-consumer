@@ -4,11 +4,11 @@ Unit tests for LTI 1.3 consumer implementation
 from __future__ import absolute_import, unicode_literals
 
 import json
+from urllib.parse import urlparse, parse_qs
 import ddt
 
 from mock import patch
 from django.test.testcases import TestCase
-from six.moves.urllib.parse import urlparse, parse_qs
 
 from Crypto.PublicKey import RSA
 from jwkest.jwk import load_jwks

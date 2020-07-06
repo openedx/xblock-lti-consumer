@@ -2,7 +2,6 @@
 """
 Utility functions for LTI Consumer block
 """
-from six import text_type
 from django.conf import settings
 
 
@@ -40,7 +39,7 @@ def get_lms_lti_keyset_link(location):
     """
     return u"{lms_base}/api/lti_consumer/v1/public_keysets/{location}".format(
         lms_base=get_lms_base(),
-        location=text_type(location),
+        location=str(location),
     )
 
 
@@ -63,5 +62,5 @@ def get_lms_lti_access_token_link(location):
     """
     return u"{lms_base}/api/lti_consumer/v1/token/{location}".format(
         lms_base=get_lms_base(),
-        location=text_type(location),
+        location=str(location),
     )

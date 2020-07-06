@@ -1,7 +1,7 @@
 """
 LTI 1.3 Consumer implementation
 """
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from . import exceptions
 from .constants import (
