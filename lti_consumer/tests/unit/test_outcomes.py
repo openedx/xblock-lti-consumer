@@ -11,7 +11,7 @@ from mock import Mock, PropertyMock, patch
 
 from lti_consumer.exceptions import LtiError
 from lti_consumer.outcomes import OutcomeService, parse_grade_xml_body
-from lti_consumer.tests.unit.test_lti_consumer import TestLtiConsumerXBlock
+from lti_consumer.tests.unit.test_lti_xblock import TestLtiConsumerXBlock
 from lti_consumer.tests.unit.test_utils import make_request
 
 REQUEST_BODY_TEMPLATE_VALID = textwrap.dedent("""

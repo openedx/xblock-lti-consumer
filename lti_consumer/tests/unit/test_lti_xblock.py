@@ -1169,12 +1169,15 @@ class TestLtiConsumer1p3XBlock(TestCase):
     @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
     def test_launch_callback_endpoint(self, mock_url, mock_url_2):
         """
-        Test that the LTI 1.3 callback endpoind.
+        Test the LTI 1.3 callback endpoint.
         """
         self.xblock.runtime.get_user_role.return_value = 'student'
         mock_user_service = Mock()
         mock_user_service.get_external_user_id.return_value = 2
         self.xblock.runtime.service.return_value = mock_user_service
+
+        self.xblock.course.display_name_with_default = 'course_display_name'
+        self.xblock.course.display_org_with_default = 'course_display_org'
 
         # Craft request sent back by LTI tool
         request = make_request('', 'GET')
@@ -1206,6 +1209,9 @@ class TestLtiConsumer1p3XBlock(TestCase):
         mock_user_service = Mock()
         mock_user_service.get_external_user_id.return_value = 2
         self.xblock.runtime.service.return_value = mock_user_service
+
+        self.xblock.course.display_name_with_default = 'course_display_name'
+        self.xblock.course.display_org_with_default = 'course_display_org'
 
         # Make a fake invalid preflight request, with empty parameters
         request = make_request('', 'GET')

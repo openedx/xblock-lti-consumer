@@ -14,6 +14,7 @@ from Crypto.PublicKey import RSA
 from jwkest.jwk import load_jwks
 from jwkest.jws import JWS
 
+from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.consumer import LtiConsumer1p3
 from lti_consumer.lti_1p3 import exceptions
 
@@ -260,6 +261,122 @@ class TestLti1p3Consumer(TestCase):
         """
         with self.assertRaises(ValueError):
             self.lti_consumer.set_launch_presentation_claim(document_target="invalid")
+
+    @ddt.data(
+        *[context_type for context_type in LTI_1P3_CONTEXT_TYPE]  # pylint: disable=unnecessary-comprehension
+    )
+    def test_set_valid_context_claim(self, context_type):
+        """
+        Check if setting context claim data works
+        """
+        self._setup_lti_user()
+        self.lti_consumer.set_context_claim(
+            "context_id",
+            context_types=[context_type],
+            context_title="context_title",
+            context_label="context_label"
+        )
+
+        expected_claim_data = {
+            "id": "context_id",
+            "type": [context_type.value],
+            "title": "context_title",
+            "label": "context_label",
+        }
+
+        self.assertEqual(
+            self.lti_consumer.lti_claim_context,
+            {
+                "https://purl.imsglobal.org/spec/lti/claim/context": expected_claim_data
+            }
+        )
+
+        # Prepare LTI message
+        launch_request = self._get_lti_message()
+
+        # Decode and verify message
+        decoded = self._decode_token(launch_request['id_token'])
+        self.assertIn(
+            "https://purl.imsglobal.org/spec/lti/claim/context",
+            decoded.keys()
+        )
+        self.assertEqual(
+            decoded["https://purl.imsglobal.org/spec/lti/claim/context"],
+            expected_claim_data
+        )
+
+    def test_set_invalid_context_claim_type(self):
+        """
+        Check if setting invalid context claim type omits type attribute
+        """
+        self._setup_lti_user()
+        self.lti_consumer.set_context_claim(
+            "context_id",
+            context_types=["invalid"],
+            context_title="context_title",
+            context_label="context_label"
+        )
+
+        expected_claim_data = {
+            "id": "context_id",
+            "title": "context_title",
+            "label": "context_label",
+        }
+
+        self.assertEqual(
+            self.lti_consumer.lti_claim_context,
+            {
+                "https://purl.imsglobal.org/spec/lti/claim/context": expected_claim_data
+            }
+        )
+
+        # Prepare LTI message
+        launch_request = self._get_lti_message()
+
+        # Decode and verify message
+        decoded = self._decode_token(launch_request['id_token'])
+        self.assertIn(
+            "https://purl.imsglobal.org/spec/lti/claim/context",
+            decoded.keys()
+        )
+        self.assertEqual(
+            decoded["https://purl.imsglobal.org/spec/lti/claim/context"],
+            expected_claim_data
+        )
+
+    def test_set_context_claim_with_only_id(self):
+        """
+        Check if setting no context claim type works
+        """
+        self._setup_lti_user()
+        self.lti_consumer.set_context_claim(
+            "context_id"
+        )
+
+        expected_claim_data = {
+            "id": "context_id",
+        }
+
+        self.assertEqual(
+            self.lti_consumer.lti_claim_context,
+            {
+                "https://purl.imsglobal.org/spec/lti/claim/context": expected_claim_data
+            }
+        )
+
+        # Prepare LTI message
+        launch_request = self._get_lti_message()
+
+        # Decode and verify message
+        decoded = self._decode_token(launch_request['id_token'])
+        self.assertIn(
+            "https://purl.imsglobal.org/spec/lti/claim/context",
+            decoded.keys()
+        )
+        self.assertEqual(
+            decoded["https://purl.imsglobal.org/spec/lti/claim/context"],
+            expected_claim_data
+        )
 
     def test_check_no_user_data_error(self):
         """

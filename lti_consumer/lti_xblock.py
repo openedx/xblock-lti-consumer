@@ -81,6 +81,7 @@ from .lti_1p3.exceptions import (
     TokenSignatureExpired,
     UnknownClientId,
 )
+from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .lti_1p3.consumer import LtiConsumer1p3
 from .outcomes import OutcomeService
 from .utils import (
@@ -1084,6 +1085,19 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             # either `iframe`, `frame` or `window`
             # This is optional though
             lti_consumer.set_launch_presentation_claim('iframe')
+
+            # Set context claim
+            # This is optional
+            context_title = " - ".join([
+                self.course.display_name_with_default,
+                self.course.display_org_with_default
+            ])
+            lti_consumer.set_context_claim(
+                self.context_id,
+                context_types=[LTI_1P3_CONTEXT_TYPE.course_offering],
+                context_title=context_title,
+                context_label=self.context_id
+            )
 
             context.update({
                 "preflight_response": dict(request.GET),
