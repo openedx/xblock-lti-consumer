@@ -5,6 +5,8 @@ This includes the LTI Base message, OAuth2 scopes, and
 lists of required and optional parameters required for
 LTI message generation and validation.
 """
+from enum import Enum
+
 
 LTI_BASE_MESSAGE = {
     # Claim type: fixed key with value `LtiResourceLinkRequest`
@@ -43,3 +45,11 @@ LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS = set([
 ])
 
 LTI_1P3_ACCESS_TOKEN_SCOPES = []
+
+
+class LTI_1P3_CONTEXT_TYPE(Enum):  # pylint: disable=invalid-name
+    """ LTI 1.3 Context Claim Types """
+    group = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseGroup'
+    course_offering = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseOffering'
+    course_section = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseSection'
+    course_template = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseTemplate'

@@ -9,6 +9,7 @@ from .constants import (
     LTI_BASE_MESSAGE,
     LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS,
     LTI_1P3_ACCESS_TOKEN_SCOPES,
+    LTI_1P3_CONTEXT_TYPE,
 )
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 
@@ -50,6 +51,7 @@ class LtiConsumer1p3:
         # IMS LTI Claim data
         self.lti_claim_user_data = None
         self.lti_claim_launch_presentation = None
+        self.lti_claim_context = None
         self.lti_claim_custom_parameters = None
 
     @staticmethod
@@ -161,6 +163,57 @@ class LtiConsumer1p3:
             },
         }
 
+    def set_context_claim(
+            self,
+            context_id,
+            context_types=None,
+            context_title=None,
+            context_label=None
+    ):
+        """
+        Optional: Set context claims
+
+        https://www.imsglobal.org/spec/lti/v1p3/#context-claim
+
+        Arguments:
+            context_id (string):  Unique value identifying the user
+            context_types (list):  A list of context type values for the claim
+            context_title (string):  Plain text title of the context
+            context_label (string):  Plain text label for the context
+        """
+        # Set basic claim data
+        context_claim_data = {
+            "id": context_id,
+        }
+
+        # Default context_types to a list if nothing is passed in
+        context_types = context_types or []
+
+        # Ensure the value of context_types is a list
+        if not isinstance(context_types, list):
+            raise TypeError("Invalid type for context_types. It must be a list.")
+
+        # Explicitly ignoring any custom context types
+        context_claim_types = [
+            context_type.value
+            for context_type in context_types
+            if isinstance(context_type, LTI_1P3_CONTEXT_TYPE)
+        ]
+
+        if context_claim_types:
+            context_claim_data["type"] = context_claim_types
+
+        if context_title:
+            context_claim_data["title"] = context_title
+
+        if context_label:
+            context_claim_data["label"] = context_label
+
+        self.lti_claim_context = {
+            # Context claim
+            "https://purl.imsglobal.org/spec/lti/claim/context": context_claim_data
+        }
+
     def set_custom_parameters(
             self,
             custom_parameters
@@ -239,6 +292,10 @@ class LtiConsumer1p3:
         # Launch presentation claim
         if self.lti_claim_launch_presentation:
             lti_message.update(self.lti_claim_launch_presentation)
+
+        # Context claim
+        if self.lti_claim_context:
+            lti_message.update(self.lti_claim_context)
 
         # Custom variables claim
         if self.lti_claim_custom_parameters:
