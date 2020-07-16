@@ -3,7 +3,6 @@
 
 -r base.txt               # Core dependencies for the cookiecutter
 
-django-nose
 ddt
 coveralls
 mock
