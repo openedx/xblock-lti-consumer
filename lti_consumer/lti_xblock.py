@@ -1093,7 +1093,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             context.update({
                 "preflight_response": dict(request.GET),
                 "launch_request": lti_consumer.generate_launch_request(
-                    resource_link=str(self.location),  # pylint: disable=no-member
+                    resource_link=str(self.location),
                     preflight_response=dict(request.GET)
                 )
             })

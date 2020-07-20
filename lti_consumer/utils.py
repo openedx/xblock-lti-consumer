@@ -64,3 +64,15 @@ def get_lms_lti_access_token_link(location):
         lms_base=get_lms_base(),
         location=str(location),
     )
+
+
+def get_lti_ags_lineitems_url(lti_config_id):
+    """
+    Return the LTI AGS endpoint
+
+    :param lti_config_id: LTI configuration id
+    """
+    return u"{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-ags".format(
+        lms_base=get_lms_base(),
+        lti_config_id=str(lti_config_id),
+    )

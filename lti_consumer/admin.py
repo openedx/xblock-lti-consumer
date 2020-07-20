@@ -2,7 +2,7 @@
 Admin views for LTI related models.
 """
 from django.contrib import admin
-from lti_consumer.models import LtiConfiguration
+from lti_consumer.models import LtiAgsLineItem, LtiConfiguration
 
 
 class LtiConfigurationAdmin(admin.ModelAdmin):
@@ -15,3 +15,4 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
 
 
 admin.site.register(LtiConfiguration, LtiConfigurationAdmin)
+admin.site.register(LtiAgsLineItem)

@@ -12,6 +12,7 @@ from .constants import (
     LTI_1P3_CONTEXT_TYPE,
 )
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
+from .ags import LtiAgs
 
 
 class LtiConsumer1p3:
@@ -436,3 +437,57 @@ class LtiConsumer1p3:
         if not isinstance(claim, dict):
             raise ValueError('Invalid extra claim: is not a dict.')
         self.extra_claims.update(claim)
+
+
+class LtiAdvantageConsumer(LtiConsumer1p3):
+    """
+    LTI Advantage  Consumer Implementation.
+
+    Builds on top of the LTI 1.3 consumer and adds support for
+    the following LTI Advantage Services:
+
+    * Assignments and Grades Service (LTI-AGS): Allows tools to
+      retrieve and send back grades into the platform.
+      Note: this is a partial implementation with read-only LineItems.
+      Reference spec: https://www.imsglobal.org/spec/lti-ags/v2p0
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        Override parent class and set up required LTI Advantage variables.
+        """
+        super(LtiAdvantageConsumer, self).__init__(*args, **kwargs)
+
+        # LTI AGS Variables
+        self.ags = None
+
+    @property
+    def lti_ags(self):
+        """
+        Returns LTI AGS class or throw exception if not set up.
+        """
+        if not self.ags:
+            raise exceptions.LtiAdvantageServiceNotSetUp(
+                "The LTI AGS service was not set up for this consumer."
+            )
+
+        return self.ags
+
+    def enable_ags(
+        self,
+        lineitems_url,
+    ):
+        """
+        Enable LTI Advantage Assignments and Grades Service.
+
+        This will include the LTI AGS Claim in the LTI message
+        and set up the required class.
+        """
+        self.ags = LtiAgs(
+            lineitems_url=lineitems_url,
+            allow_creating_lineitems=True,
+            results_service_enabled=True,
+            scores_service_enabled=True
+        )
+
+        # Include LTI AGS claim inside the LTI Launch message
+        self.set_extra_claim(self.ags.get_lti_ags_launch_claim())

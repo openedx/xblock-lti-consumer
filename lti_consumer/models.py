@@ -8,8 +8,8 @@ from opaque_keys.edx.django.models import UsageKeyField
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 # LTI 1.3
-from lti_consumer.lti_1p3.consumer import LtiConsumer1p3
-from lti_consumer.utils import get_lms_base
+from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
+from lti_consumer.utils import get_lms_base, get_lti_ags_lineitems_url
 
 
 class LtiConfiguration(models.Model):
@@ -112,7 +112,7 @@ class LtiConfiguration(models.Model):
         """
         # If LTI configuration is stored in the XBlock.
         if self.config_store == self.CONFIG_ON_XBLOCK:
-            consumer = LtiConsumer1p3(
+            consumer = LtiAdvantageConsumer(
                 iss=get_lms_base(),
                 lti_oidc_url=self.block.lti_1p3_oidc_url,
                 lti_launch_url=self.block.lti_1p3_launch_url,
@@ -127,6 +127,14 @@ class LtiConfiguration(models.Model):
                 tool_key=self.block.lti_1p3_tool_public_key,
                 tool_keyset_url=None,
             )
+
+            # Check if enabled and setup LTI-AGS
+            if self.block.has_score:
+                lti_ags_url = get_lti_ags_lineitems_url(self.id)
+
+                consumer.enable_ags(
+                    lineitems_url=lti_ags_url
+                )
 
             return consumer
 
@@ -145,3 +153,54 @@ class LtiConfiguration(models.Model):
 
     def __str__(self):
         return "[{}] {} - {}".format(self.config_store, self.version, self.location)
+
+
+class LtiAgsLineItem(models.Model):
+    """
+    Model to store LineItem data for LTI Assignments and Grades service.
+
+    LTI-AGS Specification: https://www.imsglobal.org/spec/lti-ags/v2p0
+    Note: When implementing multi-tenancy support, this needs to be changed
+    and be tied to a deployment ID, because each deployment should isolate
+    it's resources.
+
+    .. no_pii:
+    """
+    # LTI Configuration link
+    # This ties the LineItem to each tool configuration
+    # and allows easily retrieving LTI credentials for
+    # API authentication.
+    lti_configuration = models.ForeignKey(
+        LtiConfiguration,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    # Tool resource identifier, not used by the LMS.
+    resource_id = models.CharField(max_length=100, blank=True)
+
+    # LMS Resource link
+    # Must be the same as the one sent in the tool's LTI launch.
+    # Each LineItem created by a tool should be specific to the
+    # context from which it was created.
+    # Currently it maps to a block using a usagekey
+    resource_link_id = UsageKeyField(
+        max_length=255,
+        db_index=True,
+        null=True,
+        blank=True,
+    )
+
+    # Other LineItem attributes
+    label = models.CharField(max_length=100)
+    score_maximum = models.IntegerField()
+    tag = models.CharField(max_length=50, blank=True)
+    start_date_time = models.DateTimeField(blank=True, null=True)
+    end_date_time = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return "{} - {}".format(
+            self.resource_link_id,
+            self.label,
+        )

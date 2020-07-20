@@ -51,3 +51,7 @@ class RsaKeyNotSet(Lti1p3Exception):
 
 class PreflightRequestValidationFailure(Lti1p3Exception):
     pass
+
+
+class LtiAdvantageServiceNotSetUp(Lti1p3Exception):
+    pass
