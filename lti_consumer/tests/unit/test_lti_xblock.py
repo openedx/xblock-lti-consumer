@@ -8,7 +8,7 @@ import urllib.parse
 import uuid
 
 import ddt
-from Crypto.PublicKey import RSA
+from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from django.utils import timezone
 from jwkest.jwk import RSAKey
