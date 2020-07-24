@@ -18,19 +18,18 @@ mako==1.1.3               # via -r requirements/base.in, xblock-utils
 markupsafe==1.1.1         # via mako, xblock
 oauthlib==3.1.0           # via -r requirements/base.in
 packaging==20.4           # via bleach
-pycryptodome==3.9.8       # via -r requirements/base.in
-pycryptodomex==3.9.8      # via pyjwkest
+pycryptodomex==3.9.8      # via -r requirements/base.in, pyjwkest
 pyjwkest==1.4.2           # via -r requirements/base.in
 pyparsing==2.4.7          # via packaging
 python-dateutil==2.8.1    # via xblock
 pytz==2020.1              # via django, fs, xblock
 pyyaml==5.3.1             # via xblock
 requests==2.24.0          # via pyjwkest
-simplejson==3.17.0        # via xblock-utils
+simplejson==3.17.2        # via xblock-utils
 six==1.15.0               # via bleach, fs, packaging, pyjwkest, python-dateutil, xblock
 sqlparse==0.3.1           # via django
-typing==3.7.4.1           # via fs
-urllib3==1.25.9           # via requests
+typing==3.7.4.3           # via fs
+urllib3==1.25.10          # via requests
 web-fragments==0.3.2      # via xblock, xblock-utils
 webencodings==0.5.1       # via bleach
 webob==1.8.6              # via xblock
