@@ -61,7 +61,7 @@ import bleach
 from django.utils import timezone
 from web_fragments.fragment import Fragment
 
-from Crypto.PublicKey import RSA
+from Cryptodome.PublicKey import RSA
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer

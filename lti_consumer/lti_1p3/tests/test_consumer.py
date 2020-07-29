@@ -10,7 +10,7 @@ import ddt
 from mock import patch
 from django.test.testcases import TestCase
 
-from Crypto.PublicKey import RSA
+from Cryptodome.PublicKey import RSA
 from jwkest.jwk import load_jwks
 from jwkest.jws import JWS
 

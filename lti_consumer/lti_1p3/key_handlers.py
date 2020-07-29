@@ -9,7 +9,7 @@ import copy
 import time
 import json
 
-from Crypto.PublicKey import RSA
+from Cryptodome.PublicKey import RSA
 from jwkest import BadSyntax, WrongNumberOfParts, jwk
 from jwkest.jwk import RSAKey, load_jwks_from_url
 from jwkest.jws import JWS, NoSuitableSigningKeys
