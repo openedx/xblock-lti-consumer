@@ -34,6 +34,10 @@ class UnsupportedGrantType(Lti1p3Exception):
     pass
 
 
+class InvalidClaimValue(Lti1p3Exception):
+    pass
+
+
 class InvalidRsaKey(Lti1p3Exception):
     pass
 

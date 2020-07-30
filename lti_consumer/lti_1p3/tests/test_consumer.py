@@ -490,3 +490,33 @@ class TestLti1p3Consumer(TestCase):
 
         # Check if token is valid
         self._decode_token(response.get('access_token'))
+
+    def test_check_token_no_scopes(self):
+        """
+        Test if `check_token` method returns True for a valid token without scopes.
+        """
+        token = self.lti_consumer.key_handler.encode_and_sign({
+            "iss": ISS,
+            "scopes": "",
+        })
+        self.assertTrue(self.lti_consumer.check_token(token, None))
+
+    def test_check_token_with_allowed_scopes(self):
+        """
+        Test if `check_token` method returns True for a valid token with allowed scopes.
+        """
+        token = self.lti_consumer.key_handler.encode_and_sign({
+            "iss": ISS,
+            "scopes": "test"
+        })
+        self.assertTrue(self.lti_consumer.check_token(token, ['test', '123']))
+
+    def test_check_token_without_allowed_scopes(self):
+        """
+        Test if `check_token` method returns True for a valid token with allowed scopes.
+        """
+        token = self.lti_consumer.key_handler.encode_and_sign({
+            "iss": ISS,
+            "scopes": "test"
+        })
+        self.assertFalse(self.lti_consumer.check_token(token, ['123', ]))

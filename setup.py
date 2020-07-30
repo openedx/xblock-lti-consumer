@@ -49,7 +49,7 @@ with open('README.rst') as _f:
 
 setup(
     name='lti-consumer-xblock',
-    version='2.1.1',
+    version='2.1.2',
     description='This XBlock implements the consumer side of the LTI specification.',
     long_description=long_description,
     long_description_content_type='text/markdown',

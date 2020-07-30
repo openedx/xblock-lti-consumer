@@ -397,3 +397,26 @@ class LtiConsumer1p3:
             assert response.get("redirect_uri") == self.launch_url
         except AssertionError:
             raise exceptions.PreflightRequestValidationFailure()
+
+    def check_token(self, token, allowed_scopes=None):
+        """
+        Check if token has access to allowed scopes.
+        """
+        token_contents = self.key_handler.validate_and_decode(
+            token,
+            # The issuer of the token is the platform
+            iss=self.iss,
+        )
+        # Tokens are space separated
+        token_scopes = token_contents['scopes'].split(' ')
+
+        # Check if token has permission for the requested scope,
+        # and throws exception if not.
+        # If `allowed_scopes` is empty, return true (just check
+        # token validity).
+        if allowed_scopes:
+            return any(
+                [scope in allowed_scopes for scope in token_scopes]
+            )
+
+        return True
