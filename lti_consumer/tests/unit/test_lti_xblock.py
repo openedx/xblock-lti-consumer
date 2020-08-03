@@ -42,6 +42,32 @@ class TestLtiConsumerXBlock(TestCase):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
 
+class TestIndexibility(TestCase):
+    """
+    Test indexibility of Lti Consumer XBlock
+    """
+    def setUp(self):
+        super(TestIndexibility, self).setUp()
+        self.xblock_attributes = {
+            'launch_url': 'http://www.example.com',
+            'display_name': 'Example LTI Consumer Application',
+            'description': 'An example application to demonstrate LTI Consumer'
+        }
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+
+    def test_indexibility(self):
+        self.assertEqual(
+            self.xblock.index_dictionary(),
+            {
+                'content_type': 'LTI Consumer',
+                'content': {
+                    'display_name': 'Example LTI Consumer Application',
+                    'description': 'An example application to demonstrate LTI Consumer'
+                }
+            }
+        )
+
+
 class TestProperties(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock properties

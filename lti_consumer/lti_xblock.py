@@ -1471,3 +1471,26 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'lti_2_0_result_rest_handler': 'result_service_url'
         }
         return getattr(self, mapping[service_name])
+
+    def index_dictionary(self):
+        """
+        Return dictionary prepared with module content and type for indexing.
+        """
+        # return key/value fields in a Python dict object
+        # values may be numeric / string or dict
+        # default implementation is an empty dict
+        xblock_body = super(LtiConsumerXBlock, self).index_dictionary()
+
+        index_body = {
+            "display_name": self.display_name,
+            "description": self.description,
+        }
+
+        if "content" in xblock_body:
+            xblock_body["content"].update(index_body)
+        else:
+            xblock_body["content"] = index_body
+
+        xblock_body["content_type"] = "LTI Consumer"
+
+        return xblock_body
