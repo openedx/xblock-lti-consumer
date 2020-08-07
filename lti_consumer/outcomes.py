@@ -159,7 +159,7 @@ class OutcomeService(object):  # pylint: disable=bad-option-value, useless-objec
         }
         request_body = request.body.decode('utf-8')
 
-        if not self.xblock.accept_grades_past_due and self.xblock.is_past_due:
+        if not self.xblock.accept_grades_past_due and self.xblock.is_past_due():
             failure_values['imsx_description'] = "Grade is past due"
             return response_xml_template.format(**failure_values)
 

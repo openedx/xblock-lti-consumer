@@ -304,7 +304,7 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.due = None
         self.xblock.graceperiod = timedelta(days=1)
 
-        self.assertFalse(self.xblock.is_past_due)
+        self.assertFalse(self.xblock.is_past_due())
 
     def test_is_past_due_with_graceperiod(self):
         """
@@ -314,10 +314,10 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.graceperiod = timedelta(days=1)
 
         self.xblock.due = now
-        self.assertFalse(self.xblock.is_past_due)
+        self.assertFalse(self.xblock.is_past_due())
 
         self.xblock.due = now - timedelta(days=2)
-        self.assertTrue(self.xblock.is_past_due)
+        self.assertTrue(self.xblock.is_past_due())
 
     def test_is_past_due_no_graceperiod(self):
         """
@@ -327,10 +327,10 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.graceperiod = None
 
         self.xblock.due = now - timedelta(days=1)
-        self.assertTrue(self.xblock.is_past_due)
+        self.assertTrue(self.xblock.is_past_due())
 
         self.xblock.due = now + timedelta(days=1)
-        self.assertFalse(self.xblock.is_past_due)
+        self.assertFalse(self.xblock.is_past_due())
 
     def test_is_past_due_timezone_now_called(self):
         """
@@ -340,7 +340,7 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.graceperiod = None
         self.xblock.due = now
         with patch('lti_consumer.lti_xblock.timezone.now', wraps=timezone.now) as mock_timezone_now:
-            __ = self.xblock.is_past_due
+            __ = self.xblock.is_past_due()
             self.assertTrue(mock_timezone_now.called)
 
 
@@ -675,7 +675,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         Test 404 response returned when `accept_grades_past_due` is False
         and `is_past_due` is True
         """
-        mock_is_past_due.__get__ = Mock(return_value=True)
+        mock_is_past_due.return_value = True
         self.xblock.accept_grades_past_due = False
         response = self.xblock.result_service_handler(make_request('', 'GET'))
 
@@ -688,7 +688,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         """
         Test 200 response returned when `accept_grades_past_due` is True and `is_past_due` is True
         """
-        mock_is_past_due.__get__ = Mock(return_value=True)
+        mock_is_past_due.return_value = True
         mock_parse_suffix.return_value = FAKE_USER_ID
         self.mock_lti_consumer.get_result.return_value = {}
         response = self.xblock.result_service_handler(make_request('', 'GET'))

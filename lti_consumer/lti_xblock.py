@@ -819,7 +819,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         return custom_parameters
 
-    @property
     def is_past_due(self):
         """
         Is it now past this problem's due date, including grace period?
@@ -1244,7 +1243,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             lti_provider_key, lti_provider_secret = self.lti_provider_key_secret
             log_authorization_header(request, lti_provider_key, lti_provider_secret)
 
-        if not self.accept_grades_past_due and self.is_past_due:
+        if not self.accept_grades_past_due and self.is_past_due():
             return Response(status=404)  # have to do 404 due to spec, but 400 is better, with error msg in body
 
         try:
