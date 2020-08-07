@@ -356,7 +356,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
             RESPONSE_BODY_TEMPLATE.format(**values).strip()
         )
 
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.is_past_due', PropertyMock(return_value=True))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.is_past_due', Mock(return_value=True))
     def test_grade_past_due(self):
         """
         Test late grade returns failure response
