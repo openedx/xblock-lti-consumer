@@ -17,6 +17,24 @@ function LtiConsumerXBlock(runtime, element) {
                     var o = options;
                     $(this).click(function (e) {
                         var $modal = $(modal_id);
+                        // If we are already in an iframe, skip creation of the modal, since
+                        // it won't look good, anyway. Instead, we post a message to the parent
+                        // window, requesting creation of a modal there.
+                        // This is used by the courseware microfrontend.
+                        if (window !== window.parent) {
+                            window.parent.postMessage(
+                                {
+                                    'type': 'plugin.modal',
+                                    'payload': {
+                                        'url': window.location.origin + $modal.data('launch-url'),
+                                        'title': $modal.find('iframe').attr('title'),
+                                        'width': $modal.data('width')
+                                    }
+                                },
+                                document.referrer
+                            );
+                            return;
+                        }
                         // Set iframe src attribute to launch LTI provider
                         $modal.find('iframe').attr('src', $modal.data('launch-url'));
                         $("#" + overlay_id).click(function () {
