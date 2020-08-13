@@ -182,3 +182,36 @@ class PlatformKeyHandler:
             public_keys.append(self.key)
 
         return json.loads(public_keys.dump_jwks())
+
+    def validate_and_decode(self, token, iss=None, aud=None):
+        """
+        Check if a platform token is valid, and return allowed scopes.
+
+        Validates a token sent by the tool using the platform's RSA Key.
+        Optionally validate iss and aud claims if provided.
+        """
+        try:
+            # Verify message signature
+            message = JWS().verify_compact(token, keys=[self.key])
+
+            # If message is valid, check expiration from JWT
+            if 'exp' in message and message['exp'] < time.time():
+                raise exceptions.TokenSignatureExpired()
+
+            # Validate issuer claim (if present)
+            if iss:
+                if 'iss' not in message or message['iss'] != iss:
+                    raise exceptions.InvalidClaimValue()
+
+            # Validate audience claim (if present)
+            if aud:
+                if 'aud' not in message or aud not in message['aud']:
+                    raise exceptions.InvalidClaimValue()
+
+            # Else return token contents
+            return message
+
+        except NoSuitableSigningKeys:
+            raise exceptions.NoSuitableKeys()
+        except BadSyntax:
+            raise exceptions.MalformedJwtToken()

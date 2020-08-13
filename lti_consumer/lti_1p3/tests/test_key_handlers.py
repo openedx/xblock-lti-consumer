@@ -106,6 +106,80 @@ class TestPlatformKeyHandler(TestCase):
             {'keys': []}
         )
 
+    # pylint: disable=unused-argument
+    @patch('time.time', return_value=1000)
+    def test_validate_and_decode(self, mock_time):
+        """
+        Test validate and decode with all parameters.
+        """
+        signed_token = self.key_handler.encode_and_sign(
+            {
+                "iss": "test-issuer",
+                "aud": "test-aud",
+            },
+            expiration=1000
+        )
+
+        self.assertEqual(
+            self.key_handler.validate_and_decode(signed_token),
+            {
+                "iss": "test-issuer",
+                "aud": "test-aud",
+                "iat": 1000,
+                "exp": 2000
+            }
+        )
+
+    # pylint: disable=unused-argument
+    @patch('time.time', return_value=1000)
+    def test_validate_and_decode_expired(self, mock_time):
+        """
+        Test validate and decode with all parameters.
+        """
+        signed_token = self.key_handler.encode_and_sign(
+            {},
+            expiration=-10
+        )
+
+        with self.assertRaises(exceptions.TokenSignatureExpired):
+            self.key_handler.validate_and_decode(signed_token)
+
+    def test_validate_and_decode_invalid_iss(self):
+        """
+        Test validate and decode with invalid iss.
+        """
+        signed_token = self.key_handler.encode_and_sign({"iss": "wrong"})
+
+        with self.assertRaises(exceptions.InvalidClaimValue):
+            self.key_handler.validate_and_decode(signed_token, iss="right")
+
+    def test_validate_and_decode_invalid_aud(self):
+        """
+        Test validate and decode with invalid aud.
+        """
+        signed_token = self.key_handler.encode_and_sign({"aud": "wrong"})
+
+        with self.assertRaises(exceptions.InvalidClaimValue):
+            self.key_handler.validate_and_decode(signed_token, aud="right")
+
+    def test_validate_and_decode_no_jwt(self):
+        """
+        Test validate and decode with invalid JWT.
+        """
+        with self.assertRaises(exceptions.MalformedJwtToken):
+            self.key_handler.validate_and_decode("1.2.3")
+
+    def test_validate_and_decode_no_keys(self):
+        """
+        Test validate and decode when no keys are available.
+        """
+        signed_token = self.key_handler.encode_and_sign({})
+        # Changing the KID so it doesn't match
+        self.key_handler.key.kid = "invalid_kid"
+
+        with self.assertRaises(exceptions.NoSuitableKeys):
+            self.key_handler.validate_and_decode(signed_token)
+
 
 @ddt.ddt
 class TestToolKeyHandler(TestCase):
