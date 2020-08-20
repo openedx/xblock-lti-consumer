@@ -148,7 +148,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `course` calls modulestore.get_course
         """
-        mock_get_course = self.xblock.runtime.descriptor_runtime.modulestore.get_course
+        mock_get_course = self.xblock.runtime.modulestore.get_course
         mock_get_course.return_value = None
         course = self.xblock.course
 
@@ -428,10 +428,10 @@ class TestEditableFields(TestLtiConsumerXBlock):
 
 class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
     """
-    Unit tests for LtiConsumerXBlock._get_lti1p1_consumer()
+    Unit tests for LtiConsumerXBlock._get_lti_consumer()
     """
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
-    @patch('lti_consumer.lti_xblock.LtiConsumer1p1')
+    @patch('lti_consumer.models.LtiConsumer1p1')
     def test_lti_1p1_consumer_created(self, mock_lti_consumer, mock_course):
         """
         Test LtiConsumer1p1 is created with the launch_url, oauth_key, and oauth_secret
@@ -440,9 +440,11 @@ class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
         key = 'test'
         secret = 'secret'
         self.xblock.lti_id = provider
+        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
         type(mock_course).lti_passports = PropertyMock(return_value=["{}:{}:{}".format(provider, key, secret)])
 
-        self.xblock._get_lti1p1_consumer()  # pylint: disable=protected-access
+        with patch('lti_consumer.models.LtiConfiguration.block', return_value=self.xblock):
+            self.xblock._get_lti_consumer()  # pylint: disable=protected-access
 
         mock_lti_consumer.assert_called_with(self.xblock.launch_url, key, secret)
 
@@ -589,7 +591,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
     def setUp(self):
         super(TestLtiLaunchHandler, self).setUp()
         self.mock_lti_consumer = Mock(generate_launch_request=Mock(return_value={}))
-        self.xblock._get_lti1p1_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
         self.xblock.due = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
         self.xblock.runtime.get_real_user = Mock(return_value=None)
@@ -644,7 +646,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.xblock.runtime.get_real_user = Mock()
         self.xblock.accept_grades_past_due = True
         self.mock_lti_consumer = Mock()
-        self.xblock._get_lti1p1_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
 
     @patch('lti_consumer.lti_xblock.log_authorization_header')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret')
@@ -1173,11 +1175,18 @@ class TestLtiConsumer1p3XBlock(TestCase):
             'lti_1p3_block_key': RSA.generate(2048).export_key('PEM'),
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        # Set dummy location so that UsageKey lookup is valid
+        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
-    # pylint: disable=unused-argument
-    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
-    def test_launch_request(self, mock_url, mock_url_2):
+        # Patch settings calls to modulestore
+        self._settings_mock = patch(
+            'lti_consumer.utils.settings',
+            LMS_ROOT_URL="https://example.com"
+        )
+        self.addCleanup(self._settings_mock.stop)
+        self._settings_mock.start()
+
+    def test_launch_request(self):
         """
         Test LTI 1.3 launch request
         """
@@ -1190,10 +1199,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             response.body.decode('utf-8')
         )
 
-    # pylint: disable=unused-argument
-    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
-    def test_launch_callback_endpoint(self, mock_url, mock_url_2):
+    def test_launch_callback_endpoint(self):
         """
         Test the LTI 1.3 callback endpoint.
         """
@@ -1224,10 +1230,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.assertIn("state", response_body)
         self.assertIn("state_test_123", response_body)
 
-    # pylint: disable=unused-argument
-    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
-    def test_launch_callback_endpoint_fails(self, mock_url, mock_url_2):
+    def test_launch_callback_endpoint_fails(self):
         """
         Test that the LTI 1.3 callback endpoint correctly display an error message.
         """
@@ -1258,10 +1261,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.lti_1p3_launch_callback(make_request('', 'GET'))
         self.assertEqual(response.status_code, 404)
 
-    # pylint: disable=unused-argument
-    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
-    def test_keyset_endpoint(self, mock_url, mock_url_2):
+    def test_keyset_endpoint(self):
         """
         Test that the LTI 1.3 keyset endpoind.
         """
@@ -1280,6 +1280,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
         self.assertEqual(response.status_code, 404)
 
+    # pylint: disable=unused-argument
     @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
     def test_studio_view(self, mock_lti_1p3_flag):
         """
@@ -1319,10 +1320,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             }
         )
 
-    # pylint: disable=unused-argument
-    @patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-    @patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
-    def test_author_view(self, mock_url, mock_url_2):
+    def test_author_view(self):
         """
         Test that the studio view loads LTI 1.3 view.
         """
@@ -1331,10 +1329,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.assertIn("https://example.com", response.content)
 
 
-# pylint: disable=unused-argument
-@patch('lti_consumer.utils.get_lms_base', return_value="https://example.com")
-@patch('lti_consumer.lti_xblock.get_lms_base', return_value="https://example.com")
-class TestLti1p3AccessTokenEndpoint(TestCase):
+class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock Access Token endpoint when using an LTI 1.3.
     """
@@ -1363,8 +1358,18 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
             'lti_1p3_tool_public_key': self.public_key,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        # Set dummy location so that UsageKey lookup is valid
+        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
-    def test_access_token_endpoint_when_using_lti_1p1(self, *args, **kwargs):
+        # Patch settings calls to modulestore
+        self._settings_mock = patch(
+            'lti_consumer.utils.settings',
+            LMS_ROOT_URL="https://example.com"
+        )
+        self.addCleanup(self._settings_mock.stop)
+        self._settings_mock.start()
+
+    def test_access_token_endpoint_when_using_lti_1p1(self):
         """
         Test that the LTI 1.3 access token endpoind is unavailable when using 1.1.
         """
@@ -1377,7 +1382,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 404)
 
-    def test_access_token_endpoint_no_post(self, *args, **kwargs):
+    def test_access_token_endpoint_no_post(self):
         """
         Test that the LTI 1.3 access token endpoind is unavailable when using 1.1.
         """
@@ -1386,7 +1391,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 405)
 
-    def test_access_token_missing_claims(self, *args, **kwargs):
+    def test_access_token_missing_claims(self):
         """
         Test request with missing parameters.
         """
@@ -1397,7 +1402,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json_body, {'error': 'invalid_request'})
 
-    def test_access_token_malformed(self, *args, **kwargs):
+    def test_access_token_malformed(self):
         """
         Test request with invalid JWT.
         """
@@ -1416,7 +1421,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json_body, {'error': 'invalid_grant'})
 
-    def test_access_token_invalid_grant(self, *args, **kwargs):
+    def test_access_token_invalid_grant(self):
         """
         Test request with invalid grant.
         """
@@ -1435,7 +1440,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json_body, {'error': 'unsupported_grant_type'})
 
-    def test_access_token_invalid_client(self, *args, **kwargs):
+    def test_access_token_invalid_client(self):
         """
         Test request with valid JWT but no matching key to check signature.
         """
@@ -1458,7 +1463,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json_body, {'error': 'invalid_client'})
 
-    def test_access_token(self, *args, **kwargs):
+    def test_access_token(self):
         """
         Test request with valid JWT.
         """

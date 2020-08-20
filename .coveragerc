@@ -2,4 +2,4 @@
 [run]
 data_file = .coverage
 source = lti_consumer
-omit = */urls.py
+omit = */urls.py, *tests*

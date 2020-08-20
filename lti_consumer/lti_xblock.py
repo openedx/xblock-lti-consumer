@@ -82,11 +82,9 @@ from .lti_1p3.exceptions import (
     UnknownClientId,
 )
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
-from .lti_1p3.consumer import LtiConsumer1p3
 from .outcomes import OutcomeService
 from .utils import (
     _,
-    get_lms_base,
     get_lms_lti_access_token_link,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
@@ -649,7 +647,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Return course by course id.
         """
-        return self.runtime.descriptor_runtime.modulestore.get_course(self.course_id)  # pylint: disable=no-member
+        return self.runtime.modulestore.get_course(self.runtime.course_id)  # pylint: disable=no-member
 
     @property
     def lti_provider_key_secret(self):
@@ -830,40 +828,28 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             close_date = due_date
         return close_date is not None and timezone.now() > close_date
 
-    def _get_lti1p1_consumer(self):
+    def _get_lti_consumer(self):
         """
-        Returns a preconfigured LTI 1.1 consumer.
+        Returns a preconfigured LTI consumer depending on the value.
 
         If the block is configured to use LTI 1.1, set up a
         base LTI 1.1 consumer class.
-        This class does NOT store state between calls.
-        """
-        key, secret = self.lti_provider_key_secret
-        return LtiConsumer1p1(self.launch_url, key, secret)
-
-    def _get_lti1p3_consumer(self):
-        """
-        Returns a preconfigured LTI 1.3 consumer.
 
         If the block is configured to use LTI 1.3, set up a
         base LTI 1.3 consumer class with all block related
         configuration services.
 
+        This uses the LTI API to fetch the configuration
+        from the models and instance the LTI client.
+
         This class does NOT store state between calls.
         """
-        return LtiConsumer1p3(
-            iss=get_lms_base(),
-            lti_oidc_url=self.lti_1p3_oidc_url,
-            lti_launch_url=self.lti_1p3_launch_url,
-            client_id=self.lti_1p3_client_id,
-            deployment_id="1",
-            # XBlock Private RSA Key
-            rsa_key=self.lti_1p3_block_key,
-            rsa_key_id=self.lti_1p3_client_id,
-            # LTI 1.3 Tool key/keyset url
-            tool_key=self.lti_1p3_tool_public_key,
-            tool_keyset_url=None,
-        )
+        # Runtime import since this will only run in the
+        # Open edX LMS/Studio environments.
+        # pylint: disable=import-outside-toplevel
+        from lti_consumer.api import get_lti_consumer
+
+        return get_lti_consumer(block=self)
 
     def extract_real_user_data(self):
         """
@@ -990,7 +976,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         real_user_data = self.extract_real_user_data()
 
-        lti_consumer = self._get_lti1p1_consumer()
+        lti_consumer = self._get_lti_consumer()
 
         username = None
         email = None
@@ -1041,7 +1027,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response: HTML LTI launch form
         """
-        lti_consumer = self._get_lti1p3_consumer()
+        lti_consumer = self._get_lti_consumer()
         context = lti_consumer.prepare_preflight_url(
             callback_url=get_lms_lti_launch_link(),
             hint=str(self.location),  # pylint: disable=no-member
@@ -1068,7 +1054,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         loader = ResourceLoader(__name__)
         context = {}
 
-        lti_consumer = self._get_lti1p3_consumer()
+        lti_consumer = self._get_lti_consumer()
 
         try:
             # Pass user data
@@ -1101,7 +1087,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             context.update({
                 "preflight_response": dict(request.GET),
                 "launch_request": lti_consumer.generate_launch_request(
-                    resource_link=self.resource_link_id,
+                    resource_link=str(self.location),  # pylint: disable=no-member
                     preflight_response=dict(request.GET)
                 )
             })
@@ -1120,7 +1106,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         if self.lti_version == "lti_1p3":
             return Response(
-                json_body=self._get_lti1p3_consumer().get_public_keyset(),
+                json_body=self._get_lti_consumer().get_public_keyset(),
                 content_type='application/json',
                 content_disposition='attachment; filename=keyset.json'
             )
@@ -1147,7 +1133,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if request.method != "POST":
             return Response(status=405)
 
-        lti_consumer = self._get_lti1p3_consumer()
+        lti_consumer = self._get_lti_consumer()
         try:
             token = lti_consumer.access_token(
                 dict(urllib.parse.parse_qsl(
@@ -1236,14 +1222,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response:  response to this request.  See above for details.
         """
-        lti_consumer = self._get_lti1p1_consumer()
+        lti_consumer = self._get_lti_consumer()
         lti_consumer.set_outcome_service_url(self.outcome_service_url)
 
         if self.runtime.debug:
             lti_provider_key, lti_provider_secret = self.lti_provider_key_secret
             log_authorization_header(request, lti_provider_key, lti_provider_secret)
 
-        if not self.accept_grades_past_due and self.is_past_due():
+        if not self.accept_grades_past_due and self.is_past_due:
             return Response(status=404)  # have to do 404 due to spec, but 400 is better, with error msg in body
 
         try:
