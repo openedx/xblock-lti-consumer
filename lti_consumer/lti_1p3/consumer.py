@@ -54,6 +54,9 @@ class LtiConsumer1p3:
         self.lti_claim_context = None
         self.lti_claim_custom_parameters = None
 
+        # Extra claims - used by LTI Advantage
+        self.extra_claims = {}
+
     @staticmethod
     def _get_user_roles(role):
         """
@@ -301,6 +304,10 @@ class LtiConsumer1p3:
         if self.lti_claim_custom_parameters:
             lti_message.update(self.lti_claim_custom_parameters)
 
+        # Extra claims - From LTI Advantage extensions
+        if self.extra_claims:
+            lti_message.update(self.extra_claims)
+
         return {
             "state": preflight_response.get("state"),
             "id_token": self.key_handler.encode_and_sign(
@@ -420,3 +427,11 @@ class LtiConsumer1p3:
             )
 
         return True
+
+    def set_extra_claim(self, claim):
+        """
+        Adds an additional claim to the LTI Launch message
+        """
+        if not isinstance(claim, dict):
+            raise ValueError('Invalid extra claim: is not a dict.')
+        self.extra_claims.update(claim)

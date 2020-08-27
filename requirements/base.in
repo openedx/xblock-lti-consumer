@@ -11,3 +11,4 @@ XBlock
 xblock-utils
 pycryptodomex
 pyjwkest
+edx-opaque-keys[django]

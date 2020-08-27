@@ -520,3 +520,32 @@ class TestLti1p3Consumer(TestCase):
             "scopes": "test"
         })
         self.assertFalse(self.lti_consumer.check_token(token, ['123', ]))
+
+    def test_extra_claim(self):
+        """
+        Check if extra claims are correctly added to the LTI message
+        """
+        self._setup_lti_user()
+        self.lti_consumer.set_extra_claim({"fake_claim": "test"})
+
+        # Retrieve launch message
+        launch_request = self._get_lti_message()
+
+        # Decode and verify message
+        decoded = self._decode_token(launch_request['id_token'])
+        self.assertIn(
+            'fake_claim',
+            decoded.keys()
+        )
+        self.assertEqual(
+            decoded["fake_claim"],
+            "test"
+        )
+
+    @ddt.data("invalid", None, 0)
+    def test_extra_claim_invalid(self, test_value):
+        """
+        Check if extra claims thrown when passed anything other than dicts.
+        """
+        with self.assertRaises(ValueError):
+            self.lti_consumer.set_extra_claim(test_value)

@@ -16,7 +16,7 @@ def lti_1p3_enabled():
     """
     Returns `true` if LTI 1.3 integration is enabled for instance.
     """
-    return settings.FEATURES.get('LTI_1P3_ENABLED', False) is True
+    return settings.FEATURES.get('LTI_1P3_ENABLED', False) is True  # pragma: no cover
 
 
 def get_lms_base():
@@ -28,7 +28,7 @@ def get_lms_base():
     One possible improvement is to use `contentstore.get_lms_link_for_item`
     and strip the base domain name.
     """
-    return settings.LMS_ROOT_URL
+    return settings.LMS_ROOT_URL  # pragma: no cover
 
 
 def get_lms_lti_keyset_link(location):
