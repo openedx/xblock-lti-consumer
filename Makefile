@@ -15,8 +15,8 @@ compile-sass:  ## Compile the Sass assets
 	sass --no-cache --style compressed ./lti_consumer/static/sass/student.scss ./lti_consumer/static/css/student.css
 
 quality:  ## Run the quality checks
-	pep8 --config=.pep8 lti_consumer
-	pylint --rcfile=pylintrc lti_consumer
+	-pycodestyle --config=.pep8 lti_consumer
+	-pylint --rcfile=pylintrc lti_consumer
 
 test:  ## Run the tests
 	mkdir -p var
