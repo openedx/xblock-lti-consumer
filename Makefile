@@ -1,4 +1,4 @@
-.PHONY: help all install-test install compile-sass quality test upgrade
+.PHONY: help all install-test install compile-sass quality test covreport upgrade
 
 help: ## display this help message
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -22,6 +22,9 @@ test:  ## Run the tests
 	mkdir -p var
 	rm -rf .coverage
 	python -m coverage run --rcfile=.coveragerc ./test.py --noinput
+
+covreport:  ## Show the coverage results
+	python -m coverage report -m --skip-covered
 
 upgrade: export CUSTOM_COMPILE_COMMAND=make upgrade
 upgrade: ## update the requirements/*.txt files with the latest packages satisfying requirements/*.in
