@@ -139,7 +139,7 @@ def parse_handler_suffix(suffix):
 LaunchTargetOption = namedtuple('LaunchTargetOption', ['display_name', 'value'])
 
 
-class LaunchTarget(object):  # pylint: disable=bad-option-value, useless-object-inheritance
+class LaunchTarget:
     """
     Constants for launch_target field options
     """
@@ -633,7 +633,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context_id is an opaque identifier that uniquely identifies the context (e.g., a course)
         that contains the link being launched.
         """
-        return str(self.course_id)  # pylint: disable=no-member
+        return str(self.course_id)
 
     @property
     def role(self):
@@ -647,7 +647,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Return course by course id.
         """
-        return self.runtime.modulestore.get_course(self.runtime.course_id)  # pylint: disable=no-member
+        return self.runtime.modulestore.get_course(self.runtime.course_id)
 
     @property
     def lti_provider_key_secret(self):
@@ -959,7 +959,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return fragment
 
     @XBlock.handler
-    def lti_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
+    def lti_launch_handler(self, request, suffix=''):
         """
         XBlock handler for launching LTI 1.1 tools.
 
@@ -1014,7 +1014,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
+    def lti_1p3_launch_handler(self, request, suffix=''):
         """
         XBlock handler for launching the LTI 1.3 tools.
 
@@ -1039,7 +1039,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_callback(self, request, suffix=''):  # pylint: disable=unused-argument
+    def lti_1p3_launch_callback(self, request, suffix=''):
         """
         XBlock handler for launching the LTI 1.3 tool.
 
@@ -1100,7 +1100,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(template, status=400, content_type='text/html')
 
     @XBlock.handler
-    def public_keyset_endpoint(self, request, suffix=''):  # pylint: disable=unused-argument
+    def public_keyset_endpoint(self, request, suffix=''):
         """
         XBlock handler for launching the LTI provider.
         """
@@ -1113,7 +1113,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(status=404)
 
     @XBlock.handler
-    def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument
+    def lti_1p3_access_token(self, request, suffix=''):
         """
         XBlock handler for creating access tokens for the LTI 1.3 tool.
 
@@ -1146,7 +1146,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(json_body=token, content_type="application/json")
 
         # Handle errors and return a proper response
-        # pylint: disable=bare-except
         except MissingRequiredClaim:
             # Missing request attibutes
             return Response(
@@ -1173,7 +1172,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
 
     @XBlock.handler
-    def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument
+    def outcome_service_handler(self, request, suffix=''):
         """
         XBlock handler for LTI Outcome Service requests.
 
@@ -1409,7 +1408,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'launch_url': self.launch_url.strip(),
             'lti_1p3_launch_url': self.lti_1p3_launch_url.strip(),
             'element_id': self.location.html_id(),  # pylint: disable=no-member
-            'element_class': self.category,  # pylint: disable=no-member
+            'element_class': self.category,
             'launch_target': self.launch_target,
             'display_name': self.display_name,
             'form_url': lti_block_launch_handler,

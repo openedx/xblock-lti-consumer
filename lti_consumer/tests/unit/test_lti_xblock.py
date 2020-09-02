@@ -118,7 +118,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `context_id` returns unicode course id
         """
-        self.assertEqual(self.xblock.context_id, str(self.xblock.course_id))  # pylint: disable=no-member
+        self.assertEqual(self.xblock.context_id, str(self.xblock.course_id))
 
     def test_validate(self):
         """
@@ -227,7 +227,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         self.assertEqual(
             self.xblock.resource_link_id,
-            "{}-{}".format(self.xblock.runtime.hostname, self.xblock.location.html_id())  # pylint: disable=no-member
+            "{}-{}".format(self.xblock.runtime.hostname, self.xblock.location.html_id())
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
@@ -1110,7 +1110,7 @@ class TestProcessorSettings(TestLtiConsumerXBlock):
         with patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_settings', return_value=self.settings):
             processors = list(self.xblock.get_parameter_processors())
             assert len(processors) == 1, 'One processor should be enabled'
-            # pylint: disable=bad-option-value, comparison-with-callable
+            # pylint: disable=comparison-with-callable
             assert processors[0] == test_utils.dummy_processor, 'Should load the correct function'
 
     def test_disabled_processors(self):

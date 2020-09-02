@@ -14,7 +14,7 @@ from .exceptions import Lti1p1Error
 log = logging.getLogger(__name__)
 
 
-class SignedRequest(object):  # pylint: disable=bad-option-value, useless-object-inheritance
+class SignedRequest:
     """
     Encapsulates request attributes needed when working
     with the `oauthlib.oauth1` API
@@ -88,7 +88,7 @@ def verify_oauth_body_signature(request, lti_provider_secret, service_url):
 
     sha1 = hashlib.sha1()
     sha1.update(request.body)
-    oauth_body_hash = base64.b64encode(sha1.digest())  # pylint: disable=E1121
+    oauth_body_hash = base64.b64encode(sha1.digest())
     oauth_params = oauth1.rfc5849.signature.collect_parameters(headers=headers, exclude_oauth_signature=False)
     oauth_headers = dict(oauth_params)
     oauth_signature = oauth_headers.pop('oauth_signature')
@@ -144,7 +144,7 @@ def log_authorization_header(request, client_key, client_secret):
     """
     sha1 = hashlib.sha1()
     sha1.update(request.body)
-    oauth_body_hash = str(base64.b64encode(sha1.digest()))  # pylint: disable=too-many-function-args
+    oauth_body_hash = str(base64.b64encode(sha1.digest()))
     log.debug("[LTI] oauth_body_hash = %s", oauth_body_hash)
     client = oauth1.Client(client_key, client_secret)
     params = client.get_oauth_params(request)

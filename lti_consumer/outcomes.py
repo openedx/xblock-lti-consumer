@@ -43,8 +43,8 @@ def parse_grade_xml_body(body):
         data = body.strip().encode('utf-8')
 
     try:
-        parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')  # pylint: disable=no-member
-        root = etree.fromstring(data, parser=parser)  # pylint: disable=no-member
+        parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')
+        root = etree.fromstring(data, parser=parser)
     except etree.XMLSyntaxError as ex:
         raise LtiError(str(ex) or 'Body is not valid XML')
 
@@ -81,7 +81,7 @@ def parse_grade_xml_body(body):
     return imsx_message_identifier, sourced_id, score, action
 
 
-class OutcomeService(object):  # pylint: disable=bad-option-value, useless-object-inheritance
+class OutcomeService:
     """
     Service for handling LTI Outcome Management Service requests.
 
@@ -165,7 +165,7 @@ class OutcomeService(object):  # pylint: disable=bad-option-value, useless-objec
 
         try:
             imsx_message_identifier, sourced_id, score, action = parse_grade_xml_body(request_body)
-        except LtiError as ex:  # pylint: disable=no-member
+        except LtiError as ex:
             body = escape(request_body) if request_body else ''
             error_message = "Request body XML parsing error: {} {}".format(str(ex), body)
             log.debug("[LTI]: %s", error_message)

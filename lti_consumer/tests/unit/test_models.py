@@ -54,12 +54,12 @@ class TestLtiCofigurationModel(TestCase):
 
         # Creates an LTI configuration objects for testing
         self.lti_1p1_config = LtiConfiguration.objects.create(
-            location=str(self.xblock.location),  # pylint: disable=no-member
+            location=str(self.xblock.location),
             version=LtiConfiguration.LTI_1P1
         )
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
-            location=str(self.xblock.location),  # pylint: disable=no-member
+            location=str(self.xblock.location),
             version=LtiConfiguration.LTI_1P3
         )
 
