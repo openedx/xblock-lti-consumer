@@ -275,7 +275,7 @@ inside project root directory
 License
 -------
 
-The LTI Consumer XBlock is available under the Apache Version 2.0 License.
+The LTI Consumer XBlock is available under the AGPL v3 License.
 
 
 .. |Build Status| image:: https://travis-ci.org/edx/xblock-lti-consumer.svg
