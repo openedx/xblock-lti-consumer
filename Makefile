@@ -1,3 +1,9 @@
+.PHONY: help all install-test install compile-sass quality test upgrade
+
+help: ## display this help message
+	@echo "Please use \`make <target>' where <target> is one of"
+	@grep '^[a-zA-Z]' $(MAKEFILE_LIST) | sort | awk -F ':.*?## ' 'NF==2 {printf "\033[36m  %-25s\033[0m %s\n", $$1, $$2}'
+
 all: install compile-sass quality test
 
 install-test:
@@ -5,14 +11,17 @@ install-test:
 
 install: install-test
 
-compile-sass:
-	./scripts/sass.sh
+compile-sass:  ## Compile the Sass assets
+	sass --no-cache --style compressed ./lti_consumer/static/sass/student.scss ./lti_consumer/static/css/student.css
 
-quality:
-	./scripts/quality.sh
+quality:  ## Run the quality checks
+	pep8 --config=.pep8 lti_consumer
+	pylint --rcfile=pylintrc lti_consumer
 
-test:
-	./scripts/test.sh
+test:  ## Run the tests
+	mkdir -p var
+	rm -rf .coverage
+	python -m coverage run --rcfile=.coveragerc ./test.py --noinput
 
 upgrade: export CUSTOM_COMPILE_COMMAND=make upgrade
 upgrade: ## update the requirements/*.txt files with the latest packages satisfying requirements/*.in
