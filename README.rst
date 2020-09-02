@@ -7,7 +7,7 @@ integration of third-party LTI provider tools.
 Installation
 ------------
 
-Install the requirements into the python virtual environment of your
+Install the requirements into the Python virtual environment of your
 ``edx-platform`` installation by running the following command from the
 root folder:
 
@@ -15,7 +15,7 @@ root folder:
 
     $ pip install -r requirements/base.txt
 
-Addtitionally, to enable LTI 1.3 Launch support, the following FEATURE flag needs to be set in `/edx/etc/studio.yml` in your LMS container:
+Additionally, to enable LTI 1.3 Launch support, the following FEATURE flag needs to be set in `/edx/etc/studio.yml` in your LMS container:
 
 .. code:: yaml
 
@@ -74,7 +74,7 @@ We have some useful documentation on how to set this up here:
 http://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/latest/exercises_tools/lti_component.html#lti-authentication-information
 
 1. In Studio Advanced settings, set the value of the "LTI Passports" field to "test:test:secret" -
-   this will set the oauth client key and secret used to send a message to the test LTI provider.
+   this will set the OAuth client key and secret used to send a message to the test LTI provider.
 2. Create an LTI Consumer problem in a course in studio (after enabling it in "advanced_modules"
    as seen above).  Make a unit, select "Advanced", then "LTI Consumer".
 3. Click edit and fill in the following fields:
