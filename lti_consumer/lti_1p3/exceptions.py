@@ -3,7 +3,6 @@ Custom exceptions for LTI 1.3 consumer
 
 # TODO: Improve exception documentation and output.
 """
-# pylint: disable=missing-docstring
 
 
 class Lti1p3Exception(Exception):

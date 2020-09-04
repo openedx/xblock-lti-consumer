@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from opaque_keys.edx.keys import UsageKey  # pylint: disable=import-error
+from opaque_keys.edx.keys import UsageKey
 from lms.djangoapps.courseware.module_render import (  # pylint: disable=import-error
     handle_xblock_callback,
     handle_xblock_callback_noauth,

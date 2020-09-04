@@ -117,7 +117,7 @@ def parse_result_json(json_str):
     return score, json_obj.get('comment', "")
 
 
-class LtiConsumer1p1(object):  # pylint: disable=bad-option-value, useless-object-inheritance
+class LtiConsumer1p1:
     """
     Limited implementation of the LTI 1.1.
 
@@ -319,7 +319,7 @@ class LtiConsumer1p1(object):  # pylint: disable=bad-option-value, useless-objec
         lti_parameters.update(oauth_signature)
         return lti_parameters
 
-    def get_result(self, result_score=None, score_comment=None):  # pylint: disable=unused-argument
+    def get_result(self, result_score=None, score_comment=None):
         """
         Returns response body for GET requests to LTI 2.0 result endpoint
 

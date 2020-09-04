@@ -28,7 +28,7 @@ def get_lms_base():
     One possible improvement is to use `contentstore.get_lms_link_for_item`
     and strip the base domain name.
     """
-    return settings.LMS_ROOT_URL  # pragma: no cover
+    return settings.LMS_ROOT_URL
 
 
 def get_lms_lti_keyset_link(location):
