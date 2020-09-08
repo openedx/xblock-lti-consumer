@@ -656,7 +656,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         for lti_passport in self.course.lti_passports:
             try:
-                # NOTE(sksankarraj)  
+                # NOTE(sksankarraj)  Now it accepts lti_passports with more than one colons for lit key.
                 lti_id, *key, secret = [i.strip() for i in lti_passport.split(':')]
                 if not key:
                     raise ValueError
