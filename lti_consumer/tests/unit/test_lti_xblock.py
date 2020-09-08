@@ -171,6 +171,22 @@ class TestProperties(TestLtiConsumerXBlock):
         self.assertEqual(lti_provider_secret, secret)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
+    def test_lti_provider_key_with_extra_colons(self, mock_course):
+        """
+        Test `lti_provider_key` returns correct key and secret, even if key has more colons.
+        """
+        provider = 'lti_provider'
+        key = '1:10:test'
+        secret = 'secret'
+        self.xblock.lti_id = provider
+        type(mock_course).lti_passports = PropertyMock(return_value=["{}:{}:{}".format(provider, key, secret)])
+        lti_provider_key, lti_provider_secret = self.xblock.lti_provider_key_secret
+
+        self.assertEqual(lti_provider_key, key)
+        self.assertEqual(lti_provider_secret, secret)
+        
+
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     def test_lti_provider_key_secret_not_found(self, mock_course):
         """
         Test `lti_provider_key_secret` returns correct key and secret
