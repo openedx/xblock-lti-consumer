@@ -71,10 +71,11 @@ To better reflect the new repo usage, rename the repository to "openedx-lti-cons
 change the folder structure.
 
 Here is the new proposed folder structure::
+
   # Django plugabble app main folder
   lti_consumer/
 
-  # Python APIs - following `Inter App APIs`_ guidelines
+  # Python APIs - following Inter App APIs guidelines
   lti_consumer/api.py
 
   # LTI specific logic (no storage)
@@ -90,8 +91,9 @@ Here is the new proposed folder structure::
   lti_consumer/extensions/django.py  # To easily enable LTI embeds anywhere in the platform
   lti_consumer/extensions/course_tab.py  # Inherit Django extension above and add helpers to use course context for a few use cases (forum tab, course embed)
 
+(Here are the `Inter App APIs`_ guidelines.)
 
-:: _`Inter App APIs`: https://github.com/edx/edx-platform/blob/master/docs/decisions/0002-inter-app-apis.rst
+.. _`Inter App APIs`: https://github.com/edx/edx-platform/blob/master/docs/decisions/0002-inter-app-apis.rst
 
 Tech Debt
 =========
