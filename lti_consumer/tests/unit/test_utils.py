@@ -2,7 +2,7 @@
 Utility functions used within unit tests
 """
 
-from mock import Mock, PropertyMock, patch
+from mock import Mock
 from webob import Request
 from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
