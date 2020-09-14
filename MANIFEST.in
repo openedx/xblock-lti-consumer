@@ -1,0 +1,3 @@
+include requirements/base.in
+include NOTICE
+include LICENSE

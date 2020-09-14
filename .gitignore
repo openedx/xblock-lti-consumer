@@ -1,6 +1,7 @@
 ### Python artifacts
 *.pyc
 *.egg-info
+dist/
 
 ### Editor and IDE artifacts
 *~
