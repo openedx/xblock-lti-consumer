@@ -53,8 +53,6 @@ def make_request(body, method='POST'):
     return request
 
 
-
-
 def dummy_processor(_xblock):
     """
     A dummy LTI parameter processor.
