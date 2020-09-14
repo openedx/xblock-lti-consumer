@@ -53,34 +53,6 @@ def make_request(body, method='POST'):
     return request
 
 
-def patch_signed_parameters(func):
-    """
-    Prepare the patches for the get_signed_lti_parameters function for tests.
-    """
-    func = patch(
-        'lti_consumer.lti.get_oauth_request_signature',
-        Mock(return_value=(
-            'OAuth oauth_nonce="fake_nonce", '
-            'oauth_timestamp="fake_timestamp", oauth_version="fake_version", oauth_signature_method="fake_method", '
-            'oauth_consumer_key="fake_consumer_key", oauth_signature="fake_signature"'
-        ))
-    )(func)
-
-    func = patch(
-        'lti_consumer.lti_xblock.LtiConsumerXBlock.prefixed_custom_parameters',
-        PropertyMock(return_value={u'custom_param_1': 'custom1', u'custom_param_2': 'custom2'})
-    )(func)
-
-    func = patch(
-        'lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret',
-        PropertyMock(return_value=('t', 's'))
-    )(func)
-
-    func = patch(
-        'lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID)
-    )(func)
-
-    return func
 
 
 def dummy_processor(_xblock):
@@ -102,16 +74,4 @@ def defaulting_processor(_xblock):
 defaulting_processor.lti_xblock_default_params = {
     'custom_name': 'Lex',
     'custom_country': '',
-}
-
-
-def faulty_processor(_xblock):
-    """
-    A dummy LTI parameter processor with default params that throws an error.
-    """
-    raise Exception()
-
-
-faulty_processor.lti_xblock_default_params = {
-    'custom_name': 'Lex',
 }
