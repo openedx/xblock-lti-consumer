@@ -656,7 +656,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         for lti_passport in self.course.lti_passports:
             try:
-                lti_id, key, secret = [i.strip() for i in lti_passport.split(':')]
+                # NOTE While unpacking the lti_passport by using ":" as delimiter, first item will be lti_id,
+                #  last item will be client_secret and the rest are considered as client_key.
+                #  So you can have more than one colon for client_key.
+                lti_id, *key, secret = [i.strip() for i in lti_passport.split(':')]
+                if not key:
+                    raise ValueError
+                key = ':'.join(key)
             except ValueError:
                 msg = 'Could not parse LTI passport: {lti_passport!r}. Should be "id:key:secret" string.'
                 msg = self.ugettext(msg).format(lti_passport=lti_passport)
