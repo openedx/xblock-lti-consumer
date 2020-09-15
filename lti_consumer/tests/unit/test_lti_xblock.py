@@ -184,7 +184,6 @@ class TestProperties(TestLtiConsumerXBlock):
 
         self.assertEqual(lti_provider_key, key)
         self.assertEqual(lti_provider_secret, secret)
-        
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     def test_lti_provider_key_secret_not_found(self, mock_course):
