@@ -378,6 +378,7 @@ class LtiConsumer1p3:
             "access_token": self.key_handler.encode_and_sign(
                 {
                     "sub": self.client_id,
+                    "iss": self.iss,
                     "scopes": scopes_str
                 },
                 # Create token valid for 3600 seconds (1h) as per specification
