@@ -46,7 +46,7 @@ class TestLtiAuthentication(TestCase):
             rsa_key=RSA_KEY,
             rsa_key_id=RSA_KEY_ID,
             # Use the same key for testing purposes
-            tool_key=RSA_KEY
+            tool_key=RSA_KEY,
         )
 
         # Create LTI Configuration
@@ -58,7 +58,7 @@ class TestLtiAuthentication(TestCase):
         # We're not testing the model here
         self._lti_block_patch = patch(
             'lti_consumer.models.LtiConfiguration.get_lti_consumer',
-            return_value=self.lti_consumer
+            return_value=self.lti_consumer,
         )
         self.addCleanup(self._lti_block_patch.stop)
         self._lti_block_patch.start()
@@ -74,17 +74,17 @@ class TestLtiAuthentication(TestCase):
             {
                 "sub": self.lti_consumer.client_id,
                 "iss": self.lti_consumer.iss,
-                "scopes": ""
+                "scopes": "",
             },
             expiration=3600
         )
         mock_request.headers = {
-            "Authorization": "Bearer {}".format(token)
+            "Authorization": "Bearer {}".format(token),
         }
 
         # Set the lti config id in the "url"
         mock_request.parser_context = {"kwargs": {
-            "lti_config_id": self.lti_configuration.id
+            "lti_config_id": self.lti_configuration.id,
         }}
 
         return mock_request
@@ -106,7 +106,7 @@ class TestLtiAuthentication(TestCase):
         # Either set invalid token or clear headers
         if token is not None:
             mock_request.headers = {
-                "Authorization": token
+                "Authorization": token,
             }
         else:
             mock_request.headers = {}
@@ -121,7 +121,7 @@ class TestLtiAuthentication(TestCase):
         """
         mock_request = self._make_request()
         mock_request.parser_context = {"kwargs": {
-            "lti_config_id": 0  # Django id field is never zero
+            "lti_config_id": 0,  # Django id field is never zero
         }}
 
         with self.assertRaises(exceptions.AuthenticationFailed):

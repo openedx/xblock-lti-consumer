@@ -61,12 +61,16 @@ class Lti1p3ApiAuthentication(authentication.BaseAuthentication):
         # is valid or not.
         try:
             lti_consumer.check_token(auth[1])
-        except:
+        except Exception:
             msg = _('Invalid token signature.')
             raise exceptions.AuthenticationFailed(msg)
 
-        # Passing parameters back to the view through the request.
-        # Not exactly optimal.
+        # Passing parameters back to the view through the request in order
+        # to avoid implementing a separate authentication backend or
+        # keeping track of LTI "sessions" through a custom model.
+        # With the LTI Configuration and consumer attached to the request
+        # the views and permissions classes can make use of the
+        # current LTI context to retrieve settings and decode the token passed.
         request.lti_configuration = lti_configuration
         request.lti_consumer = lti_consumer
 
