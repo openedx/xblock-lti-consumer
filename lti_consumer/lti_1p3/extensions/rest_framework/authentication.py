@@ -52,7 +52,7 @@ class Lti1p3ApiAuthentication(authentication.BaseAuthentication):
         try:
             lti_configuration = LtiConfiguration.objects.get(pk=lti_config_id)
             lti_consumer = lti_configuration.get_lti_consumer()
-        except:
+        except Exception:
             msg = _('LTI configuration not found.')
             raise exceptions.AuthenticationFailed(msg)
 
