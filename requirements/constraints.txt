@@ -21,3 +21,6 @@ zipp<1.2.0
 
 # Newer versions not available in python 3.5
 stevedore<=1.32.0
+
+# Same as in edx-platform
+djangorestframework==3.9.4

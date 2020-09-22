@@ -13,6 +13,10 @@ class TokenSignatureExpired(Lti1p3Exception):
     pass
 
 
+class UnauthorizedToken(Lti1p3Exception):
+    pass
+
+
 class NoSuitableKeys(Lti1p3Exception):
     pass
 
