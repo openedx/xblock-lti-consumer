@@ -8,7 +8,7 @@ import os
 import sys
 
 if __name__ == '__main__':
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', u'workbench.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', u'test_settings')
 
     try:
         from django.conf import settings  # pylint: disable=wrong-import-position
