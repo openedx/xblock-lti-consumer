@@ -117,7 +117,7 @@ class TestLtiAuthentication(TestCase):
 
     def test_no_lti_config(self):
         """
-        Test that the login is invalid is LTI config doesn't exist.
+        Test that the login is invalid if LTI config doesn't exist.
         """
         mock_request = self._make_request()
         mock_request.parser_context = {"kwargs": {
