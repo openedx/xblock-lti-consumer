@@ -152,7 +152,7 @@ Reference: http://www.imsglobal.org/spec/lti/v1p3/#context-type-vocabulary
 Tech Debt
 =========
 
-* The current LTI 1.3 implementation merged on `master` uses the internally generate resource id from the LTI 1.1.1 implementation.
+* The current LTI 1.3 implementation merged on `master` uses the internally generated resource id from the LTI 1.1.1 implementation.
 
 Consequences
 ============
