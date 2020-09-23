@@ -17,7 +17,7 @@ variables required by LTI 1.3 launches.
 Decisions
 =========
 
-The following section go over required and optional variables in each supported claim in the LTI 1.3 implementation.
+The following sections go over required and optional variables in each supported claim in the LTI 1.3 implementation.
 This ADR should be updated when new claims are added.
 
 Deployment ID
