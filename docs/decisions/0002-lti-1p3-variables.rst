@@ -157,5 +157,5 @@ Tech Debt
 Consequences
 ============
 
-* Changing the resource id to the value defined above will make all context on currently deployed XBlocks to be lost (since a different resource means the LTI is being launched
+* Changing the resource id to the value defined above will lose contexts on all currently deployed XBlocks (since a different resource means the LTI is being launched
   in a different location from the Tool's POV).
