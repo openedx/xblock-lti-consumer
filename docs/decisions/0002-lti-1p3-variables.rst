@@ -53,7 +53,7 @@ The mappings from edX platform are shown in the table below:
      - Reasoning
    * - guest
      - Empty
-     - Guests are users not logged in, they shoudn't be able to access LTI content.
+     - Guests users are not logged in, they shouldn't be able to access LTI content.
    * - student
      - 'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student'
      - Students only have permission to view and interact with the LTI content.
