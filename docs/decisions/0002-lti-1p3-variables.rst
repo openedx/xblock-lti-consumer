@@ -33,7 +33,7 @@ Deployment ID
    * - https://purl.imsglobal.org/spec/lti/claim/deployment_id
      - "1" (fixed value)
      - We're using single-tenant deployments, were each key is used for a single XBlock. Even when moving up to the course level,
-       we'll can keep this setup since multi-tenancy will only be required for instance wide configuration.
+       we can keep this since multi-tenancy will only be required for instance wide configuration.
 
 See http://www.imsglobal.org/spec/lti/v1p3/#single-tenant-tool-registered-and-deployed-once for more details.
 
