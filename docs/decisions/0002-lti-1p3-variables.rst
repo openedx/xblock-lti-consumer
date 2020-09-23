@@ -114,7 +114,7 @@ The user data claims are identifiers passed through the LTI message to send user
      - User full name as defined in the spec, gated by a feature flag to avoid leaking PII to external tools.
    * - email
      - User email address
-     - User email, gated by a feature flag to avoid leaking PII to external tools.
+     - User email, gated by a feature flag to avoid leaking PII to external tools (this flag should be off by default).
 
 Reference: http://www.imsglobal.org/spec/lti/v1p3/#user-identity-claims-0
 
