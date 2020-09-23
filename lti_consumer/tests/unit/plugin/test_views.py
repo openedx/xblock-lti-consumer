@@ -34,7 +34,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
 
     def test_invalid_usage_key(self):
         """
-        Check invalid methods yield HTTP code 405.
+        Check invalid methods yield HTTP code 404.
         """
         response = self.client.get('/lti_consumer/v1/public_keysets/invalid-key')
         self.assertEqual(response.status_code, 404)
