@@ -133,7 +133,7 @@ This claim is optional and includes information about the context where LTI laun
    * - id
      - course id if using CourseOffering
      - This claim requires a unique identifier per deployment,
-       and Course ID is already unique platform wide to represent a course.
+       and Course ID is already unique platform-wide to represent a course.
    * - type
      - http://purl.imsglobal.org/vocab/lis/v2/course#CourseOffering
      - LTI launches will mostly occur in the context of courses.
