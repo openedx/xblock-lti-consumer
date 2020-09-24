@@ -128,7 +128,6 @@ class TestLti1p3Consumer(TestCase):
             [
                 'http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator',
                 'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student',
             ]
         )
     )
