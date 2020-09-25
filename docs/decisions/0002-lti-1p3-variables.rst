@@ -59,12 +59,10 @@ The mappings from Open edX roles are shown in the table below:
      - Students only have permission to view and interact with the LTI content.
    * - instructor
      - 'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor'
-       'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student'
      - Instructor have both instructor and student access to a tool. No admin permissions.
    * - staff
      - 'http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator'
        'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor'
-       'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student'
      - A staff user should be able to modify the tool settings and have full access to the content and settings.
 
 Resource link
