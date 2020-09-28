@@ -9,11 +9,12 @@ from django.conf.urls import url, include
 
 from rest_framework import routers
 
-from lti_consumer.views import LtiAgsLineItemViewset
 from lti_consumer.plugin.views import (
     public_keyset_endpoint,
     launch_gate_endpoint,
-    access_token_endpoint
+    access_token_endpoint,
+    # LTI Advantage URLs
+    LtiAgsLineItemViewset,
 )
 
 
@@ -22,6 +23,7 @@ router = routers.SimpleRouter(trailing_slash=False)
 router.register(r'lti-ags', LtiAgsLineItemViewset, basename='lti-ags-view')
 
 
+app_name = 'lti_consumer'
 urlpatterns = [
     url(
         'lti_consumer/v1/public_keysets/{}$'.format(settings.USAGE_ID_PATTERN),

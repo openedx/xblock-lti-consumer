@@ -1193,14 +1193,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
-        # Patch settings calls to modulestore
-        self._settings_mock = patch(
-            'lti_consumer.utils.settings',
-            LMS_ROOT_URL="https://example.com"
-        )
-        self.addCleanup(self._settings_mock.stop)
-        self._settings_mock.start()
-
     def test_launch_request(self):
         """
         Test LTI 1.3 launch request
@@ -1375,14 +1367,6 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
-
-        # Patch settings calls to modulestore
-        self._settings_mock = patch(
-            'lti_consumer.utils.settings',
-            LMS_ROOT_URL="https://example.com"
-        )
-        self.addCleanup(self._settings_mock.stop)
-        self._settings_mock.start()
 
     def test_access_token_endpoint_when_using_lti_1p1(self):
         """

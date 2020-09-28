@@ -1,9 +1,32 @@
+"""
+Serializers for LTI-related endpoints
+"""
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-
-from openedx.core.lib.api.serializers import UsageKeyField
+from opaque_keys.edx.keys import UsageKey
 
 from lti_consumer.models import LtiAgsLineItem
+
+
+class UsageKeyField(serializers.Field):
+    """
+    Serializer field for a model UsageKey field.
+
+    Recreated here since we cannot import directly from
+    from the platform like so:
+    `from openedx.core.lib.api.serializers import UsageKeyField`
+    """
+
+    def to_representation(self, data):
+        """Convert a usage key to unicode. """
+        return six.text_type(data)
+
+    def to_internal_value(self, data):
+        """Convert unicode to a usage key. """
+        try:
+            return UsageKey.from_string(data)
+        except InvalidKeyError as ex:
+            raise serializers.ValidationError(u"Invalid usage key: {msg}".format(msg=ex.msg))
 
 
 class LtiAgsLineItemSerializer(serializers.ModelSerializer):

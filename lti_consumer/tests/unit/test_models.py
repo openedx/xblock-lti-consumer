@@ -45,14 +45,6 @@ class TestLtiCofigurationModel(TestCase):
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
-        # Patch settings calls to modulestore
-        self._settings_mock = patch(
-            'lti_consumer.utils.settings',
-            LMS_ROOT_URL="https://example.com"
-        )
-        self.addCleanup(self._settings_mock.stop)
-        self._settings_mock.start()
-
         # Creates an LTI configuration objects for testing
         self.lti_1p1_config = LtiConfiguration.objects.create(
             location=str(self.xblock.location),
@@ -111,8 +103,9 @@ class TestLtiCofigurationModel(TestCase):
                         'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/score',
                     ],
-                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags'}
+                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags'
                 }
+            }
         )
 
 
