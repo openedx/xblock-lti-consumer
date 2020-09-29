@@ -35,6 +35,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
         # Check response
         self.assertEqual(response.status_code, 200)
         # Check function call arguments
+        self._mock_xblock_handler.assert_called_once()
         kwargs = self._mock_xblock_handler.call_args.kwargs
         self.assertEqual(kwargs['usage_id'], self.location)
         self.assertEqual(kwargs['handler'], 'public_keyset_endpoint')
@@ -76,6 +77,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         # Check response
         self.assertEqual(response.status_code, 200)
         # Check function call arguments
+        self._mock_xblock_handler.assert_called_once()
         kwargs = self._mock_xblock_handler.call_args.kwargs
         self.assertEqual(kwargs['usage_id'], self.location)
         self.assertEqual(kwargs['handler'], 'lti_1p3_launch_callback')
@@ -117,6 +119,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         # Check response
         self.assertEqual(response.status_code, 200)
         # Check function call arguments
+        self._mock_xblock_handler.assert_called_once()
         kwargs = self._mock_xblock_handler.call_args.kwargs
         self.assertEqual(kwargs['usage_id'], self.location)
         self.assertEqual(kwargs['handler'], 'lti_1p3_access_token')
