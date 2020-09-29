@@ -27,10 +27,17 @@ class TestLti1p3KeysetEndpoint(TestCase):
 
     def test_public_keyset_endpoint(self):
         """
-        Check that the keyset endpoint works properly.
+        Check that the keyset endpoint maps correctly to the
+        `public_keyset_endpoint` XBlock handler endpoint.
         """
         response = self.client.get(self.url)
+
+        # Check response
         self.assertEqual(response.status_code, 200)
+        # Check function call arguments
+        kwargs = self._mock_xblock_handler.call_args.kwargs
+        self.assertEqual(kwargs['usage_id'], self.location)
+        self.assertEqual(kwargs['handler'], 'public_keyset_endpoint')
 
     def test_invalid_usage_key(self):
         """
@@ -61,14 +68,21 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
 
     def test_launch_gate(self):
         """
-        Check that the launch endpoint works properly.
+        Check that the launch endpoint correctly maps to the
+        `lti_1p3_launch_callback` XBlock handler.
         """
         response = self.client.get(self.url, self.request)
+
+        # Check response
         self.assertEqual(response.status_code, 200)
+        # Check function call arguments
+        kwargs = self._mock_xblock_handler.call_args.kwargs
+        self.assertEqual(kwargs['usage_id'], self.location)
+        self.assertEqual(kwargs['handler'], 'lti_1p3_launch_callback')
 
     def test_invalid_usage_key(self):
         """
-        Check invalid login_hint yields HTTP code 404.
+        Check that passing a invalid login_hint yields HTTP code 404.
         """
         self._mock_xblock_handler.side_effect = Exception()
         response = self.client.get(self.url, self.request)
@@ -95,10 +109,17 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
 
     def test_access_token_endpoint(self):
         """
-        Check that the keyset endpoint works properly.
+        Check that the keyset endpoint is correctly mapping to the
+        `lti_1p3_access_token` XBlock handler.
         """
         response = self.client.post(self.url)
+
+        # Check response
         self.assertEqual(response.status_code, 200)
+        # Check function call arguments
+        kwargs = self._mock_xblock_handler.call_args.kwargs
+        self.assertEqual(kwargs['usage_id'], self.location)
+        self.assertEqual(kwargs['handler'], 'lti_1p3_access_token')
 
     def test_invalid_usage_key(self):
         """
