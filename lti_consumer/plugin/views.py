@@ -7,9 +7,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from opaque_keys.edx.keys import UsageKey
-from lms.djangoapps.courseware.module_render import (  # pylint: disable=import-error
-    handle_xblock_callback,
-    handle_xblock_callback_noauth,
+from lti_consumer.plugin.compat import (
+    run_xblock_handler,
+    run_xblock_handler_noauth,
 )
 
 
@@ -25,13 +25,13 @@ def public_keyset_endpoint(request, usage_id=None):
     try:
         usage_key = UsageKey.from_string(usage_id)
 
-        return handle_xblock_callback_noauth(
+        return run_xblock_handler_noauth(
             request=request,
             course_id=str(usage_key.course_key),
             usage_id=str(usage_key),
             handler='public_keyset_endpoint'
         )
-    except:  # pylint: disable=bare-except
+    except Exception:  # pylint: disable=broad-except
         return HttpResponse(status=404)
 
 
@@ -49,14 +49,14 @@ def launch_gate_endpoint(request, suffix):
             request.GET.get('login_hint')
         )
 
-        return handle_xblock_callback(
+        return run_xblock_handler(
             request=request,
             course_id=str(usage_key.course_key),
             usage_id=str(usage_key),
             handler='lti_1p3_launch_callback',
             suffix=suffix
         )
-    except:  # pylint: disable=bare-except
+    except Exception:  # pylint: disable=broad-except
         return HttpResponse(status=404)
 
 
@@ -69,11 +69,11 @@ def access_token_endpoint(request, usage_id=None):
     try:
         usage_key = UsageKey.from_string(usage_id)
 
-        return handle_xblock_callback_noauth(
+        return run_xblock_handler_noauth(
             request=request,
             course_id=str(usage_key.course_key),
             usage_id=str(usage_key),
             handler='lti_1p3_access_token'
         )
-    except:  # pylint: disable=bare-except
+    except Exception:  # pylint: disable=broad-except
         return HttpResponse(status=404)
