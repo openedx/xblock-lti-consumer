@@ -1,13 +1,13 @@
 """
 Tests for LTI Advantage Assignments and Grades Service views.
 """
-import ddt
+import json
 from mock import patch, PropertyMock
 
 from Cryptodome.PublicKey import RSA
+import ddt
 from django.urls import reverse
 from jwkest.jwk import RSAKey
-from rest_framework import status
 from rest_framework.test import APITransactionTestCase
 
 
@@ -76,15 +76,22 @@ class TestLtiAgsLineItemViewSet(APITransactionTestCase):
             }
         )
 
-    def _generate_lti_access_token(self, scopes):
+    def _set_lti_token(self, scopes=None):
         """
-        Generates a valid LTI Auth token.
+        Generates and sets a LTI Auth token in the request client.
         """
+        if not scopes:
+            scopes = ''
+
         consumer = self.lti_config.get_lti_consumer()
-        return consumer.key_handler.encode_and_sign({
+        token = consumer.key_handler.encode_and_sign({
             "iss": "https://example.com",
             "scopes": scopes,
         })
+        # pylint: disable=no-member
+        self.client.credentials(
+            HTTP_AUTHORIZATION="Bearer {}".format(token)
+        )
 
     def test_lti_ags_view_no_token(self):
         """
@@ -98,7 +105,7 @@ class TestLtiAgsLineItemViewSet(APITransactionTestCase):
         """
         Test the LTI AGS list view when there's an invalid token.
         """
-        self.client.credentials(HTTP_AUTHORIZATION=authorization)
+        self.client.credentials(HTTP_AUTHORIZATION=authorization)  # pylint: disable=no-member
         response = self.client.get(self.lineitem_endpoint)
 
         self.assertEqual(response.status_code, 403)
@@ -107,12 +114,7 @@ class TestLtiAgsLineItemViewSet(APITransactionTestCase):
         """
         Test the LTI AGS list view when there's a valid token without valid scopes.
         """
-        self.client.credentials(
-            HTTP_AUTHORIZATION="Bearer {}".format(
-                # No scopes in token
-                self._generate_lti_access_token("")
-            )
-        )
+        self._set_lti_token()
         response = self.client.get(self.lineitem_endpoint)
         self.assertEqual(response.status_code, 403)
 
@@ -124,11 +126,7 @@ class TestLtiAgsLineItemViewSet(APITransactionTestCase):
         """
         Test the LTI AGS list view when there's token valid scopes.
         """
-        self.client.credentials(
-            HTTP_AUTHORIZATION="Bearer {}".format(
-                self._generate_lti_access_token(scopes)
-            )
-        )
+        self._set_lti_token(scopes)
         # Test with no LineItems
         response = self.client.get(self.lineitem_endpoint)
         self.assertEqual(response.status_code, 200)
@@ -138,18 +136,13 @@ class TestLtiAgsLineItemViewSet(APITransactionTestCase):
         """
         Test the LTI AGS list.
         """
-        self.client.credentials(
-            HTTP_AUTHORIZATION="Bearer {}".format(
-                self._generate_lti_access_token(
-                    'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly'
-                )
-            )
-        )
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly')
 
         # Create LineItem
         line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
             resource_id="test",
+            resource_link_id=self.xblock.location,
             label="test label",
             score_maximum=100
         )
@@ -157,4 +150,121 @@ class TestLtiAgsLineItemViewSet(APITransactionTestCase):
         # Retrieve & check
         response = self.client.get(self.lineitem_endpoint)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data, [])
+        self.assertEqual(response['content-type'], 'application/vnd.ims.lis.v2.lineitemcontainer+json')
+        self.assertEqual(
+            response.data,
+            [
+                {
+                    'id': 'http://testserver/lti_consumer/v1/lti/{}/lti-ags/{}'.format(
+                        self.lti_config.id,
+                        line_item.id
+                    ),
+                    'resourceId': 'test',
+                    'scoreMaximum': 100,
+                    'label': 'test label',
+                    'tag': '',
+                    'resourceLinkId': self.xblock.location,
+                    'startDateTime': None,
+                    'endDateTime': None,
+                }
+            ]
+        )
+
+    def test_lti_ags_retrieve(self):
+        """
+        Test the LTI AGS retrieve endpoint.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly')
+
+        # Create LineItem
+        line_item = LtiAgsLineItem.objects.create(
+            lti_configuration=self.lti_config,
+            resource_id="test",
+            resource_link_id=self.xblock.location,
+            label="test label",
+            score_maximum=100
+        )
+
+        # Retrieve & check
+        lineitem_detail_url = reverse(
+            'lti_consumer:lti-ags-view-detail',
+            kwargs={
+                "lti_config_id": self.lti_config.id,
+                "pk": line_item.id
+            }
+        )
+        response = self.client.get(lineitem_detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data,
+            {
+                'id': 'http://testserver/lti_consumer/v1/lti/{}/lti-ags/{}'.format(
+                    self.lti_config.id,
+                    line_item.id
+                ),
+                'resourceId': 'test',
+                'scoreMaximum': 100,
+                'label': 'test label',
+                'tag': '',
+                'resourceLinkId': self.xblock.location,
+                'startDateTime': None,
+                'endDateTime': None,
+            }
+        )
+
+    def test_create_lineitem(self):
+        """
+        Test the LTI AGS LineItem Creation.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem')
+
+        # Create LineItem
+        response = self.client.post(
+            self.lineitem_endpoint,
+            data=json.dumps({
+                'resourceId': 'test',
+                'scoreMaximum': 100,
+                'label': 'test',
+                'tag': 'score',
+                'resourceLinkId': self.xblock.location,
+            }),
+            content_type="application/vnd.ims.lis.v2.lineitem+json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.data,
+            {
+                'id': 'http://testserver/lti_consumer/v1/lti/1/lti-ags/1',
+                'resourceId': 'test',
+                'scoreMaximum': 100,
+                'label': 'test',
+                'tag': 'score',
+                'resourceLinkId': self.xblock.location,
+                'startDateTime': None,
+                'endDateTime': None,
+            }
+        )
+        self.assertEqual(LtiAgsLineItem.objects.all().count(), 1)
+
+    def test_create_lineitem_invalid_resource_link_id(self):
+        """
+        Test the LTI AGS Lineitem creation when passing invalid resource link id.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem')
+
+        # Create LineItem
+        response = self.client.post(
+            self.lineitem_endpoint,
+            data=json.dumps({
+                'resourceId': 'test',
+                'scoreMaximum': 100,
+                'label': 'test',
+                'tag': 'score',
+                'resourceLinkId': 'invalid-resource-link',
+            }),
+            content_type="application/vnd.ims.lis.v2.lineitem+json",
+        )
+
+        self.assertEqual(response.status_code, 400)

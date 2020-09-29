@@ -118,10 +118,6 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
     def get_queryset(self):
         lti_configuration = self.request.lti_configuration
 
-        # Return empty if lti configuration isn't defined
-        if not lti_configuration:
-            return LtiAgsLineItem.objects.none()
-
         # Else return all LineItems related to the
         # configuration.
         # TODO:
