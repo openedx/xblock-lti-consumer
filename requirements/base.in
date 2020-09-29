@@ -12,3 +12,4 @@ xblock-utils
 pycryptodomex
 pyjwkest
 edx-opaque-keys[django]
+django-filter
