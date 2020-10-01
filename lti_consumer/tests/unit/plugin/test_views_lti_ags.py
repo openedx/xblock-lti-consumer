@@ -247,6 +247,12 @@ class TestLtiAgsLineItemViewSet(APITransactionTestCase):
             }
         )
         self.assertEqual(LtiAgsLineItem.objects.all().count(), 1)
+        line_item = LtiAgsLineItem.objects.get()
+        self.assertEqual(line_item.resource_id, 'test')
+        self.assertEqual(line_item.score_maximum, 100)
+        self.assertEqual(line_item.label, 'test')
+        self.assertEqual(line_item.tag, 'score')
+        self.assertEqual(str(line_item.resource_link_id), self.xblock.location)
 
     def test_create_lineitem_invalid_resource_link_id(self):
         """

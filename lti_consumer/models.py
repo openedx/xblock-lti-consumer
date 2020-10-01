@@ -130,10 +130,8 @@ class LtiConfiguration(models.Model):
 
             # Check if enabled and setup LTI-AGS
             if self.block.has_score:
-                lti_ags_url = get_lti_ags_lineitems_url(self.id)
-
                 consumer.enable_ags(
-                    lineitems_url=lti_ags_url
+                    lineitems_url=get_lti_ags_lineitems_url(self.id)
                 )
 
             return consumer
@@ -160,6 +158,8 @@ class LtiAgsLineItem(models.Model):
     Model to store LineItem data for LTI Assignments and Grades service.
 
     LTI-AGS Specification: https://www.imsglobal.org/spec/lti-ags/v2p0
+    The platform MUST NOT modify the 'resourceId', 'resourceLinkId' and 'tag' values.
+
     Note: When implementing multi-tenancy support, this needs to be changed
     and be tied to a deployment ID, because each deployment should isolate
     it's resources.

@@ -1,8 +1,6 @@
 """
 Serializers for LTI-related endpoints
 """
-import six
-
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from opaque_keys import InvalidKeyError
@@ -21,15 +19,19 @@ class UsageKeyField(serializers.Field):
     """
     # pylint: disable=arguments-differ
     def to_representation(self, data):
-        """Convert a usage key to unicode. """
-        return six.text_type(data)
+        """
+        Convert a usage key to unicode.
+        """
+        return str(data)
 
     def to_internal_value(self, data):
-        """Convert unicode to a usage key. """
+        """
+        Convert unicode to a usage key.
+        """
         try:
             return UsageKey.from_string(data)
         except InvalidKeyError:
-            raise serializers.ValidationError(u"Invalid usage key: {}".format(data))
+            raise serializers.ValidationError("Invalid usage key: {}".format(data))
 
 
 class LtiAgsLineItemSerializer(serializers.ModelSerializer):
@@ -46,12 +48,10 @@ class LtiAgsLineItemSerializer(serializers.ModelSerializer):
         "label" : "Chapter 5 Test",
         "resourceId" : "a-9334df-33",
         "tag" : "grade",
-        "resourceLinkId" : "1g3k4dlk49fk"
-        "startDateTime": "2018-03-06T20:05:02Z"
-        "endDateTime": "2018-04-06T22:05:03Z"
+        "resourceLinkId" : "1g3k4dlk49fk",
+        "startDateTime": "2018-03-06T20:05:02Z",
+        "endDateTime": "2018-04-06T22:05:03Z",
     }
-
-    Note: The platform MUST NOT modify the 'resourceId', 'resourceLinkId' and 'tag' values.
 
     Reference:
     https://www.imsglobal.org/spec/lti-ags/v2p0#example-application-vnd-ims-lis-v2-lineitem-json-representation

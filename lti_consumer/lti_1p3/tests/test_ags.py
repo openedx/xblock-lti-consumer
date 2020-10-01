@@ -26,8 +26,10 @@ class TestLtiAgs(TestCase):
 
         # Disabling all permissions will only allow the tool to
         # list and retrieve LineItems
-        self.assertEqual(len(scopes), 1)
-        self.assertIn('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly', scopes)
+        self.assertEqual(
+            scopes,
+            ['https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly'],
+        )
 
     def test_instance_ags_all_permissions(self):
         """

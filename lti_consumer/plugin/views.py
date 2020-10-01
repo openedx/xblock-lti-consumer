@@ -118,8 +118,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
     def get_queryset(self):
         lti_configuration = self.request.lti_configuration
 
-        # Else return all LineItems related to the
-        # configuration.
+        # Return all LineItems related to the LTI configuration.
         # TODO:
         # Note that each configuration currently maps 1:1
         # to each resource link (block), and this filter needs

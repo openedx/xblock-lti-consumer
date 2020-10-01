@@ -20,9 +20,14 @@ class LtiAgsPermissions(permissions.BasePermission):
     Score: Not implemented yet.
     """
     def has_permission(self, request, view):
+        """
+        Check if LTI AGS permissions are set in auth token.
+        """
+        has_perm = False
+
         # Retrieves token from request, which was already checked by
         # the Authentication class, so we assume it's a sane value.
-        auth_token = request.headers.get('Authorization', '').split()[1]
+        auth_token = request.headers['Authorization'].split()[1]
 
         if view.action in ['list', 'retrieve']:
             # We don't need to wrap this around a try-catch because
@@ -34,11 +39,9 @@ class LtiAgsPermissions(permissions.BasePermission):
                     'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
                 ],
             )
-            return has_perm
         elif view.action in ['create', 'update', 'partial_update', 'delete']:
             has_perm = request.lti_consumer.check_token(
                 auth_token,
-                'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem'
+                ['https://purl.imsglobal.org/spec/lti-ags/scope/lineitem']
             )
-            return has_perm
-        return False
+        return has_perm
