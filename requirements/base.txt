@@ -5,10 +5,11 @@
 #    make upgrade
 #
 appdirs==1.4.4            # via fs
-bleach==3.1.5             # via -r requirements/base.in
+bleach==3.2.1             # via -r requirements/base.in
 certifi==2020.6.20        # via requests
 chardet==3.0.4            # via requests
-django==2.2.16            # via -c requirements/constraints.txt, -r requirements/base.in, edx-opaque-keys
+django-filter==2.4.0      # via -r requirements/base.in
+django==2.2.16            # via -c requirements/constraints.txt, -r requirements/base.in, django-filter, edx-opaque-keys
 edx-opaque-keys[django]==2.1.1  # via -r requirements/base.in
 fs==2.4.11                # via xblock
 future==0.18.2            # via pyjwkest
@@ -32,7 +33,6 @@ simplejson==3.17.2        # via xblock-utils
 six==1.15.0               # via bleach, edx-opaque-keys, fs, packaging, pyjwkest, python-dateutil, stevedore, xblock
 sqlparse==0.3.1           # via django
 stevedore==1.32.0         # via -c requirements/constraints.txt, edx-opaque-keys
-typing==3.7.4.3           # via fs
 urllib3==1.25.10          # via requests
 web-fragments==0.3.2      # via xblock, xblock-utils
 webencodings==0.5.1       # via bleach

@@ -15,7 +15,8 @@ from jwkest.jwk import load_jwks
 from jwkest.jws import JWS
 
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
-from lti_consumer.lti_1p3.consumer import LtiConsumer1p3
+from lti_consumer.lti_1p3.consumer import LtiConsumer1p3, LtiAdvantageConsumer
+from lti_consumer.lti_1p3.ags import LtiAgs
 from lti_consumer.lti_1p3 import exceptions
 
 
@@ -548,3 +549,109 @@ class TestLti1p3Consumer(TestCase):
         """
         with self.assertRaises(ValueError):
             self.lti_consumer.set_extra_claim(test_value)
+
+
+@ddt.ddt
+class TestLtiAdvantageConsumer(TestCase):
+    """
+    Unit tests for LtiAdvantageConsumer
+    """
+    def setUp(self):
+        super(TestLtiAdvantageConsumer, self).setUp()
+
+        # Set up consumer
+        self.lti_consumer = LtiAdvantageConsumer(
+            iss=ISS,
+            lti_oidc_url=OIDC_URL,
+            lti_launch_url=LAUNCH_URL,
+            client_id=CLIENT_ID,
+            deployment_id=DEPLOYMENT_ID,
+            rsa_key=RSA_KEY,
+            rsa_key_id=RSA_KEY_ID,
+            # Use the same key for testing purposes
+            tool_key=RSA_KEY
+        )
+
+    def _setup_lti_user(self):
+        """
+        Set up a minimal LTI message with only required parameters.
+
+        Currently, the only required parameters are the user data,
+        but using a helper function to keep the usage consistent accross
+        all tests.
+        """
+        self.lti_consumer.set_user_data(
+            user_id="1",
+            role="student",
+        )
+
+    def _get_lti_message(
+            self,
+            preflight_response=None,
+            resource_link="link"
+    ):
+        """
+        Retrieves a base LTI message with fixed test parameters.
+
+        This function has valid default values, so it can be used to test custom
+        parameters, but allows overriding them.
+        """
+        if preflight_response is None:
+            preflight_response = {
+                "client_id": CLIENT_ID,
+                "redirect_uri": LAUNCH_URL,
+                "nonce": NONCE,
+                "state": STATE
+            }
+
+        return self.lti_consumer.generate_launch_request(
+            preflight_response,
+            resource_link
+        )
+
+    def _decode_token(self, token):
+        """
+        Checks for a valid signarute and decodes JWT signed LTI message
+
+        This also tests the public keyset function.
+        """
+        public_keyset = self.lti_consumer.get_public_keyset()
+        key_set = load_jwks(json.dumps(public_keyset))
+
+        return JWS().verify_compact(token, keys=key_set)
+
+    def test_no_ags_returns_failure(self):
+        """
+        Test that when LTI-AGS isn't configured, the class yields an error.
+        """
+        with self.assertRaises(exceptions.LtiAdvantageServiceNotSetUp):
+            self.lti_consumer.lti_ags  # pylint: disable=pointless-statement
+
+    def test_enable_ags(self):
+        """
+        Test enabling LTI AGS and checking that required parameters are set.
+        """
+        self.lti_consumer.enable_ags("http://example.com/lineitems")
+
+        # Check that the AGS class was properly instanced and set
+        self.assertEqual(type(self.lti_consumer.ags), LtiAgs)
+
+        # Check retrieving class works
+        lti_ags_class = self.lti_consumer.lti_ags
+        self.assertEqual(self.lti_consumer.ags, lti_ags_class)
+
+        # Check that enabling the AGS adds the LTI AGS claim
+        # in the launch message
+        self.assertEqual(
+            self.lti_consumer.extra_claims,
+            {
+                'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint': {
+                    'scope': [
+                        'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+                        'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
+                        'https://purl.imsglobal.org/spec/lti-ags/scope/score'
+                    ],
+                    'lineitems': 'http://example.com/lineitems'
+                }
+            }
+        )

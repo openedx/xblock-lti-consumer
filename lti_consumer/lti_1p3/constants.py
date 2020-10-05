@@ -42,7 +42,12 @@ LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS = set([
     "scope",
 ])
 
-LTI_1P3_ACCESS_TOKEN_SCOPES = []
+
+LTI_1P3_ACCESS_TOKEN_SCOPES = [
+    # LTI-AGS Scopes
+    'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
+    'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+]
 
 
 class LTI_1P3_CONTEXT_TYPE(Enum):  # pylint: disable=invalid-name
