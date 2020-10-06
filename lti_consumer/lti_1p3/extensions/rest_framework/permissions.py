@@ -29,19 +29,28 @@ class LtiAgsPermissions(permissions.BasePermission):
         # the Authentication class, so we assume it's a sane value.
         auth_token = request.headers['Authorization'].split()[1]
 
+        scopes = []
         if view.action in ['list', 'retrieve']:
             # We don't need to wrap this around a try-catch because
             # the token was already tested by the Authentication class.
-            has_perm = request.lti_consumer.check_token(
-                auth_token,
-                [
-                    'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
-                    'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
-                ],
-            )
+            scopes = [
+                'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
+                'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+            ]
         elif view.action in ['create', 'update', 'partial_update', 'delete']:
-            has_perm = request.lti_consumer.check_token(
-                auth_token,
-                ['https://purl.imsglobal.org/spec/lti-ags/scope/lineitem']
-            )
-        return has_perm
+            scopes = [
+                'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+            ]
+        elif view.action in ['scores']:
+            scopes = [
+                'https://purl.imsglobal.org/spec/lti-ags/scope/score',
+            ]
+        elif view.action in ['results']:
+            scopes = [
+                'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly'
+            ]
+
+        if scopes:
+            return request.lti_consumer.check_token(auth_token, scopes)
+
+        return False

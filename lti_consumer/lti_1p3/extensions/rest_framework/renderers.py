@@ -26,3 +26,25 @@ class LineItemRenderer(renderers.JSONRenderer):
     """
     media_type = 'application/vnd.ims.lis.v2.lineitem+json'
     format = 'json'
+
+
+class LineItemScoreRenderer(renderers.JSONRenderer):
+    """
+    Score Renderer.
+
+    It's a JSON parser, but uses a custom media_type.
+    Reference: https://www.imsglobal.org/spec/lti-ags/v2p0#media-types-and-schemas
+    """
+    media_type = 'application/vnd.ims.lis.v1.score+json'
+    format = 'json'
+
+
+class LineItemResultsRenderer(renderers.JSONRenderer):
+    """
+    Score Renderer.
+
+    It's a JSON parser, but uses a custom media_type.
+    Reference: https://www.imsglobal.org/spec/lti-ags/v2p0#media-types-and-schemas
+    """
+    media_type = 'application/vnd.ims.lis.v2.resultcontainer+json'
+    format = 'json'

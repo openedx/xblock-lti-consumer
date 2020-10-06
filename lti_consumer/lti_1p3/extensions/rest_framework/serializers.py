@@ -6,7 +6,7 @@ from rest_framework.reverse import reverse
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 
-from lti_consumer.models import LtiAgsLineItem
+from lti_consumer.models import LtiAgsLineItem, LtiAgsScore
 
 
 class UsageKeyField(serializers.Field):
@@ -88,4 +88,108 @@ class LtiAgsLineItemSerializer(serializers.ModelSerializer):
             'resourceLinkId',
             'startDateTime',
             'endDateTime',
+        )
+
+
+class LtiAgsScoreSerializer(serializers.ModelSerializer):
+    """
+    LTI AGS LineItemScore Serializer.
+
+    This maps out the internally stored LtiAgsScore to
+    the LTI-AGS API Specification, as shown in the example
+    response below:
+
+    {
+      "timestamp": "2017-04-16T18:54:36.736+00:00",
+      "scoreGiven" : 83,
+      "scoreMaximum" : 100,
+      "comment" : "This is exceptional work.",
+      "activityProgress" : "Completed",
+      "gradingProgress": "FullyGraded",
+      "userId" : "5323497"
+    }
+
+    Reference:
+    https://www.imsglobal.org/spec/lti-ags/v2p0#example-application-vnd-ims-lis-v1-score-json-representation
+    """
+
+    timestamp = serializers.DateTimeField()
+    scoreGiven = serializers.FloatField(source='score_given')
+    scoreMaximum = serializers.FloatField(source='score_maximum')
+    comment = serializers.CharField()
+    activityProgress = serializers.CharField(source='activity_progress')
+    gradingProgress = serializers.CharField(source='grading_progress')
+    userId = serializers.CharField(source='user_id')
+
+    class Meta:
+        model = LtiAgsScore
+        fields = (
+            'timestamp',
+            'scoreGiven',
+            'scoreMaximum',
+            'comment',
+            'activityProgress',
+            'gradingProgress',
+            'userId',
+        )
+
+
+class LtiAgsResultSerializer(serializers.ModelSerializer):
+    """
+    LTI AGS LineItemResult Serializer.
+
+    This maps out the internally stored LtiAgsScpre to
+    the LTI-AGS API Specification, as shown in the example
+    response below:
+
+    {
+      "id": "https://lms.example.com/context/2923/lineitems/1/results/5323497",
+      "scoreOf": "https://lms.example.com/context/2923/lineitems/1",
+      "userId": "5323497",
+      "resultScore": 0.83,
+      "resultMaximum": 1,
+      "comment": "This is exceptional work."
+    }
+
+    Reference:
+    https://www.imsglobal.org/spec/lti-ags/v2p0#example-application-vnd-ims-lis-v1-score-json-representation
+    """
+
+    id = serializers.SerializerMethodField()
+    scoreOf = serializers.SerializerMethodField()
+    userId = serializers.CharField(source='user_id')
+    resultScore = serializers.FloatField(source='score_given')
+    resultMaximum = serializers.SerializerMethodField()
+    comment = serializers.CharField()
+
+    def get_id(self, obj):
+        scoreOf = self.get_scoreOf(obj)
+        return '/'.join([scoreOf, 'results', obj.user_id])
+
+    def get_scoreOf(self, obj):
+        request = self.context.get('request')
+        return reverse(
+            'lti_consumer:lti-ags-view-detail',
+            kwargs={
+                'lti_config_id': obj.line_item.lti_configuration.id,
+                'pk': obj.line_item.pk
+            },
+            request=request,
+        )
+
+    def get_resultMaximum(self, obj):
+        if obj.score_maximum <= 0:
+            return 1
+
+        return obj.score_maximum
+
+    class Meta:
+        model = LtiAgsScore
+        fields = (
+            'id',
+            'scoreOf',
+            'userId',
+            'resultScore',
+            'resultMaximum',
+            'comment',
         )

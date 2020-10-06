@@ -204,3 +204,75 @@ class LtiAgsLineItem(models.Model):
             self.resource_link_id,
             self.label,
         )
+
+
+class LtiAgsScore(models.Model):
+    """
+    Model to store LineItem Score data for LTI Assignments and Grades service.
+
+    LTI-AGS Specification: https://www.imsglobal.org/spec/lti-ags/v2p0
+    Note: When implementing multi-tenancy support, this needs to be changed
+    and be tied to a deployment ID, because each deployment should isolate
+    it's resources.
+
+    .. no_pii:
+    """
+
+    # LTI LineItem
+    # This links the score to a specific line item
+    line_item = models.ForeignKey(
+        LtiAgsLineItem,
+        on_delete=models.CASCADE,
+        related_name='scores',
+    )
+
+    timestamp = models.DateTimeField()
+    score_given = models.FloatField()
+    score_maximum = models.FloatField()
+    comment = models.TextField()
+
+    # Activity Progress Choices
+    INITIALIZED = 'initialized'
+    STARTED = 'started'
+    IN_PROGRESS = 'in_progress'
+    SUBMITTED = 'submitted'
+    COMPLETED = 'completed'
+
+    ACTIVITY_PROGRESS_CHOICES = [
+        (INITIALIZED, 'Initialized'),
+        (STARTED, 'Started'),
+        (IN_PROGRESS, 'InProgress'),
+        (SUBMITTED, 'Submitted'),
+        (COMPLETED, 'Completed'),
+    ]
+    activity_progress = models.CharField(
+        max_length=20,
+        choices=ACTIVITY_PROGRESS_CHOICES
+    )
+
+    # Grading Progress Choices
+    FULLY_GRADED = 'fully_graded'
+    PENDING = 'pending'
+    PENDING_MANUAL = 'pending_manual'
+    FAILED = 'failed'
+    NOT_READY = 'not_ready'
+
+    GRADING_PROGRESS_CHOICES = [
+        (FULLY_GRADED, 'FullyGraded'),
+        (PENDING, 'Pending'),
+        (PENDING_MANUAL, 'PendingManual'),
+        (FAILED, 'Failed'),
+        (NOT_READY, 'NotReady'),
+    ]
+    grading_progress = models.CharField(
+        max_length=20,
+        choices=GRADING_PROGRESS_CHOICES
+    )
+
+    user_id = models.CharField(max_length=255)
+
+    def __str__(self):
+        return "{} Score ({})".format(
+            self.line_item,
+            self.score_given,
+        )
