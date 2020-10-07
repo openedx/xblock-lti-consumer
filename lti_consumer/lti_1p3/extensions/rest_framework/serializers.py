@@ -114,12 +114,42 @@ class LtiAgsScoreSerializer(serializers.ModelSerializer):
     """
 
     timestamp = serializers.DateTimeField()
-    scoreGiven = serializers.FloatField(source='score_given')
-    scoreMaximum = serializers.FloatField(source='score_maximum')
-    comment = serializers.CharField()
+    # All 'scoreGiven' values MUST be positive numeric (including 0).
+    # 'scoreMaximum' represents the denominator and MUST be present when 'scoreGiven' is present
+    scoreGiven = serializers.FloatField(source='score_given', required=False, allow_null=True, default=None)
+    scoreMaximum = serializers.FloatField(source='score_maximum', required=False, allow_null=True, default=None)
+    comment = serializers.CharField(required=False, allow_null=True)
     activityProgress = serializers.CharField(source='activity_progress')
     gradingProgress = serializers.CharField(source='grading_progress')
     userId = serializers.CharField(source='user_id')
+
+    def validate_scoreGiven(self, value):
+        if not self.instance and value is None:
+            raise serializers.ValidationError('Cannot delete score. No score currently exists for this user')
+        return value
+
+    def validate_scoreMaximum(self, value):
+        if self.initial_data.get('scoreGiven', None) and value is None:
+            raise serializers.ValidationError('Cannot have empty scoreMaximum when scoreGiven is set')
+        return value
+
+    def validate_timestamp(self, value):
+        if self.instance:
+            if self.instance.timestamp > value:
+                raise serializers.ValidationError('Score timestamp can only be updated to a later point in time')
+            elif self.instance.timestamp == value:
+                raise serializers.ValidationError('Score already exists for the provided timestamp')
+        return value
+
+    def update(self, instance, validated_data):
+        # When 'scoreGiven' is not present, this indicates there is presently no score for that user,
+        # and the platform should clear any previous score value it may have previously received from
+        # the tool and stored for that user and line item
+        if instance and validated_data.get('score_given', None) is None:
+            instance.delete()
+            return instance
+
+        return super().update(instance, validated_data)
 
     class Meta:
         model = LtiAgsScore

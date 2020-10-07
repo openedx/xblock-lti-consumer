@@ -2,6 +2,7 @@
 LTI configuration and linking models.
 """
 from django.db import models
+from django.core.validators import MinValueValidator
 
 from opaque_keys.edx.django.models import UsageKeyField
 
@@ -227,9 +228,9 @@ class LtiAgsScore(models.Model):
     )
 
     timestamp = models.DateTimeField()
-    score_given = models.FloatField()
-    score_maximum = models.FloatField()
-    comment = models.TextField()
+    score_given = models.FloatField(validators=[MinValueValidator(0)])
+    score_maximum = models.FloatField(validators=[MinValueValidator(0)])
+    comment = models.TextField(blank=True)
 
     # Activity Progress Choices
     INITIALIZED = 'initialized'
@@ -276,3 +277,6 @@ class LtiAgsScore(models.Model):
             self.line_item,
             self.score_given,
         )
+
+    class Meta(object):
+        unique_together = (('line_item', 'user_id'),)

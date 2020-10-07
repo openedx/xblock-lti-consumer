@@ -41,7 +41,7 @@ class LineItemScoreRenderer(renderers.JSONRenderer):
 
 class LineItemResultsRenderer(renderers.JSONRenderer):
     """
-    Score Renderer.
+    Results Renderer.
 
     It's a JSON parser, but uses a custom media_type.
     Reference: https://www.imsglobal.org/spec/lti-ags/v2p0#media-types-and-schemas

@@ -198,7 +198,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
     )
     def scores(self, request, *args, **kwargs):
         """
-        Return a Result list for an LtiAgsLineItem
+        Create a Score record for an LtiAgsLineItem
 
         Data:
           * A JSON object capable of being serialized by LtiAgsScoreSerializer
@@ -208,7 +208,12 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
                 and returned with the media-type for LineItemScoreRenderer
         """
         line_item = self.get_object()
+
+        user_id = request.data.get('userId')
+        existing_score = line_item.scores.filter(user_id=user_id).first()
+
         serializer = LtiAgsScoreSerializer(
+            instance=existing_score,
             data=request.data,
             context={'request': self.request},
         )
