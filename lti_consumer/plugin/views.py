@@ -4,6 +4,7 @@ LTI consumer plugin passthrough views
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django_filters.rest_framework import DjangoFilterBackend
 from opaque_keys.edx.keys import UsageKey
 from rest_framework import viewsets
@@ -42,6 +43,7 @@ def public_keyset_endpoint(request, usage_id=None):
         return HttpResponse(status=404)
 
 
+@xframe_options_exempt
 @require_http_methods(["GET", "POST"])
 def launch_gate_endpoint(request, suffix):
     """
