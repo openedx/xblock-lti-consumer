@@ -3,6 +3,7 @@ LTI configuration and linking models.
 """
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 
 from opaque_keys.edx.django.models import UsageKeyField
 
@@ -228,23 +229,25 @@ class LtiAgsScore(models.Model):
     )
 
     timestamp = models.DateTimeField()
-    score_given = models.FloatField(validators=[MinValueValidator(0)])
-    score_maximum = models.FloatField(validators=[MinValueValidator(0)])
+
+    # All 'scoreGiven' values MUST be positive numeric (including 0).
+    score_given = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0)])
+    score_maximum = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0)])
     comment = models.TextField(blank=True)
 
     # Activity Progress Choices
-    INITIALIZED = 'initialized'
-    STARTED = 'started'
-    IN_PROGRESS = 'in_progress'
-    SUBMITTED = 'submitted'
-    COMPLETED = 'completed'
+    INITIALIZED = 'Initialized'
+    STARTED = 'Started'
+    IN_PROGRESS = 'InProgress'
+    SUBMITTED = 'Submitted'
+    COMPLETED = 'Completed'
 
     ACTIVITY_PROGRESS_CHOICES = [
-        (INITIALIZED, 'Initialized'),
-        (STARTED, 'Started'),
-        (IN_PROGRESS, 'InProgress'),
-        (SUBMITTED, 'Submitted'),
-        (COMPLETED, 'Completed'),
+        (INITIALIZED, INITIALIZED),
+        (STARTED, STARTED),
+        (IN_PROGRESS, IN_PROGRESS),
+        (SUBMITTED, SUBMITTED),
+        (COMPLETED, COMPLETED),
     ]
     activity_progress = models.CharField(
         max_length=20,
@@ -252,18 +255,18 @@ class LtiAgsScore(models.Model):
     )
 
     # Grading Progress Choices
-    FULLY_GRADED = 'fully_graded'
-    PENDING = 'pending'
-    PENDING_MANUAL = 'pending_manual'
-    FAILED = 'failed'
-    NOT_READY = 'not_ready'
+    FULLY_GRADED = 'FullyGraded'
+    PENDING = 'Pending'
+    PENDING_MANUAL = 'PendingManual'
+    FAILED = 'Failed'
+    NOT_READY = 'NotReady'
 
     GRADING_PROGRESS_CHOICES = [
-        (FULLY_GRADED, 'FullyGraded'),
-        (PENDING, 'Pending'),
-        (PENDING_MANUAL, 'PendingManual'),
-        (FAILED, 'Failed'),
-        (NOT_READY, 'NotReady'),
+        (FULLY_GRADED, FULLY_GRADED),
+        (PENDING, PENDING),
+        (PENDING_MANUAL, PENDING_MANUAL),
+        (FAILED, FAILED),
+        (NOT_READY, NOT_READY),
     ]
     grading_progress = models.CharField(
         max_length=20,
@@ -271,6 +274,17 @@ class LtiAgsScore(models.Model):
     )
 
     user_id = models.CharField(max_length=255)
+
+    def clean(self):
+        super().clean()
+
+        # 'scoreMaximum' represents the denominator and MUST be present when 'scoreGiven' is present
+        if self.score_given and self.score_maximum is None:
+            raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args,**kwargs)
 
     def __str__(self):
         return "{} Score ({})".format(

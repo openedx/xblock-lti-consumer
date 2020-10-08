@@ -165,25 +165,16 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
                 and returned with the media-type for LineItemResultsRenderer
         """
         line_item = self.get_object()
-        scores = line_item.scores.all().order_by('-timestamp')
+        scores = line_item.scores.filter(score_given__isnull=False).order_by('-timestamp')
 
         if request.query_params.get('user_id'):
             scores = scores.filter(user_id=request.query_params.get('user_id'))
 
-        # Only get one record per user
-        # Would use scores.distinct('user_id') here, but MySQL does
-        # not support it distinct with fields
-        results = {}
-        for score in scores:
-            if score.user_id not in results:
-                results[score.user_id] = score
-        results = results.values()
-
         if request.query_params.get('limit'):
-            results = results[:int(request.query_params.get('limit'))]
+            scores = scores[:int(request.query_params.get('limit'))]
 
         serializer = LtiAgsResultSerializer(
-            list(results),
+            list(scores),
             context={'request': self.request},
             many=True,
         )
@@ -210,6 +201,9 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         line_item = self.get_object()
 
         user_id = request.data.get('userId')
+
+        # Using `filter` and `first` so that when a score does not exist,
+        # `existing_score` is set to `None`. Using `get` will raise `DoesNotExist`
         existing_score = line_item.scores.filter(user_id=user_id).first()
 
         serializer = LtiAgsScoreSerializer(
