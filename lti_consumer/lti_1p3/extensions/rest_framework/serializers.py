@@ -1,7 +1,8 @@
 """
 Serializers for LTI-related endpoints
 """
-from rest_framework import serializers
+from django.utils import timezone
+from rest_framework import serializers, ISO_8601
 from rest_framework.reverse import reverse
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
@@ -113,7 +114,11 @@ class LtiAgsScoreSerializer(serializers.ModelSerializer):
     https://www.imsglobal.org/spec/lti-ags/v2p0#example-application-vnd-ims-lis-v1-score-json-representation
     """
 
-    timestamp = serializers.DateTimeField()
+    # NOTE: `serializers.DateTimeField` always outputs the value in the local timezone of the server running the code
+    # This is because Django is time aware (see settings.USE_TZ) and because Django is unable to determine the timezone
+    # of the person making the API request, thus falling back on the local timezone. As such, since all outputs will
+    # necessarily be in a singular timezone, that timezone should be `utc`
+    timestamp = serializers.DateTimeField(input_formats=[ISO_8601], format=ISO_8601, default_timezone=timezone.utc)
     scoreGiven = serializers.FloatField(source='score_given', required=False, allow_null=True, default=None)
     scoreMaximum = serializers.FloatField(source='score_maximum', required=False, allow_null=True, default=None)
     comment = serializers.CharField(required=False, allow_null=True)
@@ -122,12 +127,44 @@ class LtiAgsScoreSerializer(serializers.ModelSerializer):
     userId = serializers.CharField(source='user_id')
 
     def validate_timestamp(self, value):
+        """
+        Ensure that if an existing record is being updated, that the timestamp is in the after the existing one
+        """
         if self.instance:
             if self.instance.timestamp > value:
                 raise serializers.ValidationError('Score timestamp can only be updated to a later point in time')
-            elif self.instance.timestamp == value:
+
+            if self.instance.timestamp == value:
                 raise serializers.ValidationError('Score already exists for the provided timestamp')
+
         return value
+
+    def is_valid(self, raise_exception=False):
+        """
+        Since most validation is currently done on the model, we want to make sure the current model will save
+        """
+
+        # If it isn't valid already, return those errors
+        if not super().is_valid(raise_exception=raise_exception):
+            return False
+
+        # `self.validated_data` is only set if `super().is_valid()` succeeds
+        new_instance = self.Meta.model(**self.validated_data)
+        try:
+            # Validate the instance
+            new_instance.full_clean()
+        except serializers.DjangoValidationError as exc:
+            errors = {key: value for key, value in exc.message_dict.items() if key != 'line_item'}
+            if errors:
+                # Unset any existing validated data because the model failed to validate
+                self._validated_data = {}  # pylint: disable=attribute-defined-outside-init
+
+                if raise_exception:
+                    raise serializers.ValidationError(errors)
+
+                return False
+
+        return True
 
     class Meta:
         model = LtiAgsScore
@@ -171,8 +208,16 @@ class LtiAgsResultSerializer(serializers.ModelSerializer):
     comment = serializers.CharField()
 
     def get_id(self, obj):
-        scoreOf = self.get_scoreOf(obj)
-        return '/'.join([scoreOf, 'results', obj.user_id])
+        request = self.context.get('request')
+        return reverse(
+            'lti_consumer:lti-ags-view-results',
+            kwargs={
+                'lti_config_id': obj.line_item.lti_configuration.id,
+                'pk': obj.line_item.pk,
+                'user_id': obj.user_id,
+            },
+            request=request,
+        )
 
     def get_scoreOf(self, obj):
         request = self.context.get('request')

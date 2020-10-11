@@ -230,10 +230,10 @@ class LtiAgsScore(models.Model):
 
     timestamp = models.DateTimeField()
 
-    # All 'scoreGiven' values MUST be positive numeric (including 0).
+    # All 'scoreGiven' and 'scoreMaximum' values MUST be positive numbers (including 0).
     score_given = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0)])
     score_maximum = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0)])
-    comment = models.TextField(blank=True)
+    comment = models.TextField(null=True, blank=True)
 
     # Activity Progress Choices
     INITIALIZED = 'Initialized'
@@ -282,9 +282,9 @@ class LtiAgsScore(models.Model):
         if self.score_given and self.score_maximum is None:
             raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs):  # pylint: disable=arguments-differ
         self.full_clean()
-        super().save(*args,**kwargs)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return "{} Score ({})".format(
@@ -292,5 +292,5 @@ class LtiAgsScore(models.Model):
             self.score_given,
         )
 
-    class Meta(object):
+    class Meta:
         unique_together = (('line_item', 'user_id'),)

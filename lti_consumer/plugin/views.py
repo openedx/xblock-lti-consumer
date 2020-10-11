@@ -148,15 +148,17 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['GET'],
+        url_path='results/(?P<user_id>[^/.]+)?',
         renderer_classes=[LineItemResultsRenderer]
     )
-    def results(self, request, *args, **kwargs):
+    def results(self, request, user_id=None, **kwargs):
         """
         Return a Result list for an LtiAgsLineItem
 
+        URL Parameters:
+          * user_id (string): String external user id representation.
+
         Query Parameters:
-          * user_id (string): String external user id representation. Only
-                one record per unique `user_id` will be returned
           * limit (integer): The maximum number of records to return. Records are
                 sorted with most recent timestamp first
 
@@ -167,8 +169,8 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         line_item = self.get_object()
         scores = line_item.scores.filter(score_given__isnull=False).order_by('-timestamp')
 
-        if request.query_params.get('user_id'):
-            scores = scores.filter(user_id=request.query_params.get('user_id'))
+        if user_id:
+            scores = scores.filter(user_id=user_id)
 
         if request.query_params.get('limit'):
             scores = scores[:int(request.query_params.get('limit'))]

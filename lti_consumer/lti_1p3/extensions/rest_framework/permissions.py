@@ -23,8 +23,6 @@ class LtiAgsPermissions(permissions.BasePermission):
         """
         Check if LTI AGS permissions are set in auth token.
         """
-        has_perm = False
-
         # Retrieves token from request, which was already checked by
         # the Authentication class, so we assume it's a sane value.
         auth_token = request.headers['Authorization'].split()[1]
