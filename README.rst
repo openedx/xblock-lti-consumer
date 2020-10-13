@@ -143,6 +143,12 @@ Instructions:
 8. Publish block, log into LMS and navigate to the LTI block page.
 9. Click ``Send Request`` and verify that the LTI launch was successful.
 
+.. admonition:: Testing using ``ngrok``
+
+    When launching LTI 1.3 requests through ``ngrok``, make sure you set ``DCS_SESSION_COOKIE_SAMESITE = 'None'`` in your
+    ``devstack.py`` (located in /edx/app/edxapp/edx-platform/(lms|cms)/envs``) when doing LTI 1.3 launches in the
+    devstack through ngrok. Do not forget to restart your services after updating the ``.py`` files.
+
 Custom LTI Parameters
 ---------------------
 This XBlock sends a number of parameters to the provider including some optional parameters. To keep the XBlock
