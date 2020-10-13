@@ -625,7 +625,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
 
         self.assertEqual(LtiAgsScore.objects.all().count(), 0)
         self.assertEqual(response.status_code, 400)
-        assert 'score_maximum' in response.data.keys()
+        assert 'scoreMaximum' in response.data.keys()
 
     def test_erase_score(self):
         """

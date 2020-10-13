@@ -39,13 +39,13 @@ class LtiAgsPermissions(permissions.BasePermission):
             scopes = [
                 'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
             ]
-        elif view.action in ['scores']:
-            scopes = [
-                'https://purl.imsglobal.org/spec/lti-ags/scope/score',
-            ]
         elif view.action in ['results']:
             scopes = [
                 'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly'
+            ]
+        elif view.action in ['scores']:
+            scopes = [
+                'https://purl.imsglobal.org/spec/lti-ags/scope/score',
             ]
 
         if scopes:

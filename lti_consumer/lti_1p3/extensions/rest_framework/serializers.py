@@ -139,32 +139,13 @@ class LtiAgsScoreSerializer(serializers.ModelSerializer):
 
         return value
 
-    def is_valid(self, raise_exception=False):
+    def validate_scoreMaximum(self, value):
         """
-        Since most validation is currently done on the model, we want to make sure the current model will save
+        Ensure that scoreMaximum is set when scoreGiven is provided and not None
         """
-
-        # If it isn't valid already, return those errors
-        if not super().is_valid(raise_exception=raise_exception):
-            return False
-
-        # `self.validated_data` is only set if `super().is_valid()` succeeds
-        new_instance = self.Meta.model(**self.validated_data)
-        try:
-            # Validate the instance
-            new_instance.full_clean()
-        except serializers.DjangoValidationError as exc:
-            errors = {key: value for key, value in exc.message_dict.items() if key != 'line_item'}
-            if errors:
-                # Unset any existing validated data because the model failed to validate
-                self._validated_data = {}  # pylint: disable=attribute-defined-outside-init
-
-                if raise_exception:
-                    raise serializers.ValidationError(errors)
-
-                return False
-
-        return True
+        if not value and self.initial_data.get('scoreGiven', None) is not None:
+            raise serializers.ValidationError('scoreMaximum is a required field when providing a scoreGiven value.')
+        return value
 
     class Meta:
         model = LtiAgsScore

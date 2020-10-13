@@ -287,9 +287,11 @@ class LtiAgsScore(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return "{} Score ({})".format(
-            self.line_item,
-            self.score_given,
+        return "LineItem {line_item_id}: score {score_given} out of {score_maximum} - {grading_progress}".format(
+            line_item_id=self.line_item.id,
+            score_given=self.score_given,
+            score_maximum=self.score_maximum,
+            grading_progress=self.grading_progress
         )
 
     class Meta:
