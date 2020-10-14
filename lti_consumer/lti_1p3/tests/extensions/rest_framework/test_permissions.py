@@ -71,7 +71,6 @@ class TestLtiAuthentication(TestCase):
             expiration=3600
         )
 
-
     @ddt.data(
         (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly"], True),
         (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem"], True),
