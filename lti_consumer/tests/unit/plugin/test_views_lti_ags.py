@@ -36,11 +36,6 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
             'lti_version': 'lti_1p3',
             'lti_1p3_launch_url': 'http://tool.example/launch',
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
-            # We need to set the values below because they are not automatically
-            # generated until the user selects `lti_version == 'lti_1p3'` on the
-            # Studio configuration view.
-            'lti_1p3_client_id': self.rsa_key_id,
-            'lti_1p3_block_key': rsa_key.export_key('PEM'),
             # Intentionally using the same key for tool key to
             # allow using signing methods and make testing easier.
             'lti_1p3_tool_public_key': self.public_key,
