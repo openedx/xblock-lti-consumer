@@ -765,7 +765,7 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
 
     def test_retrieve_results(self):
         """
-        Test the LTI AGS LineItem Score Creation.
+        Test the LTI AGS LineItem Result Retrieval.
         """
         self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly')
 
@@ -818,7 +818,7 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
 
     def test_retrieve_results_for_user_id(self):
         """
-        Test the LTI AGS LineItem Score Creation.
+        Test the LTI AGS LineItem Resul Retrieval for a single user.
         """
         self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly')
 
@@ -842,7 +842,7 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
 
     def test_retrieve_results_with_limit(self):
         """
-        Test the LTI AGS LineItem Score Creation.
+        Test the LTI AGS LineItem Result Retrieval with record limit.
         """
         self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly')
 
@@ -852,5 +852,9 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(response.status_code, 200)
 
         # There should be 1 results, and it should be the one with the latest timestamp
+        # Since the AGS Result Service format does not return a timestamp, the only
+        # way to know which record should be returned is to compare against a known
+        # value from the records created in the `setUp`. In this case, the
+        # `primary_user_id` was assigned to the record with the `late_timestamp`
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['userId'], self.primary_user_id)

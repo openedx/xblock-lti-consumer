@@ -17,7 +17,7 @@ class TestLtiConfigurationModel(TestCase):
     Unit tests for LtiConfiguration model methods.
     """
     def setUp(self):
-        super(TestLtiConfigurationModel, self).setUp()
+        super().setUp()
 
         self.rsa_key_id = "1"
         # Generate RSA and save exports
@@ -114,7 +114,7 @@ class TestLtiAgsLineItemModel(TestCase):
     Unit tests for LtiAgsLineItem model methods.
     """
     def setUp(self):
-        super(TestLtiAgsLineItemModel, self).setUp()
+        super().setUp()
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.lti_ags_model = LtiAgsLineItem.objects.create(
@@ -140,7 +140,7 @@ class TestLtiAgsScoreModel(TestCase):
     Unit tests for LtiAgsScore model methods.
     """
     def setUp(self):
-        super(TestLtiAgsScoreModel, self).setUp()
+        super().setUp()
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.line_item = LtiAgsLineItem.objects.create(
