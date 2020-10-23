@@ -30,7 +30,7 @@ Decisions
 We want to enable the platform to have full LTI Advantage compatibility, so we need to allow both interaction models to happen.
 
 To do that, a configuration option will be available to course creators when adding a new graded LTI 1.3 block to a course.
-This configuration will be called `Tool Grading Configuration` and offer the following options:
+This configuration will be called *Tool Grading Configuration* and offer the following options:
 
 .. list-table::
    :widths: auto
@@ -76,7 +76,7 @@ Programmatic grade handling
 No LineItems are created when the LTI configuration model is created, but the tools have permissions to create, update and
 delete LineItems using the LineItem endpoint.
 
-A `post_save` Django signal in the `LtiAgsScore` should be responsible for loading the XBlock from the modulestore,
+A *post_save* Django signal in the *LtiAgsScore* should be responsible for loading the XBlock from the modulestore,
 bind the user to the session, and set the score (after doing the proper scaling using the `scoreMaximum` attribute).
 
 If a tool creates and links multiple problems to the same grade, the platform will ??? the results.
@@ -85,12 +85,11 @@ If a tool creates and links multiple problems to the same grade, the platform wi
 1. Link just the latest grade submitted by the tool.
 2. Average all items and submit average to block.
 
-If a tool doesn't send any grades back or doesn't link any `resourceLinkId`'s to a LineItem, the block will stay ungraded.
+If a tool doesn't send any grades back or doesn't link any *resourceLinkId's* to a LineItem, the block will stay ungraded.
 
 Consequences
 ============
 
 1. This will make the platform LTI compliant and allow simpler grading workflows (if supported by tools).
 2. When using the programmatic approach, tools might not send a grade back, leaving students ungraded.
-3. Also when usint the programmatic approach, tools might send/link more than one grade for a given problem,
-and the criteria we're using to handle that is purely technical.
+3. Also when usint the programmatic approach, tools might send/link more than one grade for a given problem, and the criteria we're using to handle that is purely technical.
