@@ -8,16 +8,16 @@ from jwkest.jwk import RSAKey
 from mock import patch
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiAgsLineItem, LtiConfiguration
+from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiAgsScore
 from lti_consumer.tests.unit.test_utils import make_xblock
 
 
-class TestLtiCofigurationModel(TestCase):
+class TestLtiConfigurationModel(TestCase):
     """
     Unit tests for LtiConfiguration model methods.
     """
     def setUp(self):
-        super(TestLtiCofigurationModel, self).setUp()
+        super().setUp()
 
         self.rsa_key_id = "1"
         # Generate RSA and save exports
@@ -114,7 +114,7 @@ class TestLtiAgsLineItemModel(TestCase):
     Unit tests for LtiAgsLineItem model methods.
     """
     def setUp(self):
-        super(TestLtiAgsLineItemModel, self).setUp()
+        super().setUp()
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.lti_ags_model = LtiAgsLineItem.objects.create(
@@ -132,4 +132,40 @@ class TestLtiAgsLineItemModel(TestCase):
         self.assertEqual(
             str(self.lti_ags_model),
             "block-v1:course+test+2020+type@problem+block@test - this-is-a-test"
+        )
+
+
+class TestLtiAgsScoreModel(TestCase):
+    """
+    Unit tests for LtiAgsScore model methods.
+    """
+    def setUp(self):
+        super().setUp()
+
+        self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
+        self.line_item = LtiAgsLineItem.objects.create(
+            lti_configuration=None,
+            resource_id="test-id",
+            label="this-is-a-test",
+            resource_link_id=self.dummy_location,
+            score_maximum=100,
+        )
+        self.score = LtiAgsScore.objects.create(
+            line_item=self.line_item,
+            timestamp='2020-10-04T18:54:46.736+00:00',
+            score_given=10,
+            score_maximum=100,
+            comment='Better luck next time',
+            grading_progress=LtiAgsScore.FULLY_GRADED,
+            activity_progress=LtiAgsScore.COMPLETED,
+            user_id='test-user'
+        )
+
+    def test_repr(self):
+        """
+        Test String representation of model.
+        """
+        self.assertEqual(
+            str(self.score),
+            "LineItem 1: score 10.0 out of 100.0 - FullyGraded"
         )

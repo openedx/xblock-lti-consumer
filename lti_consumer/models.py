@@ -2,6 +2,8 @@
 LTI configuration and linking models.
 """
 from django.db import models
+from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 
 from opaque_keys.edx.django.models import UsageKeyField
 
@@ -204,3 +206,93 @@ class LtiAgsLineItem(models.Model):
             self.resource_link_id,
             self.label,
         )
+
+
+class LtiAgsScore(models.Model):
+    """
+    Model to store LineItem Score data for LTI Assignments and Grades service.
+
+    LTI-AGS Specification: https://www.imsglobal.org/spec/lti-ags/v2p0
+    Note: When implementing multi-tenancy support, this needs to be changed
+    and be tied to a deployment ID, because each deployment should isolate
+    it's resources.
+
+    .. no_pii:
+    """
+
+    # LTI LineItem
+    # This links the score to a specific line item
+    line_item = models.ForeignKey(
+        LtiAgsLineItem,
+        on_delete=models.CASCADE,
+        related_name='scores',
+    )
+
+    timestamp = models.DateTimeField()
+
+    # All 'scoreGiven' and 'scoreMaximum' values MUST be positive numbers (including 0).
+    score_given = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0)])
+    score_maximum = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0)])
+    comment = models.TextField(null=True, blank=True)
+
+    # Activity Progress Choices
+    INITIALIZED = 'Initialized'
+    STARTED = 'Started'
+    IN_PROGRESS = 'InProgress'
+    SUBMITTED = 'Submitted'
+    COMPLETED = 'Completed'
+
+    ACTIVITY_PROGRESS_CHOICES = [
+        (INITIALIZED, INITIALIZED),
+        (STARTED, STARTED),
+        (IN_PROGRESS, IN_PROGRESS),
+        (SUBMITTED, SUBMITTED),
+        (COMPLETED, COMPLETED),
+    ]
+    activity_progress = models.CharField(
+        max_length=20,
+        choices=ACTIVITY_PROGRESS_CHOICES
+    )
+
+    # Grading Progress Choices
+    FULLY_GRADED = 'FullyGraded'
+    PENDING = 'Pending'
+    PENDING_MANUAL = 'PendingManual'
+    FAILED = 'Failed'
+    NOT_READY = 'NotReady'
+
+    GRADING_PROGRESS_CHOICES = [
+        (FULLY_GRADED, FULLY_GRADED),
+        (PENDING, PENDING),
+        (PENDING_MANUAL, PENDING_MANUAL),
+        (FAILED, FAILED),
+        (NOT_READY, NOT_READY),
+    ]
+    grading_progress = models.CharField(
+        max_length=20,
+        choices=GRADING_PROGRESS_CHOICES
+    )
+
+    user_id = models.CharField(max_length=255)
+
+    def clean(self):
+        super().clean()
+
+        # 'scoreMaximum' represents the denominator and MUST be present when 'scoreGiven' is present
+        if self.score_given and self.score_maximum is None:
+            raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
+
+    def save(self, *args, **kwargs):  # pylint: disable=arguments-differ
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return "LineItem {line_item_id}: score {score_given} out of {score_maximum} - {grading_progress}".format(
+            line_item_id=self.line_item.id,
+            score_given=self.score_given,
+            score_maximum=self.score_maximum,
+            grading_progress=self.grading_progress
+        )
+
+    class Meta:
+        unique_together = (('line_item', 'user_id'),)

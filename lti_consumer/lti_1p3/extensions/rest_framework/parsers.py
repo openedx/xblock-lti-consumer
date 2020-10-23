@@ -14,3 +14,12 @@ class LineItemParser(parsers.JSONParser):
     It's the same as JSON parser, but uses a custom media_type.
     """
     media_type = 'application/vnd.ims.lis.v2.lineitem+json'
+
+
+class LineItemScoreParser(parsers.JSONParser):
+    """
+    Line Item Parser.
+
+    It's the same as JSON parser, but uses a custom media_type.
+    """
+    media_type = 'application/vnd.ims.lis.v1.score+json'

@@ -72,14 +72,20 @@ class TestLtiAuthentication(TestCase):
         )
 
     @ddt.data(
-        ["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly"],
-        ["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem"],
-        [
-            "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
-            "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
-        ]
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly"], True),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem"], True),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly"], False),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/score"], False),
+        (
+            [
+                "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
+                "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
+            ],
+            True
+        ),
     )
-    def test_read_only_lineitem_list(self, token_scopes):
+    @ddt.unpack
+    def test_read_only_lineitem_list(self, token_scopes, is_allowed):
         """
         Test if LineItem is readable when any of the allowed scopes is
         included in the token.
@@ -95,14 +101,16 @@ class TestLtiAuthentication(TestCase):
 
         # Test list view
         mock_view.action = 'list'
-        self.assertTrue(
+        self.assertEqual(
             perm_class.has_permission(self.mock_request, mock_view),
+            is_allowed,
         )
 
         # Test retrieve view
         mock_view.action = 'retrieve'
-        self.assertTrue(
+        self.assertEqual(
             perm_class.has_permission(self.mock_request, mock_view),
+            is_allowed,
         )
 
     def test_lineitem_no_permissions(self):
@@ -134,13 +142,15 @@ class TestLtiAuthentication(TestCase):
     @ddt.data(
         (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly"], False),
         (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem"], True),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly"], False),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/score"], False),
         (
             [
                 "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
                 "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
             ],
             True
-        )
+        ),
     )
     @ddt.unpack
     def test_lineitem_write_permissions(self, token_scopes, is_allowed):
@@ -181,4 +191,58 @@ class TestLtiAuthentication(TestCase):
         mock_view.action = 'invalid-action'
         self.assertFalse(
             perm_class.has_permission(self.mock_request, mock_view),
+        )
+
+    @ddt.data(
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly"], False),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem"], False),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly"], True),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/score"], False),
+    )
+    @ddt.unpack
+    def test_results_action_permissions(self, token_scopes, is_allowed):
+        """
+        Test if write operations on LineItem are allowed with the correct token.
+        """
+        perm_class = LtiAgsPermissions()
+        mock_view = MagicMock()
+
+        # Make token and include it in the mock request
+        token = self._make_token(token_scopes)
+        self.mock_request.headers = {
+            "Authorization": "Bearer {}".format(token)
+        }
+
+        # Test results view
+        mock_view.action = 'results'
+        self.assertEqual(
+            perm_class.has_permission(self.mock_request, mock_view),
+            is_allowed,
+        )
+
+    @ddt.data(
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly"], False),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/lineitem"], False),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly"], False),
+        (["https://purl.imsglobal.org/spec/lti-ags/scope/score"], True),
+    )
+    @ddt.unpack
+    def test_scores_action_permissions(self, token_scopes, is_allowed):
+        """
+        Test if write operations on LineItem are allowed with the correct token.
+        """
+        perm_class = LtiAgsPermissions()
+        mock_view = MagicMock()
+
+        # Make token and include it in the mock request
+        token = self._make_token(token_scopes)
+        self.mock_request.headers = {
+            "Authorization": "Bearer {}".format(token)
+        }
+
+        # Test scores view
+        mock_view.action = 'scores'
+        self.assertEqual(
+            perm_class.has_permission(self.mock_request, mock_view),
+            is_allowed,
         )
