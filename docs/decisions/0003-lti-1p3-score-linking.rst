@@ -15,8 +15,7 @@ which don't map 1:1 with the grading and gradebook structure present in Open edX
 There's two models of interation to pushing grades to the platform in the LTI AGS services:
 
 1. Declarative: the platform creates a LineItem (equivalent of a gradebook line/grade) and tools can only push results to that item.
-2. Programmatic: the tool uses the AGS endpoints to manage it's own line items and grades. The tool is responsible for linking
-each line item to the resourceLinks, which means that a tool might not link a grade to it's respective problem.
+2. Programmatic: the tool uses the AGS endpoints to manage it's own line items and grades. The tool is responsible for linking each line item to the resourceLinks, which means that a tool might not link a grade to it's respective problem.
 
 See a more detailed description in the `Coupled vs decoupled line items`_ section of the spec.
 
