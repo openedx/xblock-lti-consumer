@@ -12,7 +12,7 @@ Context
 LTI Advantage provides new ways for LTI tools to push grades back into the platform through the `Assignment and Grades Services (AGS)`_,
 which don't map 1:1 with the grading and gradebook structure present in Open edX.
 
-There's two models of interation to pushing grades to the platform in the LTI AGS services:
+There's two models of interaction to pushing grades to the platform in the LTI AGS services:
 
 1. Declarative: the platform creates a LineItem (equivalent of a gradebook line/grade) and tools can only push results to that item.
 2. Programmatic: the tool uses the AGS endpoints to manage it's own line items and grades. The tool is responsible for linking each line item to the resourceLinks, which means that a tool might not link a grade to it's respective problem.
@@ -41,7 +41,7 @@ This configuration will be called *Tool Grading Configuration* and offer the fol
      - This is the "declarative" approach, where the platform will create a single LineItem, and only allow read-only access to it.
        The tool is only able to read LineItems, push scores and retrieve grades.
    * - Allow tools to manage their own grades
-     - This is the "programmatic" approach, where tools have full permissions to create, edit and delete LineItems, and well as
+     - This is the "programmatic" approach, where tools have full permissions to create, edit and delete LineItems, as well as
        pushing and retrieving grades. Note that there might be cases where a tool doesn't set a `resouceLinkId` leaving the grade
        unlinked to a problem. Also, the other edge case is when a tool pushes multiple grades for a single problem, in which case
        the implementation needs to decide on a criteria to merge the grades or pick one.
@@ -67,8 +67,10 @@ model. The LineItem created will have the following attributes:
      - Maximum score for this given problem, derived from the block's attributes.
    * - tag
      - Blank, this is used by LTI tools in the programmatic interaction model.
-   * - start_date_time and end_date_time
-     - The problem's start and end date, if available in the block's attributes.
+   * - start_date_time
+     - The problem's start date, if available in the block's attributes.
+   * - end_date_time
+     - The problem's end date, if available in the block's attributes.
 
 Programmatic grade handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,7 +80,7 @@ delete LineItems using the LineItem endpoint.
 A *post_save* Django signal in the *LtiAgsScore* should be responsible for loading the XBlock from the modulestore,
 bind the user to the session, and set the score (after doing the proper scaling using the `scoreMaximum` attribute).
 
-If a tool creates and links multiple problems to the same grade, the platform will ??? the results.
+If a tool creates and links multiple LineItems to the same problem, the platform will ??? the results.
 
 ???: Not sure what should be the behavior here:
 1. Link just the latest grade submitted by the tool.
@@ -91,4 +93,4 @@ Consequences
 
 1. This will make the platform LTI compliant and allow simpler grading workflows (if supported by tools).
 2. When using the programmatic approach, tools might not send a grade back, leaving students ungraded.
-3. Also when usint the programmatic approach, tools might send/link more than one grade for a given problem, and the criteria we're using to handle that is purely technical.
+3. Also when using the programmatic approach, tools might send/link more than one grade for a given problem, and the criteria we're using to handle that is purely technical.
