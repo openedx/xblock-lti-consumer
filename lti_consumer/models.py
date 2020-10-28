@@ -29,6 +29,13 @@ def generate_client_id():
     return str(uuid.uuid4())
 
 
+def generate_client_id():
+    """
+    Generates a random UUID string.
+    """
+    return str(uuid.uuid4())
+
+
 class LtiConfiguration(models.Model):
     """
     Model to store LTI Configuration for LTI 1.1 and 1.3.
