@@ -1,8 +1,14 @@
 """
 LTI consumer plugin passthrough views
 """
+import json
+
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import redirect, get_object_or_404
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_http_methods
 from django_filters.rest_framework import DjangoFilterBackend
 from opaque_keys.edx.keys import UsageKey
@@ -10,7 +16,10 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from lti_consumer.models import LtiAgsLineItem
+from lti_consumer.models import (
+    LtiConfiguration,
+    LtiAgsLineItem,
+)
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiAgsLineItemSerializer,
     LtiAgsScoreSerializer,
@@ -29,8 +38,13 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
     LineItemScoreParser,
 )
 from lti_consumer.plugin.compat import (
+    has_access,
     run_xblock_handler,
     run_xblock_handler_noauth,
+)
+from lti_consumer.utils import (
+    get_lms_lti_launch_link,
+    get_runtime_environment,
 )
 
 
@@ -78,6 +92,45 @@ def launch_gate_endpoint(request, suffix):
             suffix=suffix
         )
     except Exception:  # pylint: disable=broad-except
+        return HttpResponse(status=404)
+
+
+@login_required
+@xframe_options_sameorigin
+@require_http_methods(["GET"])
+def lti_1p3_launch_start(request, usage_id=None):
+    """
+    LTI 1.3 launch start point.
+    This checks if the user is authenticated and has access
+    to the LTI integration being launched. If access is granted,
+    proceed with the LTI launch (either normal or deep
+    linking launch). If access is denied, throw error 404 to
+    avoid leaking LTI block location data.
+    """
+    usage_key = UsageKey.from_string(usage_id)
+    lti_config = get_object_or_404(LtiConfiguration, location=usage_key)
+
+    try:
+        allowed = has_access(request.user, 'load', lti_config.block, usage_key.course_key)
+        # TODO: Implement LTI Deep Linking content presentation here.
+
+        # Otherwise run normal LTI launch
+        lti_consumer = lti_config.get_lti_consumer()
+
+        # Set `hint` for LTI launch, signaling either lms or studio launch.
+        hint = "{}/{}".format(
+            get_runtime_environment(),
+            str(lti_config.location), # pylint: disable=no-member
+        )
+        # Redirect to block launch page
+        # import pdb; pdb.set_trace()
+        prepared_url = lti_consumer.prepare_preflight_url(
+            callback_url=get_lms_lti_launch_link(),
+            hint=hint,
+            lti_hint=""
+        )
+        return redirect(prepared_url['oidc_url'])
+    except Exception as e:  # pylint: disable=broad-except
         return HttpResponse(status=404)
 
 

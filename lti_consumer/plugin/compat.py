@@ -19,3 +19,11 @@ def run_xblock_handler_noauth(*args, **kwargs):
     # pylint: disable=import-error,import-outside-toplevel
     from lms.djangoapps.courseware.module_render import handle_xblock_callback_noauth
     return handle_xblock_callback_noauth(*args, **kwargs)
+
+
+def has_access(*args, **kwargs):
+    """
+    Import and run the `has_access` method from courseware module.
+    """
+    from lms.djangoapps.courseware.access import has_access
+    return has_access(*args, **kwargs)

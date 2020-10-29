@@ -11,6 +11,7 @@ from rest_framework import routers
 
 from lti_consumer.plugin.views import (
     public_keyset_endpoint,
+    lti_1p3_launch_start,
     launch_gate_endpoint,
     access_token_endpoint,
     # LTI Advantage URLs
@@ -34,6 +35,11 @@ urlpatterns = [
         'lti_consumer/v1/launch/(?:/(?P<suffix>.*))?$',
         launch_gate_endpoint,
         name='lti_consumer.launch_gate'
+    ),
+    url(
+        'lti_consumer/v1/launch_start/{}$'.format(settings.USAGE_ID_PATTERN),
+        lti_1p3_launch_start,
+        name='lti_consumer.launch_start'
     ),
     url(
         'lti_consumer/v1/token/{}$'.format(settings.USAGE_ID_PATTERN),
