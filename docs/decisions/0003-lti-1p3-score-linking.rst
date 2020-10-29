@@ -80,11 +80,11 @@ delete LineItems using the LineItem endpoint.
 A *post_save* Django signal in the *LtiAgsScore* should be responsible for loading the XBlock from the modulestore,
 bind the user to the session, and set the score (after doing the proper scaling using the `scoreMaximum` attribute).
 
-If a tool creates and links multiple LineItems to the same problem, the platform will ??? the results.
-
-???: Not sure what should be the behavior here:
-1. Link just the latest grade submitted by the tool.
-2. Average all items and submit average to block.
+If a tool creates and links multiple LineItems to the same problem, the platform will merge the results as follows:
+1. When a *Score* is pushed, the post save signal checks if the grade submitted is the final grade (by checking that *gradingProgress* is *FullyGraded*).
+2. The signal queries for other *LineItems* **linked to the problem** (with *LtiResourceLinkId* set) and checks if there's any fully graded *Score* for the user.
+3. With the just created *Score* plus the others previously submitted retrieved, the platform will normalize the values (using *scoreMaximum*) and average them.
+4. The signal will launch the XBlock handler, bind to the user and submit his grade.
 
 If a tool doesn't send any grades back or doesn't link any *resourceLinkId's* to a LineItem, the block will stay ungraded.
 
