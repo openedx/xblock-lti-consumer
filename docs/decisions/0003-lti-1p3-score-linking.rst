@@ -78,7 +78,7 @@ No LineItems are created when the LTI configuration model is created, but the to
 delete LineItems using the LineItem endpoint.
 
 A *post_save* Django signal in the *LtiAgsScore* should be responsible for loading the XBlock from the modulestore,
-bind the user to the session, and set the score (after doing the proper scaling using the `scoreMaximum` attribute).
+bind the user to the session, and set the score (after doing the proper scaling using the *scoreMaximum* attribute).
 
 If a tool creates and links multiple LineItems to the same problem, the platform will merge the results as follows:
 1. When a *Score* is pushed, the post save signal checks if the grade submitted is the final grade (by checking that *gradingProgress* is *FullyGraded*).
