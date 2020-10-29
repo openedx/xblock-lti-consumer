@@ -1,12 +1,9 @@
 """
 LTI consumer plugin passthrough views
 """
-import json
-
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import redirect, get_object_or_404
 from django.http import HttpResponse
+from django.shortcuts import redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_http_methods
@@ -112,6 +109,9 @@ def lti_1p3_launch_start(request, usage_id=None):
 
     try:
         allowed = has_access(request.user, 'load', lti_config.block, usage_key.course_key)
+        if not allowed:
+            return HttpResponse(status=403)
+
         # TODO: Implement LTI Deep Linking content presentation here.
 
         # Otherwise run normal LTI launch
@@ -120,17 +120,16 @@ def lti_1p3_launch_start(request, usage_id=None):
         # Set `hint` for LTI launch, signaling either lms or studio launch.
         hint = "{}/{}".format(
             get_runtime_environment(),
-            str(lti_config.location), # pylint: disable=no-member
+            str(lti_config.location),
         )
         # Redirect to block launch page
-        # import pdb; pdb.set_trace()
         prepared_url = lti_consumer.prepare_preflight_url(
             callback_url=get_lms_lti_launch_link(),
             hint=hint,
             lti_hint=""
         )
         return redirect(prepared_url['oidc_url'])
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception:  # pylint: disable=broad-except
         return HttpResponse(status=404)
 
 

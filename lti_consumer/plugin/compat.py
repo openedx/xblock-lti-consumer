@@ -25,5 +25,6 @@ def has_access(*args, **kwargs):
     """
     Import and run the `has_access` method from courseware module.
     """
-    from lms.djangoapps.courseware.access import has_access
-    return has_access(*args, **kwargs)
+    # pylint: disable=import-error,import-outside-toplevel
+    from lms.djangoapps.courseware.access import has_access as course_has_access
+    return course_has_access(*args, **kwargs)
