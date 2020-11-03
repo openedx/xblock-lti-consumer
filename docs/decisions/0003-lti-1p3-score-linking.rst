@@ -26,25 +26,14 @@ See a more detailed description in the `Coupled vs decoupled line items`_ sectio
 Decisions
 =========
 
-We want to enable the platform to have full LTI Advantage compatibility, so we need to allow both interaction models to happen.
+Given the platform's fixed gradebook structure, we'll implement the declarative interaction model detailed in the
+`LTS-AGS Spec - Declarative interation model`_.
 
-To do that, a configuration option will be available to course creators when adding a new graded LTI 1.3 block to a course.
-This configuration will be called *Tool Grading Configuration* and offer the following options:
+In the future, we want to enable the platform to have full LTI Advantage compatibility, so we need to allow both the declarative and programmatic
+interaction models to happen. There's already full support for the programmatic approach, but we decided to restrict the tool's access since we
+don't want to deal with mixing and averaging multiple grades in the current implementation.
 
-.. list-table::
-   :widths: auto
-   :header-rows: 1
-
-   * - Option name
-     - Behavior
-   * - Only allow tools to push a single grade per student (Default)
-     - This is the "declarative" approach, where the platform will create a single LineItem, and only allow read-only access to it.
-       The tool is only able to read LineItems, push scores and retrieve grades.
-   * - Allow tools to manage their own grades
-     - This is the "programmatic" approach, where tools have full permissions to create, edit and delete LineItems, as well as
-       pushing and retrieving grades. Note that there might be cases where a tool doesn't set a `resouceLinkId` leaving the grade
-       unlinked to a problem. Also, the other edge case is when a tool pushes multiple grades for a single problem, in which case
-       the implementation needs to decide on a criteria to merge the grades or pick one.
+.. _`LTS-AGS Spec - Declarative interation model`: https://www.imsglobal.org/spec/lti-ags/v2p0#declarative-
 
 Declarative grade handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,25 +61,7 @@ model. The LineItem created will have the following attributes:
    * - end_date_time
      - The problem's end date, if available in the block's attributes.
 
-Programmatic grade handling
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-No LineItems are created when the LTI configuration model is created, but the tools have permissions to create, update and
-delete LineItems using the LineItem endpoint.
-
-A *post_save* Django signal in the *LtiAgsScore* should be responsible for loading the XBlock from the modulestore,
-bind the user to the session, and set the score (after doing the proper scaling using the *scoreMaximum* attribute).
-
-If a tool creates and links multiple LineItems to the same problem, the platform will merge the results as follows:
-1. When a *Score* is pushed, the post save signal checks if the grade submitted is the final grade (by checking that *gradingProgress* is *FullyGraded*).
-2. The signal queries for other *LineItems* **linked to the problem** (with *LtiResourceLinkId* set) and checks if there's any fully graded *Score* for the user.
-3. With the just created *Score* plus the others previously submitted retrieved, the platform will normalize the values (using *scoreMaximum*) and average them.
-4. The signal will launch the XBlock handler, bind to the user and submit his grade.
-
-If a tool doesn't send any grades back or doesn't link any *resourceLinkId's* to a LineItem, the block will stay ungraded.
-
 Consequences
 ============
 
-1. This will make the platform LTI compliant and allow simpler grading workflows (if supported by tools).
-2. When using the programmatic approach, tools might not send a grade back, leaving students ungraded.
-3. Also when using the programmatic approach, tools might send/link more than one grade for a given problem, and the criteria we're using to handle that is purely technical.
+This will NOT make the platform LTI compliant since it doesn't allow the programmatic grade interaction.
