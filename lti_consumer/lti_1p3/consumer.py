@@ -475,6 +475,8 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
     def enable_ags(
         self,
         lineitems_url,
+        lineitem_url,
+        ags_interaction_model='programmatic'
     ):
         """
         Enable LTI Advantage Assignments and Grades Service.
@@ -482,9 +484,13 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         This will include the LTI AGS Claim in the LTI message
         and set up the required class.
         """
+
+        allow_creating_lineitems = ags_interaction_model == 'programmatic'
+
         self.ags = LtiAgs(
             lineitems_url=lineitems_url,
-            allow_creating_lineitems=True,
+            lineitem_url=lineitem_url,
+            allow_creating_lineitems=allow_creating_lineitems,
             results_service_enabled=True,
             scores_service_enabled=True
         )

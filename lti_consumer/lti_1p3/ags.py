@@ -19,6 +19,7 @@ class LtiAgs:
     def __init__(
         self,
         lineitems_url,
+        lineitem_url,
         allow_creating_lineitems=True,
         results_service_enabled=True,
         scores_service_enabled=True
@@ -36,6 +37,8 @@ class LtiAgs:
 
         # Lineitems urls
         self.lineitems_url = lineitems_url
+
+        self.lineitem_url = lineitem_url
 
     def get_available_scopes(self):
         """

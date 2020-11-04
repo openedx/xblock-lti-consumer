@@ -2,6 +2,8 @@
 LTI configuration and linking models.
 """
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
@@ -12,7 +14,11 @@ from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 # LTI 1.3
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
 from lti_consumer.plugin import compat
-from lti_consumer.utils import get_lms_base, get_lti_ags_lineitems_url
+from lti_consumer.utils import (
+    get_lms_base,
+    get_lti_ags_lineitems_url,
+    get_lti_ags_lineitem_url,
+)
 
 
 class LtiConfiguration(models.Model):
@@ -129,8 +135,19 @@ class LtiConfiguration(models.Model):
 
             # Check if enabled and setup LTI-AGS
             if self.block.has_score:
+
+                # create LineItem if there is none for current lti configuration
+                lineitem, _ = LtiAgsLineItem.objects.get_or_create(
+                    lti_configuration=self,
+                    defaults={
+                        'score_maximum': 100,
+                        'label': 'Score'
+                    }
+                )
+
                 consumer.enable_ags(
-                    lineitems_url=get_lti_ags_lineitems_url(self.id)
+                    lineitems_url=get_lti_ags_lineitems_url(self.id),
+                    lineitem_url=get_lti_ags_lineitem_url(self.id, lineitem.id)
                 )
 
             return consumer
@@ -293,3 +310,16 @@ class LtiAgsScore(models.Model):
 
     class Meta:
         unique_together = (('line_item', 'user_id'),)
+
+
+@receiver(post_save, sender=LtiAgsScore)
+def update_student_grade(sender, instance, **kwargs):
+    if instance.grading_progress == LtiAgsScore.FULLY_GRADED:
+
+        # get lti config
+        lti_configuration = instance.line_item.lti_configuration
+
+        # find user
+        # rebound user with xblock
+        # save grade to xblock
+        pass
