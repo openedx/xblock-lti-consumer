@@ -108,6 +108,24 @@ class TestLtiConfigurationModel(TestCase):
             }
         )
 
+    @patch("lti_consumer.models.compat")
+    def test_block_property(self, compat_mock):
+        """
+        Check if a block is properly loaded when calling the `block` property.
+        """
+        compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+
+        block = self.lti_1p3_config.block
+        self.assertEqual(block, self.xblock)
+
+    def test_block_property_missing_location(self):
+        """
+        Check the `block` property raises when failing to retrieve a block.
+        """
+        self.lti_1p3_config.location = None
+        with self.assertRaises(ValueError):
+            _ = self.lti_1p3_config.block
+
 
 class TestLtiAgsLineItemModel(TestCase):
     """
