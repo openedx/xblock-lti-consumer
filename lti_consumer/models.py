@@ -19,6 +19,7 @@ from lti_consumer.utils import (
     get_lti_ags_lineitems_url,
     get_lti_ags_lineitem_url,
 )
+from lti_consumer.plugin.compat import get_user_from_external_user_id
 
 
 class LtiConfiguration(models.Model):
@@ -139,6 +140,7 @@ class LtiConfiguration(models.Model):
                 # create LineItem if there is none for current lti configuration
                 lineitem, _ = LtiAgsLineItem.objects.get_or_create(
                     lti_configuration=self,
+                    resource_id=self.block.location,
                     defaults={
                         'score_maximum': 100,
                         'label': 'Score'
@@ -317,9 +319,10 @@ def update_student_grade(sender, instance, **kwargs):
     if instance.grading_progress == LtiAgsScore.FULLY_GRADED:
 
         # get lti config
-        lti_configuration = instance.line_item.lti_configuration
+        lti_config = instance.line_item.lti_configuration
 
         # find user
-        # rebound user with xblock
-        # save grade to xblock
-        pass
+        user = get_user_from_external_user_id(instance.user_id)
+
+        # save grade to xblock, this rebounds user with xblock internally
+        lti_config.block.set_user_module_score(user, instance.score_given, instance.score_maximum, instance.comment)

@@ -49,3 +49,15 @@ def load_block_as_anonymous_user(location):
     )
 
     return descriptor
+
+
+def get_user_from_external_user_id(external_user_id):
+    """
+    Import ExternalId model and find user by external_user_id
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.external_user_ids.models import ExternalId
+    return ExternalId.objects.get(
+        external_user_id=external_user_id,
+        external_id_type__name='lti'
+    ).user
