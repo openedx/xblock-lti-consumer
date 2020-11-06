@@ -17,9 +17,8 @@ from lti_consumer.plugin import compat
 from lti_consumer.utils import (
     get_lms_base,
     get_lti_ags_lineitems_url,
-    get_lti_ags_lineitem_url,
 )
-from lti_consumer.plugin.compat import get_user_from_external_user_id
+from lti_consumer.plugin.compat import submit_grade
 
 
 class LtiConfiguration(models.Model):
@@ -142,14 +141,14 @@ class LtiConfiguration(models.Model):
                     lti_configuration=self,
                     resource_id=self.block.location,
                     defaults={
-                        'score_maximum': 100,
-                        'label': 'Score'
+                        'score_maximum': self.block.weight,
+                        'label': self.block.display_name
                     }
                 )
 
                 consumer.enable_ags(
                     lineitems_url=get_lti_ags_lineitems_url(self.id),
-                    lineitem_url=get_lti_ags_lineitem_url(self.id, lineitem.id)
+                    lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id)
                 )
 
             return consumer
@@ -316,13 +315,9 @@ class LtiAgsScore(models.Model):
 
 @receiver(post_save, sender=LtiAgsScore)
 def update_student_grade(sender, instance, **kwargs):
+    """
+    Submit grade to xblock whenever score saved/updated and its
+    grading_progress is set to FullyGraded.
+    """
     if instance.grading_progress == LtiAgsScore.FULLY_GRADED:
-
-        # get lti config
-        lti_config = instance.line_item.lti_configuration
-
-        # find user
-        user = get_user_from_external_user_id(instance.user_id)
-
-        # save grade to xblock, this rebounds user with xblock internally
-        lti_config.block.set_user_module_score(user, instance.score_given, instance.score_maximum, instance.comment)
+        submit_grade(instance)

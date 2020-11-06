@@ -61,3 +61,29 @@ def get_user_from_external_user_id(external_user_id):
         external_user_id=external_user_id,
         external_id_type__name='lti'
     ).user
+
+
+def submit_grade(score):
+    """
+    Import grades signals and submit grade given a LtiAgsScore instance.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from lms.djangoapps.grades.api import signals as grades_signals
+
+    # get lti config
+    lti_config = score.line_item.lti_configuration
+
+    # find user
+    user = get_user_from_external_user_id(score.user_id)
+
+    # publish score
+    grades_signals.SCORE_PUBLISHED.send(
+        sender=None,
+        block=lti_config.block,
+        user=user,
+        raw_earned=score.score_given,
+        raw_possible=score.score_maximum,
+        only_if_higher=False,
+        # score_deleted=event.get('score_deleted'),
+        grader_response=score.comment
+    )
