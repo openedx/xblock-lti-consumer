@@ -67,6 +67,13 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         self.addCleanup(patcher.stop)
         self._lti_block_patch = patcher.start()
 
+        submit_grade_patcher = patch(
+            'lti_consumer.models.submit_grade',
+            return_value=None
+        )
+        self.addCleanup(submit_grade_patcher.stop)
+        self._submit_block_patch = submit_grade_patcher.start()
+
     def _set_lti_token(self, scopes=None):
         """
         Generates and sets a LTI Auth token in the request client.
@@ -303,6 +310,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(response.status_code, 400)
 
 
+@ddt.ddt
 class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
     """
     Test `LtiAgsLineItemViewset` Score Publishing requests/responses.
@@ -383,6 +391,42 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(score.activity_progress, LtiAgsScore.COMPLETED)
         self.assertEqual(score.grading_progress, LtiAgsScore.FULLY_GRADED)
         self.assertEqual(score.user_id, self.primary_user_id)
+
+    @ddt.data(
+        LtiAgsScore.PENDING,
+        LtiAgsScore.PENDING_MANUAL,
+        LtiAgsScore.FULLY_GRADED,
+        LtiAgsScore.FAILED,
+        LtiAgsScore.NOT_READY
+    )
+    def test_xblock_grade_submit_on_score_save(self, grading_progress):
+        """
+        Test on LtiAgsScore save, if gradingProgress is Fully Graded then xblock grade should be submitted.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        self.client.post(
+            self.scores_endpoint,
+            data=json.dumps({
+                "timestamp": self.early_timestamp,
+                "scoreGiven": 83,
+                "scoreMaximum": 100,
+                "comment": "This is exceptional work.",
+                "activityProgress": LtiAgsScore.COMPLETED,
+                "gradingProgress": grading_progress,
+                "userId": self.primary_user_id
+            }),
+            content_type="application/vnd.ims.lis.v1.score+json",
+        )
+
+        if grading_progress == LtiAgsScore.FULLY_GRADED:
+            score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
+            self._submit_block_patch.assert_called_once()
+            call_args = self._submit_block_patch.call_args.args
+            self.assertEqual(len(call_args), 1)
+            self.assertEqual(call_args[0], score)
+        else:
+            self._submit_block_patch.assert_not_called()
 
     def test_create_multiple_scores_with_multiple_users(self):
         """
