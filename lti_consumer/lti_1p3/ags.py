@@ -18,8 +18,8 @@ class LtiAgs:
     """
     def __init__(
         self,
-        lineitems_url,
-        lineitem_url,
+        lineitems_url=None,
+        lineitem_url=None,
         allow_creating_lineitems=True,
         results_service_enabled=True,
         scores_service_enabled=True
