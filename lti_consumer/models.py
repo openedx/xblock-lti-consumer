@@ -314,7 +314,7 @@ class LtiAgsScore(models.Model):
 
 
 @receiver(post_save, sender=LtiAgsScore)
-def update_student_grade(sender, instance, **kwargs):
+def update_student_grade(sender, instance, **kwargs):  # pylint: disable=unused-argument
     """
     Submit grade to xblock whenever score saved/updated and its
     grading_progress is set to FullyGraded.
