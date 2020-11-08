@@ -99,7 +99,7 @@ class TestLtiConfigurationModel(TestCase):
                 'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint':
                 {
                     'scope': [
-                        'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+                        'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/score',
                     ],
@@ -159,6 +159,13 @@ class TestLtiAgsScoreModel(TestCase):
     """
     def setUp(self):
         super().setUp()
+
+        submit_grade_patcher = patch(
+            'lti_consumer.models.submit_grade',
+            return_value=None
+        )
+        self.addCleanup(submit_grade_patcher.stop)
+        self._submit_block_patch = submit_grade_patcher.start()
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.line_item = LtiAgsLineItem.objects.create(
