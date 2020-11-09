@@ -1,6 +1,8 @@
 """
 Compatibility layer to isolate core-platform method calls from implementation.
 """
+from django.core.exceptions import ValidationError
+from lti_consumer.exceptions import LtiError
 
 
 def run_xblock_handler(*args, **kwargs):
@@ -57,10 +59,16 @@ def get_user_from_external_user_id(external_user_id):
     """
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.external_user_ids.models import ExternalId
-    return ExternalId.objects.get(
-        external_user_id=external_user_id,
-        external_id_type__name='lti'
-    ).user
+    try:
+        external_id = ExternalId.objects.get(
+            external_user_id=external_user_id,
+            external_id_type__name='lti'
+        )
+        return external_id.user
+    except ExternalId.DoesNotExist as exception:
+        raise LtiError('Invalid User') from exception
+    except ValidationError as exception:
+        raise LtiError('Invalid userID') from exception
 
 
 def submit_grade(score):
