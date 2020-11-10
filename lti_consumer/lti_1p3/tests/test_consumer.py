@@ -572,54 +572,6 @@ class TestLtiAdvantageConsumer(TestCase):
             tool_key=RSA_KEY
         )
 
-    def _setup_lti_user(self):
-        """
-        Set up a minimal LTI message with only required parameters.
-
-        Currently, the only required parameters are the user data,
-        but using a helper function to keep the usage consistent accross
-        all tests.
-        """
-        self.lti_consumer.set_user_data(
-            user_id="1",
-            role="student",
-        )
-
-    def _get_lti_message(
-            self,
-            preflight_response=None,
-            resource_link="link"
-    ):
-        """
-        Retrieves a base LTI message with fixed test parameters.
-
-        This function has valid default values, so it can be used to test custom
-        parameters, but allows overriding them.
-        """
-        if preflight_response is None:
-            preflight_response = {
-                "client_id": CLIENT_ID,
-                "redirect_uri": LAUNCH_URL,
-                "nonce": NONCE,
-                "state": STATE
-            }
-
-        return self.lti_consumer.generate_launch_request(
-            preflight_response,
-            resource_link
-        )
-
-    def _decode_token(self, token):
-        """
-        Checks for a valid signarute and decodes JWT signed LTI message
-
-        This also tests the public keyset function.
-        """
-        public_keyset = self.lti_consumer.get_public_keyset()
-        key_set = load_jwks(json.dumps(public_keyset))
-
-        return JWS().verify_compact(token, keys=key_set)
-
     def test_no_ags_returns_failure(self):
         """
         Test that when LTI-AGS isn't configured, the class yields an error.
