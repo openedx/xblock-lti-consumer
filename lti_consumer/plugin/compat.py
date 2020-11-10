@@ -19,3 +19,33 @@ def run_xblock_handler_noauth(*args, **kwargs):
     # pylint: disable=import-error,import-outside-toplevel
     from lms.djangoapps.courseware.module_render import handle_xblock_callback_noauth
     return handle_xblock_callback_noauth(*args, **kwargs)
+
+
+def load_block_as_anonymous_user(location):
+    """
+    Load a block as anonymous user.
+
+    This uses a few internal courseware methods to retrieve the descriptor
+    and bind an AnonymousUser to it, in a similar fashion as a `noauth` XBlock
+    handler.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from django.contrib.auth.models import AnonymousUser
+    from xmodule.modulestore.django import modulestore
+    from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
+
+    # Retrieve descriptor from modulestore
+    descriptor = modulestore().get_item(location)
+
+    # Load block, attaching it to AnonymousUser
+    get_module_for_descriptor_internal(
+        user=AnonymousUser(),
+        descriptor=descriptor,
+        student_data=None,
+        course_id=location.course_key,
+        track_function=None,
+        xqueue_callback_url_prefix="",
+        request_token="",
+    )
+
+    return descriptor

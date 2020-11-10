@@ -11,6 +11,7 @@ from opaque_keys.edx.django.models import UsageKeyField
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 # LTI 1.3
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
+from lti_consumer.plugin import compat
 from lti_consumer.utils import get_lms_base, get_lti_ags_lineitems_url
 
 
@@ -77,11 +78,7 @@ class LtiConfiguration(models.Model):
         if block is None:
             if self.location is None:
                 raise ValueError("Block location not set, it's not possible to retrieve the block.")
-
-            # Import on runtime only
-            # pylint: disable=import-outside-toplevel,import-error
-            from xmodule.modulestore.django import modulestore
-            block = self._block = modulestore().get_item(self.location)
+            block = self._block = compat.load_block_as_anonymous_user(self.location)
         return block
 
     @block.setter
