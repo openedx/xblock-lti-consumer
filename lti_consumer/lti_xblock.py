@@ -874,12 +874,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'user_email': None,
             'user_username': None,
             'user_language': None,
+            'user_fullname': None,
         }
 
         if callable(self.runtime.get_real_user):
             real_user_object = self.runtime.get_real_user(self.runtime.anonymous_student_id)
             user_data['user_email'] = getattr(real_user_object, "email", "")
             user_data['user_username'] = getattr(real_user_object, "username", "")
+            user_data['user_fullname'] = getattr(getattr(real_user_object, "profile", {}), "name", "")
             user_preferences = getattr(real_user_object, "preferences", None)
 
             if user_preferences is not None:
