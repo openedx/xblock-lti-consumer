@@ -31,6 +31,16 @@ def get_lms_base():
     return settings.LMS_ROOT_URL
 
 
+def get_runtime_environment():
+    """
+    Returns the runtime
+    """
+    if settings.ROOT_URLCONF == 'lms.urls':
+        return "lms"
+
+    return "studio"
+
+
 def get_lms_lti_keyset_link(location):
     """
     Returns an LMS link to LTI public keyset endpoint

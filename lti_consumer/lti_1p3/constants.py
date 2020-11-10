@@ -52,6 +52,15 @@ LTI_1P3_ACCESS_TOKEN_SCOPES = [
 ]
 
 
+LTI_DEEP_LINKING_ACCEPTED_TYPES = [
+    "link",
+    "image"
+    # TODO: implement "file" support,
+    # TODO: implement "html" support,
+    # TODO: implement "ltiResourceLink" support,
+]
+
+
 class LTI_1P3_CONTEXT_TYPE(Enum):  # pylint: disable=invalid-name
     """ LTI 1.3 Context Claim Types """
     group = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseGroup'

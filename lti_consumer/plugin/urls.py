@@ -15,6 +15,7 @@ from lti_consumer.plugin.views import (
     access_token_endpoint,
     # LTI Advantage URLs
     LtiAgsLineItemViewset,
+    deep_linking_response_endpoint,
 )
 
 
@@ -41,7 +42,12 @@ urlpatterns = [
         name='lti_consumer.access_token'
     ),
     url(
+        r'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/lti-dl',
+        deep_linking_response_endpoint,
+        name='lti_consumer.deep_linking_response_endpoint'
+    ),
+    url(
         r'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/',
         include(router.urls)
-    )
+    ),
 ]
