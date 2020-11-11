@@ -474,7 +474,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
     def enable_ags(
         self,
-        lineitems_url=None,
+        lineitems_url,
         lineitem_url=None,
         allow_programatic_grade_interaction=False
     ):
