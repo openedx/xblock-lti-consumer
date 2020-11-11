@@ -13,17 +13,17 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='lticonfiguration',
-            name='_lti_1p3_platform_private_key',
+            name='lti_1p3_internal_private_key',
             field=models.TextField(blank=True, help_text="Platform's generated Private key. Keep this value secret."),
         ),
         migrations.AddField(
             model_name='lticonfiguration',
-            name='_lti_1p3_platform_private_key_id',
+            name='lti_1p3_internal_private_key_id',
             field=models.CharField(blank=True, help_text="Platform's generated Private key ID", max_length=255),
         ),
         migrations.AddField(
             model_name='lticonfiguration',
-            name='_lti_1p3_platform_public_jwk',
+            name='lti_1p3_internal_public_jwk',
             field=models.TextField(blank=True, help_text="Platform's generated JWK keyset."),
         ),
         migrations.AddField(

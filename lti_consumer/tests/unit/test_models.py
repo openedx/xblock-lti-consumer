@@ -134,17 +134,17 @@ class TestLtiConfigurationModel(TestCase):
         )
 
         # Check that model fields are empty
-        self.assertFalse(lti_config._lti_1p3_platform_private_key)      # pylint: disable=protected-access
-        self.assertFalse(lti_config._lti_1p3_platform_private_key_id)   # pylint: disable=protected-access
-        self.assertFalse(lti_config._lti_1p3_platform_public_jwk)       # pylint: disable=protected-access
+        self.assertFalse(lti_config.lti_1p3_internal_private_key)
+        self.assertFalse(lti_config.lti_1p3_internal_private_key_id)
+        self.assertFalse(lti_config.lti_1p3_internal_public_jwk)
 
         # Create and retrieve public keys
-        _ = lti_config.lti_1p3_platform_public_jwk
+        _ = lti_config.lti_1p3_public_jwk
 
         # Check if keys were created
-        self.assertTrue(lti_config._lti_1p3_platform_private_key)       # pylint: disable=protected-access
-        self.assertTrue(lti_config._lti_1p3_platform_private_key_id)    # pylint: disable=protected-access
-        self.assertTrue(lti_config._lti_1p3_platform_public_jwk)        # pylint: disable=protected-access
+        self.assertTrue(lti_config.lti_1p3_internal_private_key)
+        self.assertTrue(lti_config.lti_1p3_internal_private_key_id)
+        self.assertTrue(lti_config.lti_1p3_internal_public_jwk)
 
     def test_generate_public_key_only(self):
         """
@@ -156,12 +156,12 @@ class TestLtiConfigurationModel(TestCase):
             location='block-v1:course+test+2020+type@problem+block@test'
         )
         # Create and retrieve public keys
-        public_key = lti_config.lti_1p3_platform_public_jwk
-        lti_config._lti_1p3_platform_public_jwk = ""                    # pylint: disable=protected-access
+        public_key = lti_config.lti_1p3_public_jwk.copy()
+        lti_config.lti_1p3_internal_public_jwk = ""
         lti_config.save()
 
         # Retrieve public key and check that it was correctly regenerated
-        regenerated_public_key = lti_config.lti_1p3_platform_public_jwk
+        regenerated_public_key = lti_config.lti_1p3_public_jwk
         lti_config.refresh_from_db()
         self.assertEqual(regenerated_public_key, public_key)
 

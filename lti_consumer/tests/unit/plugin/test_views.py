@@ -42,10 +42,9 @@ class TestLti1p3KeysetEndpoint(TestCase):
 
         # Check public keyset
         self.lti_config.refresh_from_db()
-        retrieved_public_keyset = json.loads(response.content.decode('utf-8'))
         self.assertEqual(
-            json.loads(self.lti_config.lti_1p3_platform_public_jwk),
-            retrieved_public_keyset
+            self.lti_config.lti_1p3_public_jwk,
+            json.loads(response.content.decode('utf-8'))
         )
 
     def test_invalid_usage_key(self):

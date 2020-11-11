@@ -26,14 +26,14 @@ def forwards_func(apps, schema_editor):
             block = _load_block(lti_config.location)
 
             # If client_id exists, move it to model
-            if block.lti_1p3_client_id:
+            if hasattr(block, 'lti_1p3_client_id'):
                 lti_config.lti_1p3_client_id = block.lti_1p3_client_id
 
                 # If key exists, move it to model. Set kid as client_id, respecting
                 # old implementation
-                if block.lti_1p3_block_key:
-                    lti_config._lti_1p3_platform_private_key_id = block.lti_1p3_client_id
-                    lti_config._lti_1p3_platform_private_key = block.lti_1p3_block_key
+                if hasattr(block, 'lti_1p3_block_key'):
+                    lti_config.lti_1p3_internal_private_key_id = block.lti_1p3_client_id
+                    lti_config.lti_1p3_internal_private_key = block.lti_1p3_block_key
 
             # Save if something changed
             lti_config.save()

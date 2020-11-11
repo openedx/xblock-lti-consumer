@@ -66,9 +66,6 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     if not config_id and not block:
         raise Exception("You need to pass either a config_id or a block.")
 
-    # Empty reponse
-    launch_info = {}
-
     if config_id:
         lti_config = LtiConfiguration.objects.get(pk=config_id)
     elif block:

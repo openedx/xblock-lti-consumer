@@ -77,18 +77,18 @@ class LtiConfiguration(models.Model):
     )
 
     # LTI 1.3 Related variables
-    _lti_1p3_platform_private_key = models.TextField(
+    lti_1p3_internal_private_key = models.TextField(
         blank=True,
         help_text="Platform's generated Private key. Keep this value secret.",
     )
 
-    _lti_1p3_platform_private_key_id = models.CharField(
+    lti_1p3_internal_private_key_id = models.CharField(
         max_length=255,
         blank=True,
         help_text="Platform's generated Private key ID",
     )
 
-    _lti_1p3_platform_public_jwk = models.TextField(
+    lti_1p3_internal_public_jwk = models.TextField(
         blank=True,
         help_text="Platform's generated JWK keyset.",
     )
@@ -131,23 +131,23 @@ class LtiConfiguration(models.Model):
         for LTI launches (as long as they have a different kid).
         """
         # Generate new private key if not present
-        if not self._lti_1p3_platform_private_key:
+        if not self.lti_1p3_internal_private_key:
             # Private key
             private_key = RSA.generate(2048)
-            self._lti_1p3_platform_private_key_id = str(uuid.uuid4())
-            self._lti_1p3_platform_private_key = private_key.export_key('PEM').decode('utf-8')
+            self.lti_1p3_internal_private_key_id = str(uuid.uuid4())
+            self.lti_1p3_internal_private_key = private_key.export_key('PEM').decode('utf-8')
 
             # Clear public key if any to allow regeneration
             # in the code below
-            self._lti_1p3_platform_public_jwk = ''
+            self.lti_1p3_internal_public_jwk = ''
 
-        if not self._lti_1p3_platform_public_jwk:
+        if not self.lti_1p3_internal_public_jwk:
             # Public key
             key_handler = PlatformKeyHandler(
-                key_pem=self._lti_1p3_platform_private_key,
-                kid=self._lti_1p3_platform_private_key_id,
+                key_pem=self.lti_1p3_internal_private_key,
+                kid=self.lti_1p3_internal_private_key_id,
             )
-            self._lti_1p3_platform_public_jwk = json.dumps(
+            self.lti_1p3_internal_public_jwk = json.dumps(
                 key_handler.get_public_jwk()
             )
 
@@ -155,28 +155,28 @@ class LtiConfiguration(models.Model):
         self.save()
 
     @property
-    def lti_1p3_platform_private_key(self):
+    def lti_1p3_private_key(self):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.
         """
         self._generate_lti_1p3_keys_if_missing()
-        return self._lti_1p3_platform_private_key
+        return self.lti_1p3_internal_private_key
 
     @property
-    def lti_1p3_platform_private_key_id(self):
+    def lti_1p3_private_key_id(self):
         """
         Return the platform's private key ID used in LTI 1.3 authentication flows.
         """
         self._generate_lti_1p3_keys_if_missing()
-        return self._lti_1p3_platform_private_key_id
+        return self.lti_1p3_internal_private_key_id
 
     @property
-    def lti_1p3_platform_public_jwk(self):
+    def lti_1p3_public_jwk(self):
         """
         Return the platform's public keys used in LTI 1.3 authentication flows.
         """
         self._generate_lti_1p3_keys_if_missing()
-        return self._lti_1p3_platform_public_jwk
+        return json.loads(self.lti_1p3_internal_public_jwk)
 
     def _get_lti_1p1_consumer(self):
         """
@@ -210,8 +210,8 @@ class LtiConfiguration(models.Model):
                 # we're not using multi-tenancy.
                 deployment_id="1",
                 # XBlock Private RSA Key
-                rsa_key=self.lti_1p3_platform_private_key,
-                rsa_key_id=self.lti_1p3_platform_private_key_id,
+                rsa_key=self.lti_1p3_private_key,
+                rsa_key_id=self.lti_1p3_private_key_id,
                 # LTI 1.3 Tool key/keyset url
                 tool_key=self.block.lti_1p3_tool_public_key,
                 tool_keyset_url=None,

@@ -1,8 +1,6 @@
 """
 LTI consumer plugin passthrough views
 """
-import json
-
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -61,7 +59,7 @@ def public_keyset_endpoint(request, usage_id=None):
         # Retrieve block's Public JWK
         # The underlying method will generate a new Private-Public Pair if one does
         # not exist, and retrieve the values.
-        response = JsonResponse(json.loads(lti_config.lti_1p3_platform_public_jwk))
+        response = JsonResponse(lti_config.lti_1p3_public_jwk)
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
     except (LtiError, InvalidKeyError, ObjectDoesNotExist):
