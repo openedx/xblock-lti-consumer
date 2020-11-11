@@ -158,29 +158,14 @@ class TestLtiAgsScoreModel(TestCase):
     """
     Unit tests for LtiAgsScore model methods.
     """
-    def setUp(self):
+
+    @patch("lti_consumer.signals.compat")
+    def setUp(self, compat_mock):
         super().setUp()
 
-        publish_grade_patcher = patch(
-            'lti_consumer.signals.publish_grade',
-            return_value=None
+        compat_mock.load_block_as_anonymous_user.return_value = make_xblock(
+            'lti_consumer', LtiConsumerXBlock, {}, MagicMock(return_value=False)
         )
-        self.addCleanup(publish_grade_patcher.stop)
-        self._publish_grade_patcher = publish_grade_patcher.start()
-
-        load_block_patcher = patch(
-            'lti_consumer.signals.load_block',
-            return_value=make_xblock('lti_consumer', LtiConsumerXBlock, {}, MagicMock(return_value=False))
-        )
-        self.addCleanup(load_block_patcher.stop)
-        self._load_block_patcher = load_block_patcher.start()
-
-        get_user_from_external_user_id_patcher = patch(
-            'lti_consumer.signals.get_user_from_external_user_id',
-            return_value=None
-        )
-        self.addCleanup(get_user_from_external_user_id_patcher.stop)
-        self._get_user_from_external_user_id_patcher = get_user_from_external_user_id_patcher.start()
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.line_item = LtiAgsLineItem.objects.create(
@@ -209,11 +194,3 @@ class TestLtiAgsScoreModel(TestCase):
             str(self.score),
             "LineItem 1: score 10.0 out of 100.0 - FullyGraded"
         )
-
-    def test_score_update_signal(self):
-        """
-        Test score update signal connected
-        """
-        self._load_block_patcher.assert_called_once()
-        self._get_user_from_external_user_id_patcher.assert_called_once()
-        self._publish_grade_patcher.assert_called_once()

@@ -2,7 +2,7 @@
 Tests for LTI Advantage Assignments and Grades Service views.
 """
 import json
-from mock import patch, PropertyMock, MagicMock
+from mock import patch, PropertyMock, MagicMock, Mock
 
 from Cryptodome.PublicKey import RSA
 import ddt
@@ -45,12 +45,12 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
             # allow using signing methods and make testing easier.
             'lti_1p3_tool_public_key': self.public_key,
         }
-        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        self.xblock = make_xblock(
+            'lti_consumer', LtiConsumerXBlock, self.xblock_attributes, MagicMock(return_value=False)
+        )
 
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
-
-        self.xblock.is_past_due = MagicMock(return_value=False)
 
         # Create configuration
         self.lti_config = LtiConfiguration.objects.create(
@@ -69,26 +69,12 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         self.addCleanup(patcher.stop)
         self._lti_block_patch = patcher.start()
 
-        publish_grade_patcher = patch(
-            'lti_consumer.signals.publish_grade',
-            return_value=None
-        )
-        self.addCleanup(publish_grade_patcher.stop)
-        self._publish_grade_patcher = publish_grade_patcher.start()
-
-        load_block_patcher = patch(
-            'lti_consumer.signals.load_block',
-            return_value=self.xblock
-        )
-        self.addCleanup(load_block_patcher.stop)
-        self._load_block_patcher = load_block_patcher.start()
-
-        get_user_from_external_user_id_patcher = patch(
-            'lti_consumer.signals.get_user_from_external_user_id',
-            return_value=None
-        )
-        self.addCleanup(get_user_from_external_user_id_patcher.stop)
-        self._get_user_from_external_user_id_patcher = get_user_from_external_user_id_patcher.start()
+        self._mock_user = Mock()
+        compat_mock = patch("lti_consumer.signals.compat")
+        self.addCleanup(compat_mock.stop)
+        self._compat_mock = compat_mock.start()
+        self._compat_mock.get_user_from_external_user_id.return_value = self._mock_user
+        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
 
     def _set_lti_token(self, scopes=None):
         """
@@ -437,17 +423,19 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
 
         if grading_progress == LtiAgsScore.FULLY_GRADED:
             score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
-            self._publish_grade_patcher.assert_called_once()
-            self._get_user_from_external_user_id_patcher.assert_called_once()
-            self._load_block_patcher.assert_called_once()
-            call_args = self._publish_grade_patcher.call_args.args
-            call_kwargs = self._publish_grade_patcher.call_args.kwargs
-            self.assertEqual(call_args, (self.xblock, None, score.score_given, score.score_maximum,))
+
+            self._compat_mock.publish_grade.assert_called_once()
+            self._compat_mock.get_user_from_external_user_id.assert_called_once()
+            self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+
+            call_args = self._compat_mock.publish_grade.call_args.args
+            call_kwargs = self._compat_mock.publish_grade.call_args.kwargs
+            self.assertEqual(call_args, (self.xblock, self._mock_user, score.score_given, score.score_maximum,))
             self.assertEqual(call_kwargs['comment'], score.comment)
         else:
-            self._load_block_patcher.assert_not_called()
-            self._get_user_from_external_user_id_patcher.assert_not_called()
-            self._publish_grade_patcher.assert_not_called()
+            self._compat_mock.load_block_as_anonymous_user.assert_not_called()
+            self._compat_mock.get_user_from_external_user_id.assert_not_called()
+            self._compat_mock.publish_grade.assert_not_called()
 
     def test_xblock_grade_publish_passed_due_date(self):
         """
@@ -470,9 +458,10 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
             content_type="application/vnd.ims.lis.v1.score+json",
         )
 
-        self._load_block_patcher.assert_called_once()
-        self._get_user_from_external_user_id_patcher.assert_not_called()
-        self._publish_grade_patcher.assert_not_called()
+        self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+
+        self._compat_mock.get_user_from_external_user_id.assert_not_called()
+        self._compat_mock.publish_grade.assert_not_called()
 
     def test_create_multiple_scores_with_multiple_users(self):
         """

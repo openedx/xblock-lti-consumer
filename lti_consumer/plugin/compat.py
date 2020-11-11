@@ -71,12 +71,6 @@ def get_user_from_external_user_id(external_user_id):
         raise LtiError('Invalid userID') from exception
 
 
-def load_block(key):
-    # pylint: disable=import-outside-toplevel,import-error
-    from xmodule.modulestore.django import modulestore
-    return modulestore().get_item(key)
-
-
 def publish_grade(block, user, score, possible, only_if_higher=False, score_deleted=None, comment=None):
     """
     Import grades signals and publishes score by triggering SCORE_PUBLISHED signal.
