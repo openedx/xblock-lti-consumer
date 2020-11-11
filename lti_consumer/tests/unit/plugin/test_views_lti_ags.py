@@ -2,7 +2,7 @@
 Tests for LTI Advantage Assignments and Grades Service views.
 """
 import json
-from mock import patch, PropertyMock
+from mock import patch, PropertyMock, MagicMock
 
 from Cryptodome.PublicKey import RSA
 import ddt
@@ -50,6 +50,8 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
+        self.xblock.is_past_due = MagicMock(return_value=False)
+
         # Create configuration
         self.lti_config = LtiConfiguration.objects.create(
             location=str(self.xblock.location),
@@ -67,12 +69,26 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         self.addCleanup(patcher.stop)
         self._lti_block_patch = patcher.start()
 
-        submit_grade_patcher = patch(
-            'lti_consumer.models.submit_grade',
+        publish_grade_patcher = patch(
+            'lti_consumer.signals.publish_grade',
             return_value=None
         )
-        self.addCleanup(submit_grade_patcher.stop)
-        self._submit_block_patch = submit_grade_patcher.start()
+        self.addCleanup(publish_grade_patcher.stop)
+        self._publish_grade_patcher = publish_grade_patcher.start()
+
+        load_block_patcher = patch(
+            'lti_consumer.signals.load_block',
+            return_value=self.xblock
+        )
+        self.addCleanup(load_block_patcher.stop)
+        self._load_block_patcher = load_block_patcher.start()
+
+        get_user_from_external_user_id_patcher = patch(
+            'lti_consumer.signals.get_user_from_external_user_id',
+            return_value=None
+        )
+        self.addCleanup(get_user_from_external_user_id_patcher.stop)
+        self._get_user_from_external_user_id_patcher = get_user_from_external_user_id_patcher.start()
 
     def _set_lti_token(self, scopes=None):
         """
@@ -399,7 +415,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         LtiAgsScore.FAILED,
         LtiAgsScore.NOT_READY
     )
-    def test_xblock_grade_submit_on_score_save(self, grading_progress):
+    def test_xblock_grade_publish_on_score_save(self, grading_progress):
         """
         Test on LtiAgsScore save, if gradingProgress is Fully Graded then xblock grade should be submitted.
         """
@@ -421,12 +437,42 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
 
         if grading_progress == LtiAgsScore.FULLY_GRADED:
             score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
-            self._submit_block_patch.assert_called_once()
-            call_args = self._submit_block_patch.call_args.args
-            self.assertEqual(len(call_args), 1)
-            self.assertEqual(call_args[0], score)
+            self._publish_grade_patcher.assert_called_once()
+            self._get_user_from_external_user_id_patcher.assert_called_once()
+            self._load_block_patcher.assert_called_once()
+            call_args = self._publish_grade_patcher.call_args.args
+            call_kwargs = self._publish_grade_patcher.call_args.kwargs
+            self.assertEqual(call_args, (self.xblock, None, score.score_given, score.score_maximum,))
+            self.assertEqual(call_kwargs['comment'], score.comment)
         else:
-            self._submit_block_patch.assert_not_called()
+            self._load_block_patcher.assert_not_called()
+            self._get_user_from_external_user_id_patcher.assert_not_called()
+            self._publish_grade_patcher.assert_not_called()
+
+    def test_xblock_grade_publish_passed_due_date(self):
+        """
+        Test grade publish after due date. Grade shouldn't published
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        self.xblock.is_past_due = MagicMock(return_value=True)
+        self.client.post(
+            self.scores_endpoint,
+            data=json.dumps({
+                "timestamp": self.early_timestamp,
+                "scoreGiven": 83,
+                "scoreMaximum": 100,
+                "comment": "This is exceptional work.",
+                "activityProgress": LtiAgsScore.COMPLETED,
+                "gradingProgress": LtiAgsScore.FULLY_GRADED,
+                "userId": self.primary_user_id
+            }),
+            content_type="application/vnd.ims.lis.v1.score+json",
+        )
+
+        self._load_block_patcher.assert_called_once()
+        self._get_user_from_external_user_id_patcher.assert_not_called()
+        self._publish_grade_patcher.assert_not_called()
 
     def test_create_multiple_scores_with_multiple_users(self):
         """

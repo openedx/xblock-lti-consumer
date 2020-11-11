@@ -5,7 +5,7 @@ from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 
 from jwkest.jwk import RSAKey
-from mock import patch
+from mock import patch, MagicMock
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiAgsScore
@@ -103,7 +103,8 @@ class TestLtiConfigurationModel(TestCase):
                         'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/score',
                     ],
-                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags'
+                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags',
+                    'lineitem': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags/1'
                 }
             }
         )
@@ -160,12 +161,26 @@ class TestLtiAgsScoreModel(TestCase):
     def setUp(self):
         super().setUp()
 
-        submit_grade_patcher = patch(
-            'lti_consumer.models.submit_grade',
+        publish_grade_patcher = patch(
+            'lti_consumer.signals.publish_grade',
             return_value=None
         )
-        self.addCleanup(submit_grade_patcher.stop)
-        self._submit_block_patch = submit_grade_patcher.start()
+        self.addCleanup(publish_grade_patcher.stop)
+        self._publish_grade_patcher = publish_grade_patcher.start()
+
+        load_block_patcher = patch(
+            'lti_consumer.signals.load_block',
+            return_value=make_xblock('lti_consumer', LtiConsumerXBlock, {}, MagicMock(return_value=False))
+        )
+        self.addCleanup(load_block_patcher.stop)
+        self._load_block_patcher = load_block_patcher.start()
+
+        get_user_from_external_user_id_patcher = patch(
+            'lti_consumer.signals.get_user_from_external_user_id',
+            return_value=None
+        )
+        self.addCleanup(get_user_from_external_user_id_patcher.stop)
+        self._get_user_from_external_user_id_patcher = get_user_from_external_user_id_patcher.start()
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.line_item = LtiAgsLineItem.objects.create(
@@ -194,3 +209,11 @@ class TestLtiAgsScoreModel(TestCase):
             str(self.score),
             "LineItem 1: score 10.0 out of 100.0 - FullyGraded"
         )
+
+    def test_score_update_signal(self):
+        """
+        Test score update signal connected
+        """
+        self._load_block_patcher.assert_called_once()
+        self._get_user_from_external_user_id_patcher.assert_called_once()
+        self._publish_grade_patcher.assert_called_once()

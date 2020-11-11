@@ -25,3 +25,7 @@ class LTIConsumerApp(AppConfig):
             }
         }
     }
+
+    def ready(self):
+        # pylint: disable=unused-import,import-outside-toplevel
+        import lti_consumer.signals

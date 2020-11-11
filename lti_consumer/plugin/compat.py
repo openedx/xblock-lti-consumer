@@ -71,27 +71,27 @@ def get_user_from_external_user_id(external_user_id):
         raise LtiError('Invalid userID') from exception
 
 
-def submit_grade(score):
+def load_block(key):
+    # pylint: disable=import-outside-toplevel,import-error
+    from xmodule.modulestore.django import modulestore
+    return modulestore().get_item(key)
+
+
+def publish_grade(block, user, score, possible, only_if_higher=False, score_deleted=None, comment=None):
     """
-    Import grades signals and submit grade given a LtiAgsScore instance.
+    Import grades signals and publishes score by triggering SCORE_PUBLISHED signal.
     """
     # pylint: disable=import-error,import-outside-toplevel
     from lms.djangoapps.grades.api import signals as grades_signals
 
-    # get lti config
-    lti_config = score.line_item.lti_configuration
-
-    # find user
-    user = get_user_from_external_user_id(score.user_id)
-
     # publish score
     grades_signals.SCORE_PUBLISHED.send(
         sender=None,
-        block=lti_config.block,
+        block=block,
         user=user,
-        raw_earned=score.score_given,
-        raw_possible=score.score_maximum,
-        only_if_higher=False,
-        # score_deleted=event.get('score_deleted'),
-        grader_response=score.comment
+        raw_earned=score,
+        raw_possible=possible,
+        only_if_higher=only_if_higher,
+        score_deleted=score_deleted,
+        grader_response=comment
     )

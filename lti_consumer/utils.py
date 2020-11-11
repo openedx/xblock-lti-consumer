@@ -74,12 +74,14 @@ def get_lti_ags_lineitems_url(lti_config_id, lineitem_id=None):
     :param lineitem_id: LTI Line Item id. Single line item if given an id,
         otherwise returns list url
     """
-    url = "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-ags".format(
+    base_ags_url = "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-ags".format(
         lms_base=get_lms_base(),
         lti_config_id=str(lti_config_id),
     )
 
     if lineitem_id:
-        url = "{url}/{lineitem_id}".format(url=url, lineitem_id=lineitem_id)
+        url = "{url}/{lineitem_id}".format(url=base_ags_url, lineitem_id=lineitem_id)
+    else:
+        url = base_ags_url
 
     return url
