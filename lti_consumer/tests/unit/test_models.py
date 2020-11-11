@@ -159,11 +159,14 @@ class TestLtiAgsScoreModel(TestCase):
     Unit tests for LtiAgsScore model methods.
     """
 
-    @patch("lti_consumer.signals.compat")
-    def setUp(self, compat_mock):
+    def setUp(self):
         super().setUp()
 
-        compat_mock.load_block_as_anonymous_user.return_value = make_xblock(
+        # patch things related to LtiAgsScore post_save signal receiver
+        compat_mock = patch("lti_consumer.signals.compat")
+        self.addCleanup(compat_mock.stop)
+        self._compat_mock = compat_mock.start()
+        self._compat_mock.load_block_as_anonymous_user.return_value = make_xblock(
             'lti_consumer', LtiConsumerXBlock, {}, MagicMock(return_value=False)
         )
 
