@@ -53,7 +53,6 @@ What is supported:
 import logging
 import re
 import urllib.parse
-import uuid
 from collections import namedtuple
 from importlib import import_module
 
@@ -61,7 +60,6 @@ import bleach
 from django.utils import timezone
 from web_fragments.fragment import Fragment
 
-from Cryptodome.PublicKey import RSA
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
@@ -85,8 +83,6 @@ from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
 from .utils import (
     _,
-    get_lms_lti_access_token_link,
-    get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
     lti_1p3_enabled,
 )
@@ -304,26 +300,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "Basic Outcomes requests.</b>"
         ),
     )
-    # Client ID and block key
+    # DEPRECATED - These variables were moved to the LtiConfiguration Model
     lti_1p3_client_id = String(
-        display_name=_("LTI 1.3 Block Client ID"),
+        display_name=_("LTI 1.3 Block Client ID - DEPRECATED"),
         default='',
         scope=Scope.settings,
-        help=_(
-            "Enter the LTI ID for the external LTI provider. "
-            "This value must be the same LTI ID that you entered in the "
-            "LTI Passports setting on the Advanced Settings page."
-            "<br />See the {docs_anchor_open}edX LTI documentation{anchor_close} for more details on this setting."
-        ).format(
-            docs_anchor_open=DOCS_ANCHOR_TAG_OPEN,
-            anchor_close="</a>"
-        ),
+        help=_("DEPRECATED - This is now stored in the LtiConfiguration model."),
     )
-    # This key isn't editable, and should be regenerated
-    # for every block created (and not be carried over)
-    # This isn't what happens right now though
     lti_1p3_block_key = String(
-        display_name=_("LTI 1.3 Block Key"),
+        display_name=_("LTI 1.3 Block Key - DEPRECATED"),
         default='',
         scope=Scope.settings
     )
@@ -892,28 +877,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         return fragment
 
-    def clean_studio_edits(self, data):
-        """
-        This is a handler to set hidden Studio variables for LTI 1.3.
-
-        These variables shouldn't be editable by the user, but need
-        to be automatically generated for each instance:
-        * lti_1p3_client_id: random uuid (requirement: must be unique)
-        * lti_1p3_block_key: PEM export of 2048-bit RSA key.
-
-        TODO: Remove this once the XBlock Fields API support using
-        a default computed value.
-        """
-        if data.get('lti_version') == 'lti_1p3':
-            # Check if values already exist before populating
-            # to avoid overwriting these keys on every edit.
-            if not self.lti_1p3_client_id:
-                data['lti_1p3_client_id'] = str(uuid.uuid4())
-            if not self.lti_1p3_block_key:
-                data['lti_1p3_block_key'] = RSA.generate(2048).export_key('PEM')
-
-        return super(LtiConsumerXBlock, self).clean_studio_edits(data)
-
     def author_view(self, context):
         """
         XBlock author view of this component.
@@ -925,16 +888,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if self.lti_version == "lti_1p1":
             return self.student_view(context)
 
+        # Runtime import since this will only run in the
+        # Open edX LMS/Studio environments.
+        # pylint: disable=import-outside-toplevel
+        from lti_consumer.api import get_lti_1p3_launch_info
+
+        # Retrieve LTI 1.3 Launch information
+        context.update(get_lti_1p3_launch_info(block=self))
+
+        # Render template
         fragment = Fragment()
         loader = ResourceLoader(__name__)
-        context = {
-            "client": self.lti_1p3_client_id,
-            "deployment_id": "1",
-            "keyset_url": get_lms_lti_keyset_link(self.location),  # pylint: disable=no-member
-            "oidc_callback": get_lms_lti_launch_link(),
-            "token_url": get_lms_lti_access_token_link(self.location),  # pylint: disable=no-member
-            "launch_url": self.lti_1p3_launch_url,
-        }
         fragment.add_content(loader.render_mako_template('/templates/html/lti_1p3_studio.html', context))
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
@@ -1034,6 +998,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             webob.response: HTML LTI launch form
         """
         lti_consumer = self._get_lti_consumer()
+
         context = lti_consumer.prepare_preflight_url(
             callback_url=get_lms_lti_launch_link(),
             hint=str(self.location),  # pylint: disable=no-member
@@ -1104,19 +1069,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         except Lti1p3Exception:
             template = loader.render_mako_template('/templates/html/lti_1p3_launch_error.html', context)
             return Response(template, status=400, content_type='text/html')
-
-    @XBlock.handler
-    def public_keyset_endpoint(self, request, suffix=''):
-        """
-        XBlock handler for launching the LTI provider.
-        """
-        if self.lti_version == "lti_1p3":
-            return Response(
-                json_body=self._get_lti_consumer().get_public_keyset(),
-                content_type='application/json',
-                content_disposition='attachment; filename=keyset.json'
-            )
-        return Response(status=404)
 
     @XBlock.handler
     def lti_1p3_access_token(self, request, suffix=''):

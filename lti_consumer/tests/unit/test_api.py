@@ -4,7 +4,11 @@ Tests for LTI API.
 from django.test.testcases import TestCase
 from mock import Mock, patch
 
-from lti_consumer.api import _get_or_create_local_lti_config, get_lti_consumer
+from lti_consumer.api import (
+    _get_or_create_local_lti_config,
+    get_lti_consumer,
+    get_lti_1p3_launch_info,
+)
 from lti_consumer.models import LtiConfiguration
 
 
@@ -108,3 +112,57 @@ class TestGetLtiConsumer(TestCase):
         with patch("lti_consumer.models.LtiConfiguration.get_lti_consumer") as mock_get_lti_consumer:
             get_lti_consumer(config_id=lti_config.id)
             mock_get_lti_consumer.assert_called_once()
+
+
+class TestGetLti1p3LaunchInfo(TestCase):
+    """
+    Unit tests for get_lti_consumer API method.
+    """
+    def test_no_parameters(self):
+        """
+        Check if the API creates a model if no object matching properties is found.
+        """
+        with self.assertRaises(Exception):
+            get_lti_1p3_launch_info()
+
+    def test_retrieve_with_id(self):
+        """
+        Check if the API retrieves the launch with id.
+        """
+        location = 'block-v1:course+test+2020+type@problem+block@test'
+        lti_config = LtiConfiguration.objects.create(location=location)
+
+        # Call and check returns
+        launch_info = get_lti_1p3_launch_info(config_id=lti_config.id)
+
+        # Not checking all data here, there's a test specific for that
+        self.assertEqual(launch_info['client_id'], lti_config.lti_1p3_client_id)
+
+    def test_retrieve_with_block(self):
+        """
+        Check if the API creates the model and retrieved correct info.
+        """
+        block = Mock()
+        block.location = 'block-v1:course+test+2020+type@problem+block@test'
+        block.lti_version = LtiConfiguration.LTI_1P3
+        LtiConfiguration.objects.create(location=block.location)
+
+        # Call API
+        launch_info = get_lti_1p3_launch_info(block=block)
+
+        # Retrieve created config and check full launch info data
+        lti_config = LtiConfiguration.objects.get()
+        self.assertCountEqual(
+            launch_info,
+            {
+                'client_id': lti_config.lti_1p3_client_id,
+                'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
+                    lti_config.lti_1p3_client_id
+                ),
+                'deployment_id': '1',
+                'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',
+                'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
+                    lti_config.lti_1p3_client_id
+                ),
+            }
+        )

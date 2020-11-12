@@ -1,16 +1,19 @@
 """
 LTI consumer plugin passthrough views
 """
-from django.http import HttpResponse
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django_filters.rest_framework import DjangoFilterBackend
+from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from lti_consumer.models import LtiAgsLineItem
+from lti_consumer.exceptions import LtiError
+from lti_consumer.models import LtiConfiguration, LtiAgsLineItem
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiAgsLineItemSerializer,
     LtiAgsScoreSerializer,
@@ -44,15 +47,22 @@ def public_keyset_endpoint(request, usage_id=None):
     and run the proper handler.
     """
     try:
-        usage_key = UsageKey.from_string(usage_id)
-
-        return run_xblock_handler_noauth(
-            request=request,
-            course_id=str(usage_key.course_key),
-            usage_id=str(usage_key),
-            handler='public_keyset_endpoint'
+        lti_config = LtiConfiguration.objects.get(
+            location=UsageKey.from_string(usage_id)
         )
-    except Exception:  # pylint: disable=broad-except
+
+        if lti_config.version != lti_config.LTI_1P3:
+            raise LtiError(
+                "LTI Error: LTI 1.1 blocks do not have a public keyset endpoint."
+            )
+
+        # Retrieve block's Public JWK
+        # The underlying method will generate a new Private-Public Pair if one does
+        # not exist, and retrieve the values.
+        response = JsonResponse(lti_config.lti_1p3_public_jwk)
+        response['Content-Disposition'] = 'attachment; filename=keyset.json'
+        return response
+    except (LtiError, InvalidKeyError, ObjectDoesNotExist):
         return HttpResponse(status=404)
 
 

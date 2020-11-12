@@ -5,7 +5,6 @@ Unit tests for LtiConsumerXBlock
 from datetime import timedelta
 import json
 import urllib.parse
-import uuid
 
 import ddt
 from Cryptodome.PublicKey import RSA
@@ -14,6 +13,7 @@ from django.utils import timezone
 from jwkest.jwk import RSAKey
 from mock import Mock, PropertyMock, NonCallableMock, patch
 
+from lti_consumer.api import get_lti_1p3_launch_info
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.tests.unit import test_utils
@@ -1183,11 +1183,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
             'lti_version': 'lti_1p3',
             'lti_1p3_launch_url': 'http://tool.example/launch',
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
-            # We need to set the values below because they are not automatically
-            # generated until the user selects `lti_version == 'lti_1p3'` on the
-            # Studio configuration view.
-            'lti_1p3_client_id': str(uuid.uuid4()),
-            'lti_1p3_block_key': RSA.generate(2048).export_key('PEM'),
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
         # Set dummy location so that UsageKey lookup is valid
@@ -1218,10 +1213,13 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.xblock.course.display_name_with_default = 'course_display_name'
         self.xblock.course.display_org_with_default = 'course_display_org'
 
+        # Get LTI client_id
+        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
+
         # Craft request sent back by LTI tool
         request = make_request('', 'GET')
         request.query_string = (
-            "client_id={}&".format(self.xblock_attributes['lti_1p3_client_id']) +
+            "client_id={}&".format(client_id) +
             "redirect_uri=http://tool.example/launch&" +
             "state=state_test_123&" +
             "nonce=nonce&" +
@@ -1268,25 +1266,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.lti_1p3_launch_callback(make_request('', 'GET'))
         self.assertEqual(response.status_code, 404)
 
-    def test_keyset_endpoint(self):
-        """
-        Test that the LTI 1.3 keyset endpoind.
-        """
-        response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content_type, 'application/json')
-        self.assertEqual(response.content_disposition, 'attachment; filename=keyset.json')
-
-    def test_keyset_endpoint_when_using_lti_1p1(self):
-        """
-        Test that the LTI 1.3 keyset endpoind is unavailable when using 1.1.
-        """
-        self.xblock.lti_version = 'lti_1p1'
-        self.xblock.save()
-
-        response = self.xblock.public_keyset_endpoint(make_request('', 'GET'))
-        self.assertEqual(response.status_code, 404)
-
     # pylint: disable=unused-argument
     @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
     def test_studio_view(self, mock_lti_1p3_flag):
@@ -1296,44 +1275,23 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.studio_view({})
         self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
 
-    @patch('lti_consumer.lti_xblock.RSA')
-    @patch('lti_consumer.lti_xblock.uuid')
-    def test_clean_studio_edits(self, mock_uuid, mock_rsa):
-        """
-        Test that the clean studio edits function properly sets LTI 1.3 variables.
-        """
-        data = {'lti_version': 'lti_1p3'}
-        # Setup mocks
-        mock_uuid.uuid4.return_value = 'generated_uuid'
-        mock_rsa.generate().export_key.return_value = 'generated_rsa_key'
-
-        # Test that values are not overwriten if already present
-        self.xblock.clean_studio_edits(data)
-        self.assertEqual(data, {'lti_version': 'lti_1p3'})
-
-        # Set empty variables to allow automatic generation
-        self.xblock.lti_1p3_client_id = ''
-        self.xblock.lti_1p3_block_key = ''
-        self.xblock.save()
-
-        # Check that variables are generated if empty
-        self.xblock.clean_studio_edits(data)
-        self.assertEqual(
-            data,
-            {
-                'lti_version': 'lti_1p3',
-                'lti_1p3_client_id': 'generated_uuid',
-                'lti_1p3_block_key': 'generated_rsa_key'
-            }
-        )
-
-    def test_author_view(self):
+    @patch('lti_consumer.api.get_lti_1p3_launch_info')
+    def test_author_view(self, mock_get_launch_info):
         """
         Test that the studio view loads LTI 1.3 view.
         """
+        mock_get_launch_info.return_value = {
+            'client_id': "mock-client_id",
+            'keyset_url': "mock-keyset_url",
+            'deployment_id': '1',
+            'oidc_callback': "mock-oidc_callback",
+            'token_url': "mock-token_url",
+        }
+
         response = self.xblock.author_view({})
-        self.assertIn(self.xblock.lti_1p3_client_id, response.content)
-        self.assertIn("https://example.com", response.content)
+        self.assertIn("mock-client_id", response.content)
+        self.assertIn("mock-keyset_url", response.content)
+        self.assertIn("mock-token_url", response.content)
 
 
 class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
@@ -1359,9 +1317,6 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
             # We need to set the values below because they are not automatically
             # generated until the user selects `lti_version == 'lti_1p3'` on the
             # Studio configuration view.
-            'lti_1p3_client_id': self.rsa_key_id,
-            'lti_1p3_block_key': rsa_key.export_key('PEM'),
-            # Use same key for tool key to make testing easier
             'lti_1p3_tool_public_key': self.public_key,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)

@@ -35,9 +35,6 @@ class TestLtiConfigurationModel(TestCase):
             # We need to set the values below because they are not automatically
             # generated until the user selects `lti_version == 'lti_1p3'` on the
             # Studio configuration view.
-            'lti_1p3_client_id': self.rsa_key_id,
-            'lti_1p3_block_key': rsa_key.export_key('PEM'),
-            # Use same key for tool key to make testing easier
             'lti_1p3_tool_public_key': self.public_key,
             'has_score': True,
         }
@@ -125,6 +122,48 @@ class TestLtiConfigurationModel(TestCase):
         self.lti_1p3_config.location = None
         with self.assertRaises(ValueError):
             _ = self.lti_1p3_config.block
+
+    def test_generate_private_key(self):
+        """
+        Checks if a private key is correctly generated.
+        """
+        lti_config = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            location='block-v1:course+test+2020+type@problem+block@test'
+        )
+
+        # Check that model fields are empty
+        self.assertFalse(lti_config.lti_1p3_internal_private_key)
+        self.assertFalse(lti_config.lti_1p3_internal_private_key_id)
+        self.assertFalse(lti_config.lti_1p3_internal_public_jwk)
+
+        # Create and retrieve public keys
+        _ = lti_config.lti_1p3_public_jwk
+
+        # Check if keys were created
+        self.assertTrue(lti_config.lti_1p3_internal_private_key)
+        self.assertTrue(lti_config.lti_1p3_internal_private_key_id)
+        self.assertTrue(lti_config.lti_1p3_internal_public_jwk)
+
+    def test_generate_public_key_only(self):
+        """
+        Checks if a public key is correctly regenerated from a private key
+        """
+        lti_config = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            location='block-v1:course+test+2020+type@problem+block@test'
+        )
+        # Create and retrieve public keys
+        public_key = lti_config.lti_1p3_public_jwk.copy()
+        lti_config.lti_1p3_internal_public_jwk = ""
+        lti_config.save()
+
+        # Retrieve public key and check that it was correctly regenerated
+        regenerated_public_key = lti_config.lti_1p3_public_jwk
+        lti_config.refresh_from_db()
+        self.assertEqual(regenerated_public_key, public_key)
 
 
 class TestLtiAgsLineItemModel(TestCase):

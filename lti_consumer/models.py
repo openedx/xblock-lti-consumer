@@ -1,18 +1,29 @@
 """
 LTI configuration and linking models.
 """
+import uuid
+import json
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
 from opaque_keys.edx.django.models import UsageKeyField
+from Cryptodome.PublicKey import RSA
 
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 # LTI 1.3
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
+from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
 from lti_consumer.utils import get_lms_base, get_lti_ags_lineitems_url
+
+
+def generate_client_id():
+    """
+    Generates a random UUID string.
+    """
+    return str(uuid.uuid4())
 
 
 class LtiConfiguration(models.Model):
@@ -65,6 +76,29 @@ class LtiConfiguration(models.Model):
         blank=True,
     )
 
+    # LTI 1.3 Related variables
+    lti_1p3_internal_private_key = models.TextField(
+        blank=True,
+        help_text="Platform's generated Private key. Keep this value secret.",
+    )
+
+    lti_1p3_internal_private_key_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Platform's generated Private key ID",
+    )
+
+    lti_1p3_internal_public_jwk = models.TextField(
+        blank=True,
+        help_text="Platform's generated JWK keyset.",
+    )
+
+    lti_1p3_client_id = models.CharField(
+        max_length=255,
+        default=generate_client_id,
+        help_text="Client ID used by LTI tool",
+    )
+
     # Empty variable that'll hold the block once it's retrieved
     # from the modulestore or preloaded
     _block = None
@@ -87,6 +121,62 @@ class LtiConfiguration(models.Model):
         Allows preloading the block instead of fetching it from the modulestore.
         """
         self._block = block
+
+    def _generate_lti_1p3_keys_if_missing(self):
+        """
+        Generate LTI 1.3 RSA256 keys if missing.
+
+        If either the public or private key are missing, regenerate them.
+        The LMS provides a keyset endpoint, so key rotations don't cause any issues
+        for LTI launches (as long as they have a different kid).
+        """
+        # Generate new private key if not present
+        if not self.lti_1p3_internal_private_key:
+            # Private key
+            private_key = RSA.generate(2048)
+            self.lti_1p3_internal_private_key_id = str(uuid.uuid4())
+            self.lti_1p3_internal_private_key = private_key.export_key('PEM').decode('utf-8')
+
+            # Clear public key if any to allow regeneration
+            # in the code below
+            self.lti_1p3_internal_public_jwk = ''
+
+        if not self.lti_1p3_internal_public_jwk:
+            # Public key
+            key_handler = PlatformKeyHandler(
+                key_pem=self.lti_1p3_internal_private_key,
+                kid=self.lti_1p3_internal_private_key_id,
+            )
+            self.lti_1p3_internal_public_jwk = json.dumps(
+                key_handler.get_public_jwk()
+            )
+
+        # Doesn't do anything if model didn't change
+        self.save()
+
+    @property
+    def lti_1p3_private_key(self):
+        """
+        Return the platform's private key used in LTI 1.3 authentication flows.
+        """
+        self._generate_lti_1p3_keys_if_missing()
+        return self.lti_1p3_internal_private_key
+
+    @property
+    def lti_1p3_private_key_id(self):
+        """
+        Return the platform's private key ID used in LTI 1.3 authentication flows.
+        """
+        self._generate_lti_1p3_keys_if_missing()
+        return self.lti_1p3_internal_private_key_id
+
+    @property
+    def lti_1p3_public_jwk(self):
+        """
+        Return the platform's public keys used in LTI 1.3 authentication flows.
+        """
+        self._generate_lti_1p3_keys_if_missing()
+        return json.loads(self.lti_1p3_internal_public_jwk)
 
     def _get_lti_1p1_consumer(self):
         """
@@ -115,13 +205,13 @@ class LtiConfiguration(models.Model):
                 iss=get_lms_base(),
                 lti_oidc_url=self.block.lti_1p3_oidc_url,
                 lti_launch_url=self.block.lti_1p3_launch_url,
-                client_id=self.block.lti_1p3_client_id,
+                client_id=self.lti_1p3_client_id,
                 # Deployment ID hardcoded to 1 since
                 # we're not using multi-tenancy.
                 deployment_id="1",
                 # XBlock Private RSA Key
-                rsa_key=self.block.lti_1p3_block_key,
-                rsa_key_id=self.block.lti_1p3_client_id,
+                rsa_key=self.lti_1p3_private_key,
+                rsa_key_id=self.lti_1p3_private_key_id,
                 # LTI 1.3 Tool key/keyset url
                 tool_key=self.block.lti_1p3_tool_public_key,
                 tool_keyset_url=None,
@@ -150,6 +240,9 @@ class LtiConfiguration(models.Model):
 
     def __str__(self):
         return "[{}] {} - {}".format(self.config_store, self.version, self.location)
+
+    class Meta:
+        app_label = 'lti_consumer'
 
 
 class LtiAgsLineItem(models.Model):
@@ -203,6 +296,9 @@ class LtiAgsLineItem(models.Model):
             self.resource_link_id,
             self.label,
         )
+
+    class Meta:
+        app_label = 'lti_consumer'
 
 
 class LtiAgsScore(models.Model):
@@ -292,4 +388,5 @@ class LtiAgsScore(models.Model):
         )
 
     class Meta:
+        app_label = 'lti_consumer'
         unique_together = (('line_item', 'user_id'),)
