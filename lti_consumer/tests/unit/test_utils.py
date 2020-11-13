@@ -11,7 +11,7 @@ from xblock.runtime import DictKeyValueStore, KvsFieldData
 FAKE_USER_ID = 'fake_user_id'
 
 
-def make_xblock(xblock_name, xblock_cls, attributes, is_past_due_patch=None):
+def make_xblock(xblock_name, xblock_cls, attributes):
     """
     Helper to construct XBlock objects
     """
@@ -27,11 +27,6 @@ def make_xblock(xblock_name, xblock_cls, attributes, is_past_due_patch=None):
     xblock.runtime = Mock(
         hostname='localhost',
     )
-
-    # mock is_past_due method
-    if is_past_due_patch:
-        xblock.is_past_due = is_past_due_patch
-
     xblock.course_id = 'course-v1:edX+DemoX+Demo_Course'
     for key, value in attributes.items():
         setattr(xblock, key, value)

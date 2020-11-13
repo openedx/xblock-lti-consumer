@@ -2,11 +2,13 @@
 Tests for LTI Advantage Assignments and Grades Service views.
 """
 import json
-from mock import patch, PropertyMock, MagicMock, Mock
+from datetime import timedelta
+from mock import patch, PropertyMock, Mock
 
 from Cryptodome.PublicKey import RSA
 import ddt
 from django.urls import reverse
+from django.utils import timezone
 from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
 
@@ -44,10 +46,13 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
             # Intentionally using the same key for tool key to
             # allow using signing methods and make testing easier.
             'lti_1p3_tool_public_key': self.public_key,
+
+            # xblock due date related attributes
+            'due': timezone.now(),
+            'graceperiod': timedelta(days=2),
+            'accept_grades_past_due': False
         }
-        self.xblock = make_xblock(
-            'lti_consumer', LtiConsumerXBlock, self.xblock_attributes, MagicMock(return_value=False)
-        )
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
@@ -394,6 +399,31 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(score.grading_progress, LtiAgsScore.FULLY_GRADED)
         self.assertEqual(score.user_id, self.primary_user_id)
 
+    def _post_lti_score(self, override_data=None):
+        """
+        Helper method to post a LTI score
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        data = {
+            "timestamp": self.early_timestamp,
+            "scoreGiven": 83,
+            "scoreMaximum": 100,
+            "comment": "This is exceptional work.",
+            "activityProgress": LtiAgsScore.COMPLETED,
+            "gradingProgress": LtiAgsScore.FULLY_GRADED,
+            "userId": self.primary_user_id
+        }
+
+        if override_data:
+            data.update(override_data)
+
+        self.client.post(
+            self.scores_endpoint,
+            data=json.dumps(data),
+            content_type="application/vnd.ims.lis.v1.score+json",
+        )
+
     @ddt.data(
         LtiAgsScore.PENDING,
         LtiAgsScore.PENDING_MANUAL,
@@ -405,21 +435,10 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         """
         Test on LtiAgsScore save, if gradingProgress is Fully Graded then xblock grade should be submitted.
         """
-        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
 
-        self.client.post(
-            self.scores_endpoint,
-            data=json.dumps({
-                "timestamp": self.early_timestamp,
-                "scoreGiven": 83,
-                "scoreMaximum": 100,
-                "comment": "This is exceptional work.",
-                "activityProgress": LtiAgsScore.COMPLETED,
-                "gradingProgress": grading_progress,
-                "userId": self.primary_user_id
-            }),
-            content_type="application/vnd.ims.lis.v1.score+json",
-        )
+        self._post_lti_score({
+            "gradingProgress": grading_progress
+        })
 
         if grading_progress == LtiAgsScore.FULLY_GRADED:
             score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
@@ -437,26 +456,14 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
             self._compat_mock.get_user_from_external_user_id.assert_not_called()
             self._compat_mock.publish_grade.assert_not_called()
 
-    def test_xblock_grade_publish_passed_due_date(self):
+    @patch('lti_consumer.lti_xblock.timezone')
+    def test_xblock_grade_publish_passed_due_date(self, timezone_patcher):
         """
-        Test grade publish after due date. Grade shouldn't published
+        Test grade publish after due date. Grade shouldn't publish
         """
-        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+        timezone_patcher.now.return_value = timezone.now() + timedelta(days=30)
 
-        self.xblock.is_past_due = MagicMock(return_value=True)
-        self.client.post(
-            self.scores_endpoint,
-            data=json.dumps({
-                "timestamp": self.early_timestamp,
-                "scoreGiven": 83,
-                "scoreMaximum": 100,
-                "comment": "This is exceptional work.",
-                "activityProgress": LtiAgsScore.COMPLETED,
-                "gradingProgress": LtiAgsScore.FULLY_GRADED,
-                "userId": self.primary_user_id
-            }),
-            content_type="application/vnd.ims.lis.v1.score+json",
-        )
+        self._post_lti_score()
 
         self._compat_mock.load_block_as_anonymous_user.assert_called_once()
 

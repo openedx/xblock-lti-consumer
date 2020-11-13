@@ -16,7 +16,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
     """
     if instance.grading_progress == LtiAgsScore.FULLY_GRADED:
         block = compat.load_block_as_anonymous_user(instance.line_item.resource_link_id)
-        if not block.is_past_due():
+        if not block.is_past_due() or block.accept_grades_past_due:
             user = compat.get_user_from_external_user_id(instance.user_id)
             compat.publish_grade(
                 block,

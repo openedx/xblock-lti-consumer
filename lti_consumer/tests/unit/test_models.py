@@ -1,11 +1,13 @@
 """
 Unit tests for LTI models.
 """
+from datetime import timedelta
 from Cryptodome.PublicKey import RSA
+from django.utils import timezone
 from django.test.testcases import TestCase
 
 from jwkest.jwk import RSAKey
-from mock import patch, MagicMock
+from mock import patch
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiAgsScore
@@ -167,7 +169,10 @@ class TestLtiAgsScoreModel(TestCase):
         self.addCleanup(compat_mock.stop)
         self._compat_mock = compat_mock.start()
         self._compat_mock.load_block_as_anonymous_user.return_value = make_xblock(
-            'lti_consumer', LtiConsumerXBlock, {}, MagicMock(return_value=False)
+            'lti_consumer', LtiConsumerXBlock, {
+                'due': timezone.now(),
+                'graceperiod': timedelta(days=2)
+            }
         )
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
