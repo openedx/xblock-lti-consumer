@@ -106,7 +106,7 @@ class TestLtiConfigurationModel(TestCase):
                         'https://purl.imsglobal.org/spec/lti-ags/scope/score',
                     ],
                     'lineitems': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags',
-                    'lineitem': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags/1'
+                    'lineitem': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags/1',
                 }
             }
         )
@@ -171,7 +171,7 @@ class TestLtiAgsScoreModel(TestCase):
         self._compat_mock.load_block_as_anonymous_user.return_value = make_xblock(
             'lti_consumer', LtiConsumerXBlock, {
                 'due': timezone.now(),
-                'graceperiod': timedelta(days=2)
+                'graceperiod': timedelta(days=2),
             }
         )
 

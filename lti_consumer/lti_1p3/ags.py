@@ -73,7 +73,7 @@ class LtiAgs:
             claim_values["lineitem"] = self.lineitem_url
 
         ags_claim = {
-            "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": claim_values
+            "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": claim_values,
         }
 
         return ags_claim
