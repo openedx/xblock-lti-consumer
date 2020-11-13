@@ -470,6 +470,27 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self._compat_mock.get_user_from_external_user_id.assert_not_called()
         self._compat_mock.publish_grade.assert_not_called()
 
+    @patch('lti_consumer.lti_xblock.timezone')
+    def test_xblock_grade_publish_accept_passed_due_date(self, timezone_patcher):
+        """
+        Test grade publish after due date when accept_grades_past_due is True. Grade should publish.
+        """
+        xblock_attrs = {
+            'accept_grades_past_due': True
+        }
+        xblock_attrs.update(self.xblock_attributes)
+        xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attrs)
+        self._compat_mock.load_block_as_anonymous_user.return_value = xblock
+
+        timezone_patcher.now.return_value = timezone.now() + timedelta(days=30)
+
+        self._post_lti_score()
+
+        self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+
+        self._compat_mock.get_user_from_external_user_id.assert_not_called()
+        self._compat_mock.publish_grade.assert_not_called()
+
     def test_create_multiple_scores_with_multiple_users(self):
         """
         Test the LTI AGS LineItem Score Creation on the same LineItem for different users.
