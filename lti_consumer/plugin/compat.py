@@ -25,13 +25,14 @@ def run_xblock_handler_noauth(*args, **kwargs):
 
 def load_block_as_anonymous_user(location):
     """
-    Load a block as anonymous user.
+    Load a block as an user if given, else anonymous user.
 
     This uses a few internal courseware methods to retrieve the descriptor
     and bind an AnonymousUser to it, in a similar fashion as a `noauth` XBlock
     handler.
     """
     # pylint: disable=import-error,import-outside-toplevel
+    from crum import impersonate
     from django.contrib.auth.models import AnonymousUser
     from xmodule.modulestore.django import modulestore
     from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
@@ -39,18 +40,22 @@ def load_block_as_anonymous_user(location):
     # Retrieve descriptor from modulestore
     descriptor = modulestore().get_item(location)
 
-    # Load block, attaching it to AnonymousUser
-    get_module_for_descriptor_internal(
-        user=AnonymousUser(),
-        descriptor=descriptor,
-        student_data=None,
-        course_id=location.course_key,
-        track_function=None,
-        xqueue_callback_url_prefix="",
-        request_token="",
-    )
+    # ensure `crum.get_current_user` returns AnonymousUser. It returns None when outside
+    # of request scope which causes error during block loading.
+    user = AnonymousUser()
+    with impersonate(user):
+        # Load block, attaching it to AnonymousUser
+        get_module_for_descriptor_internal(
+            user=user,
+            descriptor=descriptor,
+            student_data=None,
+            course_id=location.course_key,
+            track_function=None,
+            xqueue_callback_url_prefix="",
+            request_token="",
+        )
 
-    return descriptor
+        return descriptor
 
 
 def get_user_from_external_user_id(external_user_id):
