@@ -72,8 +72,6 @@ class LtiAgs:
         if self.lineitem_url:
             claim_values["lineitem"] = self.lineitem_url
 
-        ags_claim = {
+        return {
             "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": claim_values,
         }
-
-        return ags_claim

@@ -18,10 +18,12 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
         block = compat.load_block_as_anonymous_user(instance.line_item.resource_link_id)
         if not block.is_past_due() or block.accept_grades_past_due:
             user = compat.get_user_from_external_user_id(instance.user_id)
+            # check if score_given is larger than score_maximum
+            score = instance.score_given if instance.score_given < instance.score_maximum else instance.score_maximum
             compat.publish_grade(
                 block,
                 user,
-                instance.score_given,
+                score,
                 instance.score_maximum,
                 comment=instance.comment
             )

@@ -456,6 +456,23 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
             self._compat_mock.get_user_from_external_user_id.assert_not_called()
             self._compat_mock.publish_grade.assert_not_called()
 
+    def test_grade_publish_score_bigger_than_maximum(self):
+        """
+        Test when given score is bigger than maximum score.
+        """
+        self._post_lti_score({
+            "scoreGiven": 110,
+            "scoreMaximum": 100,
+        })
+        score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
+
+        self._compat_mock.publish_grade.assert_called_once()
+
+        call_args = self._compat_mock.publish_grade.call_args.args
+
+        # as score_given is larger than score_maximum, it should pass score_maximum as given score
+        self.assertEqual(call_args, (self.xblock, self._mock_user, score.score_maximum, score.score_maximum,))
+
     @patch('lti_consumer.lti_xblock.timezone')
     def test_xblock_grade_publish_passed_due_date(self, timezone_patcher):
         """
