@@ -284,8 +284,8 @@ License
 The LTI Consumer XBlock is available under the AGPL v3 License.
 
 
-.. |Build Status| image:: https://travis-ci.org/edx/xblock-lti-consumer.svg
-  :target: https://travis-ci.org/edx/xblock-lti-consumer
+.. |Build Status| image:: https://travis-ci.com/edx/xblock-lti-consumer.svg
+  :target: https://travis-ci.com/edx/xblock-lti-consumer
 
 .. |Coveralls| image:: https://coveralls.io/repos/edx/xblock-lti-consumer/badge.svg?branch=master&service=github
   :target: https://coveralls.io/github/edx/xblock-lti-consumer?branch=master
