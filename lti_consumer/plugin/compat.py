@@ -25,7 +25,7 @@ def run_xblock_handler_noauth(*args, **kwargs):
 
 def load_block_as_anonymous_user(location):
     """
-    Load a block as an user if given, else anonymous user.
+    Load a block as anonymous user.
 
     This uses a few internal courseware methods to retrieve the descriptor
     and bind an AnonymousUser to it, in a similar fashion as a `noauth` XBlock
