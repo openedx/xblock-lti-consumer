@@ -896,6 +896,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Retrieve LTI 1.3 Launch information
         context.update(get_lti_1p3_launch_info(block=self))
 
+        context.update({
+            'published': self.runtime.modulestore.has_published_version(self)
+        })
+
         # Render template
         fragment = Fragment()
         loader = ResourceLoader(__name__)

@@ -1293,6 +1293,35 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.assertIn("mock-keyset_url", response.content)
         self.assertIn("mock-token_url", response.content)
 
+    @patch('lti_consumer.api.get_lti_1p3_launch_info')
+    def test_author_view_lti_1p3_launch(self, mock_get_launch_info):
+        """
+        Test that LTI 1.3 launch can be performed from studio view.
+        """
+        mock_get_launch_info.return_value = {
+            'client_id': "mock-client_id",
+            'keyset_url': "mock-keyset_url",
+            'deployment_id': '1',
+            'oidc_callback': "mock-oidc_callback",
+            'token_url': "mock-token_url",
+        }
+
+        mock_has_published_version = self.xblock.runtime.modulestore.has_published_version
+
+        # launch can't be performed when not published
+        mock_has_published_version.return_value = False
+        response = self.xblock.author_view({})
+        self.assertIn('The launch only works if the block is published', response.content)
+        self.assertNotIn('ltiLaunchFrame', response.content)
+        self.assertNotIn('btn-lti-studio-launch', response.content)
+
+        # launch can be performed when published
+        mock_has_published_version.return_value = True
+        response = self.xblock.author_view({})
+        self.assertNotIn('The launch only works if the block is published', response.content)
+        self.assertIn('ltiLaunchFrame', response.content)
+        self.assertIn('btn-lti-studio-launch', response.content)
+
 
 class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
     """

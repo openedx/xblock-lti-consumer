@@ -118,5 +118,12 @@ function LtiConsumerXBlock(runtime, element) {
                 window.open($(this).data('target'));
             }
         });
+
+        // studio launch - on button click set launch url to iframe and display it
+        $element.find('.btn-lti-studio-launch').click(function(){
+            $iframe = $element.find('.ltiLaunchFrame')
+            $iframe.attr('src', runtime.handlerUrl(element, 'lti_1p3_launch_handler'))
+            $iframe.css('display', 'block')
+        })
     });
 }
