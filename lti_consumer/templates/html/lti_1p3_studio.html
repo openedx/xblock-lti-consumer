@@ -47,22 +47,17 @@
         </p>
         <p>
             <b>Test LTI Launch: </b>
-            % if published:
-            <button class="btn btn-secondary" type="button">Test Launch</button>
-            % else:
-            The launch only works if the block is published.
-            % endif
+
+            <a
+                href="${launch_preview_url}"
+                class="test-launch-button"
+                rel="noopener external"
+                target="_blank"
+                aria-disabled="false"
+                title="LTI 1.3 Test Launch"
+            >
+                Test Launch
+            </a> - The launch only works if the block is published.
         </p>
-        % if published:
-        <iframe
-            class="ltiLaunchFrame"
-            style="width: 100%; min-height: 400px; display: none;"
-            src="about:blank"
-            allowfullscreen="true"
-            webkitallowfullscreen="true"
-            mozallowfullscreen="true"
-            allow="microphone *; camera *; midi *; geolocation *; encrypted-media *"
-        ></iframe>
-        % endif
     </body>
 </html>

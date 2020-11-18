@@ -897,7 +897,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context.update(get_lti_1p3_launch_info(block=self))
 
         context.update({
-            'published': self.runtime.modulestore.has_published_version(self)
+            'launch_preview_url': self.runtime.handler_url(self, 'lti_1p3_launch_handler').rstrip('/?')
         })
 
         # Render template

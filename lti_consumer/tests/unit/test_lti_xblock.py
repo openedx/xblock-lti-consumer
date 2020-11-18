@@ -1308,19 +1308,10 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         mock_has_published_version = self.xblock.runtime.modulestore.has_published_version
 
-        # launch can't be performed when not published
         mock_has_published_version.return_value = False
         response = self.xblock.author_view({})
         self.assertIn('The launch only works if the block is published', response.content)
-        self.assertNotIn('ltiLaunchFrame', response.content)
-        self.assertNotIn('btn-lti-studio-launch', response.content)
-
-        # launch can be performed when published
-        mock_has_published_version.return_value = True
-        response = self.xblock.author_view({})
-        self.assertNotIn('The launch only works if the block is published', response.content)
-        self.assertIn('ltiLaunchFrame', response.content)
-        self.assertIn('btn-lti-studio-launch', response.content)
+        self.assertIn('test-launch-button', response.content)
 
 
 class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
