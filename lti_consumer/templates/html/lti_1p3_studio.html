@@ -48,16 +48,14 @@
         <p>
             <b>Test LTI Launch: </b>
 
-            <a
-                href="${launch_preview_url}"
-                class="test-launch-button"
-                rel="noopener external"
-                target="_blank"
+            <button
+                onclick="window.open('${launch_preview_url}')"
                 aria-disabled="false"
                 title="LTI 1.3 Test Launch"
+                type="button"
             >
                 Test Launch
-            </a> - The launch only works if the block is published.
+            </button> - The launch only works if the block is published.
         </p>
     </body>
 </html>
