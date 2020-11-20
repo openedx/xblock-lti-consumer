@@ -45,7 +45,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
             # xblock due date related attributes
             'due': timezone.now(),
             'graceperiod': timedelta(days=2),
-            'accept_grades_past_due': False
+            'accept_grades_past_due': False,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
@@ -55,7 +55,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         # Create configuration
         self.lti_config = LtiConfiguration.objects.create(
             location=str(self.xblock.location),
-            version=LtiConfiguration.LTI_1P3
+            version=LtiConfiguration.LTI_1P3,
         )
         # Preload XBlock to avoid calls to modulestore
         self.lti_config.block = self.xblock
@@ -407,7 +407,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
             "comment": "This is exceptional work.",
             "activityProgress": LtiAgsScore.COMPLETED,
             "gradingProgress": LtiAgsScore.FULLY_GRADED,
-            "userId": self.primary_user_id
+            "userId": self.primary_user_id,
         }
 
         if override_data:
@@ -424,7 +424,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         LtiAgsScore.PENDING_MANUAL,
         LtiAgsScore.FULLY_GRADED,
         LtiAgsScore.FAILED,
-        LtiAgsScore.NOT_READY
+        LtiAgsScore.NOT_READY,
     )
     def test_xblock_grade_publish_on_score_save(self, grading_progress):
         """
@@ -432,7 +432,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         """
 
         self._post_lti_score({
-            "gradingProgress": grading_progress
+            "gradingProgress": grading_progress,
         })
 
         if grading_progress == LtiAgsScore.FULLY_GRADED:
@@ -488,7 +488,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         Test grade publish after due date when accept_grades_past_due is True. Grade should publish.
         """
         xblock_attrs = {
-            'accept_grades_past_due': True
+            'accept_grades_past_due': True,
         }
         xblock_attrs.update(self.xblock_attributes)
         xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attrs)

@@ -22,7 +22,7 @@ class LtiAgs:
         lineitem_url=None,
         allow_creating_lineitems=True,
         results_service_enabled=True,
-        scores_service_enabled=True
+        scores_service_enabled=True,
     ):
         """
         Instance class with LTI AGS Global settings.
@@ -37,7 +37,6 @@ class LtiAgs:
 
         # Lineitems urls
         self.lineitems_url = lineitems_url
-
         self.lineitem_url = lineitem_url
 
     def get_available_scopes(self):

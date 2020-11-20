@@ -226,7 +226,7 @@ class LtiConfiguration(models.Model):
                 default_values = {
                     'resource_id': self.block.location,
                     'score_maximum': self.block.weight,
-                    'label': self.block.display_name
+                    'label': self.block.display_name,
                 }
 
                 if hasattr(self.block, 'start'):
@@ -244,7 +244,7 @@ class LtiConfiguration(models.Model):
 
                 consumer.enable_ags(
                     lineitems_url=get_lti_ags_lineitems_url(self.id),
-                    lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id)
+                    lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id),
                 )
 
             return consumer
