@@ -1,11 +1,14 @@
-LTI Consumer XBlock |Build Status| |Coveralls|
-----------------------------------------------
+###################
+LTI Consumer XBlock
+###################
+
+| |Build Status| |Coveralls|
 
 This XBlock implements the consumer side of the LTI specification enabling
 integration of third-party LTI provider tools.
 
 Installation
-------------
+============
 
 Install the requirements into the Python virtual environment of your
 ``edx-platform`` installation by running the following command from the
@@ -22,7 +25,6 @@ Additionally, to enable LTI 1.3 Launch support, the following FEATURE flag needs
     FEATURES:
         LTI_1P3_ENABLED: true
 
-_Note: only LTI 1.3 launch is supported, and there's no implementation to pass back grades into the platform._
 
 Installing in Docker Devstack
 -----------------------------
@@ -62,10 +64,10 @@ advanced settings.
 3. Click the "Save changes" button.
 
 Testing Against an LTI Provider
--------------------------------
+===============================
 
 LTI 1.1
-=======
+-------
 
 http://lti.tools/saltire/ provides a "Test Tool Provider" service that allows
 you to see messages sent by an LTI consumer.
@@ -75,7 +77,7 @@ http://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/lat
 
 1. In Studio Advanced settings, set the value of the "LTI Passports" field to "test:test:secret" -
    this will set the OAuth client key and secret used to send a message to the test LTI provider.
-2. Create an LTI Consumer problem in a course in studio (after enabling it in "advanced_modules"
+2. Create an LTI Consumer problem in a course in Studio (after enabling it in "advanced_modules"
    as seen above).  Make a unit, select "Advanced", then "LTI Consumer".
 3. Click edit and fill in the following fields:
    ``LTI ID``: "test"
@@ -90,12 +92,12 @@ http://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/lat
 
 
 LTI 1.3
-=======
+-------
 
 IMS Global provides a reference implementation of LTI 1.3 that can be used to test the XBlock.
 
 On LTI 1.3 the authentication mechanism used is OAuth2 using the Client Credentials grant, this means
-that to configure the tool, the LMS needs to know the Keyset URL or public key of the tool, and the tool
+that to configure the tool, the LMS needs to know the keyset URL or public key of the tool, and the tool
 needs to know the LMS's one.
 
 Instructions:
@@ -107,7 +109,7 @@ Instructions:
    * Set ``LTI Version`` to ``LTI 1.3``.
    * Set the ``LTI 1.3 Tool Launch URL`` to ``https://lti-ri.imsglobal.org/lti/tools/``
 
-4. In studio, you'll see a few parameters being displayed in the preview:
+4. In Studio, you'll see a few parameters being displayed in the preview:
 
 .. code::
 
@@ -150,13 +152,15 @@ Instructions:
     devstack through ngrok. Do not forget to restart your services after updating the ``.py`` files.
 
 Custom LTI Parameters
----------------------
+=====================
+
 This XBlock sends a number of parameters to the provider including some optional parameters. To keep the XBlock
 somewhat minimal, some parameters were omitted like ``lis_person_name_full`` among others.
 At the same time the XBlock allows passing extra parameters to the LTI provider via parameter processor functions.
 
-Defining an LTI Parameter Processors
-====================================
+Defining an LTI Parameter Processor
+-----------------------------------
+
 The parameter processor is a function that expects an XBlock instance, and returns a ``dict`` of
 additional parameters for the LTI.
 If a processor throws an exception, the exception is logged and suppressed.
@@ -202,7 +206,7 @@ If you're looking for a more realistic example, you can check the
 `Appsembler GitHub organization <https://github.com/appsembler/>`_.
 
 Configuring the Parameter Processors Settings
-=============================================
+---------------------------------------------
 
 Using the standard XBlock settings interface the developer can provide a list of processor functions:
 Those parameters are not sent by default. The course author can enable that on per XBlock instance
@@ -217,6 +221,9 @@ To configure parameter processors add the following snippet to your Ansible vari
         parameter_processors:
           - 'customer_package.lti_processors:team_and_cohort'
           - 'example_package.lti_processors:extra_lti_params'
+
+Development
+===========
 
 Workbench installation and settings
 -----------------------------------
@@ -268,20 +275,58 @@ this XBlock package. requirements.txt is used to install the same dependencies w
 the tests for this package.
 
 Downloading translations from Transifex
--------------------------------------
+---------------------------------------
 
 If you want to download translations from Transifex install
 `transifex client <https://docs.transifex.com/client/installing-the-client/>`_ and run this command while
-inside project root directory
+inside project root directory:
 
 .. code:: bash
 
     $ tx pull -f --mode=reviewed -l en,ar,es_419,fr,he,hi,ko_KR,pt_BR,ru,zh_CN
 
 License
--------
+=======
 
 The LTI Consumer XBlock is available under the AGPL v3 License.
+
+Security
+========
+
+Please do not report security issues in public. Send security concerns via email to security@edx.org.
+
+Changelog
+=========
+
+Unreleased
+----------
+
+* Partially implemented the Assignment and Grades Service to enable tools
+  reporting grades back.  Tools cannot create new LineItems.
+
+2.3 – 2020-08-27
+----------------
+
+* Move LTI configuration access to plugin model.
+
+2.2 – 2020-08-19
+----------------
+
+* Modals are sent to the parent window to work well with the courseware
+  micro-frontend.  A new message is sent to the parent window to request a
+  modal containing the contents ot the LTI launch iframe.
+
+2.1 – 2020-08-03
+----------------
+
+* The LTI consumer XBlock is now indexable.
+
+* Implement the LTI 1.3 context claim.
+
+2.0.0 – 2020-06-26
+------------------
+
+* LTI 1.3 support.
 
 
 .. |Build Status| image:: https://travis-ci.org/edx/xblock-lti-consumer.svg
