@@ -16,7 +16,10 @@ from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
-from lti_consumer.utils import get_lms_base, get_lti_ags_lineitems_url
+from lti_consumer.utils import (
+    get_lms_base,
+    get_lti_ags_lineitems_url,
+)
 
 
 def generate_client_id():
@@ -219,8 +222,29 @@ class LtiConfiguration(models.Model):
 
             # Check if enabled and setup LTI-AGS
             if self.block.has_score:
+
+                default_values = {
+                    'resource_id': self.block.location,
+                    'score_maximum': self.block.weight,
+                    'label': self.block.display_name
+                }
+
+                if hasattr(self.block, 'start'):
+                    default_values['start_date_time'] = self.block.start
+
+                if hasattr(self.block, 'due'):
+                    default_values['end_date_time'] = self.block.due
+
+                # create LineItem if there is none for current lti configuration
+                lineitem, _ = LtiAgsLineItem.objects.get_or_create(
+                    lti_configuration=self,
+                    resource_link_id=self.block.location,
+                    defaults=default_values
+                )
+
                 consumer.enable_ags(
-                    lineitems_url=get_lti_ags_lineitems_url(self.id)
+                    lineitems_url=get_lti_ags_lineitems_url(self.id),
+                    lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id)
                 )
 
             return consumer

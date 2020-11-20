@@ -19,6 +19,7 @@ class LtiAgs:
     def __init__(
         self,
         lineitems_url,
+        lineitem_url=None,
         allow_creating_lineitems=True,
         results_service_enabled=True,
         scores_service_enabled=True
@@ -36,6 +37,8 @@ class LtiAgs:
 
         # Lineitems urls
         self.lineitems_url = lineitems_url
+
+        self.lineitem_url = lineitem_url
 
     def get_available_scopes(self):
         """
@@ -60,11 +63,15 @@ class LtiAgs:
         """
         Returns LTI AGS Claim to be injected in the LTI launch message.
         """
-        ags_claim = {
-            "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": {
-                "scope": self.get_available_scopes(),
-                "lineitems": self.lineitems_url,
-            }
+
+        claim_values = {
+            "scope": self.get_available_scopes(),
+            "lineitems": self.lineitems_url,
         }
 
-        return ags_claim
+        if self.lineitem_url:
+            claim_values["lineitem"] = self.lineitem_url
+
+        return {
+            "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": claim_values,
+        }

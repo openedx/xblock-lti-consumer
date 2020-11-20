@@ -1,7 +1,9 @@
 """
 Unit tests for LTI models.
 """
+from datetime import timedelta
 from Cryptodome.PublicKey import RSA
+from django.utils import timezone
 from django.test.testcases import TestCase
 
 from jwkest.jwk import RSAKey
@@ -96,11 +98,12 @@ class TestLtiConfigurationModel(TestCase):
                 'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint':
                 {
                     'scope': [
-                        'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+                        'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/score',
                     ],
-                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags'
+                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags',
+                    'lineitem': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags/1',
                 }
             }
         )
@@ -196,8 +199,20 @@ class TestLtiAgsScoreModel(TestCase):
     """
     Unit tests for LtiAgsScore model methods.
     """
+
     def setUp(self):
         super().setUp()
+
+        # patch things related to LtiAgsScore post_save signal receiver
+        compat_mock = patch("lti_consumer.signals.compat")
+        self.addCleanup(compat_mock.stop)
+        self._compat_mock = compat_mock.start()
+        self._compat_mock.load_block_as_anonymous_user.return_value = make_xblock(
+            'lti_consumer', LtiConsumerXBlock, {
+                'due': timezone.now(),
+                'graceperiod': timedelta(days=2),
+            }
+        )
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.line_item = LtiAgsLineItem.objects.create(

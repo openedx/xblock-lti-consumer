@@ -66,13 +66,21 @@ def get_lms_lti_access_token_link(location):
     )
 
 
-def get_lti_ags_lineitems_url(lti_config_id):
+def get_lti_ags_lineitems_url(lti_config_id, lineitem_id=None):
     """
     Return the LTI AGS endpoint
 
     :param lti_config_id: LTI configuration id
+    :param lineitem_id: LTI Line Item id. Single line item if given an id,
+        otherwise returns list url
     """
-    return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-ags".format(
+
+    url = "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-ags".format(
         lms_base=get_lms_base(),
         lti_config_id=str(lti_config_id),
     )
+
+    if lineitem_id:
+        url += "/" + str(lineitem_id)
+
+    return url

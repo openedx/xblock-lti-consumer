@@ -2,11 +2,13 @@
 Tests for LTI Advantage Assignments and Grades Service views.
 """
 import json
-from mock import patch, PropertyMock
+from datetime import timedelta
+from mock import patch, PropertyMock, Mock
 
 from Cryptodome.PublicKey import RSA
 import ddt
 from django.urls import reverse
+from django.utils import timezone
 from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
 
@@ -39,6 +41,11 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
             # Intentionally using the same key for tool key to
             # allow using signing methods and make testing easier.
             'lti_1p3_tool_public_key': self.public_key,
+
+            # xblock due date related attributes
+            'due': timezone.now(),
+            'graceperiod': timedelta(days=2),
+            'accept_grades_past_due': False
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
@@ -61,6 +68,13 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         )
         self.addCleanup(patcher.stop)
         self._lti_block_patch = patcher.start()
+
+        self._mock_user = Mock()
+        compat_mock = patch("lti_consumer.signals.compat")
+        self.addCleanup(compat_mock.stop)
+        self._compat_mock = compat_mock.start()
+        self._compat_mock.get_user_from_external_user_id.return_value = self._mock_user
+        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
 
     def _set_lti_token(self, scopes=None):
         """
@@ -298,6 +312,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(response.status_code, 400)
 
 
+@ddt.ddt
 class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
     """
     Test `LtiAgsLineItemViewset` Score Publishing requests/responses.
@@ -378,6 +393,115 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(score.activity_progress, LtiAgsScore.COMPLETED)
         self.assertEqual(score.grading_progress, LtiAgsScore.FULLY_GRADED)
         self.assertEqual(score.user_id, self.primary_user_id)
+
+    def _post_lti_score(self, override_data=None):
+        """
+        Helper method to post a LTI score
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        data = {
+            "timestamp": self.early_timestamp,
+            "scoreGiven": 83,
+            "scoreMaximum": 100,
+            "comment": "This is exceptional work.",
+            "activityProgress": LtiAgsScore.COMPLETED,
+            "gradingProgress": LtiAgsScore.FULLY_GRADED,
+            "userId": self.primary_user_id
+        }
+
+        if override_data:
+            data.update(override_data)
+
+        self.client.post(
+            self.scores_endpoint,
+            data=json.dumps(data),
+            content_type="application/vnd.ims.lis.v1.score+json",
+        )
+
+    @ddt.data(
+        LtiAgsScore.PENDING,
+        LtiAgsScore.PENDING_MANUAL,
+        LtiAgsScore.FULLY_GRADED,
+        LtiAgsScore.FAILED,
+        LtiAgsScore.NOT_READY
+    )
+    def test_xblock_grade_publish_on_score_save(self, grading_progress):
+        """
+        Test on LtiAgsScore save, if gradingProgress is Fully Graded then xblock grade should be submitted.
+        """
+
+        self._post_lti_score({
+            "gradingProgress": grading_progress
+        })
+
+        if grading_progress == LtiAgsScore.FULLY_GRADED:
+            score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
+
+            self._compat_mock.publish_grade.assert_called_once()
+            self._compat_mock.get_user_from_external_user_id.assert_called_once()
+            self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+
+            call_args = self._compat_mock.publish_grade.call_args.args
+            call_kwargs = self._compat_mock.publish_grade.call_args.kwargs
+            self.assertEqual(call_args, (self.xblock, self._mock_user, score.score_given, score.score_maximum,))
+            self.assertEqual(call_kwargs['comment'], score.comment)
+        else:
+            self._compat_mock.load_block_as_anonymous_user.assert_not_called()
+            self._compat_mock.get_user_from_external_user_id.assert_not_called()
+            self._compat_mock.publish_grade.assert_not_called()
+
+    def test_grade_publish_score_bigger_than_maximum(self):
+        """
+        Test when given score is bigger than maximum score.
+        """
+        self._post_lti_score({
+            "scoreGiven": 110,
+            "scoreMaximum": 100,
+        })
+        score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
+
+        self._compat_mock.publish_grade.assert_called_once()
+
+        call_args = self._compat_mock.publish_grade.call_args.args
+
+        # as score_given is larger than score_maximum, it should pass score_maximum as given score
+        self.assertEqual(call_args, (self.xblock, self._mock_user, score.score_maximum, score.score_maximum,))
+
+    @patch('lti_consumer.lti_xblock.timezone')
+    def test_xblock_grade_publish_passed_due_date(self, timezone_patcher):
+        """
+        Test grade publish after due date. Grade shouldn't publish
+        """
+        timezone_patcher.now.return_value = timezone.now() + timedelta(days=30)
+
+        self._post_lti_score()
+
+        self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+
+        self._compat_mock.get_user_from_external_user_id.assert_not_called()
+        self._compat_mock.publish_grade.assert_not_called()
+
+    @patch('lti_consumer.lti_xblock.timezone')
+    def test_xblock_grade_publish_accept_passed_due_date(self, timezone_patcher):
+        """
+        Test grade publish after due date when accept_grades_past_due is True. Grade should publish.
+        """
+        xblock_attrs = {
+            'accept_grades_past_due': True
+        }
+        xblock_attrs.update(self.xblock_attributes)
+        xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attrs)
+        self._compat_mock.load_block_as_anonymous_user.return_value = xblock
+
+        timezone_patcher.now.return_value = timezone.now() + timedelta(days=30)
+
+        self._post_lti_score()
+
+        self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+
+        self._compat_mock.get_user_from_external_user_id.assert_not_called()
+        self._compat_mock.publish_grade.assert_not_called()
 
     def test_create_multiple_scores_with_multiple_users(self):
         """
