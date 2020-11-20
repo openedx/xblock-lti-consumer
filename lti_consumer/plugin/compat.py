@@ -92,5 +92,5 @@ def publish_grade(block, user, score, possible, only_if_higher=False, score_dele
         raw_possible=possible,
         only_if_higher=only_if_higher,
         score_deleted=score_deleted,
-        grader_response=comment
+        grader_response=comment,
     )

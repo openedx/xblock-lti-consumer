@@ -25,5 +25,5 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                 user,
                 score,
                 instance.score_maximum,
-                comment=instance.comment
+                comment=instance.comment,
             )
