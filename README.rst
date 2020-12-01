@@ -298,8 +298,8 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-Unreleased
-----------
+2.4 - 2020-12-01
+----------------
 
 * Partially implemented the Assignment and Grades Service to enable tools
   reporting grades back.  Tools cannot create new LineItems.
