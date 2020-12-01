@@ -388,8 +388,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
         """
         return all(field in self.xblock.editable_fields for field in fields)
 
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
-    def test_editable_fields_with_no_config(self, lti_1p3_enabled_mock):
+    def test_editable_fields_with_no_config(self):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are editable when lti-configuration service is not provided.
@@ -397,10 +396,8 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = None
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
-        lti_1p3_enabled_mock.assert_called()
 
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
-    def test_editable_fields_when_editing_allowed(self, lti_1p3_enabled_mock):
+    def test_editable_fields_when_editing_allowed(self):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are editable when this XBlock is configured to allow it.
@@ -409,10 +406,8 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=True)
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
-        lti_1p3_enabled_mock.assert_called()
 
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
-    def test_editable_fields_when_editing_not_allowed(self, lti_1p3_enabled_mock):
+    def test_editable_fields_when_editing_not_allowed(self):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are not editable when this XBlock is configured to not to allow it.
@@ -421,7 +416,6 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=False)
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are not editable.
         self.assertFalse(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
-        lti_1p3_enabled_mock.assert_called()
 
     @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
     def test_lti_1p3_fields_appear_when_enabled(self, lti_1p3_enabled_mock):
@@ -439,6 +433,23 @@ class TestEditableFields(TestLtiConsumerXBlock):
             )
         )
         lti_1p3_enabled_mock.assert_called()
+
+    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
+    @patch('lti_consumer.lti_xblock.lti_deeplinking_enabled', return_value=True)
+    def test_lti_deeplinking_fields_appear_when_enabled(self, lti_1p3_enabled_mock, lti_deeplinking_enabled_mock):
+        """
+        Test that LTI 1.3 XBlock's fields appear when `lti_1p3_enabled` returns True.
+        """
+        self.assertTrue(
+            self.are_fields_editable(
+                fields=[
+                    'lti_advantage_deep_linking_enabled',
+                    'lti_advantage_deep_linking_launch_url'
+                ]
+            )
+        )
+        lti_1p3_enabled_mock.assert_called()
+        lti_deeplinking_enabled_mock.assert_called()
 
 
 class TestGetLti1p1Consumer(TestLtiConsumerXBlock):

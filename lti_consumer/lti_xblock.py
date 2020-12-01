@@ -85,6 +85,7 @@ from .utils import (
     _,
     get_lms_lti_launch_link,
     lti_1p3_enabled,
+    lti_deeplinking_enabled,
 )
 
 
@@ -313,6 +314,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
 
+    # Switch to enable/disable the LTI Advantage Deep linking service
+    lti_advantage_deep_linking_enabled = Boolean(
+        display_name=_("Deep linking"),
+        help=_("Select True if you want to enable LTI Advantage Deep Linking."),
+        default=False,
+        scope=Scope.settings
+    )
+    lti_advantage_deep_linking_launch_url = String(
+        display_name=_("LTI Advantage Deep Linking Launch URL"),
+        default='',
+        scope=Scope.settings,
+        help=_("Enter the LTI Advantage Deep Linking Launch URL. "),
+    )
+
     # LTI 1.1 fields
     lti_id = String(
         display_name=_("LTI ID"),
@@ -484,6 +499,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'display_name', 'description',
         # LTI 1.3 variables
         'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key',
+        # LTI Advantage variables
+        'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
         # LTI 1.1 variables
         'lti_id', 'launch_url',
         # Other parameters
@@ -582,19 +599,28 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     if field not in ('ask_to_send_username', 'ask_to_send_email')
                 )
 
-        # Hide LTI 1.3 fields if flag is disabled
+        # Hide LTI 1.3 fields depending on configuration flags
+        hide_fields = []
         if not lti_1p3_enabled():
+            hide_fields = [
+                'lti_version',
+                'lti_1p3_launch_url',
+                'lti_1p3_oidc_url',
+                'lti_1p3_tool_public_key',
+                'lti_advantage_deep_linking_enabled',
+                'lti_advantage_deep_linking_launch_url',
+            ]
+        elif not lti_deeplinking_enabled():
+            hide_fields = [
+                'lti_advantage_deep_linking_enabled',
+                'lti_advantage_deep_linking_launch_url',
+            ]
+
+        if hide_fields:
+            # Transform data from `editable_fields` not to override the fields
+            # settings applied above
             editable_fields = tuple(
-                field
-                # Transform data from `editable_fields` not to override the fields
-                # settings applied above
-                for field in editable_fields
-                if field not in (
-                    'lti_version',
-                    'lti_1p3_launch_url',
-                    'lti_1p3_oidc_url',
-                    'lti_1p3_tool_public_key',
-                )
+                field for field in editable_fields if field not in hide_fields
             )
 
         return editable_fields

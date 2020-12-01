@@ -2,8 +2,12 @@
 Admin views for LTI related models.
 """
 from django.contrib import admin
-from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiAgsScore
-
+from lti_consumer.models import (
+    LtiAgsLineItem,
+    LtiConfiguration,
+    LtiAgsScore,
+    LtiDlContentItem,
+)
 
 class LtiConfigurationAdmin(admin.ModelAdmin):
     """
@@ -17,3 +21,4 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
 admin.site.register(LtiConfiguration, LtiConfigurationAdmin)
 admin.site.register(LtiAgsLineItem)
 admin.site.register(LtiAgsScore)
+admin.site.register(LtiDlContentItem)

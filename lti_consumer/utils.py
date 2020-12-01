@@ -19,6 +19,13 @@ def lti_1p3_enabled():
     return settings.FEATURES.get('LTI_1P3_ENABLED', False) is True  # pragma: no cover
 
 
+def lti_deeplinking_enabled():
+    """
+    Returns `true` if LTI Advantage deep linking is enabled for instance.
+    """
+    return settings.FEATURES.get('LTI_DEEP_LINKING_ENABLED', False) is True  # pragma: no cover
+
+
 def get_lms_base():
     """
     Returns LMS base url to be used as issuer on OAuth2 flows

@@ -7,6 +7,7 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
+from jsonfield import JSONField
 from opaque_keys.edx.django.models import UsageKeyField
 from Cryptodome.PublicKey import RSA
 
@@ -421,3 +422,55 @@ class LtiAgsScore(models.Model):
     class Meta:
         app_label = 'lti_consumer'
         unique_together = (('line_item', 'user_id'),)
+
+
+class LtiDlContentItem(models.Model):
+    """
+    Model to store Content Items for LTI Deep Linking service.
+
+    LTI-DL Specification: https://www.imsglobal.org/spec/lti-dl/v2p0
+    Content items are resources selected by instructor that should
+    be displayed to students.
+    """
+    # LTI Configuration link
+    # This ties the LineItem to each tool configuration
+    # and allows easily retrieving LTI credentials for
+    # API authentication.
+    lti_configuration = models.ForeignKey(
+        LtiConfiguration,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    # Content Item Types
+    # Values based on http://www.imsglobal.org/spec/lti-dl/v2p0#content-item-types
+    # to make type matching easier.
+    LINK = 'link'
+    LTI_RESOURCE_LINK = 'ltiResourceLink'
+    FILE = 'file'
+    HTML_FRAGMENT = 'html'
+    IMAGE = 'image'
+    CONTENT_TYPE_CHOICES = [
+        (LINK, 'Link to external resource'),
+        (LTI_RESOURCE_LINK, 'LTI Resource Link'),
+        (FILE, 'File'),
+        (HTML_FRAGMENT, 'HTML Fragment'),
+        (IMAGE, 'Image'),
+    ]
+    content_type = models.CharField(
+        max_length=255,
+        choices=CONTENT_TYPE_CHOICES,
+    )
+
+    # Content Item Attributes
+    attributes = JSONField()
+
+    def __str__(self):
+        return "{} - {}".format(
+            self.lti_configuration,
+            self.content_type,
+        )
+
+    class Meta:
+        app_label = 'lti_consumer'
