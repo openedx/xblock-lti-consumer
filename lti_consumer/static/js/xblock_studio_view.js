@@ -14,7 +14,9 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
     const lti1P3FieldList = [
         "lti_1p3_launch_url",
         "lti_1p3_oidc_url",
-        "lti_1p3_tool_public_key"
+        "lti_1p3_tool_public_key",
+        "lti_advantage_deep_linking_enabled",
+        "lti_advantage_deep_linking_launch_url"
     ];
 
     /**
@@ -74,6 +76,5 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
     // Bind to onChange method of lti_version selector
     $(element).find('#xb-field-edit-lti_version').bind('change', function() {
         toggleLtiFields();
-     });
-
+    });
 }
