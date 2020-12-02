@@ -1367,7 +1367,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
         sanitized_comment = bleach.clean(self.score_comment, tags=allowed_tags, attributes=allowed_attributes)
 
-        if self.lti_version == 'LTI_1P1':
+        if self.lti_version == 'lti_1p1':
             # Set launch handler depending on LTI version
             lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
         else:
