@@ -52,7 +52,7 @@ setup(
     version='2.4.0',
     description='This XBlock implements the consumer side of the LTI specification.',
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type='text/x-rst',
     packages=find_packages(),
     install_requires=load_requirements('requirements/base.in'),
     dependency_links=[
