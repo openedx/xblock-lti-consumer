@@ -1,20 +1,16 @@
 """
 Tests for LTI Advantage Assignments and Grades Service views.
 """
-import json
-from datetime import timedelta
 from mock import patch, PropertyMock, Mock
 
 from Cryptodome.PublicKey import RSA
 import ddt
-from django.urls import reverse
-from django.utils import timezone
 from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
 
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiConfiguration, LtiAgsLineItem, LtiAgsScore
+from lti_consumer.models import LtiConfiguration
 from lti_consumer.tests.unit.test_utils import make_xblock
 
 

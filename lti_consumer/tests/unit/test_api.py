@@ -4,7 +4,6 @@ Tests for LTI API.
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from mock import Mock, patch
-from jwkest.jwk import RSAKey
 
 from lti_consumer.api import (
     _get_or_create_local_lti_config,
@@ -15,6 +14,7 @@ from lti_consumer.api import (
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
 from lti_consumer.tests.unit.test_utils import make_xblock
+
 
 class TestGetOrCreateLocalLtiConfiguration(TestCase):
     """
@@ -189,10 +189,6 @@ class TestGetLti1p3LaunchUrl(TestCase):
         """
         # Generate RSA and save exports
         rsa_key = RSA.generate(1024)
-        key = RSAKey(
-            key=rsa_key,
-            kid="1"
-        )
         public_key = rsa_key.publickey().export_key()
 
         xblock_attributes = {

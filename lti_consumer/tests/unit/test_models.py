@@ -268,7 +268,7 @@ class TestLtiDlContentItemModel(TestCase):
     def setUp(self):
         super().setUp()
 
-        self.xblock_attributes = { 'lti_version': 'lti_1p3' }
+        self.xblock_attributes = {'lti_version': 'lti_1p3'}
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'

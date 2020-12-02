@@ -468,7 +468,7 @@ class LtiDlContentItem(models.Model):
     attributes = JSONField()
 
     def __str__(self):
-        return "{} - {}".format(
+        return "{}: {}".format(
             self.lti_configuration,
             self.content_type,
         )
