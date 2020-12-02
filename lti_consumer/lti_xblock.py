@@ -83,7 +83,6 @@ from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
 from .utils import (
     _,
-    get_lms_lti_launch_link,
     lti_1p3_enabled,
     lti_deeplinking_enabled,
 )
@@ -1010,32 +1009,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_handler(self, request, suffix=''):
-        """
-        XBlock handler for launching the LTI 1.3 tools.
-
-        Displays a form with the OIDC preflight request and
-        submits it to the tool.
-
-        Arguments:
-            request (xblock.django.request.DjangoWebobRequest): Request object for current HTTP request
-
-        Returns:
-            webob.response: HTML LTI launch form
-        """
-        lti_consumer = self._get_lti_consumer()
-
-        context = lti_consumer.prepare_preflight_url(
-            callback_url=get_lms_lti_launch_link(),
-            hint=str(self.location),  # pylint: disable=no-member
-            lti_hint=str(self.location)  # pylint: disable=no-member
-        )
-
-        loader = ResourceLoader(__name__)
-        template = loader.render_mako_template('/templates/html/lti_1p3_oidc.html', context)
-        return Response(template, content_type='text/html')
-
-    @XBlock.handler
     def lti_1p3_launch_callback(self, request, suffix=''):
         """
         XBlock handler for launching the LTI 1.3 tool.
@@ -1089,7 +1062,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 )
             })
 
-            context.update({'launch_url': self.lti_1p3_launch_url})
+            context.update({'launch_url': self.lti_advantage_deep_linking_launch_url})
             template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
             return Response(template, content_type='text/html')
         except Lti1p3Exception:
