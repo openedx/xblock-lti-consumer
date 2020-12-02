@@ -1079,7 +1079,8 @@ class TestGetContext(TestLtiConsumerXBlock):
     """
 
     @ddt.data('lti_1p1', 'lti_1p3')
-    def test_context_keys(self, lti_version):
+    @patch('lti_consumer.api.get_lti_1p3_launch_start_url')
+    def test_context_keys(self, lti_version, lti_api_patch):
         """
         Test `_get_context_for_template` returns dict with correct keys
         """
@@ -1095,6 +1096,9 @@ class TestGetContext(TestLtiConsumerXBlock):
 
         for key in context_keys:
             self.assertIn(key, context)
+
+        if lti_version == 'lti_1p3':
+            lti_api_patch.assert_called_once()
 
     @ddt.data('a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i', 'li', 'ol', 'strong', 'ul', 'img')
     def test_comment_allowed_tags(self, tag):
