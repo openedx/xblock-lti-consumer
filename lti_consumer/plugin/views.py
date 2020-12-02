@@ -137,10 +137,10 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         )
 
         # Check if an unsupported ContentItem was returned by the LTI tool.
-        if any((
+        if any([
             content_item not in LTI_DEEP_LINKING_ACCEPTED_TYPES
             for content_item in content_items
-        )):
+        ]):
             # TODO: Show user a proper error page
             raise ValueError('The LTI return a content type not supported by the platform.')
 
