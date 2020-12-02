@@ -101,3 +101,15 @@ def get_lti_ags_lineitems_url(lti_config_id, lineitem_id=None):
         url += "/" + str(lineitem_id)
 
     return url
+
+
+def get_lti_deeplinking_response_url(lti_config_id):
+    """
+    Return the LTI Deep Linking response endpoint
+
+    :param lti_config_id: LTI configuration id
+    """
+    return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/response".format(
+        lms_base=get_lms_base(),
+        lti_config_id=str(lti_config_id),
+    )
