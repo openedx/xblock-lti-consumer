@@ -1199,19 +1199,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
-    def test_launch_request(self):
-        """
-        Test LTI 1.3 launch request
-        """
-        response = self.xblock.lti_1p3_launch_handler(make_request('', 'GET'))
-        self.assertEqual(response.status_code, 200)
-
-        # Check if tool OIDC url is on page
-        self.assertIn(
-            self.xblock_attributes['lti_1p3_oidc_url'],
-            response.body.decode('utf-8')
-        )
-
     def test_launch_callback_endpoint(self):
         """
         Test the LTI 1.3 callback endpoint.

@@ -572,13 +572,6 @@ class TestLtiAdvantageConsumer(TestCase):
             tool_key=RSA_KEY
         )
 
-    def test_no_ags_returns_failure(self):
-        """
-        Test that when LTI-AGS isn't configured, the class yields an error.
-        """
-        with self.assertRaises(exceptions.LtiAdvantageServiceNotSetUp):
-            self.lti_consumer.lti_ags  # pylint: disable=pointless-statement
-
     def test_enable_ags(self):
         """
         Test enabling LTI AGS and checking that required parameters are set.
@@ -589,7 +582,7 @@ class TestLtiAdvantageConsumer(TestCase):
         self.assertEqual(type(self.lti_consumer.ags), LtiAgs)
 
         # Check retrieving class works
-        lti_ags_class = self.lti_consumer.lti_ags
+        lti_ags_class = self.lti_consumer.ags
         self.assertEqual(self.lti_consumer.ags, lti_ags_class)
 
         # Check that enabling the AGS adds the LTI AGS claim

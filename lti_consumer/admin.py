@@ -9,6 +9,7 @@ from lti_consumer.models import (
     LtiDlContentItem,
 )
 
+
 class LtiConfigurationAdmin(admin.ModelAdmin):
     """
     Admin view for LtiConfiguration models.

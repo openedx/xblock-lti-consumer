@@ -4,6 +4,7 @@ LTI Deep Linking service implementation
 from lti_consumer.lti_1p3.constants import LTI_DEEP_LINKING_ACCEPTED_TYPES
 from lti_consumer.lti_1p3 import exceptions
 
+
 class LtiDeepLinking:
     """
     LTI Advantage - Deep Linking Service
@@ -26,12 +27,15 @@ class LtiDeepLinking:
         self,
         title="",
         description="",
-        accept_types=LTI_DEEP_LINKING_ACCEPTED_TYPES,
+        accept_types=None,
         extra_data=None,
     ):
         """
         Returns LTI Deep Linking Claim to be injected in the LTI launch message.
         """
+        if not accept_types:
+            accept_types = LTI_DEEP_LINKING_ACCEPTED_TYPES
+
         # Check if required types are accepted, if not throw
         accept_types_claim = []
         for content_type in accept_types:

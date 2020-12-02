@@ -2,9 +2,7 @@
 LTI consumer plugin passthrough views
 """
 from django.core.exceptions import ObjectDoesNotExist
-from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -19,7 +17,6 @@ from lti_consumer.exceptions import LtiError
 from lti_consumer.models import (
     LtiConfiguration,
     LtiAgsLineItem,
-    LtiDlContentItem,
 )
 
 from lti_consumer.lti_1p3.constants import LTI_DEEP_LINKING_ACCEPTED_TYPES
