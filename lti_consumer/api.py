@@ -36,6 +36,29 @@ def _get_or_create_local_lti_config(lti_version, block_location):
     return lti_config
 
 
+def _get_lti_config(config_id=None, block=None):
+    """
+    Retrieves or creates a LTI Configuration using either block or LTI Config ID.
+
+    This wraps around `_get_or_create_local_lti_config` and handles the block and modulestore
+    bits of configuration.
+    """
+    if config_id:
+        lti_config = LtiConfiguration.objects.get(pk=config_id)
+    elif block:
+        lti_config = _get_or_create_local_lti_config(
+            block.lti_version,
+            block.location,
+        )
+        # Since the block was passed, preload it to avoid
+        # having to instance the modulestore and fetch it again.
+        lti_config.block = block
+    else:
+        raise Exception('Either a config_id or block is required to get or create an LTI Configuration.')
+
+    return lti_config
+
+
 def get_lti_consumer(config_id=None, block=None):
     """
     Retrieves an LTI Consumer instance for a given configuration.
@@ -43,41 +66,20 @@ def get_lti_consumer(config_id=None, block=None):
     Returns an instance of LtiConsumer1p1 or LtiConsumer1p3 depending
     on the configuration.
     """
-    if config_id:
-        lti_config = LtiConfiguration.objects.get(pk=config_id)
-    elif block:
-        lti_config = _get_or_create_local_lti_config(
-            block.lti_version,
-            block.location,
-        )
-        # Since the block was passed, preload it to avoid
-        # having to instance the modulestore and fetch it again.
-        lti_config.block = block
-
     # Return an instance of LTI 1.1 or 1.3 consumer, depending
     # on the configuration stored in the model.
-    return lti_config.get_lti_consumer()
+    return _get_lti_config(config_id, block).get_lti_consumer()
 
 
 def get_lti_1p3_launch_info(config_id=None, block=None):
     """
     Retrieves the Client ID, Keyset URL and other urls used to configure a LTI tool.
     """
-    if not config_id and not block:
-        raise Exception("You need to pass either a config_id or a block.")
+    # Retrieve LTI Config
+    lti_config = _get_lti_config(config_id, block)
 
-    if config_id:
-        lti_config = LtiConfiguration.objects.get(pk=config_id)
-    elif block:
-        lti_config = _get_or_create_local_lti_config(
-            block.lti_version,
-            block.location,
-        )
-        # Since the block was passed, preload it to avoid
-        # having to instance the modulestore and fetch it again.
-        lti_config.block = block
-
-    launch_info = {
+    # Return LTI launch information for end user configuration
+    return {
         'client_id': lti_config.lti_1p3_client_id,
         'keyset_url': get_lms_lti_keyset_link(lti_config.location),
         'deployment_id': '1',
@@ -85,4 +87,17 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
         'token_url': get_lms_lti_access_token_link(lti_config.location),
     }
 
-    return launch_info
+
+def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=False, hint=""):
+    """
+    Computes and retrieves the LTI URL that starts the OIDC flow.
+    """
+    # Retrieve LTI consumer
+    lti_consumer = get_lti_consumer(config_id, block)
+
+    # Prepare and return OIDC flow start url
+    return lti_consumer.prepare_preflight_url(
+        callback_url=get_lms_lti_launch_link(),
+        hint=hint,
+        lti_hint=("deep_linking_launch" if deep_link_launch else "")
+    )

@@ -1383,10 +1383,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
         sanitized_comment = bleach.clean(self.score_comment, tags=allowed_tags, attributes=allowed_attributes)
 
-        # Set launch handler depending on LTI version
-        lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
-        if self.lti_version == 'lti_1p3':
-            lti_block_launch_handler = self.runtime.handler_url(self, 'lti_1p3_launch_handler').rstrip('/?')
+        if self.lti_version == 'LTI_1P1':
+            # Set launch handler depending on LTI version
+            lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
+        else:
+            # Runtime import since this will only run in the
+            # Open edX LMS/Studio environments.
+            # pylint: disable=import-outside-toplevel
+            from lti_consumer.api import get_lti_1p3_launch_start_url
+
+            # Retrieve and set LTI 1.3 Launch start URL
+            lti_block_launch_handler = get_lti_1p3_launch_start_url(
+                block=self,
+                deep_linking=False,
+            )
 
         return {
             'launch_url': self.launch_url.strip(),
