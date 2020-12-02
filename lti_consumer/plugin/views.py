@@ -2,9 +2,12 @@
 LTI consumer plugin passthrough views
 """
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
+from django.shortcuts import redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django_filters.rest_framework import DjangoFilterBackend
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
@@ -13,7 +16,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from lti_consumer.exceptions import LtiError
-from lti_consumer.models import LtiConfiguration, LtiAgsLineItem
+from lti_consumer.models import (
+    LtiConfiguration,
+    LtiAgsLineItem,
+    LtiDlContentItem,
+)
+
+from lti_consumer.lti_1p3.constants import LTI_DEEP_LINKING_ACCEPTED_TYPES
+from lti_consumer.lti_1p3.exceptions import Lti1p3Exception
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiAgsLineItemSerializer,
     LtiAgsScoreSerializer,
@@ -76,9 +86,10 @@ def launch_gate_endpoint(request, suffix):
     and run the proper handler.
     """
     try:
-        usage_key = UsageKey.from_string(
-            request.GET.get('login_hint')
-        )
+        login_hint = request.GET.get('login_hint')
+        launch_origin, usage_key_str  = login_hint.split('/')
+
+        usage_key = UsageKey.from_string(usage_key_str)
 
         return run_xblock_handler(
             request=request,
@@ -108,6 +119,65 @@ def access_token_endpoint(request, usage_id=None):
         )
     except Exception:  # pylint: disable=broad-except
         return HttpResponse(status=404)
+
+
+# Post from external tool that doesn't
+# have access to CSRF tokens
+@csrf_exempt
+# This URL should work inside an iframe
+@xframe_options_sameorigin
+# Post only, as required by LTI-DL Specification
+@require_http_methods(["POST"])
+def deep_linking_response_endpoint(request, lti_config_id=None):
+    """
+    Deep Linking response endpoint where tool can send back
+    """
+    try:
+        lti_config = LtiConfiguration.objects.get(id=lti_config_id)
+        lti_consumer = lti_config.get_lti_consumer()
+
+        # Retrieve Deep Linking return message and validate parameters
+        content_items = lti_consumer.check_and_decode_deep_linking_token(
+            request.POST.get("JWT")
+        )
+
+        # Check if an unsupported ContentItem was returned by the LTI tool.
+        if any((
+            content_item not in LTI_DEEP_LINKING_ACCEPTED_TYPES
+            for content_item in content_items
+        )):
+            # TODO: Show user a proper error page
+            raise ValueError('The LTI return a content type not supported by the platform.')
+
+        # Erase old Content Item selections
+        # lti_config.ltidlcontentitem_set.all().delete()
+
+        # Store newly returned content items
+        # for content_item in content_items:
+        #     # TODO: Perform content validation on each supported content type.
+        #     # then save the content item like this:
+        #     LtiDlContentItem.objects.create(
+        #         lti_configuration=lti_config,
+        #         content_type=content_item['type'],
+        #         attributes=content_item,
+        #     )
+
+        # TODO: Redirect the user to the launch endpoint, and present content
+        # selected in Deep Linking flow. Can only be completed once content
+        # presentation is implemented. For now, return ok status page
+        return HttpResponse(status=200)
+
+    # If LtiConfiguration doesn't exist, error with 404 status.
+    except LtiConfiguration.DoesNotExist:
+        return HttpResponse(status=404)
+    # Bad JWT message, invalid token, or any message validation issues
+    except Lti1p3Exception:
+        # TODO: Add template with error message
+        return HttpResponse(status=403)
+    # Invalid content type
+    except ValueError:
+        # TODO: Add template with error message
+        return HttpResponse(status=403)
 
 
 class LtiAgsLineItemViewset(viewsets.ModelViewSet):

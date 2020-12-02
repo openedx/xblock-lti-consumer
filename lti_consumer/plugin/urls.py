@@ -42,7 +42,7 @@ urlpatterns = [
         name='lti_consumer.access_token'
     ),
     url(
-        r'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/lti-dl',
+        r'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/lti-dl/response',
         deep_linking_response_endpoint,
         name='lti_consumer.deep_linking_response_endpoint'
     ),
