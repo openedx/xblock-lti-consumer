@@ -298,8 +298,8 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-2.4 - 2020-12-01
-----------------
+2.4.0 - 2020-12-02
+------------------
 
 * Partially implemented the Assignment and Grades Service to enable tools
   reporting grades back.  Tools cannot create new LineItems.
@@ -329,8 +329,8 @@ Changelog
 * LTI 1.3 support.
 
 
-.. |Build Status| image:: https://travis-ci.org/edx/xblock-lti-consumer.svg
-  :target: https://travis-ci.org/edx/xblock-lti-consumer
+.. |Build Status| image:: https://travis-ci.com/edx/xblock-lti-consumer.svg
+  :target: https://travis-ci.com/edx/xblock-lti-consumer
 
 .. |Coveralls| image:: https://coveralls.io/repos/edx/xblock-lti-consumer/badge.svg?branch=master&service=github
   :target: https://coveralls.io/github/edx/xblock-lti-consumer?branch=master
