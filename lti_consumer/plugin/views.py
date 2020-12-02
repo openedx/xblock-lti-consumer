@@ -86,9 +86,7 @@ def launch_gate_endpoint(request, suffix):
     and run the proper handler.
     """
     try:
-        login_hint = request.GET.get('login_hint')
-        launch_origin, usage_key_str  = login_hint.split('/')
-
+        usage_key_str = request.GET.get('login_hint')
         usage_key = UsageKey.from_string(usage_key_str)
 
         return run_xblock_handler(

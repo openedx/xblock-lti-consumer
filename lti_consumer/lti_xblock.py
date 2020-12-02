@@ -1062,7 +1062,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 )
             })
 
-            context.update({'launch_url': self.lti_advantage_deep_linking_launch_url})
+            context.update({'launch_url': self.lti_1p3_launch_url})
             template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
             return Response(template, content_type='text/html')
         except Lti1p3Exception:
@@ -1368,7 +1368,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             # Retrieve and set LTI 1.3 Launch start URL
             lti_block_launch_handler = get_lti_1p3_launch_start_url(
                 block=self,
-                deep_linking=False,
+                deep_link_launch=False,
+                hint=str(self.location)
             )
 
         return {
