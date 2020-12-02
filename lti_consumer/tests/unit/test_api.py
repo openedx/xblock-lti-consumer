@@ -1,16 +1,20 @@
 """
 Tests for LTI API.
 """
+from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from mock import Mock, patch
+from jwkest.jwk import RSAKey
 
 from lti_consumer.api import (
     _get_or_create_local_lti_config,
     get_lti_consumer,
     get_lti_1p3_launch_info,
+    get_lti_1p3_launch_start_url,
 )
+from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
-
+from lti_consumer.tests.unit.test_utils import make_xblock
 
 class TestGetOrCreateLocalLtiConfiguration(TestCase):
     """
@@ -166,3 +170,49 @@ class TestGetLti1p3LaunchInfo(TestCase):
                 ),
             }
         )
+
+
+class TestGetLti1p3LaunchUrl(TestCase):
+    """
+    Unit tests for get_lti_1p3_launch_start_url API method.
+    """
+    def test_no_parameters(self):
+        """
+        Check if the API creates a model if no object matching properties is found.
+        """
+        with self.assertRaises(Exception):
+            get_lti_1p3_launch_start_url()
+
+    def test_retrieve_url(self):
+        """
+        Check if the correct launch url is retrieved
+        """
+        # Generate RSA and save exports
+        rsa_key = RSA.generate(1024)
+        key = RSAKey(
+            key=rsa_key,
+            kid="1"
+        )
+        public_key = rsa_key.publickey().export_key()
+
+        xblock_attributes = {
+            'lti_version': 'lti_1p3',
+            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_oidc_url': 'http://tool.example/oidc',
+            # We need to set the values below because they are not automatically
+            # generated until the user selects `lti_version == 'lti_1p3'` on the
+            # Studio configuration view.
+            'lti_1p3_tool_public_key': public_key,
+        }
+        xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attributes)
+        # Set dummy location so that UsageKey lookup is valid
+        xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
+
+        # Call API for normal LTI launch initiation
+        launch_url = get_lti_1p3_launch_start_url(block=xblock, hint="test_hint")
+        self.assertIn('login_hint=test_hint', launch_url)
+        self.assertIn('lti_message_hint=', launch_url)
+
+        # Call API for deep link launch
+        launch_url = get_lti_1p3_launch_start_url(block=xblock, deep_link_launch=True)
+        self.assertIn('lti_message_hint=deep_linking_launch', launch_url)
