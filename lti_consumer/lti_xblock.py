@@ -1054,15 +1054,26 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 context_label=self.context_id
             )
 
+            # Retrieve preflight response
+            preflight_response = dict(request.GET)
+
+            # Set launch url depending on launch type
+            if self.lti_advantage_deep_linking_enabled and preflight_response.get('lti_hint') == 'deep_linking_launch':
+                # Set deep linking launch
+                context.update({'launch_url': self.lti_advantage_deep_linking_launch_url})
+            else:
+                # Else just run a normal LTI launch
+                context.update({'launch_url': self.lti_1p3_launch_url})
+
+            # Update context with LTI launch parameters
             context.update({
-                "preflight_response": dict(request.GET),
+                "preflight_response": preflight_response,
                 "launch_request": lti_consumer.generate_launch_request(
                     resource_link=str(self.location),  # pylint: disable=no-member
-                    preflight_response=dict(request.GET)
+                    preflight_response=preflight_response
                 )
             })
 
-            context.update({'launch_url': self.lti_1p3_launch_url})
             template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
             return Response(template, content_type='text/html')
         except Lti1p3Exception:

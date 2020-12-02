@@ -285,22 +285,24 @@ class LtiConsumer1p3:
         else:
             raise ValueError("Required user data isn't set.")
 
-        # Set optional claims
-        # Launch presentation claim
-        if self.lti_claim_launch_presentation:
-            lti_message.update(self.lti_claim_launch_presentation)
+        # Only used when doing normal LTI launches
+        if include_extra_claims:
+            # Set optional claims
+            # Launch presentation claim
+            if self.lti_claim_launch_presentation:
+                lti_message.update(self.lti_claim_launch_presentation)
 
-        # Context claim
-        if self.lti_claim_context:
-            lti_message.update(self.lti_claim_context)
+            # Context claim
+            if self.lti_claim_context:
+                lti_message.update(self.lti_claim_context)
 
-        # Custom variables claim
-        if self.lti_claim_custom_parameters:
-            lti_message.update(self.lti_claim_custom_parameters)
+            # Custom variables claim
+            if self.lti_claim_custom_parameters:
+                lti_message.update(self.lti_claim_custom_parameters)
 
-        # Extra claims - From LTI Advantage extensions
-        if self.extra_claims:
-            lti_message.update(self.extra_claims)
+            # Extra claims - From LTI Advantage extensions
+            if self.extra_claims:
+                lti_message.update(self.extra_claims)
 
         return lti_message
 
