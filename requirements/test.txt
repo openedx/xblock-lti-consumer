@@ -28,6 +28,7 @@ future==0.18.2            # via -r requirements/base.txt, pyjwkest
 idna==2.10                # via -r requirements/base.txt, requests
 isort==4.3.21             # via pylint
 jmespath==0.10.0          # via boto3, botocore
+jsonfield2==3.0.3         # via -c requirements/constraints.txt, -r requirements/base.txt
 lazy-object-proxy==1.4.3  # via astroid
 lazy==1.4                 # via -r requirements/base.txt
 lxml==4.5.2               # via -r requirements/base.txt, xblock

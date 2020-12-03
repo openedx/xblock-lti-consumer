@@ -33,6 +33,7 @@ importlib-metadata==1.7.0  # via -r requirements/tox.txt, pluggy, tox, virtualen
 importlib-resources==3.0.0  # via -r requirements/tox.txt, virtualenv
 isort==4.3.21             # via -r requirements/test.txt, pylint
 jmespath==0.10.0          # via -r requirements/test.txt, boto3, botocore
+jsonfield2==3.0.3         # via -c requirements/constraints.txt, -r requirements/test.txt
 lazy-object-proxy==1.4.3  # via -r requirements/test.txt, astroid
 lazy==1.4                 # via -r requirements/test.txt
 lxml==4.5.2               # via -r requirements/test.txt, xblock

@@ -13,3 +13,4 @@ pycryptodomex
 pyjwkest
 edx-opaque-keys[django]
 django-filter
+jsonfield2

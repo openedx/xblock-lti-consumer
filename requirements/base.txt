@@ -14,6 +14,7 @@ edx-opaque-keys[django]==2.1.1  # via -r requirements/base.in
 fs==2.4.11                # via xblock
 future==0.18.2            # via pyjwkest
 idna==2.10                # via requests
+jsonfield2==3.0.3         # via -c requirements/constraints.txt, -r requirements/base.in
 lazy==1.4                 # via -r requirements/base.in
 lxml==4.5.2               # via -r requirements/base.in, xblock
 mako==1.1.3               # via -r requirements/base.in, xblock-utils
