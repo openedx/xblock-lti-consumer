@@ -572,6 +572,8 @@ class TestLtiAdvantageConsumer(TestCase):
             tool_key=RSA_KEY
         )
 
+        self.preflight_response = {}
+
     def _setup_deep_linking(self):
         """
         Set's up deep linking class in LTI consumer.
@@ -659,8 +661,8 @@ class TestLtiAdvantageConsumer(TestCase):
             "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingResponse",
             "https://purl.imsglobal.org/spec/lti-dl/claim/content_items": [
                 {
-                "type": "link",
-                "url": "https://something.example.com/page.html",
+                    "type": "link",
+                    "url": "https://something.example.com/page.html",
                 },
             ]
         }

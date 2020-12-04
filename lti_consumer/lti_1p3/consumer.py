@@ -3,7 +3,7 @@ LTI 1.3 Consumer implementation
 """
 from urllib.parse import urlencode
 
-from . import exceptions
+from . import constants, exceptions
 from .constants import (
     LTI_1P3_ROLE_MAP,
     LTI_BASE_MESSAGE,
@@ -14,7 +14,6 @@ from .constants import (
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 from .ags import LtiAgs
 from .deep_linking import LtiDeepLinking
-from lti_consumer.lti_1p3 import constants
 
 
 class LtiConsumer1p3:
