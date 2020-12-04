@@ -14,6 +14,7 @@ from .constants import (
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 from .ags import LtiAgs
 from .deep_linking import LtiDeepLinking
+from lti_consumer.lti_1p3 import constants
 
 
 class LtiConsumer1p3:
@@ -582,12 +583,22 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         # Decode token, check expiration
         deep_link_response = self.tool_jwt.validate_and_decode(token)
 
-        # Implement additional validation here: aud, iss, etc
+        # Check the response is a Deep Linking response type
+        message_type = deep_link_response.get("https://purl.imsglobal.org/spec/lti/claim/message_type")
+        if not message_type == "LtiDeepLinkingResponse":
+            raise exceptions.InvalidClaimValue("Token isn't a Deep Linking Response message.")
 
-        # Implement contentitems check
-
-        return deep_link_response.get(
+        # Check if supported contentitems were returned
+        content_items = deep_link_response.get(
             'https://purl.imsglobal.org/spec/lti-dl/claim/content_items',
             # If not found, return empty list
             [],
         )
+        if any([
+            item['type'] not in constants.LTI_DEEP_LINKING_ACCEPTED_TYPES
+            for item in content_items
+        ]):
+            raise exceptions.LtiDeepLinkingContentTypeNotSupported()
+
+        # Return contentitems
+        return content_items
