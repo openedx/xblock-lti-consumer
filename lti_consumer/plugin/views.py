@@ -19,7 +19,6 @@ from lti_consumer.models import (
     LtiAgsLineItem,
 )
 
-from lti_consumer.lti_1p3.constants import LTI_DEEP_LINKING_ACCEPTED_TYPES
 from lti_consumer.lti_1p3.exceptions import Lti1p3Exception
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiAgsLineItemSerializer,
@@ -132,6 +131,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         lti_consumer = lti_config.get_lti_consumer()
 
         # Retrieve Deep Linking return message and validate parameters
+        # pylint: disable=unused-variable
         content_items = lti_consumer.check_and_decode_deep_linking_token(
             request.POST.get("JWT")
         )
