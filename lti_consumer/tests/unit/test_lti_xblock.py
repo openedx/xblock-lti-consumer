@@ -1295,6 +1295,39 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.assertIn("mock-keyset_url", response.content)
         self.assertIn("mock-token_url", response.content)
 
+    def test_launch_callback_endpoint_deep_linking(self):
+        """
+        Test the LTI 1.3 callback endpoint for deep linking requests.
+        """
+        self.xblock.runtime.get_user_role.return_value = 'student'
+        mock_user_service = Mock()
+        mock_user_service.get_external_user_id.return_value = 2
+        self.xblock.runtime.service.return_value = mock_user_service
+
+        self.xblock.course.display_name_with_default = 'course_display_name'
+        self.xblock.course.display_org_with_default = 'course_display_org'
+
+        # Enable deep linkin
+        self.xblock.lti_advantage_deep_linking_enabled = True
+
+        # Get LTI client_id
+        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
+
+        # Craft request sent back by LTI tool
+        request = make_request('', 'GET')
+        request.query_string = (
+            "client_id={}&".format(client_id) +
+            "redirect_uri=http://tool.example/launch&" +
+            "state=state_test_123&" +
+            "nonce=nonce&" +
+            "login_hint=oidchint&" +
+            "lti_message_hint=deep_linking_launch"
+        )
+
+        response = self.xblock.lti_1p3_launch_callback(request)
+
+        # Check response
+        self.assertEqual(response.status_code, 200)
 
 class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
     """
