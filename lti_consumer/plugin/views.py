@@ -136,14 +136,6 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
             request.POST.get("JWT")
         )
 
-        # Check if an unsupported ContentItem was returned by the LTI tool.
-        if any([
-            content_item not in LTI_DEEP_LINKING_ACCEPTED_TYPES
-            for content_item in content_items
-        ]):
-            # TODO: Show user a proper error page
-            raise ValueError('The LTI return a content type not supported by the platform.')
-
         # Erase old Content Item selections
         # lti_config.ltidlcontentitem_set.all().delete()
 
@@ -167,10 +159,6 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         return HttpResponse(status=404)
     # Bad JWT message, invalid token, or any message validation issues
     except Lti1p3Exception:
-        # TODO: Add template with error message
-        return HttpResponse(status=403)
-    # Invalid content type
-    except ValueError:
         # TODO: Add template with error message
         return HttpResponse(status=403)
 
