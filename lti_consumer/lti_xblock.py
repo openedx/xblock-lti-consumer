@@ -1058,7 +1058,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             preflight_response = dict(request.GET)
 
             # Set launch url depending on launch type
-            if self.lti_advantage_deep_linking_enabled and preflight_response.get('lti_message_hint') == 'deep_linking_launch':
+            if self.lti_advantage_deep_linking_enabled and \
+               preflight_response.get('lti_message_hint') == 'deep_linking_launch':
                 # Set deep linking launch
                 context.update({'launch_url': self.lti_advantage_deep_linking_launch_url})
             else:

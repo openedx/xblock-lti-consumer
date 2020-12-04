@@ -1329,6 +1329,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Check response
         self.assertEqual(response.status_code, 200)
 
+
 class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock Access Token endpoint when using an LTI 1.3.
