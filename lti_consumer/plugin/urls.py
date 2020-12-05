@@ -16,12 +16,15 @@ from lti_consumer.plugin.views import (
     LtiAgsLineItemViewset,
     deep_linking_response_endpoint,
     deep_linking_content_endpoint,
+    # LTI NRPS URLs
+    LtiNrpsContextMembershipViewSet,
 )
 
 
 # LTI 1.3 APIs router
 router = routers.SimpleRouter(trailing_slash=False)
 router.register(r'lti-ags', LtiAgsLineItemViewset, basename='lti-ags-view')
+router.register(r'memberships', LtiNrpsContextMembershipViewSet, basename='lti-nrps-memberships-view')
 
 
 app_name = 'lti_consumer'

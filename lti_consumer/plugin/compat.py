@@ -129,3 +129,45 @@ def user_course_access(*args, **kwargs):
     # pylint: disable=import-error,import-outside-toplevel
     from lms.djangoapps.courseware.courses import check_course_access
     return check_course_access(*args, **kwargs)
+
+
+def batch_get_or_create_externalids(users):
+    """
+    Given a list of user, returns corresponding external id's
+
+    External ID's are created when a student actually launches
+    LTI from LMS. But when providing course member information
+    to a third party tool, not every member has External ID's
+    available. To create one by one would be a performance issue.
+    This method provides a faster way to create ExternalIds in batch.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.external_user_ids.models import ExternalId
+    return ExternalId.batch_get_or_create_user_ids(users, 'lti')
+
+
+def get_course_members(*args, **kwargs):
+    """
+    Return a User queryset containing all members of a course.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from lms.djangoapps.course_api.api import get_course_members as core_get_course_members
+    return core_get_course_members(*args, **kwargs)
+
+
+def get_user_profile_image(user):
+    """
+    Given an User instance return profile image urls.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
+    return get_profile_image_urls_for_user(user)
+
+
+def get_lti_pii_course_waffle_flag():
+    """
+    Returns Course Waffle Flag Override for PII information exposure.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
+    return CourseWaffleFlag('lti_consumer', 'lti_nrps_transmit_pii', __name__)

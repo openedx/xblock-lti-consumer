@@ -2,6 +2,7 @@
 Utility functions for LTI Consumer block
 """
 from django.conf import settings
+from lti_consumer.plugin.compat import get_lti_pii_course_waffle_flag
 
 
 def _(text):
@@ -23,6 +24,34 @@ def lti_deeplinking_enabled():
     Returns `true` if LTI Advantage deep linking is enabled for instance.
     """
     return settings.FEATURES.get('LTI_DEEP_LINKING_ENABLED', False) is True  # pragma: no cover
+
+
+def lti_nrps_enabled():
+    """
+    Returns `true` if LTI NRPS is enabled for instance.
+    """
+    return settings.FEATURES.get('LTI_NRPS_ENABLED', False) is True  # pragma: no cover
+
+
+def lti_nrps_enrollment_limit():
+    """
+    Returns acive enrollment limit to enable NRPS service.
+
+    For more, check the following ADR -
+    https://github.com/edx/xblock-lti-consumer/blob/master/docs/decisions/0004-lti-advantage-nrps.rst
+    """
+    return getattr(settings, 'LTI_NRPS_ACTIVE_ENROLLMENT_LIMIT', 1000)
+
+
+def expose_pii_fields(course_key):
+    """
+    Returns `true` if Use's PII fields can be exposed to LTI endpoints
+    for given course key. ex - LTI-NRPS Context Membership Endpoint.
+
+    Args:
+        course_key
+    """
+    return get_lti_pii_course_waffle_flag().is_enabled(course_key)
 
 
 def get_lms_base():
@@ -111,6 +140,19 @@ def get_lti_deeplinking_content_url(lti_config_id):
     :param lti_config_id: LTI configuration id
     """
     return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/content".format(
+        lms_base=get_lms_base(),
+        lti_config_id=str(lti_config_id),
+    )
+
+
+def get_lti_nrps_context_membership_url(lti_config_id):
+    """
+    Returns The LTI NRPS Context Membership service URL.
+
+    :param lti_config_id: LTI Configuration ID
+    """
+
+    return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/memberships".format(
         lms_base=get_lms_base(),
         lti_config_id=str(lti_config_id),
     )

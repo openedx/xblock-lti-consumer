@@ -57,5 +57,13 @@ class LtiAdvantageServiceNotSetUp(Lti1p3Exception):
     pass
 
 
+class LtiNRPSServiceNotSetUp(Lti1p3Exception):
+    pass
+
+
 class LtiDeepLinkingContentTypeNotSupported(Lti1p3Exception):
+    pass
+
+
+class LtiNRPSEnrollmentLimitExceed(Lti1p3Exception):
     pass

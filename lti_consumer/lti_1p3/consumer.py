@@ -14,6 +14,7 @@ from .constants import (
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 from .ags import LtiAgs
 from .deep_linking import LtiDeepLinking
+from .nprs import LtiNrps
 
 
 class LtiConsumer1p3:
@@ -476,6 +477,9 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         self.ags = None
         self.dl = None
 
+        # LTI NRPS Variables
+        self.nrps = None
+
     @property
     def lti_ags(self):
         """
@@ -487,6 +491,18 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
             )
 
         return self.ags
+
+    @property
+    def lti_nrps(self):
+        """
+        Returns LTI NRPS class or throw exception if not set up.
+        """
+        if not self.nrps:
+            raise exceptions.LtiNRPSServiceNotSetUp(
+                "The LTI NRPS service was not set up for this consumer."
+            )
+
+        return self.nrps
 
     def enable_ags(
         self,
@@ -623,3 +639,16 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
         if custom:
             self.set_custom_parameters(custom)
+
+    def enable_nrps(self, context_memberships_url):
+        """
+        Enable LTI Names and Role Provisioning Service.
+
+        This will include the LTI NRPS Claim in the LTI message
+        and set up the required class.
+        """
+
+        self.nrps = LtiNrps(context_memberships_url)
+
+        # Include LTI NRPS claim inside the LTI Launch message
+        self.set_extra_claim(self.nrps.get_lti_nrps_launch_claim())

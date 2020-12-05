@@ -48,3 +48,14 @@ class LineItemResultsRenderer(renderers.JSONRenderer):
     """
     media_type = 'application/vnd.ims.lis.v2.resultcontainer+json'
     format = 'json'
+
+
+class MembershipResultRenderer(renderers.JSONRenderer):
+    """
+    NRPS Membership Service Renderer.
+
+    It's a JSON renderer, but uses a custom media_type.
+    Reference: https://www.imsglobal.org/spec/lti-nrps/v2p0#membership-container-media-type
+    """
+    media_type = 'application/vnd.ims.lti-nrps.v2.membershipcontainer+json'
+    format = 'json'

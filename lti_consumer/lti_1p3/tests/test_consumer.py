@@ -14,6 +14,7 @@ from jwkest.jws import JWS
 
 from lti_consumer.lti_1p3 import exceptions
 from lti_consumer.lti_1p3.ags import LtiAgs
+from lti_consumer.lti_1p3.nprs import LtiNrps
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3
 
@@ -726,3 +727,37 @@ class TestLtiAdvantageConsumer(TestCase):
             {"test": "test"}
         )
         self.assertEqual(self.lti_consumer.launch_url, "example.com")
+
+    def test_no_nrps_returns_failure(self):
+        """
+        Test that when LTI NRPS isn't configured, the class yields an error.
+        """
+        with self.assertRaises(exceptions.LtiNRPSServiceNotSetUp):
+            self.lti_consumer.lti_nrps  # pylint: disable=pointless-statement
+
+    def test_enable_nrps(self):
+        """
+        Test enabling LTI NRPS and checking that required parameters are set.
+        """
+        self.lti_consumer.enable_nrps("http://example.com/20/membership")
+
+        # Check that the NRPS class was properly instanced and set
+        self.assertEqual(type(self.lti_consumer.nrps), LtiNrps)
+
+        # Check retrieving class works
+        lti_nrps_class = self.lti_consumer.lti_nrps
+        self.assertEqual(self.lti_consumer.nrps, lti_nrps_class)
+
+        # Check that enabling the NRPS adds the LTI NRPS claim
+        # in the launch message
+        self.assertEqual(
+            self.lti_consumer.extra_claims,
+            {
+                "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice": {
+                    "context_memberships_url": "http://example.com/20/membership",
+                    "service_versions": [
+                        "2.0"
+                    ]
+                }
+            }
+        )
