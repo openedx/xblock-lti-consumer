@@ -78,7 +78,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
 
         # Patch settings calls to LMS method
         xblock_handler_patcher = patch(
-            'lti_consumer.plugin.views.run_xblock_handler',
+            'lti_consumer.plugin.views.compat.run_xblock_handler',
             return_value=HttpResponse()
         )
         self.addCleanup(xblock_handler_patcher.stop)
@@ -120,7 +120,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
 
         # Patch settings calls to LMS method
         xblock_handler_patcher = patch(
-            'lti_consumer.plugin.views.run_xblock_handler_noauth',
+            'lti_consumer.plugin.views.compat.run_xblock_handler_noauth',
             return_value=HttpResponse()
         )
         self.addCleanup(xblock_handler_patcher.stop)

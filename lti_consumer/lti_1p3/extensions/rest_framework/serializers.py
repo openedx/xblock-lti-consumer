@@ -8,6 +8,7 @@ from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore
+from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_ROLE_MAP
 
 
 class UsageKeyField(serializers.Field):
@@ -374,3 +375,55 @@ class LtiDlImageSerializer(serializers.Serializer):
     thumbnail = LtiDLIconPropertySerializer(required=False)
     width = serializers.IntegerField(min_value=1, required=False)
     height = serializers.IntegerField(min_value=1, required=False)
+
+
+class LtiContextSerializer(serializers.Serializer):
+    """
+    Serializer for a LTI Context
+    """
+    id = UsageKeyField()
+
+
+class LtiNrpsContextMemberBasicSerializer(serializers.Serializer):
+    """
+    Non PII fields serializer for Context Member.
+    """
+    status = serializers.CharField(default='Active')
+    user_id = serializers.CharField(source='external_id')
+    roles = serializers.SerializerMethodField()
+
+    def get_roles(self, user_info):
+        """
+        Prepare and return Context Roles for user.
+        """
+        roles = []
+        for role in user_info['roles']:
+            if LTI_1P3_CONTEXT_ROLE_MAP.get(role):
+                roles += LTI_1P3_CONTEXT_ROLE_MAP[role]
+        return set(roles)
+
+
+class LtiNrpsContextMemberPIISerializer(LtiNrpsContextMemberBasicSerializer):
+    """
+    Personally identifiable information serializer for Context Member.
+    """
+    name = serializers.CharField(required=False)
+    email = serializers.EmailField(required=False)
+
+
+# pylint: disable=abstract-method
+class LtiNrpsContextMembershipBasicSerializer(serializers.Serializer):
+    """
+    Serializer for LTI NRPS Context Memberships Endpoint Response
+    """
+    id = serializers.CharField()
+    context = LtiContextSerializer()
+    members = LtiNrpsContextMemberBasicSerializer(many=True)
+
+
+# pylint: disable=abstract-method
+class LtiNrpsContextMembershipPIISerializer(LtiNrpsContextMembershipBasicSerializer):
+    """
+    Serializer for a LTI NRPS Context Memberships Endpoint Response with PII fields
+    """
+    members = LtiNrpsContextMemberPIISerializer(many=True)

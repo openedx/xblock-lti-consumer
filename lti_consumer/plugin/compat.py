@@ -114,7 +114,7 @@ def get_course_by_id(course_key):
 
     - [1] https://github.com/edx/edx-platform/pull/27289
     """
-    # pylint: disable=import-error,import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
     try:
         from openedx.core.lib.courses import get_course_by_id as lms_get_course_by_id
     except ImportError:
@@ -129,3 +129,41 @@ def user_course_access(*args, **kwargs):
     # pylint: disable=import-error,import-outside-toplevel
     from lms.djangoapps.courseware.courses import check_course_access
     return check_course_access(*args, **kwargs)
+
+
+def batch_get_or_create_externalids(users):
+    """
+    Given a list of user, returns corresponding external id's
+
+    External ID's are created when a student actually launches
+    LTI from LMS. But when providing course member information
+    to a third party tool, not every member has External ID's
+    available. To create one by one would be a performance issue.
+    This method provides a faster way to create ExternalIds in batch.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.external_user_ids.models import ExternalId
+    return ExternalId.batch_get_or_create_user_ids(users, 'lti')
+
+
+def get_course_members(course_key):
+    """
+    Returns a dict containing all users associated with the given course
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from lms.djangoapps.course_api.api import get_course_members as core_get_course_members
+    from lms.djangoapps.course_api.exceptions import OverEnrollmentLimitException
+
+    try:
+        return core_get_course_members(course_key)
+    except OverEnrollmentLimitException as ex:
+        raise LtiError('NRPS is not available for {}'.format(course_key)) from ex
+
+
+def get_lti_pii_course_waffle_flag():
+    """
+    Returns Course Waffle Flag Override for PII information exposure.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
+    return CourseWaffleFlag('lti_consumer', 'lti_nrps_transmit_pii', __name__)

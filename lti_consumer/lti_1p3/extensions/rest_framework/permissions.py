@@ -7,7 +7,36 @@ LTI Advantage extensions.
 from rest_framework import permissions
 
 
-class LtiAgsPermissions(permissions.BasePermission):
+class LTIBasePermissions(permissions.BasePermission):
+    """
+    Base LTI Permissions.
+
+    This checks if the token included in the request
+    has the allowed scopes. Allowed scopes should be
+    returned by ``get_permission_scopes`` method, which
+    should be implemented by child classes.
+    """
+    def has_permission(self, request, view):
+        # Retrieves token from request, which was already checked by
+        # the Authentication class, so we assume it's a sane value.
+        auth_token = request.headers['Authorization'].split()[1]
+
+        scopes = self.get_permission_scopes(request, view)
+
+        if scopes:
+            return request.lti_consumer.check_token(auth_token, scopes)
+
+        return False
+
+    def get_permission_scopes(self, request, view):
+        """
+        This method should be overriden by child classes to return
+        a list of allowed scopes.
+        """
+        raise NotImplementedError
+
+
+class LtiAgsPermissions(LTIBasePermissions):
     """
     LTI AGS Permissions.
 
@@ -19,14 +48,11 @@ class LtiAgsPermissions(permissions.BasePermission):
     Results: Not implemented yet.
     Score: Not implemented yet.
     """
-    def has_permission(self, request, view):
-        """
-        Check if LTI AGS permissions are set in auth token.
-        """
-        # Retrieves token from request, which was already checked by
-        # the Authentication class, so we assume it's a sane value.
-        auth_token = request.headers['Authorization'].split()[1]
 
+    def get_permission_scopes(self, request, view):
+        """
+        Return LTI AGS allowed scopes.
+        """
         scopes = []
         if view.action in ['list', 'retrieve']:
             # We don't need to wrap this around a try-catch because
@@ -48,7 +74,28 @@ class LtiAgsPermissions(permissions.BasePermission):
                 'https://purl.imsglobal.org/spec/lti-ags/scope/score',
             ]
 
-        if scopes:
-            return request.lti_consumer.check_token(auth_token, scopes)
+        return scopes
 
-        return False
+
+class LtiNrpsContextMembershipsPermissions(LTIBasePermissions):
+    """
+    LTI NRPS Context Memberships Permissions.
+
+    This checks if the token included in the request has the allowed scopes to read/write
+    the LTI NRPS Context Memberships Service.
+
+    Context Membership scopes: https://www.imsglobal.org/spec/lti-nrps/v2p0#scope-and-service-security
+    """
+
+    def get_permission_scopes(self, request, view):
+        """
+        Return LTI NRPS Context Memberships allowed scopes.
+        """
+        scopes = []
+
+        if view.action == 'list':
+            scopes = [
+                'https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly'
+            ]
+
+        return scopes

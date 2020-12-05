@@ -324,12 +324,19 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+2.9.0 - 2021-06-03
+------------------
+
+* LTI Advantage - NRP Service: this completes Advantage compliance.
+
+
 2.8.0 - 2021-04-13
 ------------------
 
 * LTI Advantage - AGS Service: Added support for programmatic grade management by LTI tools.
 * Improved grade publishing to LMS when using LTI-AGS.
 * Increase LTI 1.3 token validity to 1h.
+
 
 2.7.0 - 2021-02-16
 ------------------
@@ -345,6 +352,7 @@ Changelog
 
 * Fix bug with `config_id` migration where an entry was created _during_
   the migration and did _not_ receive a valid UUID value.
+
 
 2.5.3 - 2021-01-26
 ------------------

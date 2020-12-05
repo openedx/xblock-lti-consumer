@@ -34,6 +34,19 @@ LTI_1P3_ROLE_MAP = {
     ],
 }
 
+# Context membership roles
+# https://www.imsglobal.org/spec/lti/v1p3/#lis-vocabulary-for-context-roles
+LTI_1P3_CONTEXT_ROLE_MAP = {
+    'staff': [
+        'http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator',
+    ],
+    'instructor': [
+        'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor',
+    ],
+    'student': [
+        'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
+    ],
+}
 
 LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS = {
     "grant_type",
@@ -49,6 +62,9 @@ LTI_1P3_ACCESS_TOKEN_SCOPES = [
     'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
     'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
     'https://purl.imsglobal.org/spec/lti-ags/scope/score',
+
+    # LTI-NRPS Scopes
+    'https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly',
 ]
 
 

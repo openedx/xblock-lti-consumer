@@ -3,6 +3,7 @@ LTI consumer plugin passthrough views
 """
 import logging
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.http import JsonResponse, Http404
 from django.db import transaction
@@ -16,6 +17,7 @@ from opaque_keys.edx.keys import UsageKey
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.status import HTTP_403_FORBIDDEN
 
 from lti_consumer.exceptions import LtiError
 from lti_consumer.models import (
@@ -24,35 +26,37 @@ from lti_consumer.models import (
     LtiDlContentItem,
 )
 
-from lti_consumer.lti_1p3.exceptions import Lti1p3Exception, LtiDeepLinkingContentTypeNotSupported
+from lti_consumer.lti_1p3.exceptions import (
+    Lti1p3Exception,
+    LtiDeepLinkingContentTypeNotSupported,
+)
 from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiAgsLineItemSerializer,
     LtiAgsScoreSerializer,
     LtiAgsResultSerializer,
+    LtiNrpsContextMembershipBasicSerializer,
+    LtiNrpsContextMembershipPIISerializer,
 )
-from lti_consumer.lti_1p3.extensions.rest_framework.permissions import LtiAgsPermissions
+from lti_consumer.lti_1p3.extensions.rest_framework.permissions import (
+    LtiAgsPermissions,
+    LtiNrpsContextMembershipsPermissions,
+)
 from lti_consumer.lti_1p3.extensions.rest_framework.authentication import Lti1p3ApiAuthentication
 from lti_consumer.lti_1p3.extensions.rest_framework.renderers import (
     LineItemsRenderer,
     LineItemRenderer,
     LineItemScoreRenderer,
-    LineItemResultsRenderer
+    LineItemResultsRenderer,
+    MembershipResultRenderer,
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
     LineItemParser,
     LineItemScoreParser,
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
-
-from lti_consumer.plugin.compat import (
-    run_xblock_handler,
-    run_xblock_handler_noauth,
-    get_course_by_id,
-    user_course_access,
-    user_has_access,
-)
-from lti_consumer.utils import _
+from lti_consumer.plugin import compat
+from lti_consumer.utils import _, expose_pii_fields
 
 
 log = logging.getLogger(__name__)
@@ -62,7 +66,7 @@ def user_has_staff_access(user, course_key):
     """
     Check if an user has write permissions to a given course.
     """
-    return user_has_access(user, "staff", course_key)
+    return compat.user_has_access(user, "staff", course_key)
 
 
 def has_block_access(user, block, course_key):
@@ -82,13 +86,13 @@ def has_block_access(user, block, course_key):
         bool: True if user has access, False otherwise.
     """
     # Get the course
-    course = get_course_by_id(course_key)
+    course = compat.get_course_by_id(course_key)
 
     # Check if user is authenticated & enrolled
-    course_access = user_course_access(course, user, 'load', check_if_enrolled=True, check_if_authenticated=True)
+    course_access = compat.user_course_access(course, user, 'load', check_if_enrolled=True, check_if_authenticated=True)
 
     # Check if user has access to xblock
-    block_access = user_has_access(user, 'load', block, course_key)
+    block_access = compat.user_has_access(user, 'load', block, course_key)
 
     # Return True if the user has access to xblock and is enrolled in that specific course.
     return course_access and block_access
@@ -137,7 +141,7 @@ def launch_gate_endpoint(request, suffix):
         usage_key_str = request.GET.get('login_hint')
         usage_key = UsageKey.from_string(usage_key_str)
 
-        return run_xblock_handler(
+        return compat.run_xblock_handler(
             request=request,
             course_id=str(usage_key.course_key),
             usage_id=str(usage_key),
@@ -158,7 +162,7 @@ def access_token_endpoint(request, usage_id=None):
     try:
         usage_key = UsageKey.from_string(usage_id)
 
-        return run_xblock_handler_noauth(
+        return compat.run_xblock_handler_noauth(
             request=request,
             course_id=str(usage_key.course_key),
             usage_id=str(usage_key),
@@ -420,3 +424,80 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
             headers=headers
         )
+
+
+class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    LTI NRPS Context Membership Service endpoint.
+
+    See full documentation at:
+    http://imsglobal.org/spec/lti-nrps/v2p0
+    """
+
+    # Custom permission classes for LTI APIs
+    authentication_classes = [Lti1p3ApiAuthentication]
+    permission_classes = [LtiNrpsContextMembershipsPermissions]
+
+    # Renderer classes to accept LTI NRPS content types
+    renderer_classes = [
+        MembershipResultRenderer,
+    ]
+
+    def attach_external_user_ids(self, data):
+        """
+        Preprocess the output of `get_membership` method amd appends external ids to each user.
+        """
+
+        # batch get or create external ids for all users
+        user_ids = data.keys()
+        users = get_user_model().objects.prefetch_related('profile').filter(id__in=user_ids)
+
+        # get external ids
+        external_ids = compat.batch_get_or_create_externalids(users)
+
+        for userid in user_ids:
+            # append external ids to user
+            data[userid]['external_id'] = external_ids[userid].external_user_id
+
+    def get_serializer_class(self):
+        """
+        Overrides ModelViewSet's `get_serializer_class` method.
+        Checks if PII fields can be exposed and returns appropiate serializer.
+        """
+        if expose_pii_fields(self.request.lti_configuration.location.course_key):
+            return LtiNrpsContextMembershipPIISerializer
+        else:
+            return LtiNrpsContextMembershipBasicSerializer
+
+    def list(self, *args, **kwargs):
+        """
+        Overrides default list method of ModelViewSet. Calls LMS `get_course_members`
+        API and returns result.
+        """
+
+        # get course key
+        course_key = self.request.lti_configuration.location.course_key
+
+        try:
+            data = compat.get_course_members(course_key)
+            self.attach_external_user_ids(data)
+
+            # build correct format for the serializer
+            result = {
+                'id': self.request.build_absolute_uri(),
+                'context': {
+                    'id': course_key
+                },
+                'members': data.values(),
+            }
+
+            # Serialize and return data NRPS reponse.
+            serializer = self.get_serializer_class()(result)
+            return Response(serializer.data)
+
+        except LtiError as ex:
+            log.warning("LTI NRPS Error: %s", ex)
+            return Response({
+                "error": "above_response_limit",
+                "explanation": "The number of retrieved users is bigger than the maximum allowed in the configuration.",
+            }, status=HTTP_403_FORBIDDEN)

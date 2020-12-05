@@ -17,7 +17,8 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
         "lti_1p3_tool_public_key",
         "lti_advantage_ags_mode",
         "lti_advantage_deep_linking_enabled",
-        "lti_advantage_deep_linking_launch_url"
+        "lti_advantage_deep_linking_launch_url",
+        "lti_1p3_enable_nrps"
     ];
 
     /**

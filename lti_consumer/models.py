@@ -22,6 +22,7 @@ from lti_consumer.utils import (
     get_lms_base,
     get_lti_ags_lineitems_url,
     get_lti_deeplinking_response_url,
+    get_lti_nrps_context_membership_url,
 )
 
 
@@ -306,6 +307,10 @@ class LtiConfiguration(models.Model):
                     self.block.lti_advantage_deep_linking_launch_url,
                     get_lti_deeplinking_response_url(self.id),
                 )
+
+            # Check if enabled and setup LTI-NRPS
+            if self.block.lti_1p3_enable_nrps:
+                consumer.enable_nrps(get_lti_nrps_context_membership_url(self.id))
 
             return consumer
 

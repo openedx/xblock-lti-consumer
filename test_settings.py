@@ -18,3 +18,8 @@ FEATURES = {
     'LTI_1P3_ENABLED': False,
     'LTI_DEEPLINKING_ENABLED': False,
 }
+
+# Set rest framework settings to test pagination
+REST_FRAMEWORK = {
+    'PAGE_SIZE': 10
+}
