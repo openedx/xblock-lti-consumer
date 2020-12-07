@@ -16,4 +16,5 @@ LMS_ROOT_URL = "https://example.com"
 # Dummy FEATURES dict
 FEATURES = {
     'LTI_1P3_ENABLED': False,
+    'LTI_DEEPLINKING_ENABLED': False,
 }
