@@ -227,3 +227,47 @@ class LtiAgsResultSerializer(serializers.ModelSerializer):
             'resultMaximum',
             'comment',
         )
+
+
+# pylint: disable=abstract-method
+class LtiDlTimeDeltaSerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - Time Delta seralizer.
+
+    Used in some LTI content types, it's a serializer
+    containing `startDateTime` and `endDateTime` to signal
+    if content if available or gra
+    """
+    startDateTime = serializers.DateTimeField(input_formats=[ISO_8601], format=ISO_8601, default_timezone=timezone.utc)
+    endDateTime = serializers.DateTimeField(input_formats=[ISO_8601], format=ISO_8601, default_timezone=timezone.utc)
+
+
+# pylint: disable=abstract-method
+class LtiDlLineItemSerializer(serializers.Serializer):
+    """
+    LTI Deep linking AGS Serializer - Specific for LTI Resource Link.
+
+    Used when a deep link is able to send back grades to the platform.
+    """
+    label = serializers.CharField(max_length=255, required=False)
+    scoreMaximum = serializers.FloatField(required=False)
+    resourceId = serializers.CharField(max_length=255, required=False)
+    tag = serializers.CharField(max_length=255, required=False)
+
+
+# pylint: disable=abstract-method
+class LtiDlLtiResourceLinkSerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - LTI Resource Link Serializer.
+
+    This serializer implements validation for the LTI Resource Link content type.
+
+    Reference:
+    http://www.imsglobal.org/spec/lti-dl/v2p0#lti-resource-link
+    """
+    url = serializers.URLField(max_length=500, required=False)
+    title = serializers.CharField(max_length=255, required=False)
+    custom = serializers.DictField(required=False)
+    lineItem = LtiDlLineItemSerializer(required=False)
+    available = LtiDlTimeDeltaSerializer(required=False)
+    submission = LtiDlTimeDeltaSerializer(required=False)

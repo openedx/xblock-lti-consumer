@@ -58,7 +58,7 @@ class TestLtiDeepLinking(TestCase):
         self.assertEqual(
             {
                 'https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings': {
-                    'accept_types': [],
+                    'accept_types': ['ltiResourceLink'],
                     'accept_presentation_document_targets': [
                         'iframe',
                         'window',

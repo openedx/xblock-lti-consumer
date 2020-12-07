@@ -3,6 +3,7 @@ LTI consumer plugin passthrough views
 """
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, JsonResponse
+from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -17,9 +18,11 @@ from lti_consumer.exceptions import LtiError
 from lti_consumer.models import (
     LtiConfiguration,
     LtiAgsLineItem,
+    LtiDlContentItem,
 )
 
 from lti_consumer.lti_1p3.exceptions import Lti1p3Exception
+from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiAgsLineItemSerializer,
     LtiAgsScoreSerializer,
@@ -131,12 +134,32 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         lti_consumer = lti_config.get_lti_consumer()
 
         # Retrieve Deep Linking return message and validate parameters
-        # pylint: disable=unused-variable
         content_items = lti_consumer.check_and_decode_deep_linking_token(
             request.POST.get("JWT")
         )
 
-        # TODO: Perform validation and replace old content types with new ones.
+        # On a transaction, clear older DeepLinking selections, then
+        # verify and save each content item passed from the tool.
+        with transaction.atomic():
+            # Erase older deep linking selection
+            LtiDlContentItem.objects.filter(lti_configuration=lti_config).delete()
+
+            for content_item in content_items:
+                # Retrieve serializer (or throw error)
+                serializer_cls = LTI_DL_CONTENT_TYPE_SERIALIZER_MAP[
+                    content_item.get('type')
+                ]
+
+                # Validate content item data
+                serializer = serializer_cls(data=content_item)
+                serializer.is_valid(True)
+
+                # Save content item
+                LtiDlContentItem.objects.create(
+                    lti_configuration=lti_config,
+                    content_type=LtiDlContentItem.LTI_RESOURCE_LINK,
+                    attributes=serializer.validated_data,
+                )
 
         # TODO: Redirect the user to the launch endpoint, and present content
         # selected in Deep Linking flow. Can only be completed once content
@@ -147,7 +170,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
     except LtiConfiguration.DoesNotExist:
         return HttpResponse(status=404)
     # Bad JWT message, invalid token, or any message validation issues
-    except Lti1p3Exception:
+    except (Lti1p3Exception, KeyError):
         # TODO: Add template with error message
         return HttpResponse(status=403)
 

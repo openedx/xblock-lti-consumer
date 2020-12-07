@@ -421,8 +421,8 @@ class LtiConsumer1p3:
         try:
             assert response.get("nonce")
             assert response.get("state")
+            assert response.get("redirect_uri")
             assert response.get("client_id") == self.client_id
-            assert response.get("redirect_uri") == self.launch_url
         except AssertionError:
             raise exceptions.PreflightRequestValidationFailure()
 
