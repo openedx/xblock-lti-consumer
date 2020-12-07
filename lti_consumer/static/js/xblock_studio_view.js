@@ -76,5 +76,6 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
     // Bind to onChange method of lti_version selector
     $(element).find('#xb-field-edit-lti_version').bind('change', function() {
         toggleLtiFields();
-    });
+     });
+
 }

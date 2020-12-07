@@ -13,30 +13,6 @@
     </div>
 % endif
 
-% if lti_deep_linking_launch_url:
-    <p>
-        ${'LTI Deep Linking is available: '}
-        <button
-            id="launch_deep_linking_flow"
-            class="btn btn-pl-primary btn-base"
-            onClick="launch_deep_link()"
-        >
-            ${button_text or 'Configure LTI Tool (Deep Linking)'} <i class="icon fa fa-cog"></i>
-        </button>
-    </p>
-    <script>
-        function launch_deep_link() {
-            // If Deep Linking is enabled for modal or new window, open in new window.
-            // This is to avoid adding complexity to the LTI's modal handler (for now).
-            % if launch_target in ['modal', 'new_window']:
-                window.open("${lti_deep_linking_launch_url}");
-            % else:
-                document.getElementById("lti_launch_iframe").src = "${lti_deep_linking_launch_url}";
-            % endif
-        }
-    </script>
-% endif
-
 <div
     id="${element_id}"
     class="${element_class} lti-consumer-container"

@@ -94,12 +94,3 @@ def publish_grade(block, user, score, possible, only_if_higher=False, score_dele
         score_deleted=score_deleted,
         grader_response=comment,
     )
-
-
-def has_access(*args, **kwargs):
-    """
-    Import and run the `has_access` method from courseware module.
-    """
-    # pylint: disable=import-error,import-outside-toplevel
-    from lms.djangoapps.courseware.access import has_access as course_has_access
-    return course_has_access(*args, **kwargs)

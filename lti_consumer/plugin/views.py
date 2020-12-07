@@ -136,18 +136,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
             request.POST.get("JWT")
         )
 
-        # Erase old Content Item selections
-        # lti_config.ltidlcontentitem_set.all().delete()
-
-        # Store newly returned content items
-        # for content_item in content_items:
-        #     # TODO: Perform content validation on each supported content type.
-        #     # then save the content item like this:
-        #     LtiDlContentItem.objects.create(
-        #         lti_configuration=lti_config,
-        #         content_type=content_item['type'],
-        #         attributes=content_item,
-        #     )
+        # TODO: Perform validation and replace old content types with new ones.
 
         # TODO: Redirect the user to the launch endpoint, and present content
         # selected in Deep Linking flow. Can only be completed once content
