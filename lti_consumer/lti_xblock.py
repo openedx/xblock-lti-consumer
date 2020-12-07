@@ -83,7 +83,6 @@ from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
 from .utils import (
     _,
-    get_lms_lti_launch_link,
     lti_1p3_enabled,
 )
 
@@ -984,32 +983,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
-        """
-        XBlock handler for launching the LTI 1.3 tools.
-
-        Displays a form with the OIDC preflight request and
-        submits it to the tool.
-
-        Arguments:
-            request (xblock.django.request.DjangoWebobRequest): Request object for current HTTP request
-
-        Returns:
-            webob.response: HTML LTI launch form
-        """
-        lti_consumer = self._get_lti_consumer()
-
-        context = lti_consumer.prepare_preflight_url(
-            callback_url=get_lms_lti_launch_link(),
-            hint=str(self.location),  # pylint: disable=no-member
-            lti_hint=str(self.location)  # pylint: disable=no-member
-        )
-
-        loader = ResourceLoader(__name__)
-        template = loader.render_mako_template('/templates/html/lti_1p3_oidc.html', context)
-        return Response(template, content_type='text/html')
-
-    @XBlock.handler
     def lti_1p3_launch_callback(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for launching the LTI 1.3 tool.
@@ -1055,11 +1028,18 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 context_label=self.context_id
             )
 
+            # Retrieve preflight response
+            preflight_response = dict(request.GET)
+
+            # Set LTI Launch URL
+            context.update({'launch_url': self.lti_1p3_launch_url})
+
+            # Update context with LTI launch parameters
             context.update({
-                "preflight_response": dict(request.GET),
+                "preflight_response": preflight_response,
                 "launch_request": lti_consumer.generate_launch_request(
                     resource_link=str(self.location),  # pylint: disable=no-member
-                    preflight_response=dict(request.GET)
+                    preflight_response=preflight_response
                 )
             })
 
@@ -1357,10 +1337,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
         sanitized_comment = bleach.clean(self.score_comment, tags=allowed_tags, attributes=allowed_attributes)
 
-        # Set launch handler depending on LTI version
-        lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
-        if self.lti_version == 'lti_1p3':
-            lti_block_launch_handler = self.runtime.handler_url(self, 'lti_1p3_launch_handler').rstrip('/?')
+        if self.lti_version == 'lti_1p1':
+            # Set launch handler depending on LTI version
+            lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
+        else:
+            # Runtime import since this will only run in the
+            # Open edX LMS/Studio environments.
+            from lti_consumer.api import get_lti_1p3_launch_start_url  # pylint: disable=import-outside-toplevel
+
+            # Retrieve and set LTI 1.3 Launch start URL
+            lti_block_launch_handler = get_lti_1p3_launch_start_url(
+                block=self,
+                deep_link_launch=False,
+                hint=str(self.location)  # pylint: disable=no-member
+            )
 
         return {
             'launch_url': self.launch_url.strip(),

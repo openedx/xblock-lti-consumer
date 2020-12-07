@@ -388,8 +388,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
         """
         return all(field in self.xblock.editable_fields for field in fields)
 
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
-    def test_editable_fields_with_no_config(self, lti_1p3_enabled_mock):
+    def test_editable_fields_with_no_config(self):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are editable when lti-configuration service is not provided.
@@ -397,10 +396,8 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = None
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
-        lti_1p3_enabled_mock.assert_called()
 
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
-    def test_editable_fields_when_editing_allowed(self, lti_1p3_enabled_mock):
+    def test_editable_fields_when_editing_allowed(self):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are editable when this XBlock is configured to allow it.
@@ -409,10 +406,8 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=True)
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
         self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
-        lti_1p3_enabled_mock.assert_called()
 
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=False)
-    def test_editable_fields_when_editing_not_allowed(self, lti_1p3_enabled_mock):
+    def test_editable_fields_when_editing_not_allowed(self):
         """
         Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
         are not editable when this XBlock is configured to not to allow it.
@@ -421,7 +416,6 @@ class TestEditableFields(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = self.get_mock_lti_configuration(editable=False)
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are not editable.
         self.assertFalse(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
-        lti_1p3_enabled_mock.assert_called()
 
     @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
     def test_lti_1p3_fields_appear_when_enabled(self, lti_1p3_enabled_mock):
@@ -1068,7 +1062,8 @@ class TestGetContext(TestLtiConsumerXBlock):
     """
 
     @ddt.data('lti_1p1', 'lti_1p3')
-    def test_context_keys(self, lti_version):
+    @patch('lti_consumer.api.get_lti_1p3_launch_start_url')
+    def test_context_keys(self, lti_version, lti_api_patch):
         """
         Test `_get_context_for_template` returns dict with correct keys
         """
@@ -1084,6 +1079,9 @@ class TestGetContext(TestLtiConsumerXBlock):
 
         for key in context_keys:
             self.assertIn(key, context)
+
+        if lti_version == 'lti_1p3':
+            lti_api_patch.assert_called_once()
 
     @ddt.data('a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i', 'li', 'ol', 'strong', 'ul', 'img')
     def test_comment_allowed_tags(self, tag):
@@ -1187,19 +1185,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
-
-    def test_launch_request(self):
-        """
-        Test LTI 1.3 launch request
-        """
-        response = self.xblock.lti_1p3_launch_handler(make_request('', 'GET'))
-        self.assertEqual(response.status_code, 200)
-
-        # Check if tool OIDC url is on page
-        self.assertIn(
-            self.xblock_attributes['lti_1p3_oidc_url'],
-            response.body.decode('utf-8')
-        )
 
     def test_launch_callback_endpoint(self):
         """

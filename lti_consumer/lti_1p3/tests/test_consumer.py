@@ -158,7 +158,7 @@ class TestLti1p3Consumer(TestCase):
         )
 
         # Extract and check parameters from OIDC launch request url
-        parameters = parse_qs(urlparse(preflight_request_data['oidc_url']).query)
+        parameters = parse_qs(urlparse(preflight_request_data).query)
         self.assertCountEqual(
             parameters.keys(),
             [
