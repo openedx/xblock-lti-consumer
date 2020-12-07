@@ -40,6 +40,7 @@ class TestLtiConfigurationModel(TestCase):
             # Studio configuration view.
             'lti_1p3_tool_public_key': self.public_key,
             'has_score': True,
+            'lti_advantage_deep_linking_enabled': True,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
         # Set dummy location so that UsageKey lookup is valid
@@ -130,6 +131,18 @@ class TestLtiConfigurationModel(TestCase):
                 }
             }
         )
+
+    def test_lti_consumer_deep_linking_enabled(self):
+        """
+        Check if LTI DL is properly instanced when configured.
+        """
+        self.lti_1p3_config.block = self.xblock
+
+        # Get LTI 1.3 consumer
+        consumer = self.lti_1p3_config.get_lti_consumer()
+
+        # Check that LTI DL class is instanced.
+        self.assertTrue(consumer.dl)
 
     @patch("lti_consumer.models.compat")
     def test_block_property(self, compat_mock):

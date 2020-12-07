@@ -3,7 +3,7 @@ LTI 1.3 Consumer implementation
 """
 from urllib.parse import urlencode
 
-from . import exceptions
+from . import constants, exceptions
 from .constants import (
     LTI_1P3_ROLE_MAP,
     LTI_BASE_MESSAGE,
@@ -13,6 +13,7 @@ from .constants import (
 )
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 from .ags import LtiAgs
+from .deep_linking import LtiDeepLinking
 
 
 class LtiConsumer1p3:
@@ -230,10 +231,10 @@ class LtiConsumer1p3:
             "https://purl.imsglobal.org/spec/lti/claim/custom": custom_parameters
         }
 
-    def generate_launch_request(
+    def get_lti_launch_message(
             self,
-            preflight_response,
-            resource_link
+            resource_link,
+            include_extra_claims=True,
     ):
         """
         Build LTI message from class parameters
@@ -241,9 +242,6 @@ class LtiConsumer1p3:
         This will add all required parameters from the LTI 1.3 spec and any additional ones set in
         the configuration and JTW encode the message using the provided key.
         """
-        # Validate preflight response
-        self._validate_preflight_response(preflight_response)
-
         # Start from base message
         lti_message = LTI_BASE_MESSAGE.copy()
 
@@ -251,9 +249,6 @@ class LtiConsumer1p3:
         lti_message.update({
             # Issuer
             "iss": self.iss,
-
-            # Nonce from OIDC preflight launch request
-            "nonce": preflight_response.get("nonce"),
 
             # JWT aud and azp
             "aud": [
@@ -290,27 +285,53 @@ class LtiConsumer1p3:
         else:
             raise ValueError("Required user data isn't set.")
 
-        # Set optional claims
-        # Launch presentation claim
-        if self.lti_claim_launch_presentation:
-            lti_message.update(self.lti_claim_launch_presentation)
+        # Only used when doing normal LTI launches
+        if include_extra_claims:
+            # Set optional claims
+            # Launch presentation claim
+            if self.lti_claim_launch_presentation:
+                lti_message.update(self.lti_claim_launch_presentation)
 
-        # Context claim
-        if self.lti_claim_context:
-            lti_message.update(self.lti_claim_context)
+            # Context claim
+            if self.lti_claim_context:
+                lti_message.update(self.lti_claim_context)
 
-        # Custom variables claim
-        if self.lti_claim_custom_parameters:
-            lti_message.update(self.lti_claim_custom_parameters)
+            # Custom variables claim
+            if self.lti_claim_custom_parameters:
+                lti_message.update(self.lti_claim_custom_parameters)
 
-        # Extra claims - From LTI Advantage extensions
-        if self.extra_claims:
-            lti_message.update(self.extra_claims)
+            # Extra claims - From LTI Advantage extensions
+            if self.extra_claims:
+                lti_message.update(self.extra_claims)
+
+        return lti_message
+
+    def generate_launch_request(
+            self,
+            preflight_response,
+            resource_link
+    ):
+        """
+        Build LTI message from class parameters
+
+        This will add all required parameters from the LTI 1.3 spec and any additional ones set in
+        the configuration and JTW encode the message using the provided key.
+        """
+        # Validate preflight response
+        self._validate_preflight_response(preflight_response)
+
+        # Get LTI Launch Message
+        lti_launch_message = self.get_lti_launch_message(resource_link=resource_link)
+
+        # Nonce from OIDC preflight launch request
+        lti_launch_message.update({
+            "nonce": preflight_response.get("nonce")
+        })
 
         return {
             "state": preflight_response.get("state"),
             "id_token": self.key_handler.encode_and_sign(
-                message=lti_message,
+                message=lti_launch_message,
                 expiration=300
             )
         }
@@ -400,8 +421,8 @@ class LtiConsumer1p3:
         try:
             assert response.get("nonce")
             assert response.get("state")
+            assert response.get("redirect_uri")
             assert response.get("client_id") == self.client_id
-            assert response.get("redirect_uri") == self.launch_url
         except AssertionError as err:
             raise exceptions.PreflightRequestValidationFailure() from err
 
@@ -455,8 +476,9 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         """
         super().__init__(*args, **kwargs)
 
-        # LTI AGS Variables
+        # LTI Advantage services
         self.ags = None
+        self.dl = None
 
     @property
     def lti_ags(self):
@@ -493,3 +515,101 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
         # Include LTI AGS claim inside the LTI Launch message
         self.set_extra_claim(self.ags.get_lti_ags_launch_claim())
+
+    def enable_deep_linking(
+        self,
+        deep_linking_launch_url,
+        deep_linking_return_url,
+    ):
+        """
+        Enable LTI Advantage Deep Linking Service.
+
+        This will include the LTI DL Claim in the LTI message
+        and set up the required class.
+        """
+        self.dl = LtiDeepLinking(deep_linking_launch_url, deep_linking_return_url)
+
+    def generate_launch_request(
+            self,
+            preflight_response,
+            resource_link
+    ):
+        """
+        Build LTI message for Deep linking launches.
+
+        Overrides method from LtiConsumer1p3 to allow handling LTI Deep linking messages
+        """
+        # Check if Deep Linking is enabled and that this is a Deep Link Launch
+        if self.dl and preflight_response.get("lti_message_hint") == "deep_linking_launch":
+            # Validate preflight response
+            self._validate_preflight_response(preflight_response)
+
+            # Get LTI Launch Message
+            lti_launch_message = self.get_lti_launch_message(
+                resource_link=resource_link,
+                include_extra_claims=False,
+            )
+
+            # Update message type to LtiDeepLinkingRequest,
+            # replacing the normal launch request.
+            lti_launch_message.update({
+                "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingRequest",
+            })
+            # Include deep linking claim
+            lti_launch_message.update(
+                # TODO: Add extra settings
+                self.dl.get_lti_deep_linking_launch_claim()
+            )
+
+            # Nonce from OIDC preflight launch request
+            lti_launch_message.update({
+                "nonce": preflight_response.get("nonce")
+            })
+
+            # Return new lanch message, used by XBlock to present the launch
+            return {
+                "state": preflight_response.get("state"),
+                "id_token": self.key_handler.encode_and_sign(
+                    message=lti_launch_message,
+                    expiration=300
+                )
+            }
+
+        # Call LTI Launch if Deep Linking is not
+        # set up or this isn't a Deep Link Launch
+        return super().generate_launch_request(
+            preflight_response,
+            resource_link
+        )
+
+    def check_and_decode_deep_linking_token(self, token):
+        """
+        Check and decode Deep Linking response, return selected content items.
+
+        This either returns a content item list or raises an exception.
+        """
+        if not self.dl:
+            raise exceptions.LtiAdvantageServiceNotSetUp()
+
+        # Decode token, check expiration
+        deep_link_response = self.tool_jwt.validate_and_decode(token)
+
+        # Check the response is a Deep Linking response type
+        message_type = deep_link_response.get("https://purl.imsglobal.org/spec/lti/claim/message_type")
+        if not message_type == "LtiDeepLinkingResponse":
+            raise exceptions.InvalidClaimValue("Token isn't a Deep Linking Response message.")
+
+        # Check if supported contentitems were returned
+        content_items = deep_link_response.get(
+            'https://purl.imsglobal.org/spec/lti-dl/claim/content_items',
+            # If not found, return empty list
+            [],
+        )
+        if any([
+            item['type'] not in constants.LTI_DEEP_LINKING_ACCEPTED_TYPES
+            for item in content_items
+        ]):
+            raise exceptions.LtiDeepLinkingContentTypeNotSupported()
+
+        # Return contentitems
+        return content_items

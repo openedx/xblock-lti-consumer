@@ -103,7 +103,6 @@ class TestLti1p3Consumer(TestCase):
     @ddt.data(
         ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, True),
         ({"client_id": "2", "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, False),
-        ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL[::-1], "nonce": STATE, "state": STATE}, False),
         ({"redirect_uri": LAUNCH_URL, "nonce": NONCE, "state": STATE}, False),
         ({"client_id": CLIENT_ID, "nonce": NONCE, "state": STATE}, False),
         ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "state": STATE}, False),
@@ -569,6 +568,24 @@ class TestLtiAdvantageConsumer(TestCase):
             tool_key=RSA_KEY
         )
 
+        self.preflight_response = {}
+
+    def _setup_deep_linking(self):
+        """
+        Set's up deep linking class in LTI consumer.
+        """
+        self.lti_consumer.enable_deep_linking("launch-url", "return-url")
+
+        # Set LTI Consumer parameters
+        self.preflight_response = {
+            "client_id": CLIENT_ID,
+            "redirect_uri": LAUNCH_URL,
+            "nonce": NONCE,
+            "state": STATE,
+            "lti_message_hint": "deep_linking_launch",
+        }
+        self.lti_consumer.set_user_data("1", "student")
+
     def test_no_ags_returns_failure(self):
         """
         Test that when LTI-AGS isn't configured, the class yields an error.
@@ -604,3 +621,88 @@ class TestLtiAdvantageConsumer(TestCase):
                 }
             }
         )
+
+    def test_deep_linking_enabled_launch_request(self):
+        """
+        Test that the `generate_launch_request` returns a deep linking launch message
+        when the preflight request indicates it.
+        """
+        self._setup_deep_linking()
+
+        # Retrieve LTI Deep Link Launch Message
+        token = self.lti_consumer.generate_launch_request(
+            self.preflight_response,
+            "resourceLink"
+        )['id_token']
+
+        # Decode and check
+        decoded_token = self.lti_consumer.key_handler.validate_and_decode(token)
+        self.assertEqual(
+            decoded_token['https://purl.imsglobal.org/spec/lti/claim/message_type'],
+            "LtiDeepLinkingRequest",
+        )
+        self.assertEqual(
+            decoded_token['https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings']['deep_link_return_url'],
+            "return-url"
+        )
+
+    def test_deep_linking_token_decode_no_dl(self):
+        """
+        Check that trying to run the Deep Linking decoding fails if service is not set up.
+        """
+        with self.assertRaises(exceptions.LtiAdvantageServiceNotSetUp):
+            self.lti_consumer.check_and_decode_deep_linking_token("token")
+
+    def test_deep_linking_token_invalid_content_type(self):
+        """
+        Check that trying to run the Deep Linking decoding fails if an invalid content type is passed.
+        """
+        self._setup_deep_linking()
+
+        # Dummy Deep linking response
+        lti_reponse = {
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingResponse",
+            "https://purl.imsglobal.org/spec/lti-dl/claim/content_items": [
+                {
+                    "type": "link",
+                    "url": "https://something.example.com/page.html",
+                },
+            ]
+        }
+
+        with self.assertRaises(exceptions.LtiDeepLinkingContentTypeNotSupported):
+            self.lti_consumer.check_and_decode_deep_linking_token(
+                self.lti_consumer.key_handler.encode_and_sign(lti_reponse)
+            )
+
+    def test_deep_linking_token_wrong_message(self):
+        """
+        Check that trying to run the Deep Linking decoding fails if a message with the wrong type is passed.
+        """
+        self._setup_deep_linking()
+
+        # Dummy Deep linking response
+        lti_reponse = {"https://purl.imsglobal.org/spec/lti/claim/message_type": "WrongType"}
+
+        with self.assertRaises(exceptions.InvalidClaimValue):
+            self.lti_consumer.check_and_decode_deep_linking_token(
+                self.lti_consumer.key_handler.encode_and_sign(lti_reponse)
+            )
+
+    def test_deep_linking_token_returned(self):
+        """
+        Check corect token decoding and retrieval of content_items.
+        """
+        self._setup_deep_linking()
+
+        # Dummy Deep linking response
+        lti_reponse = {
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingResponse",
+            "https://purl.imsglobal.org/spec/lti-dl/claim/content_items": []
+        }
+
+        content_items = self.lti_consumer.check_and_decode_deep_linking_token(
+            self.lti_consumer.key_handler.encode_and_sign(lti_reponse)
+        )
+
+        self.assertEqual(content_items, [])

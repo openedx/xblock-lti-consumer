@@ -18,6 +18,13 @@ def lti_1p3_enabled():
     return settings.FEATURES.get('LTI_1P3_ENABLED', False) is True  # pragma: no cover
 
 
+def lti_deeplinking_enabled():
+    """
+    Returns `true` if LTI Advantage deep linking is enabled for instance.
+    """
+    return settings.FEATURES.get('LTI_DEEP_LINKING_ENABLED', False) is True  # pragma: no cover
+
+
 def get_lms_base():
     """
     Returns LMS base url to be used as issuer on OAuth2 flows
@@ -83,3 +90,20 @@ def get_lti_ags_lineitems_url(lti_config_id, lineitem_id=None):
         url += "/" + str(lineitem_id)
 
     return url
+
+
+def get_lti_deeplinking_response_url(lti_config_id):
+    """
+    Return the LTI Deep Linking response endpoint
+
+    This is just a dummy URL for now, until we implement the deep
+    linking response endpoint.
+
+    # TODO: Implement Deep Linking Response endpoint
+
+    :param lti_config_id: LTI configuration id
+    """
+    return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/response".format(
+        lms_base=get_lms_base(),
+        lti_config_id=str(lti_config_id),
+    )

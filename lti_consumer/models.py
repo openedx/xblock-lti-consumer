@@ -21,6 +21,7 @@ from lti_consumer.plugin import compat
 from lti_consumer.utils import (
     get_lms_base,
     get_lti_ags_lineitems_url,
+    get_lti_deeplinking_response_url,
 )
 
 
@@ -289,6 +290,13 @@ class LtiConfiguration(models.Model):
                 consumer.enable_ags(
                     lineitems_url=get_lti_ags_lineitems_url(self.id),
                     lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id),
+                )
+
+            # Check if enabled and setup LTI-DL
+            if self.block.lti_advantage_deep_linking_enabled:
+                consumer.enable_deep_linking(
+                    self.block.lti_advantage_deep_linking_launch_url,
+                    get_lti_deeplinking_response_url(self.id),
                 )
 
             return consumer

@@ -55,3 +55,7 @@ class PreflightRequestValidationFailure(Lti1p3Exception):
 
 class LtiAdvantageServiceNotSetUp(Lti1p3Exception):
     pass
+
+
+class LtiDeepLinkingContentTypeNotSupported(Lti1p3Exception):
+    pass

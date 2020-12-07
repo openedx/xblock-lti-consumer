@@ -84,6 +84,7 @@ from .outcomes import OutcomeService
 from .utils import (
     _,
     lti_1p3_enabled,
+    lti_deeplinking_enabled,
 )
 
 
@@ -312,6 +313,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
 
+    # Switch to enable/disable the LTI Advantage Deep linking service
+    lti_advantage_deep_linking_enabled = Boolean(
+        display_name=_("Deep linking"),
+        help=_("Select True if you want to enable LTI Advantage Deep Linking."),
+        default=False,
+        scope=Scope.settings
+    )
+    lti_advantage_deep_linking_launch_url = String(
+        display_name=_("LTI Advantage Deep Linking Launch URL"),
+        default='',
+        scope=Scope.settings,
+        help=_("Enter the LTI Advantage Deep Linking Launch URL. "),
+    )
+
     # LTI 1.1 fields
     lti_id = String(
         display_name=_("LTI ID"),
@@ -483,6 +498,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'display_name', 'description',
         # LTI 1.3 variables
         'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key',
+        # LTI Advantage variables
+        'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
         # LTI 1.1 variables
         'lti_id', 'launch_url',
         # Other parameters
@@ -581,19 +598,28 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     if field not in ('ask_to_send_username', 'ask_to_send_email')
                 )
 
-        # Hide LTI 1.3 fields if flag is disabled
+        # Hide LTI 1.3 fields depending on configuration flags
+        hide_fields = []
         if not lti_1p3_enabled():
+            hide_fields = [
+                'lti_version',
+                'lti_1p3_launch_url',
+                'lti_1p3_oidc_url',
+                'lti_1p3_tool_public_key',
+                'lti_advantage_deep_linking_enabled',
+                'lti_advantage_deep_linking_launch_url',
+            ]
+        elif not lti_deeplinking_enabled():
+            hide_fields = [
+                'lti_advantage_deep_linking_enabled',
+                'lti_advantage_deep_linking_launch_url',
+            ]
+
+        if hide_fields:
+            # Transform data from `editable_fields` not to override the fields
+            # settings applied above
             editable_fields = tuple(
-                field
-                # Transform data from `editable_fields` not to override the fields
-                # settings applied above
-                for field in editable_fields
-                if field not in (
-                    'lti_version',
-                    'lti_1p3_launch_url',
-                    'lti_1p3_oidc_url',
-                    'lti_1p3_tool_public_key',
-                )
+                field for field in editable_fields if field not in hide_fields
             )
 
         return editable_fields
@@ -998,6 +1024,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         loader = ResourceLoader(__name__)
         context = {}
 
+        user_role = self.runtime.get_user_role()
         lti_consumer = self._get_lti_consumer()
 
         try:
@@ -1005,7 +1032,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             lti_consumer.set_user_data(
                 user_id=self.external_user_id,
                 # Pass django user role to library
-                role=self.runtime.get_user_role()
+                role=user_role
             )
 
             # Set launch context
@@ -1031,8 +1058,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             # Retrieve preflight response
             preflight_response = dict(request.GET)
 
-            # Set LTI Launch URL
-            context.update({'launch_url': self.lti_1p3_launch_url})
+            # Set launch url depending on launch type
+            if self.lti_advantage_deep_linking_enabled and \
+               preflight_response.get('lti_message_hint') == 'deep_linking_launch':
+                # Check if the user is staff before LTI doing deep linking launch.
+                # If not, raise exception and display error page
+                assert user_role == 'staff'
+                # Set deep linking launch
+                context.update({'launch_url': self.lti_advantage_deep_linking_launch_url})
+            else:
+                # Else just run a normal LTI launch
+                context.update({'launch_url': self.lti_1p3_launch_url})
 
             # Update context with LTI launch parameters
             context.update({
@@ -1043,12 +1079,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 )
             })
 
-            context.update({'launch_url': self.lti_1p3_launch_url})
             template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
             return Response(template, content_type='text/html')
         except Lti1p3Exception:
             template = loader.render_mako_template('/templates/html/lti_1p3_launch_error.html', context)
             return Response(template, status=400, content_type='text/html')
+        except AssertionError:
+            template = loader.render_mako_template('/templates/html/lti_1p3_permission_error.html', context)
+            return Response(template, status=403, content_type='text/html')
 
     @XBlock.handler
     def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument
