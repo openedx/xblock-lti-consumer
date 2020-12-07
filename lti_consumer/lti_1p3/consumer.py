@@ -105,9 +105,7 @@ class LtiConsumer1p3:
             "lti_message_hint": lti_hint
         }
 
-        return {
-            "oidc_url": oidc_url + urlencode(parameters),
-        }
+        return oidc_url + urlencode(parameters)
 
     def set_user_data(
             self,
