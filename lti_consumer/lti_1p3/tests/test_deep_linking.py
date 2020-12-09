@@ -6,6 +6,7 @@ from __future__ import absolute_import, unicode_literals
 from django.test.testcases import TestCase
 from mock import patch
 
+from lti_consumer.lti_1p3.constants import LTI_DEEP_LINKING_ACCEPTED_TYPES
 from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
 from lti_consumer.lti_1p3 import exceptions
 
@@ -58,13 +59,13 @@ class TestLtiDeepLinking(TestCase):
         self.assertEqual(
             {
                 'https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings': {
-                    'accept_types': [],
+                    'accept_types': LTI_DEEP_LINKING_ACCEPTED_TYPES,
                     'accept_presentation_document_targets': [
                         'iframe',
                         'window',
                         'embed'
                     ],
-                    'accept_multiple': True,
+                    'accept_multiple': False,
                     'auto_create': True,
                     'title': '',
                     'text': '',

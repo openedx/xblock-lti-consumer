@@ -45,5 +45,17 @@
             <b>OIDC Callback URL: </b>
             ${oidc_callback}
         </p>
+
+        % if deep_linking_launch_url:
+            <hr />
+            <p>
+                You can configure this tool's content using LTI Deep Linking.
+                To do that, make sure the block is published and click the link below:
+            </p>
+            <a href="${deep_linking_launch_url}" target="_blank">
+                Deep Linking Launch - Configure tool
+                <i class="icon fa fa-external-link"></i>
+            </a>
+        % endif
     </body>
 </html>

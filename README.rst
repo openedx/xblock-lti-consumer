@@ -298,6 +298,14 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+2.5.3 - 2021-01-26
+------------------
+
+* LTI Deep Linking Launch implementation, implementing DeepLinking Classes and request
+  request preparation.
+* LTI Deep Linking response endpoint implementation, along with model to store selected configuration and
+  content items.
+
 2.5.2 - 2021-01-20
 ------------------
 

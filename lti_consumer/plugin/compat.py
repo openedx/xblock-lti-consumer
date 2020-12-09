@@ -94,3 +94,12 @@ def publish_grade(block, user, score, possible, only_if_higher=False, score_dele
         score_deleted=score_deleted,
         grader_response=comment,
     )
+
+
+def user_has_staff_access(user, course_key):
+    """
+    Check if an user has write permissions to a given course.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from lms.djangoapps.courseware.access import has_access
+    return has_access(user, "staff", course_key)

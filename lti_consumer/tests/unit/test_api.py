@@ -123,6 +123,19 @@ class TestGetLti1p3LaunchInfo(TestCase):
     """
     Unit tests for get_lti_consumer API method.
     """
+    def setUp(self):
+        # Patch internal method to avoid calls to modulestore
+        patcher = patch(
+            'lti_consumer.models.LtiConfiguration.get_lti_consumer',
+        )
+        self.addCleanup(patcher.stop)
+        self._get_lti_consumer_patch = patcher.start()
+        mock_consumer = Mock()
+        mock_consumer.prepare_preflight_url.return_value = "http://example.com"
+        self._get_lti_consumer_patch.return_value = mock_consumer
+
+        return super().setUp()
+
     def test_no_parameters(self):
         """
         Check if the API creates a model if no object matching properties is found.
@@ -169,6 +182,7 @@ class TestGetLti1p3LaunchInfo(TestCase):
                 'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
                     lti_config.lti_1p3_client_id
                 ),
+                'deep_linking_launch_url': 'https://example.com'
             }
         )
 

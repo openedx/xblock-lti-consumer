@@ -52,7 +52,13 @@ LTI_1P3_ACCESS_TOKEN_SCOPES = [
 ]
 
 
-LTI_DEEP_LINKING_ACCEPTED_TYPES = []
+LTI_DEEP_LINKING_ACCEPTED_TYPES = [
+    'ltiResourceLink',
+    # TODO: implement "image" support,
+    # TODO: implement "link" support,
+    # TODO: implement "file" support,
+    # TODO: implement "html" support,
+]
 
 
 class LTI_1P3_CONTEXT_TYPE(Enum):  # pylint: disable=invalid-name

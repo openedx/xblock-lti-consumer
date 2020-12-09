@@ -605,10 +605,10 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
             # If not found, return empty list
             [],
         )
-        if any([
+        if any(
             item['type'] not in constants.LTI_DEEP_LINKING_ACCEPTED_TYPES
             for item in content_items
-        ]):
+        ):
             raise exceptions.LtiDeepLinkingContentTypeNotSupported()
 
         # Return contentitems

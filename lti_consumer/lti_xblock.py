@@ -1063,8 +1063,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                preflight_response.get('lti_message_hint') == 'deep_linking_launch':
                 # Check if the user is staff before LTI doing deep linking launch.
                 # If not, raise exception and display error page
-                if user_role != 'staff':
-                    raise Lti1p3Exception('Deep Linking can only be performed by instructors.')
+                if user_role not in ['instructor', 'staff']:
+                    raise AssertionError('Deep Linking can only be performed by instructors and staff.')
                 # Set deep linking launch
                 context.update({'launch_url': self.lti_advantage_deep_linking_launch_url})
             else:
