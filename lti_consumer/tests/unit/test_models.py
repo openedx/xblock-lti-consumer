@@ -11,7 +11,12 @@ from jwkest.jwk import RSAKey
 
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
+from lti_consumer.models import (
+    LtiAgsLineItem,
+    LtiConfiguration,
+    LtiAgsScore,
+    LtiDlContentItem,
+)
 from lti_consumer.tests.unit.test_utils import make_xblock
 
 
@@ -276,4 +281,36 @@ class TestLtiAgsScoreModel(TestCase):
         self.assertEqual(
             str(self.score),
             "LineItem 1: score 10.0 out of 100.0 - FullyGraded"
+        )
+
+
+class TestLtiDlContentItemModel(TestCase):
+    """
+    Unit tests for LtiDlContentItem model methods.
+    """
+    def setUp(self):
+        super().setUp()
+
+        self.xblock_attributes = {'lti_version': 'lti_1p3'}
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        # Set dummy location so that UsageKey lookup is valid
+        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
+
+        self.lti_1p3_config = LtiConfiguration.objects.create(
+            location=str(self.xblock.location),
+            version=LtiConfiguration.LTI_1P3
+        )
+
+    def test_repr(self):
+        """
+        Test String representation of model.
+        """
+        content_item = LtiDlContentItem.objects.create(
+            lti_configuration=self.lti_1p3_config,
+            content_type=LtiDlContentItem.IMAGE,
+            attributes={}
+        )
+        self.assertEqual(
+            str(content_item),
+            "[CONFIG_ON_XBLOCK] lti_1p3 - block-v1:course+test+2020+type@problem+block@test: image"
         )

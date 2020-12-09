@@ -53,13 +53,13 @@ class LtiDeepLinking:
                 "embed"
             ],
             # Only accept a single item return from Deep Linking operation.
-            "accept_multiple": True,
+            "accept_multiple": False,
             # Automatically saves Content Items without asking to user
             "auto_create": True,
             # Other parameters
             "title": title,
             "text": description,
-            "deep_link_return_url": self.deep_linking_return_url
+            "deep_link_return_url": self.deep_linking_return_url,
         }
 
         # Extra data is an optional parameter that can be sent.

@@ -96,11 +96,6 @@ def get_lti_deeplinking_response_url(lti_config_id):
     """
     Return the LTI Deep Linking response endpoint
 
-    This is just a dummy URL for now, until we implement the deep
-    linking response endpoint.
-
-    # TODO: Implement Deep Linking Response endpoint
-
     :param lti_config_id: LTI configuration id
     """
     return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/response".format(
