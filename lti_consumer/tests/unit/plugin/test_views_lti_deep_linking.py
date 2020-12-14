@@ -218,3 +218,52 @@ class LtiDeepLinkingResponseEndpointTestCase(LtiDeepLinkingTestCase):
         self.assertEqual(content_items.count(), 1)
         self.assertEqual(content_items[0].content_type, "ltiResourceLink")
         self.assertEqual(content_items[0].attributes["url"], "https://example.com/lti")
+
+
+class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
+    """
+    Test ``deep_linking_content_endpoint`` view.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.url = '/lti_consumer/v1/lti/{}/lti-dl/content'.format(self.lti_config.id)
+
+    @patch('lti_consumer.plugin.views.has_block_access', return_value=False)
+    def test_forbidden_access(self, has_block_access_patcher):  # pylint: disable=unused-argument
+        """
+        Test if 403 is returned when a user doesn't have access.
+        """
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 403)
+
+    def test_invalid_lti_config(self):
+        """
+        Test if throws 404 when lti configuration not found.
+        """
+        resp = self.client.get('/lti_consumer/v1/lti/200/lti-dl/content')
+        self.assertEqual(resp.status_code, 404)
+
+    @patch('lti_consumer.plugin.views.has_block_access', return_value=True)
+    def test_no_dl_contents(self, has_block_access_patcher):  # pylint: disable=unused-argument
+        """
+        Test if throws 404 when there is no LTI-DL Contents.
+        """
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 404)
+
+    @patch('lti_consumer.plugin.views.has_block_access', return_value=True)
+    def test_dl_contents(self, has_block_access_patcher):  # pylint: disable=unused-argument
+        """
+        Test if successfully returns an HTML response.
+        """
+        LtiDlContentItem.objects.create(
+            lti_configuration=self.lti_config,
+            content_type=LtiDlContentItem.IMAGE,
+            attributes={}
+        )
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        expected_title = '{} | Deep Linking Contents'.format(self.lti_config.block.display_name)
+        self.assertContains(resp, expected_title)

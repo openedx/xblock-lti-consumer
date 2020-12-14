@@ -7,6 +7,7 @@ from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.shortcuts import render
 from django_filters.rest_framework import DjangoFilterBackend
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
@@ -43,8 +44,46 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
 from lti_consumer.plugin.compat import (
     run_xblock_handler,
     run_xblock_handler_noauth,
-    user_has_staff_access,
+    get_course_by_id,
+    user_course_access,
+    user_has_access,
 )
+
+
+def user_has_staff_access(user, course_key):
+    """
+    Check if an user has write permissions to a given course.
+    """
+    return user_has_access(user, "staff", course_key)
+
+
+def has_block_access(user, block, course_key):
+    """
+    Checks if a user has access to given xblock.
+
+    ``has_access`` doesn't checks for course enrollment. On the otherhand, ``get_course_with_access``
+    only checks for the course itself. There is no way to check access for specific xblock. This function
+    has been created to perform a combination of check for both enrollment and access for specific xblock.
+
+    Args:
+        user: User Object
+        block: xblock Object to check permission for
+        course_key: A course_key specifying which course run this access is for.
+
+    Returns:
+        bool: True if user has access, False otherwise.
+    """
+    # Get the course
+    course = get_course_by_id(course_key)
+
+    # Check if user is authenticated & enrolled
+    course_access = user_course_access(course, user, 'load', check_if_enrolled=True, check_if_authenticated=True)
+
+    # Check if user has access to xblock
+    block_access = user_has_access(user, 'load', block, course_key)
+
+    # Return True if the user has access to xblock and is enrolled in that specific course.
+    return course_access and block_access
 
 
 @require_http_methods(["GET"])
@@ -183,6 +222,35 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
     except (Lti1p3Exception, KeyError, PermissionDenied):
         # TODO: Add template with error message
         return HttpResponse(status=403)
+
+
+@require_http_methods(['GET'])
+def deep_linking_content_endpoint(request, lti_config_id=None):
+    """
+    Deep Linking endpoint for rendering Deep Linking Content Items.
+    """
+    try:
+        # Get LTI Configuration
+        lti_config = LtiConfiguration.objects.get(id=lti_config_id)
+    except LtiConfiguration.DoesNotExist:
+        return HttpResponse(status=404)
+
+    # check if user has proper access
+    if not has_block_access(request.user, lti_config.block, lti_config.location.course_key):
+        return HttpResponse(status=403)
+
+    # Get all LTI-DL contents
+    content_items = LtiDlContentItem.objects.filter(lti_configuration=lti_config)
+
+    # If no LTI-DL contents found for current configuration, throw 404 error
+    if not content_items.exists():
+        return HttpResponse(status=404)
+
+    # Render LTI-DL contents
+    return render(request, 'html/lti-dl/render_dl_content.html', {
+        'content_items': content_items,
+        'block': lti_config.block,
+    })
 
 
 class LtiAgsLineItemViewset(viewsets.ModelViewSet):
