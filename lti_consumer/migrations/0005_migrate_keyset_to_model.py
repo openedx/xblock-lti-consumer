@@ -23,6 +23,8 @@ def forwards_func(apps, schema_editor):
     )
     with transaction.atomic():
         for lti_config in lti_configs:
+            if not lti_config.location:
+                continue
             block = _load_block(lti_config.location)
 
             # If client_id exists, move it to model
