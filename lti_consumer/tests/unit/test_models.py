@@ -9,6 +9,7 @@ from django.test.testcases import TestCase
 
 from jwkest.jwk import RSAKey
 
+from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiAgsScore
 from lti_consumer.tests.unit.test_utils import make_xblock
@@ -49,6 +50,13 @@ class TestLtiConfigurationModel(TestCase):
             location=str(self.xblock.location),
             version=LtiConfiguration.LTI_1P1
         )
+        self.lti_1p1_config_db = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P1,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_1p1_launch_url='http://tool.example/lti1.1launch',
+            lti_1p1_client_key='test_1p1p_key',
+            lti_1p1_client_secret='test_1p1p_secret',
+        )
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
             location=str(self.xblock.location),
@@ -66,6 +74,21 @@ class TestLtiConfigurationModel(TestCase):
 
         self.lti_1p3_config.get_lti_consumer()
         lti_1p3_mock.assert_called()
+
+    def test_xblock_store_lti1p1(self):
+        """
+        Check if the correct LTI consumer is returned.
+        """
+        lti_consumer = self.lti_1p1_config_db.get_lti_consumer()
+
+        self.assertIsInstance(lti_consumer, LtiConsumer1p1)
+
+        lti_1p3_config = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+        )
+        with self.assertRaises(NotImplementedError):
+            lti_1p3_config.get_lti_consumer()
 
     def test_repr(self):
         """
@@ -102,8 +125,8 @@ class TestLtiConfigurationModel(TestCase):
                         'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/score',
                     ],
-                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags',
-                    'lineitem': 'https://example.com/api/lti_consumer/v1/lti/2/lti-ags/1',
+                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/3/lti-ags',
+                    'lineitem': 'https://example.com/api/lti_consumer/v1/lti/3/lti-ags/1',
                 }
             }
         )
