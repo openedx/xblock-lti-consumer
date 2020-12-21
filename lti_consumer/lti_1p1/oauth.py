@@ -56,8 +56,8 @@ def get_oauth_request_signature(key, secret, url, headers, body):
             body=body,
             headers=headers
         )
-    except ValueError:  # Scheme not in url.
-        raise Lti1p1Error("Failed to sign oauth request")
+    except ValueError as err:  # Scheme not in url.
+        raise Lti1p1Error("Failed to sign oauth request") from err
 
     return headers['Authorization']
 

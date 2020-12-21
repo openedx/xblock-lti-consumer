@@ -11,7 +11,7 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
 
     Makes the location field read-only to avoid issues.
     """
-    readonly_fields = ('location', )
+    readonly_fields = ('location', 'config_id')
 
 
 admin.site.register(LtiConfiguration, LtiConfigurationAdmin)

@@ -161,7 +161,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         url_path='results/(?P<user_id>[^/.]+)?',
         renderer_classes=[LineItemResultsRenderer]
     )
-    def results(self, request, user_id=None, **kwargs):
+    def results(self, request, user_id=None, **kwargs):  # pylint: disable=unused-argument
         """
         Return a Result list for an LtiAgsLineItem
 
@@ -199,7 +199,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         parser_classes=[LineItemScoreParser],
         renderer_classes=[LineItemScoreRenderer]
     )
-    def scores(self, request, *args, **kwargs):
+    def scores(self, request, *args, **kwargs):  # pylint: disable=unused-argument
         """
         Create a Score record for an LtiAgsLineItem
 

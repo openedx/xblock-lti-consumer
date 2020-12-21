@@ -55,8 +55,8 @@ class ToolKeyHandler:
                 # Import Key and save to internal state
                 new_key.load_key(RSA.import_key(raw_key))
                 self.public_key = new_key
-            except ValueError:
-                raise exceptions.InvalidRsaKey()
+            except ValueError as err:
+                raise exceptions.InvalidRsaKey() from err
 
     def _get_keyset(self, kid=None):
         """
@@ -113,12 +113,12 @@ class ToolKeyHandler:
             # Else returns decoded message
             return message
 
-        except NoSuitableSigningKeys:
-            raise exceptions.NoSuitableKeys()
-        except BadSyntax:
-            raise exceptions.MalformedJwtToken()
-        except WrongNumberOfParts:
-            raise exceptions.MalformedJwtToken()
+        except NoSuitableSigningKeys as err:
+            raise exceptions.NoSuitableKeys() from err
+        except BadSyntax as err:
+            raise exceptions.MalformedJwtToken() from err
+        except WrongNumberOfParts as err:
+            raise exceptions.MalformedJwtToken() from err
 
 
 class PlatformKeyHandler:
@@ -145,8 +145,8 @@ class PlatformKeyHandler:
                     kid=kid,
                     key=RSA.import_key(key_pem)
                 )
-            except ValueError:
-                raise exceptions.InvalidRsaKey()
+            except ValueError as err:
+                raise exceptions.InvalidRsaKey() from err
 
     def encode_and_sign(self, message, expiration=None):
         """
@@ -211,7 +211,7 @@ class PlatformKeyHandler:
             # Else return token contents
             return message
 
-        except NoSuitableSigningKeys:
-            raise exceptions.NoSuitableKeys()
-        except BadSyntax:
-            raise exceptions.MalformedJwtToken()
+        except NoSuitableSigningKeys as err:
+            raise exceptions.NoSuitableKeys() from err
+        except BadSyntax as err:
+            raise exceptions.MalformedJwtToken() from err

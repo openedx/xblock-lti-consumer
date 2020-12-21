@@ -23,7 +23,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
     Test `LtiAgsLineItemViewset` Class.
     """
     def setUp(self):
-        super(LtiAgsLineItemViewSetTestCase, self).setUp()
+        super().setUp()
 
         # Create custom LTI Block
         self.rsa_key_id = "1"

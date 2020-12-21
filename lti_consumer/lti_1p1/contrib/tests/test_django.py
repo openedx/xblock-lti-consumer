@@ -15,7 +15,7 @@ class TestLtiEmbed(TestCase):
     """
 
     def setUp(self):
-        super(TestLtiEmbed, self).setUp()
+        super().setUp()
         self.html_element_id = 'html_element_id'
         self.lti_launch_url = 'lti_launch_url'
         self.oauth_key = 'oauth_key'

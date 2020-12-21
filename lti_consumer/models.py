@@ -6,9 +6,11 @@ import json
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
+from django.utils.translation import ugettext_lazy as _
 
-from opaque_keys.edx.django.models import UsageKeyField
 from Cryptodome.PublicKey import RSA
+from opaque_keys.edx.django.models import UsageKeyField
+from jsonfield import JSONField
 
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
@@ -60,8 +62,10 @@ class LtiConfiguration(models.Model):
     # stored on the block, but should be expanded to
     # enable storing LTI configuration in this model.
     CONFIG_ON_XBLOCK = 'CONFIG_ON_XBLOCK'
+    CONFIG_ON_DB = 'CONFIG_ON_DB'
     CONFIG_STORE_CHOICES = [
-        (CONFIG_ON_XBLOCK, 'Configuration Stored on XBlock fields'),
+        (CONFIG_ON_XBLOCK, _('Configuration Stored on XBlock fields')),
+        (CONFIG_ON_DB, _('Configuration Stored on this model')),
     ]
     config_store = models.CharField(
         max_length=255,
@@ -69,9 +73,10 @@ class LtiConfiguration(models.Model):
         default=CONFIG_ON_XBLOCK,
     )
 
+    # A secondary ID for this configuration that can be used in URLs without leaking primary id.
+    config_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+
     # Block location where the configuration is stored.
-    # In the future, the LTI configuration will be
-    # stored in this model in a JSON field.
     location = UsageKeyField(
         max_length=255,
         db_index=True,
@@ -79,32 +84,70 @@ class LtiConfiguration(models.Model):
         blank=True,
     )
 
+    # This is where the configuration is stored in the model if stored on this model.
+    lti_config = JSONField(
+        null=False,
+        blank=True,
+        default=dict,
+        help_text=_("LTI configuration data.")
+    )
+
+    # LTI 1.1 Related variables
+    lti_1p1_launch_url = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text=_("The URL of the external tool that initiates the launch.")
+    )
+    lti_1p1_client_key = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text=_("Client key provided by the LTI tool provider.")
+    )
+
+    lti_1p1_client_secret = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text=_("Client secret provided by the LTI tool provider.")
+    )
+
     # LTI 1.3 Related variables
     lti_1p3_internal_private_key = models.TextField(
         blank=True,
-        help_text="Platform's generated Private key. Keep this value secret.",
+        help_text=_("Platform's generated Private key. Keep this value secret."),
     )
 
     lti_1p3_internal_private_key_id = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Platform's generated Private key ID",
+        help_text=_("Platform's generated Private key ID"),
     )
 
     lti_1p3_internal_public_jwk = models.TextField(
         blank=True,
-        help_text="Platform's generated JWK keyset.",
+        help_text=_("Platform's generated JWK keyset."),
     )
 
     lti_1p3_client_id = models.CharField(
         max_length=255,
         default=generate_client_id,
-        help_text="Client ID used by LTI tool",
+        help_text=_("Client ID used by LTI tool"),
     )
 
     # Empty variable that'll hold the block once it's retrieved
     # from the modulestore or preloaded
     _block = None
+
+    def clean(self):
+        if self.config_store == self.CONFIG_ON_XBLOCK and self.location is None:
+            raise ValidationError({
+                "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
+            })
+        try:
+            consumer = self.get_lti_consumer()
+        except NotImplementedError:
+            consumer = None
+        if consumer is None:
+            raise ValidationError(_("Invalid LTI configuration."))
 
     @property
     def block(self):
@@ -114,7 +157,7 @@ class LtiConfiguration(models.Model):
         block = getattr(self, '_block', None)
         if block is None:
             if self.location is None:
-                raise ValueError("Block location not set, it's not possible to retrieve the block.")
+                raise ValueError(_("Block location not set, it's not possible to retrieve the block."))
             block = self._block = compat.load_block_as_anonymous_user(self.location)
         return block
 
@@ -188,12 +231,13 @@ class LtiConfiguration(models.Model):
         # If LTI configuration is stored in the XBlock.
         if self.config_store == self.CONFIG_ON_XBLOCK:
             key, secret = self.block.lti_provider_key_secret
+            launch_url = self.block.launch_url
+        else:
+            key = self.lti_1p1_client_key
+            secret = self.lti_1p1_client_secret
+            launch_url = self.lti_1p1_launch_url
 
-            return LtiConsumer1p1(self.block.launch_url, key, secret)
-
-        # There's no configuration stored locally, so throw
-        # NotImplemented.
-        raise NotImplementedError
+        return LtiConsumer1p1(launch_url, key, secret)
 
     def _get_lti_1p3_consumer(self):
         """
@@ -399,7 +443,7 @@ class LtiAgsScore(models.Model):
         if self.score_given and self.score_maximum is None:
             raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
 
-    def save(self, *args, **kwargs):  # pylint: disable=arguments-differ
+    def save(self, *args, **kwargs):  # pylint: disable=signature-differs
         self.full_clean()
         super().save(*args, **kwargs)
 

@@ -16,7 +16,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
     Test `public_keyset_endpoint` method.
     """
     def setUp(self):
-        super(TestLti1p3KeysetEndpoint, self).setUp()
+        super().setUp()
 
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
         self.url = '/lti_consumer/v1/public_keysets/{}'.format(self.location)
@@ -70,7 +70,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
     Test `launch_gate_endpoint` method.
     """
     def setUp(self):
-        super(TestLti1p3LaunchGateEndpoint, self).setUp()
+        super().setUp()
 
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
         self.url = '/lti_consumer/v1/launch/'
@@ -113,7 +113,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
     Test `access_token_endpoint` method.
     """
     def setUp(self):
-        super(TestLti1p3AccessTokenEndpoint, self).setUp()
+        super().setUp()
 
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
         self.url = '/lti_consumer/v1/token/{}'.format(self.location)

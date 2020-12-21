@@ -119,7 +119,7 @@ class TestLtiConsumer1p1(unittest.TestCase):
     """
 
     def setUp(self):
-        super(TestLtiConsumer1p1, self).setUp()
+        super().setUp()
         self.lti_launch_url = 'lti_launch_url'
         self.oauth_key = 'fake_consumer_key'
         self.oauth_secret = 'fake_signature'
