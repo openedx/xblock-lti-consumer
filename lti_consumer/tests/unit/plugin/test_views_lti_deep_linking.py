@@ -328,6 +328,28 @@ class LtiDeepLinkingResponseEndpointTestCase(LtiDeepLinkingTestCase):
         content_item, is_valid = test_data
         self._content_type_validation_test_helper(content_item, is_valid)
 
+    @ddt.data(
+        ({"type": "html"}, False),
+        ({"type": "html", "html": "<p>Hello</p>"}, True),
+        ({
+            "type": "html",
+            "html": "<p>Hello</p>",
+            "text": "This is a link",
+            "title": "This is a link"
+        }, True),
+    )
+    def test_html_content_type(self, test_data):
+        """
+        Tests validation for `html` content type.
+
+        Args:
+            self
+            test_data (tuple): 1st element is the datastructure to test,
+                and the second one indicates wether it's valid or not.
+        """
+        content_item, is_valid = test_data
+        self._content_type_validation_test_helper(content_item, is_valid)
+
 
 @ddt.ddt
 class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
@@ -455,3 +477,34 @@ class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
         else:
             # otherwise, the link should be on the href of the anchor tag.
             self.assertContains(resp, 'href="{}"'.format(test_data['url']))
+
+    @ddt.data(
+        {'url': 'https://example.com', 'html': '<i>Hello World!</i>'},
+        {'url': 'https://example.com', 'html': '<i>Hello World!</i>', 'title': 'With Title'},
+        {'url': 'https://example.com', 'html': '<i>Hello World!</i>', 'title': 'With Title', 'text': 'With Text'},
+        {'url': 'https://example.com', 'html': '<img alt="alt text" src="location_to_image">', 'title': 'With Title'},
+    )
+    @patch('lti_consumer.plugin.views.has_block_access', return_value=True)
+    def test_dl_content_type_html(self, test_data, has_block_access_patcher):  # pylint: disable=unused-argument
+        """
+        Test if html content type successfully rendered.
+        """
+        attributes = {'type': LtiDlContentItem.HTML_FRAGMENT}
+        attributes.update(test_data)
+
+        LtiDlContentItem.objects.create(
+            lti_configuration=self.lti_config,
+            content_type=LtiDlContentItem.HTML_FRAGMENT,
+            attributes=attributes
+        )
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+
+        if test_data.get('title'):
+            self.assertContains(resp, '<h2>{}</h2>'.format(test_data['title']))
+
+        if test_data.get('text'):
+            self.assertContains(resp, '<p>{}</p>'.format(test_data['text']))
+
+        self.assertContains(resp, test_data['html'])

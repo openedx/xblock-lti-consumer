@@ -1,0 +1,6 @@
+{% load lti_sanitize %}
+
+{% if attrs.title %}<h2>{{ attrs.title }}</h2>{% endif %}
+{% if attrs.text %}<p>{{ attrs.text }}</p>{% endif %}
+
+{{ attrs.html|lti_sanitize }}

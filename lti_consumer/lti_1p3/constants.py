@@ -55,9 +55,9 @@ LTI_1P3_ACCESS_TOKEN_SCOPES = [
 LTI_DEEP_LINKING_ACCEPTED_TYPES = [
     'ltiResourceLink',
     'link',
+    'html',
     # TODO: implement "image" support,
     # TODO: implement "file" support,
-    # TODO: implement "html" support,
 ]
 
 
