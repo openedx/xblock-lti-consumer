@@ -271,3 +271,62 @@ class LtiDlLtiResourceLinkSerializer(serializers.Serializer):
     lineItem = LtiDlLineItemSerializer(required=False)
     available = LtiDlTimeDeltaSerializer(required=False)
     submission = LtiDlTimeDeltaSerializer(required=False)
+
+
+# pylint: disable=abstract-method
+class LtiDLIconPropertySerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - `icon` or `thumbnail` property serializer.
+    """
+    url = serializers.URLField(max_length=500)
+    width = serializers.IntegerField(min_value=1)
+    height = serializers.IntegerField(min_value=1)
+
+
+# pylint: disable=abstract-method
+class LtiDlEmbedPropertySerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - `embed` property serializer.
+    """
+    html = serializers.CharField()
+
+
+# pylint: disable=abstract-method
+class LtiDlWindowPropertySerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - `window` property serializer.
+    """
+    targetName = serializers.CharField(max_length=255, required=False)
+    width = serializers.IntegerField(min_value=1, required=False)
+    height = serializers.IntegerField(min_value=1, required=False)
+    windowFeatures = serializers.CharField(required=False)
+
+
+# pylint: disable=abstract-method
+class LtiDlIframePropertySerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - `iframe` property serializer.
+    """
+    src = serializers.URLField(max_length=500)
+    width = serializers.IntegerField(min_value=1)
+    height = serializers.IntegerField(min_value=1)
+
+
+# pylint: disable=abstract-method
+class LtiDlLinkSerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - Link Serializer.
+
+    This serializer implements validation for the Link content type.
+
+    Reference:
+    http://www.imsglobal.org/spec/lti-dl/v2p0#link
+    """
+    url = serializers.URLField(max_length=500)
+    title = serializers.CharField(max_length=255, required=False)
+    text = serializers.CharField(required=False)
+    icon = LtiDLIconPropertySerializer(required=False)
+    thumbnail = LtiDLIconPropertySerializer(required=False)
+    embed = LtiDlEmbedPropertySerializer(required=False)
+    window = LtiDlWindowPropertySerializer(required=False)
+    iframe = LtiDlIframePropertySerializer(required=False)

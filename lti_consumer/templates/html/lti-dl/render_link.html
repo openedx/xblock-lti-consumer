@@ -1,0 +1,18 @@
+{% if attrs.title %}<h2>{{ attrs.title }}</h2>{% endif %}
+{% if attrs.text %}<p>{{ attrs.text }}</p>{% endif %}
+<a
+    {% if attrs.window %}
+    onclick="window.open('{{ attrs.url }}', '{{ attrs.window.targetName|default_if_none:''}}', '{{ attrs.window.windowFeatures|default_if_none:'' }}')"
+    href="#"
+    {% else %}
+    href="{{ attrs.url }}"
+    {% endif %}
+    >
+    {% if attrs.icon %}
+        <img src="{{ attrs.icon.url }}" width="{{ attrs.icon.width }}" height="{{ attrs.icon.height }}" />
+    {% endif %}
+    {% if attrs.thumbnail %}
+        <img src="{{ attrs.thumbnail.url }}" width="{{ attrs.thumbnail.width }}" height="{{ attrs.thumbnail.height }}" />
+    {% endif %}
+    {{ attrs.url }}
+</a>

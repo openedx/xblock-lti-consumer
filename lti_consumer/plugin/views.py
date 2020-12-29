@@ -194,10 +194,11 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
             LtiDlContentItem.objects.filter(lti_configuration=lti_config).delete()
 
             for content_item in content_items:
+
+                content_type = content_item.get('type')
+
                 # Retrieve serializer (or throw error)
-                serializer_cls = LTI_DL_CONTENT_TYPE_SERIALIZER_MAP[
-                    content_item.get('type')
-                ]
+                serializer_cls = LTI_DL_CONTENT_TYPE_SERIALIZER_MAP[content_type]
 
                 # Validate content item data
                 serializer = serializer_cls(data=content_item)
@@ -206,7 +207,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
                 # Save content item
                 LtiDlContentItem.objects.create(
                     lti_configuration=lti_config,
-                    content_type=LtiDlContentItem.LTI_RESOURCE_LINK,
+                    content_type=content_type,
                     attributes=serializer.validated_data,
                 )
 

@@ -664,7 +664,7 @@ class TestLtiAdvantageConsumer(TestCase):
             "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingResponse",
             "https://purl.imsglobal.org/spec/lti-dl/claim/content_items": [
                 {
-                    "type": "link",
+                    "type": "wrongContentType",
                     "url": "https://something.example.com/page.html",
                 },
             ]
