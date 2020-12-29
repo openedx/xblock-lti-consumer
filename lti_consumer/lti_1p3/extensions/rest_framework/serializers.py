@@ -345,3 +345,22 @@ class LtiDlHtmlSerializer(serializers.Serializer):
     html = serializers.CharField()
     title = serializers.CharField(max_length=255, required=False)
     text = serializers.CharField(required=False)
+
+
+# pylint: disable=abstract-method
+class LtiDlImageSerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - image Serializer.
+
+    This serializer implements validation for the Image content type.
+
+    Reference:
+    http://www.imsglobal.org/spec/lti-dl/v2p0#image
+    """
+    url = serializers.URLField(max_length=500)
+    title = serializers.CharField(max_length=255, required=False)
+    text = serializers.CharField(required=False)
+    icon = LtiDLIconPropertySerializer(required=False)
+    thumbnail = LtiDLIconPropertySerializer(required=False)
+    width = serializers.IntegerField(min_value=1, required=False)
+    height = serializers.IntegerField(min_value=1, required=False)

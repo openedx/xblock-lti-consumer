@@ -1,0 +1,14 @@
+{% if attrs.title %}<h2>{{ attrs.title }}</h2>{% endif %}
+{% if attrs.text %}<p>{{ attrs.text }}</p>{% endif %}
+
+{% if attrs.thumbnail %}
+<a href="{{ attrs.url }}" {% if attrs.title %}alt="{{ attrs.title }}"{% endif %}>
+    <img src="{{ attrs.thumbnail.url }}" {% if attrs.title %}alt="{{ attrs.title }}"{% endif %} width="{{ attrs.thumbnail.width }}" height="{{ attrs.thumbnail.height }}" />
+</a>
+{% elif attrs.icon %}
+<a href="{{ attrs.url }}" {% if attrs.title %}alt="{{ attrs.title }}"{% endif %}>
+    <img src="{{ attrs.icon.url }}" {% if attrs.title %}alt="{{ attrs.title }}"{% endif %} width="{{ attrs.icon.width }}" height="{{ attrs.icon.height }}" />
+</a>
+{% else %}
+<img src="{{ attrs.url }}" {% if attrs.title %}alt="{{ attrs.title }}" {% endif %}{% if attrs.width %}width="{{ attrs.width }}" {% endif %}{% if attrs.height %}height="{{ attrs.height }}"{% endif %} />
+{% endif %}

@@ -350,6 +350,46 @@ class LtiDeepLinkingResponseEndpointTestCase(LtiDeepLinkingTestCase):
         content_item, is_valid = test_data
         self._content_type_validation_test_helper(content_item, is_valid)
 
+    @ddt.data(
+        ({"type": "image"}, False),
+        ({"type": "image", "url": "http://ex.com/image"}, True),
+        ({
+            "type": "image",
+            "url": "http://ex.com/image",
+            "text": "This is a link",
+            "title": "This is a link"
+        }, True),
+
+        # invalid icon
+        ({"type": "image", "url": "https://example.com/image", "icon": {}}, False),
+        # valid icon
+        ({
+            "type": "image",
+            "url": "https://example.com/image",
+            "icon": {"url": "https://ex.com/icon", "width": 20, "height": 20}
+        }, True),
+
+        # invalid thumbnail
+        ({"type": "image", "url": "https://example.com/image", "thumbnail": {}}, False),
+        # valid thumbnail
+        ({
+            "type": "image",
+            "url": "https://example.com/image",
+            "thumbnail": {"url": "https://ex.com/icon", "width": 20, "height": 20}
+        }, True),
+    )
+    def test_image_content_type(self, test_data):
+        """
+        Tests validation for `image` content type.
+
+        Args:
+            self
+            test_data (tuple): 1st element is the datastructure to test,
+                and the second one indicates wether it's valid or not.
+        """
+        content_item, is_valid = test_data
+        self._content_type_validation_test_helper(content_item, is_valid)
+
 
 @ddt.ddt
 class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
@@ -508,3 +548,59 @@ class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
             self.assertContains(resp, '<p>{}</p>'.format(test_data['text']))
 
         self.assertContains(resp, test_data['html'])
+
+    @ddt.data(
+        {'url': 'https://path.to.image'},
+        {'url': 'https://path.to.image', 'title': 'With Title'},
+        {'url': 'https://path.to.image', 'title': 'With Title', 'text': 'With Text'},
+        {
+            'url': 'https://path.to.image', 'title': 'With Title', 'text': 'With Text',
+            'width': '400px', 'height': '200px',
+        },
+        {
+            'url': 'https://path.to.image', 'title': 'With Title', 'text': 'With Text',
+            'icon': {'url': 'https://path.to.icon', 'width': '20px', 'height': '20px'},
+        },
+        {
+            'url': 'https://path.to.image', 'title': 'With Title', 'text': 'With Text',
+            'thumbnail': {'url': 'https://path.to.thumbnail', 'width': '20px', 'height': '20px'},
+        },
+    )
+    @patch('lti_consumer.plugin.views.has_block_access', return_value=True)
+    def test_dl_content_type_image(self, test_data, has_block_access):  # pylint: disable=unused-argument
+        """
+        Test if image content type successfully rendered.
+        """
+        attributes = {'type': LtiDlContentItem.IMAGE}
+        attributes.update(test_data)
+
+        LtiDlContentItem.objects.create(
+            lti_configuration=self.lti_config,
+            content_type=LtiDlContentItem.IMAGE,
+            attributes=attributes
+        )
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+
+        if test_data.get('title'):
+            self.assertContains(resp, '<h2>{}</h2>'.format(test_data['title']))
+            self.assertContains(resp, 'alt="{}"'.format(test_data['title']))
+
+        if test_data.get('text'):
+            self.assertContains(resp, '<p>{}</p>'.format(test_data['text']))
+
+        if test_data.get('thumbnail'):
+            self.assertContains(resp, '<a href="{}"'.format(test_data['url']))
+            self.assertContains(resp, '<img src="{}"'.format(test_data['thumbnail']['url']))
+        elif test_data.get('icon'):
+            self.assertContains(resp, '<a href="{}"'.format(test_data['url']))
+            self.assertContains(resp, '<img src="{}"'.format(test_data['icon']['url']))
+        else:
+            self.assertContains(resp, '<img src="{}"'.format(test_data['url']))
+
+        if test_data.get('width'):
+            self.assertContains(resp, 'width="{}"'.format(test_data['width']))
+
+        if test_data.get('height'):
+            self.assertContains(resp, 'height="{}"'.format(test_data['height']))

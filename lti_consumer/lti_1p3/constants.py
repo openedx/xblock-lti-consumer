@@ -56,7 +56,7 @@ LTI_DEEP_LINKING_ACCEPTED_TYPES = [
     'ltiResourceLink',
     'link',
     'html',
-    # TODO: implement "image" support,
+    'image',
     # TODO: implement "file" support,
 ]
 

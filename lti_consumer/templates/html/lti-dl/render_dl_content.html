@@ -10,6 +10,8 @@
                 {% include "html/lti-dl/render_link.html" with item=item attrs=item.attributes %}
             {% elif item.content_type == 'html' %}
                 {% include "html/lti-dl/render_html.html" with item=item attrs=item.attributes %}
+            {% elif item.content_type == 'image' %}
+                {% include "html/lti-dl/render_image.html" with item=item attrs=item.attributes %}
             {% endif %}
         {% endfor %}
     </body>
