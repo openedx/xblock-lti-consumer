@@ -330,3 +330,18 @@ class LtiDlLinkSerializer(serializers.Serializer):
     embed = LtiDlEmbedPropertySerializer(required=False)
     window = LtiDlWindowPropertySerializer(required=False)
     iframe = LtiDlIframePropertySerializer(required=False)
+
+
+# pylint: disable=abstract-method
+class LtiDlHtmlSerializer(serializers.Serializer):
+    """
+    LTI Deep Linking - html Serializer.
+
+    This serializer implements validation for the HTML Fragment content type.
+
+    Reference:
+    http://www.imsglobal.org/spec/lti-dl/v2p0#html-fragment
+    """
+    html = serializers.CharField()
+    title = serializers.CharField(max_length=255, required=False)
+    text = serializers.CharField(required=False)
