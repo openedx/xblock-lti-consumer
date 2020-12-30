@@ -1,10 +1,9 @@
 """
 Unit tests for LTI 1.3 consumer implementation
 """
-from __future__ import absolute_import, unicode_literals
 
+from unittest.mock import MagicMock, patch
 import ddt
-from mock import MagicMock, patch
 
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
@@ -34,7 +33,7 @@ class TestLtiAuthentication(TestCase):
     Unit tests for Lti1p3ApiAuthentication class
     """
     def setUp(self):
-        super(TestLtiAuthentication, self).setUp()
+        super().setUp()
 
         # Set up consumer
         self.lti_consumer = LtiConsumer1p3(
@@ -79,7 +78,7 @@ class TestLtiAuthentication(TestCase):
             expiration=3600
         )
         mock_request.headers = {
-            "Authorization": "Bearer {}".format(token),
+            "Authorization": f"Bearer {token}",
         }
 
         # Set the lti config id in the "url"

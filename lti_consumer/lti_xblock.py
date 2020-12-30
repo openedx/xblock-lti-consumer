@@ -87,7 +87,6 @@ from .utils import (
     lti_1p3_enabled,
 )
 
-
 log = logging.getLogger(__name__)
 
 DOCS_ANCHOR_TAG_OPEN = (
@@ -100,9 +99,9 @@ DOCS_ANCHOR_TAG_OPEN = (
 )
 RESULT_SERVICE_SUFFIX_PARSER = re.compile(r"^user/(?P<anon_id>\w+)", re.UNICODE)
 ROLE_MAP = {
-    'student': u'Student',
-    'staff': u'Administrator',
-    'instructor': u'Instructor',
+    'student': 'Student',
+    'staff': 'Administrator',
+    'instructor': 'Instructor',
 }
 
 
@@ -573,8 +572,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if config_service:
             is_already_sharing_learner_info = self.ask_to_send_email or self.ask_to_send_username
             if not config_service.configuration.lti_access_to_learners_editable(
-                    self.course_id,
-                    is_already_sharing_learner_info,
+                self.course_id,
+                is_already_sharing_learner_info,
             ):
                 editable_fields = tuple(
                     field
@@ -625,7 +624,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Get system user role and convert it to LTI role.
         """
-        return ROLE_MAP.get(self.runtime.get_user_role(), u'Student')
+        return ROLE_MAP.get(self.runtime.get_user_role(), 'Student')
 
     @property
     def course(self):
@@ -648,10 +647,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 if not key:
                     raise ValueError
                 key = ':'.join(key)
-            except ValueError:
+            except ValueError as error:
                 msg = 'Could not parse LTI passport: {lti_passport!r}. Should be "id:key:secret" string.'
                 msg = self.ugettext(msg).format(lti_passport=lti_passport)
-                raise LtiError(msg)
+                raise LtiError(msg) from error
 
             if lti_id == self.lti_id.strip():
                 return key, secret
@@ -717,7 +716,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         makes resource_link_id to be unique among courses inside same system.
         """
         return str(urllib.parse.quote(
-            "{}-{}".format(self.runtime.hostname, self.location.html_id())  # pylint: disable=no-member
+            f"{self.runtime.hostname}-{self.location.html_id()}"  # pylint: disable=no-member
         ))
 
     @property
@@ -783,11 +782,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             for custom_parameter in self.custom_parameters:
                 try:
                     param_name, param_value = [p.strip() for p in custom_parameter.split('=', 1)]
-                except ValueError:
+                except ValueError as error:
                     _ = self.runtime.service(self, "i18n").ugettext
                     msg = 'Could not parse custom parameter: {custom_parameter!r}. Should be "x=y" string.'
                     msg = self.ugettext(msg).format(custom_parameter=custom_parameter)
-                    raise LtiError(msg)
+                    raise LtiError(msg) from error
 
                 # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
                 if param_name not in LTI_PARAMETERS:
@@ -870,7 +869,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Get Studio View fragment
         """
         loader = ResourceLoader(__name__)
-        fragment = super(LtiConsumerXBlock, self).studio_view(context)
+        fragment = super().studio_view(context)
 
         fragment.add_javascript(loader.load_unicode("static/js/xblock_studio_view.js"))
         fragment.initialize_js('LtiConsumerXBlockInitStudio')
@@ -929,7 +928,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return fragment
 
     @XBlock.handler
-    def lti_launch_handler(self, request, suffix=''):
+    def lti_launch_handler(self, request, suffix=''):  # pylint: disable=W0613
         """
         XBlock handler for launching LTI 1.1 tools.
 
@@ -984,7 +983,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_handler(self, request, suffix=''):
+    def lti_1p3_launch_handler(self, request, suffix=''):  # pylint: disable=W0613
         """
         XBlock handler for launching the LTI 1.3 tools.
 
@@ -1010,7 +1009,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_callback(self, request, suffix=''):
+    def lti_1p3_launch_callback(self, request, suffix=''):  # pylint: disable=W0613
         """
         XBlock handler for launching the LTI 1.3 tool.
 
@@ -1071,7 +1070,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(template, status=400, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_access_token(self, request, suffix=''):
+    def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=W0613
         """
         XBlock handler for creating access tokens for the LTI 1.3 tool.
 
@@ -1130,7 +1129,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
 
     @XBlock.handler
-    def outcome_service_handler(self, request, suffix=''):
+    def outcome_service_handler(self, request, suffix=''):  # pylint: disable=W0613
         """
         XBlock handler for LTI Outcome Service requests.
 
@@ -1213,7 +1212,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 args.append(request.body)
             response_body = getattr(
                 self,
-                "_result_service_{}".format(request.method.lower())
+                f"_result_service_{request.method.lower()}"
             )(*args)
         except (AttributeError, LtiError):
             return Response(status=404)
@@ -1306,7 +1305,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         self.set_user_module_score(user, None, None)
 
-    def set_user_module_score(self, user, score, max_score, comment=u''):
+    def set_user_module_score(self, user, score, max_score, comment=''):
         """
         Sets the module user state, including grades and comments, and also scoring in db's courseware_studentmodule
 
@@ -1421,7 +1420,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # return key/value fields in a Python dict object
         # values may be numeric / string or dict
         # default implementation is an empty dict
-        xblock_body = super(LtiConsumerXBlock, self).index_dictionary()
+        xblock_body = super().index_dictionary()
 
         index_body = {
             "display_name": self.display_name,

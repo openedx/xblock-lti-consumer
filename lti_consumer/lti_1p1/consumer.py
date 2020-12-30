@@ -68,10 +68,10 @@ def parse_result_json(json_str):
     """
     try:
         json_obj = json.loads(json_str)
-    except (ValueError, TypeError):
-        msg = "Supplied JSON string in request body could not be decoded: {}".format(json_str)
+    except (ValueError, TypeError) as error:
+        msg = f"Supplied JSON string in request body could not be decoded: {json_str}"
         log.error("[LTI] %s", msg)
-        raise Lti1p1Error(msg)
+        raise Lti1p1Error(msg) from error
 
     # The JSON object must be a dict. If a non-empty list is passed in,
     # use the first element, but only if it is a dict
@@ -87,7 +87,7 @@ def parse_result_json(json_str):
     # '@type' must be "Result"
     result_type = json_obj.get("@type")
     if result_type != "Result":
-        msg = "JSON object does not contain correct @type attribute (should be 'Result', is z{})".format(result_type)
+        msg = f"JSON object does not contain correct @type attribute (should be 'Result', is z{result_type})"
         log.error("[LTI] %s", msg)
         raise Lti1p1Error(msg)
 
@@ -112,7 +112,7 @@ def parse_result_json(json_str):
         except (TypeError, ValueError) as err:
             msg = "Could not convert resultScore to float: {}".format(str(err))
             log.error("[LTI] %s", msg)
-            raise Lti1p1Error(msg)
+            raise Lti1p1Error(msg) from err
 
     return score, json_obj.get('comment', "")
 
@@ -304,15 +304,15 @@ class LtiConsumer1p1:
         # Parse headers to pass to template as part of context:
         oauth_signature = dict([param.strip().replace('"', '').split('=') for param in oauth_signature.split(',')])
 
-        oauth_signature[u'oauth_nonce'] = oauth_signature.pop(u'OAuth oauth_nonce')
+        oauth_signature['oauth_nonce'] = oauth_signature.pop('OAuth oauth_nonce')
 
         # oauthlib encodes signature with
         # 'Content-Type': 'application/x-www-form-urlencoded'
         # so '='' becomes '%3D'.
         # We send form via browser, so browser will encode it again,
         # So we need to decode signature back:
-        oauth_signature[u'oauth_signature'] = urllib.parse.unquote(
-            oauth_signature[u'oauth_signature']
+        oauth_signature['oauth_signature'] = urllib.parse.unquote(
+            oauth_signature['oauth_signature']
         )
 
         # Add LTI parameters to OAuth parameters for sending in form.
@@ -387,4 +387,4 @@ class LtiConsumer1p1:
             return verify_oauth_body_signature(request, self.oauth_secret, outcome_service_url)
         except (ValueError, Lti1p1Error) as err:
             log.error("[LTI]: v2.0 result service -- OAuth body verification failed: %s", str(err))
-            raise Lti1p1Error(str(err))
+            raise Lti1p1Error(str(err)) from err

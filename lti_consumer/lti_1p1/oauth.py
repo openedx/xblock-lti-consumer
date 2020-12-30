@@ -52,12 +52,12 @@ def get_oauth_request_signature(key, secret, url, headers, body):
         # oauth_consumer_key="", oauth_signature="frVp4JuvT1mVXlxktiAUjQ7%2F1cw%3D"
         _, headers, _ = client.sign(
             str(url.strip()),
-            http_method=u'POST',
+            http_method='POST',
             body=body,
             headers=headers
         )
-    except ValueError:  # Scheme not in url.
-        raise Lti1p1Error("Failed to sign oauth request")
+    except ValueError as err:  # Scheme not in url.
+        raise Lti1p1Error("Failed to sign oauth request") from err
 
     return headers['Authorization']
 
@@ -148,17 +148,17 @@ def log_authorization_header(request, client_key, client_secret):
     log.debug("[LTI] oauth_body_hash = %s", oauth_body_hash)
     client = oauth1.Client(client_key, client_secret)
     params = client.get_oauth_params(request)
-    params.append((u'oauth_body_hash', oauth_body_hash))
+    params.append(('oauth_body_hash', oauth_body_hash))
     mock_request = SignedRequest(
         uri=str(urllib.parse.unquote(request.url)),
         headers=request.headers,
-        body=u"",
-        decoded_body=u"",
+        body="",
+        decoded_body="",
         oauth_params=params,
         http_method=str(request.method),
     )
     sig = client.get_oauth_signature(mock_request)
-    mock_request.oauth_params.append((u'oauth_signature', sig))
+    mock_request.oauth_params.append(('oauth_signature', sig))
 
     __, headers, _ = client._render(mock_request)  # pylint: disable=protected-access
     log.debug(

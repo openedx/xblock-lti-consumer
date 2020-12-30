@@ -1,8 +1,8 @@
 """
 Tests for LTI API.
 """
+from unittest.mock import Mock, patch
 from django.test.testcases import TestCase
-from mock import Mock, patch
 
 from lti_consumer.api import (
     _get_or_create_local_lti_config,

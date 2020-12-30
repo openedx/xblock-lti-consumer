@@ -404,8 +404,8 @@ class LtiConsumer1p3:
             assert response.get("state")
             assert response.get("client_id") == self.client_id
             assert response.get("redirect_uri") == self.launch_url
-        except AssertionError:
-            raise exceptions.PreflightRequestValidationFailure()
+        except AssertionError as err:
+            raise exceptions.PreflightRequestValidationFailure() from err
 
     def check_token(self, token, allowed_scopes=None):
         """
@@ -455,7 +455,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         """
         Override parent class and set up required LTI Advantage variables.
         """
-        super(LtiAdvantageConsumer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # LTI AGS Variables
         self.ags = None

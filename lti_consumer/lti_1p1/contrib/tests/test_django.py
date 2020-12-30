@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 Unit tests for lti_consumer.lti module
 """
 
+from unittest.mock import Mock, patch, ANY
 from django.test.testcases import TestCase
-from mock import Mock, patch, ANY
 
 from lti_consumer.lti_1p1.contrib.django import lti_embed
 
@@ -15,7 +14,7 @@ class TestLtiEmbed(TestCase):
     """
 
     def setUp(self):
-        super(TestLtiEmbed, self).setUp()
+        super().setUp()
         self.html_element_id = 'html_element_id'
         self.lti_launch_url = 'lti_launch_url'
         self.oauth_key = 'oauth_key'

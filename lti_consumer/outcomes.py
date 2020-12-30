@@ -46,32 +46,32 @@ def parse_grade_xml_body(body):
         parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')
         root = etree.fromstring(data, parser=parser)
     except etree.XMLSyntaxError as ex:
-        raise LtiError(str(ex) or 'Body is not valid XML')
+        raise LtiError(str(ex) or 'Body is not valid XML') from ex
 
     try:
         imsx_message_identifier = root.xpath("//def:imsx_messageIdentifier", namespaces=namespaces)[0].text or ''
-    except IndexError:
-        raise LtiError('Failed to parse imsx_messageIdentifier from XML request body')
+    except IndexError as error:
+        raise LtiError('Failed to parse imsx_messageIdentifier from XML request body') from error
 
     try:
         body = root.xpath("//def:imsx_POXBody", namespaces=namespaces)[0]
-    except IndexError:
-        raise LtiError('Failed to parse imsx_POXBody from XML request body')
+    except IndexError as error:
+        raise LtiError('Failed to parse imsx_POXBody from XML request body') from error
 
     try:
         action = body.getchildren()[0].tag.replace('{' + lti_spec_namespace + '}', '')
-    except IndexError:
-        raise LtiError('Failed to parse action from XML request body')
+    except IndexError as error:
+        raise LtiError('Failed to parse action from XML request body') from error
 
     try:
         sourced_id = root.xpath("//def:sourcedId", namespaces=namespaces)[0].text
-    except IndexError:
-        raise LtiError('Failed to parse sourcedId from XML request body')
+    except IndexError as error:
+        raise LtiError('Failed to parse sourcedId from XML request body') from error
 
     try:
         score = root.xpath("//def:textString", namespaces=namespaces)[0].text
-    except IndexError:
-        raise LtiError('Failed to parse score textString from XML request body')
+    except IndexError as error:
+        raise LtiError('Failed to parse score textString from XML request body') from error
 
     # Raise exception if score is not float or not in range 0.0-1.0 regarding spec.
     score = float(score)
@@ -194,13 +194,13 @@ class OutcomeService:
 
             values = {
                 'imsx_codeMajor': 'success',
-                'imsx_description': 'Score for {sourced_id} is now {score}'.format(sourced_id=sourced_id, score=score),
+                'imsx_description': f'Score for {sourced_id} is now {score}',
                 'imsx_messageIdentifier': escape(imsx_message_identifier),
                 'response': '<replaceResultResponse/>'
             }
-            log.debug(u"[LTI]: Grade is saved.")
+            log.debug("[LTI]: Grade is saved.")
             return response_xml_template.format(**values)
 
         unsupported_values['imsx_messageIdentifier'] = escape(imsx_message_identifier)
-        log.debug(u"[LTI]: Incorrect action.")
+        log.debug("[LTI]: Incorrect action.")
         return response_xml_template.format(**unsupported_values)

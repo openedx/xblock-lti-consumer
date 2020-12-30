@@ -52,18 +52,18 @@ class Lti1p3ApiAuthentication(authentication.BaseAuthentication):
         try:
             lti_configuration = LtiConfiguration.objects.get(pk=lti_config_id)
             lti_consumer = lti_configuration.get_lti_consumer()
-        except Exception:
+        except Exception as err:
             msg = _('LTI configuration not found.')
-            raise exceptions.AuthenticationFailed(msg)
+            raise exceptions.AuthenticationFailed(msg) from err
 
         # Verify token validity
         # This doesn't validate specific permissions, just checks if the token
         # is valid or not.
         try:
             lti_consumer.check_token(auth[1])
-        except Exception:
+        except Exception as err:
             msg = _('Invalid token signature.')
-            raise exceptions.AuthenticationFailed(msg)
+            raise exceptions.AuthenticationFailed(msg) from err
 
         # Passing parameters back to the view through the request in order
         # to avoid implementing a separate authentication backend or

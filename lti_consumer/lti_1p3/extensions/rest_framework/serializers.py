@@ -31,8 +31,8 @@ class UsageKeyField(serializers.Field):
         """
         try:
             return UsageKey.from_string(data)
-        except InvalidKeyError:
-            raise serializers.ValidationError("Invalid usage key: {}".format(data))
+        except InvalidKeyError as err:
+            raise serializers.ValidationError(f"Invalid usage key: {data}") from err
 
 
 class LtiAgsLineItemSerializer(serializers.ModelSerializer):

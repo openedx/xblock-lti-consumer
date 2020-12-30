@@ -2,7 +2,6 @@
 URL mappings for LTI Consumer plugin.
 """
 
-from __future__ import absolute_import
 
 from django.conf import settings
 from django.conf.urls import url, include
@@ -26,7 +25,7 @@ router.register(r'lti-ags', LtiAgsLineItemViewset, basename='lti-ags-view')
 app_name = 'lti_consumer'
 urlpatterns = [
     url(
-        'lti_consumer/v1/public_keysets/{}$'.format(settings.USAGE_ID_PATTERN),
+        f'lti_consumer/v1/public_keysets/{settings.USAGE_ID_PATTERN}$',
         public_keyset_endpoint,
         name='lti_consumer.public_keyset_endpoint'
     ),
@@ -36,7 +35,7 @@ urlpatterns = [
         name='lti_consumer.launch_gate'
     ),
     url(
-        'lti_consumer/v1/token/{}$'.format(settings.USAGE_ID_PATTERN),
+        f'lti_consumer/v1/token/{settings.USAGE_ID_PATTERN}$',
         access_token_endpoint,
         name='lti_consumer.access_token'
     ),

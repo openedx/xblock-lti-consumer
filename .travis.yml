@@ -1,7 +1,7 @@
 language: python
 sudo: false
 install:
-- pip install -r requirements/travis.txt
+  - pip install -r requirements/travis.txt
 after_success: coveralls
 env:
   global:
@@ -19,12 +19,9 @@ deploy:
 
 jobs:
   include:
-  - name: Python 3.5 - Tests
-    script: make test
-    python: "3.5"
-  - name: Python 3.8 - Tests
-    script: make test
-    python: "3.8"
-  - name: Code Quality
-    script: make quality
-    python: "3.5"
+    - name: Python 3.8 - Tests
+      script: make test
+      python: '3.8'
+    - name: Code Quality
+      script: make quality
+      python: '3.8'

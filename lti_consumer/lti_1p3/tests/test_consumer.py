@@ -1,13 +1,12 @@
 """
 Unit tests for LTI 1.3 consumer implementation
 """
-from __future__ import absolute_import, unicode_literals
 
 import json
 from urllib.parse import urlparse, parse_qs
+from unittest.mock import patch
 import ddt
 
-from mock import patch
 from django.test.testcases import TestCase
 
 from Cryptodome.PublicKey import RSA
@@ -40,7 +39,7 @@ class TestLti1p3Consumer(TestCase):
     Unit tests for LtiConsumer1p3
     """
     def setUp(self):
-        super(TestLti1p3Consumer, self).setUp()
+        super().setUp()
 
         # Set up consumer
         self.lti_consumer = LtiConsumer1p3(
@@ -557,7 +556,7 @@ class TestLtiAdvantageConsumer(TestCase):
     Unit tests for LtiAdvantageConsumer
     """
     def setUp(self):
-        super(TestLtiAdvantageConsumer, self).setUp()
+        super().setUp()
 
         # Set up consumer
         self.lti_consumer = LtiAdvantageConsumer(

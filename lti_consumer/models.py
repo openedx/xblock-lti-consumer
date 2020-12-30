@@ -263,7 +263,7 @@ class LtiConfiguration(models.Model):
         return self._get_lti_1p1_consumer()
 
     def __str__(self):
-        return "[{}] {} - {}".format(self.config_store, self.version, self.location)
+        return f"[{self.config_store}] {self.version} - {self.location}"
 
     class Meta:
         app_label = 'lti_consumer'
@@ -399,7 +399,7 @@ class LtiAgsScore(models.Model):
         if self.score_given and self.score_maximum is None:
             raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
 
-    def save(self, *args, **kwargs):  # pylint: disable=arguments-differ
+    def save(self, *args, **kwargs):  # pylint: disable=W0222
         self.full_clean()
         super().save(*args, **kwargs)
 
