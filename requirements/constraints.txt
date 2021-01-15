@@ -24,3 +24,6 @@ stevedore<=1.32.0
 
 # Same as in edx-platform
 djangorestframework==3.9.4
+
+# jsonfield2 3.1.0 drops support for python 3.5
+jsonfield2<3.1.0

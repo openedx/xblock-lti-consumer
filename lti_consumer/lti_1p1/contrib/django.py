@@ -11,9 +11,6 @@ from ..consumer import LtiConsumer1p1
 def lti_embed(
         *,
         html_element_id,
-        lti_launch_url,
-        oauth_key,
-        oauth_secret,
         resource_link_id,
         user_id,
         roles,
@@ -21,6 +18,10 @@ def lti_embed(
         context_title,
         context_label,
         result_sourcedid,
+        lti_consumer=None,
+        lti_launch_url=None,
+        oauth_key=None,
+        oauth_secret=None,
         person_sourcedid=None,
         person_contact_email_primary=None,
         outcome_service_url=None,
@@ -49,9 +50,6 @@ def lti_embed(
 
     Arguments:
         html_element_id (string):  Value to use as the HTML element id in the HTML form
-        lti_launch_url (string):  The URL to send the LTI Launch request to
-        oauth_key (string):  The OAuth consumer key
-        oauth_secret (string):  The OAuth consumer secret
         resource_link_id (string):  Opaque identifier guaranteed to be unique
             for every placement of the link
         user_id (string):  Unique value identifying the user
@@ -62,6 +60,11 @@ def lti_embed(
         context_label (string):  Plain text label for the context
         result_sourcedid (string):  Indicates the LIS Result Identifier (if any)
             and uniquely identifies a row and column within the Tool Consumer gradebook
+        lti_consumer (LtiConsumer1p1): A pre-configured LtiConsumer1p1 object
+            as an alternative to providing the launch url, oauth key and oauth secret
+        lti_launch_url (string):  The URL to send the LTI Launch request to
+        oauth_key (string):  The OAuth consumer key
+        oauth_secret (string):  The OAuth consumer secret
         person_sourcedid (string):  LIS identifier for the user account performing the launch
         person_contact_email_primary (string):  Primary contact email address of the user
         outcome_service_url (string):  URL pointing to the outcome service. This
@@ -78,7 +81,10 @@ def lti_embed(
         unicode: HTML template with the form and JavaScript to automatically
             launch the LTI embedding
     """
-    lti_consumer = LtiConsumer1p1(lti_launch_url, oauth_key, oauth_secret)
+    if lti_consumer is None:
+        lti_consumer = LtiConsumer1p1(lti_launch_url, oauth_key, oauth_secret)
+    else:
+        lti_launch_url = lti_consumer.lti_launch_url
 
     # Set LTI parameters from kwargs
     lti_consumer.set_user_data(

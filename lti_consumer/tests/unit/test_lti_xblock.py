@@ -35,7 +35,7 @@ class TestLtiConsumerXBlock(TestCase):
     """
 
     def setUp(self):
-        super(TestLtiConsumerXBlock, self).setUp()
+        super().setUp()
         self.xblock_attributes = {
             'launch_url': 'http://www.example.com',
         }
@@ -47,7 +47,7 @@ class TestIndexibility(TestCase):
     Test indexibility of Lti Consumer XBlock
     """
     def setUp(self):
-        super(TestIndexibility, self).setUp()
+        super().setUp()
         self.xblock_attributes = {
             'launch_url': 'http://www.example.com',
             'display_name': 'Example LTI Consumer Application',
@@ -604,7 +604,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
     """
 
     def setUp(self):
-        super(TestLtiLaunchHandler, self).setUp()
+        super().setUp()
         self.mock_lti_consumer = Mock(generate_launch_request=Mock(return_value={}))
         self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
         self.xblock.due = timezone.now()
@@ -654,7 +654,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
     """
 
     def setUp(self):
-        super(TestResultServiceHandler, self).setUp()
+        super().setUp()
         self.lti_provider_key = 'test'
         self.lti_provider_secret = 'secret'
         self.xblock.runtime.debug = False
@@ -1177,7 +1177,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
     Unit tests for LtiConsumerXBlock when using an LTI 1.3 tool.
     """
     def setUp(self):
-        super(TestLtiConsumer1p3XBlock, self).setUp()
+        super().setUp()
 
         self.xblock_attributes = {
             'lti_version': 'lti_1p3',
@@ -1299,7 +1299,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
     Unit tests for LtiConsumerXBlock Access Token endpoint when using an LTI 1.3.
     """
     def setUp(self):
-        super(TestLti1p3AccessTokenEndpoint, self).setUp()
+        super().setUp()
 
         self.rsa_key_id = "1"
         # Generate RSA and save exports

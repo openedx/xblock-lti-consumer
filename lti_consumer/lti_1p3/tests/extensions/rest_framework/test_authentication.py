@@ -34,7 +34,7 @@ class TestLtiAuthentication(TestCase):
     Unit tests for Lti1p3ApiAuthentication class
     """
     def setUp(self):
-        super(TestLtiAuthentication, self).setUp()
+        super().setUp()
 
         # Set up consumer
         self.lti_consumer = LtiConsumer1p3(

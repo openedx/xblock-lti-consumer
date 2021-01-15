@@ -46,32 +46,32 @@ def parse_grade_xml_body(body):
         parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')
         root = etree.fromstring(data, parser=parser)
     except etree.XMLSyntaxError as ex:
-        raise LtiError(str(ex) or 'Body is not valid XML')
+        raise LtiError(str(ex) or 'Body is not valid XML') from ex
 
     try:
         imsx_message_identifier = root.xpath("//def:imsx_messageIdentifier", namespaces=namespaces)[0].text or ''
-    except IndexError:
-        raise LtiError('Failed to parse imsx_messageIdentifier from XML request body')
+    except IndexError as ex:
+        raise LtiError('Failed to parse imsx_messageIdentifier from XML request body') from ex
 
     try:
         body = root.xpath("//def:imsx_POXBody", namespaces=namespaces)[0]
-    except IndexError:
-        raise LtiError('Failed to parse imsx_POXBody from XML request body')
+    except IndexError as ex:
+        raise LtiError('Failed to parse imsx_POXBody from XML request body') from ex
 
     try:
         action = body.getchildren()[0].tag.replace('{' + lti_spec_namespace + '}', '')
-    except IndexError:
-        raise LtiError('Failed to parse action from XML request body')
+    except IndexError as ex:
+        raise LtiError('Failed to parse action from XML request body') from ex
 
     try:
         sourced_id = root.xpath("//def:sourcedId", namespaces=namespaces)[0].text
-    except IndexError:
-        raise LtiError('Failed to parse sourcedId from XML request body')
+    except IndexError as ex:
+        raise LtiError('Failed to parse sourcedId from XML request body') from ex
 
     try:
         score = root.xpath("//def:textString", namespaces=namespaces)[0].text
-    except IndexError:
-        raise LtiError('Failed to parse score textString from XML request body')
+    except IndexError as ex:
+        raise LtiError('Failed to parse score textString from XML request body') from ex
 
     # Raise exception if score is not float or not in range 0.0-1.0 regarding spec.
     score = float(score)

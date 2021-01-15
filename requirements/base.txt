@@ -6,38 +6,40 @@
 #
 appdirs==1.4.4            # via fs
 bleach==3.2.1             # via -r requirements/base.in
-certifi==2020.6.20        # via requests
-chardet==3.0.4            # via requests
+certifi==2020.12.5        # via requests
+chardet==4.0.0            # via requests
 django-filter==2.4.0      # via -r requirements/base.in
-django==2.2.16            # via -c requirements/constraints.txt, -r requirements/base.in, django-filter, edx-opaque-keys
+django==2.2.17            # via -c requirements/constraints.txt, -r requirements/base.in, django-filter, edx-opaque-keys, jsonfield2
 edx-opaque-keys[django]==2.1.1  # via -r requirements/base.in
 fs==2.4.11                # via xblock
 future==0.18.2            # via pyjwkest
 idna==2.10                # via requests
+jsonfield2==3.0.3         # via -c requirements/constraints.txt, -r requirements/base.in
 lazy==1.4                 # via -r requirements/base.in
-lxml==4.5.2               # via -r requirements/base.in, xblock
+lxml==4.6.2               # via -r requirements/base.in, xblock
 mako==1.1.3               # via -r requirements/base.in, xblock-utils
 markupsafe==1.1.1         # via mako, xblock
 oauthlib==3.1.0           # via -r requirements/base.in
-packaging==20.4           # via bleach
-pbr==5.5.0                # via stevedore
-pycryptodomex==3.9.8      # via -r requirements/base.in, pyjwkest
+packaging==20.8           # via bleach
+pbr==5.5.1                # via stevedore
+pycryptodomex==3.9.9      # via -r requirements/base.in, pyjwkest
 pyjwkest==1.4.2           # via -r requirements/base.in
-pymongo==3.11.0           # via edx-opaque-keys
+pymongo==3.11.2           # via edx-opaque-keys
 pyparsing==2.4.7          # via packaging
 python-dateutil==2.8.1    # via xblock
-pytz==2020.1              # via django, fs, xblock
+pytz==2020.4              # via django, fs, xblock
 pyyaml==5.3.1             # via xblock
-requests==2.24.0          # via pyjwkest
+requests==2.25.1          # via pyjwkest
 simplejson==3.17.2        # via xblock-utils
-six==1.15.0               # via bleach, edx-opaque-keys, fs, packaging, pyjwkest, python-dateutil, stevedore, xblock
-sqlparse==0.3.1           # via django
+six==1.15.0               # via bleach, edx-opaque-keys, fs, pyjwkest, python-dateutil, stevedore, xblock
+sqlparse==0.4.1           # via django
 stevedore==1.32.0         # via -c requirements/constraints.txt, edx-opaque-keys
-urllib3==1.25.10          # via requests
+typing==3.7.4.3           # via fs
+urllib3==1.26.2           # via requests
 web-fragments==0.3.2      # via xblock, xblock-utils
 webencodings==0.5.1       # via bleach
 webob==1.8.6              # via xblock
-xblock-utils==2.1.1       # via -r requirements/base.in
+xblock-utils==2.1.2       # via -r requirements/base.in
 xblock==1.4.0             # via -r requirements/base.in, xblock-utils
 
 # The following packages are considered to be unsafe in a requirements file:

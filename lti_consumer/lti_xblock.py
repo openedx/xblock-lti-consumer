@@ -648,10 +648,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 if not key:
                     raise ValueError
                 key = ':'.join(key)
-            except ValueError:
+            except ValueError as err:
                 msg = 'Could not parse LTI passport: {lti_passport!r}. Should be "id:key:secret" string.'
                 msg = self.ugettext(msg).format(lti_passport=lti_passport)
-                raise LtiError(msg)
+                raise LtiError(msg) from err
 
             if lti_id == self.lti_id.strip():
                 return key, secret
@@ -783,11 +783,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             for custom_parameter in self.custom_parameters:
                 try:
                     param_name, param_value = [p.strip() for p in custom_parameter.split('=', 1)]
-                except ValueError:
+                except ValueError as err:
                     _ = self.runtime.service(self, "i18n").ugettext
                     msg = 'Could not parse custom parameter: {custom_parameter!r}. Should be "x=y" string.'
                     msg = self.ugettext(msg).format(custom_parameter=custom_parameter)
-                    raise LtiError(msg)
+                    raise LtiError(msg) from err
 
                 # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
                 if param_name not in LTI_PARAMETERS:
@@ -870,7 +870,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Get Studio View fragment
         """
         loader = ResourceLoader(__name__)
-        fragment = super(LtiConsumerXBlock, self).studio_view(context)
+        fragment = super().studio_view(context)
 
         fragment.add_javascript(loader.load_unicode("static/js/xblock_studio_view.js"))
         fragment.initialize_js('LtiConsumerXBlockInitStudio')
@@ -929,7 +929,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return fragment
 
     @XBlock.handler
-    def lti_launch_handler(self, request, suffix=''):
+    def lti_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for launching LTI 1.1 tools.
 
@@ -984,7 +984,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_handler(self, request, suffix=''):
+    def lti_1p3_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for launching the LTI 1.3 tools.
 
@@ -1010,7 +1010,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_callback(self, request, suffix=''):
+    def lti_1p3_launch_callback(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for launching the LTI 1.3 tool.
 
@@ -1071,7 +1071,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(template, status=400, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_access_token(self, request, suffix=''):
+    def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for creating access tokens for the LTI 1.3 tool.
 
@@ -1130,7 +1130,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
 
     @XBlock.handler
-    def outcome_service_handler(self, request, suffix=''):
+    def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for LTI Outcome Service requests.
 
@@ -1421,7 +1421,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # return key/value fields in a Python dict object
         # values may be numeric / string or dict
         # default implementation is an empty dict
-        xblock_body = super(LtiConsumerXBlock, self).index_dictionary()
+        xblock_body = super().index_dictionary()
 
         index_body = {
             "display_name": self.display_name,

@@ -333,7 +333,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
     """
 
     def setUp(self):
-        super(TestOutcomeService, self).setUp()
+        super().setUp()
         self.outcome_servce = OutcomeService(self.xblock)
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))

@@ -24,7 +24,7 @@ class TestPlatformKeyHandler(TestCase):
     Unit tests for PlatformKeyHandler
     """
     def setUp(self):
-        super(TestPlatformKeyHandler, self).setUp()
+        super().setUp()
 
         self.rsa_key_id = "1"
         self.rsa_key = RSA.generate(2048).export_key('PEM')
@@ -187,7 +187,7 @@ class TestToolKeyHandler(TestCase):
     Unit tests for ToolKeyHandler
     """
     def setUp(self):
-        super(TestToolKeyHandler, self).setUp()
+        super().setUp()
 
         self.rsa_key_id = "1"
 
