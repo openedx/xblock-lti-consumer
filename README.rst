@@ -298,10 +298,15 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-2.4.1 - 2020-12-07
+2.5.1 - 2021-01-19
 ------------------
 
 * Simplify LTI 1.3 launches by removing OIDC launch start view.
+
+2.5.0 - 2021-01-15
+------------------
+
+* Add LTI 1.1 config on model.
 
 2.4.0 - 2020-12-02
 ------------------
