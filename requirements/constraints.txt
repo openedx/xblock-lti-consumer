@@ -10,17 +10,5 @@
 
 # TODO: Many pinned dependencies should be unpinned and/or moved to this constraints file.
 
-# Use latest Django LTS version
-Django<2.3.0
-
-# mock version 4.0.0 drops support for python 3.5
-mock<4.0.0
-
-# Zip > 1.2.0 drops support for python 3.5
-zipp<1.2.0
-
-# Newer versions not available in python 3.5
-stevedore<=1.32.0
-
-# Same as in edx-platform
-djangorestframework==3.9.4
+# This file contains all common constraints for edx-repos
+-c https://raw.githubusercontent.com/edx/edx-lint/master/edx_lint/files/common_constraints.txt
