@@ -298,6 +298,11 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+2.5.2 - 2021-01-20
+------------------
+
+* Fix issue with migration that causes migration failure due to duplicate `config_id` values.
+
 2.5.1 - 2021-01-19
 ------------------
 
