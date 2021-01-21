@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Run tests for the LTI Consumer XBlock
 """
@@ -8,7 +7,7 @@ import os
 import sys
 
 if __name__ == '__main__':
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', u'test_settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'test_settings')
 
     try:
         from django.conf import settings  # pylint: disable=wrong-import-position
@@ -27,7 +26,7 @@ if __name__ == '__main__':
             )
         raise
 
-    settings.INSTALLED_APPS += (u'lti_consumer',)
+    settings.INSTALLED_APPS += ('lti_consumer',)
 
     arguments = sys.argv[1:]
     options = [argument for argument in arguments if argument.startswith('-')]

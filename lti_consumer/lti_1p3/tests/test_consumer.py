@@ -1,24 +1,21 @@
 """
 Unit tests for LTI 1.3 consumer implementation
 """
-from __future__ import absolute_import, unicode_literals
 
 import json
-from urllib.parse import urlparse, parse_qs
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
+
 import ddt
-
-from mock import patch
-from django.test.testcases import TestCase
-
 from Cryptodome.PublicKey import RSA
+from django.test.testcases import TestCase
 from jwkest.jwk import load_jwks
 from jwkest.jws import JWS
 
-from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
-from lti_consumer.lti_1p3.consumer import LtiConsumer1p3, LtiAdvantageConsumer
-from lti_consumer.lti_1p3.ags import LtiAgs
 from lti_consumer.lti_1p3 import exceptions
-
+from lti_consumer.lti_1p3.ags import LtiAgs
+from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
+from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3
 
 # Variables required for testing and verification
 ISS = "http://test-platform.example/"

@@ -35,12 +35,12 @@ LTI_1P3_ROLE_MAP = {
 }
 
 
-LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS = set([
+LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS = {
     "grant_type",
     "client_assertion_type",
     "client_assertion",
     "scope",
-])
+}
 
 
 LTI_1P3_ACCESS_TOKEN_SCOPES = [

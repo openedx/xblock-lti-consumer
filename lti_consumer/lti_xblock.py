@@ -99,9 +99,9 @@ DOCS_ANCHOR_TAG_OPEN = (
 )
 RESULT_SERVICE_SUFFIX_PARSER = re.compile(r"^user/(?P<anon_id>\w+)", re.UNICODE)
 ROLE_MAP = {
-    'student': u'Student',
-    'staff': u'Administrator',
-    'instructor': u'Instructor',
+    'student': 'Student',
+    'staff': 'Administrator',
+    'instructor': 'Instructor',
 }
 
 
@@ -624,7 +624,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Get system user role and convert it to LTI role.
         """
-        return ROLE_MAP.get(self.runtime.get_user_role(), u'Student')
+        return ROLE_MAP.get(self.runtime.get_user_role(), 'Student')
 
     @property
     def course(self):
@@ -716,7 +716,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         makes resource_link_id to be unique among courses inside same system.
         """
         return str(urllib.parse.quote(
-            "{}-{}".format(self.runtime.hostname, self.location.html_id())  # pylint: disable=no-member
+            f"{self.runtime.hostname}-{self.location.html_id()}"  # pylint: disable=no-member
         ))
 
     @property
@@ -1193,7 +1193,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 args.append(request.body)
             response_body = getattr(
                 self,
-                "_result_service_{}".format(request.method.lower())
+                f"_result_service_{request.method.lower()}"
             )(*args)
         except (AttributeError, LtiError):
             return Response(status=404)
@@ -1286,7 +1286,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         self.set_user_module_score(user, None, None)
 
-    def set_user_module_score(self, user, score, max_score, comment=u''):
+    def set_user_module_score(self, user, score, max_score, comment=''):
         """
         Sets the module user state, including grades and comments, and also scoring in db's courseware_studentmodule
 

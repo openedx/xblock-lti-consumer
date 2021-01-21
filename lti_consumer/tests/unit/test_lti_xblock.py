@@ -2,25 +2,23 @@
 Unit tests for LtiConsumerXBlock
 """
 
-from datetime import timedelta
 import json
 import urllib.parse
+from datetime import timedelta
+from unittest.mock import Mock, NonCallableMock, PropertyMock, patch
 
 import ddt
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from django.utils import timezone
 from jwkest.jwk import RSAKey
-from mock import Mock, PropertyMock, NonCallableMock, patch
 
 from lti_consumer.api import get_lti_1p3_launch_info
 from lti_consumer.exceptions import LtiError
+from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.tests.unit import test_utils
-from lti_consumer.tests.unit.test_utils import (FAKE_USER_ID, make_request,
-                                                make_xblock)
-from lti_consumer.lti_1p3.tests.utils import create_jwt
-
+from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_request, make_xblock
 
 HTML_PROBLEM_PROGRESS = '<div class="problem-progress">'
 HTML_ERROR_MESSAGE = '<h3 class="error_message">'
@@ -164,7 +162,7 @@ class TestProperties(TestLtiConsumerXBlock):
         key = 'test'
         secret = 'secret'
         self.xblock.lti_id = provider
-        type(mock_course).lti_passports = PropertyMock(return_value=["{}:{}:{}".format(provider, key, secret)])
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
         lti_provider_key, lti_provider_secret = self.xblock.lti_provider_key_secret
 
         self.assertEqual(lti_provider_key, key)
@@ -179,7 +177,7 @@ class TestProperties(TestLtiConsumerXBlock):
         key = '1:10:test'
         secret = 'secret'
         self.xblock.lti_id = provider
-        type(mock_course).lti_passports = PropertyMock(return_value=["{}:{}:{}".format(provider, key, secret)])
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
         lti_provider_key, lti_provider_secret = self.xblock.lti_provider_key_secret
 
         self.assertEqual(lti_provider_key, key)
@@ -194,7 +192,7 @@ class TestProperties(TestLtiConsumerXBlock):
         key = 'test'
         secret = 'secret'
         self.xblock.lti_id = 'wrong_provider'
-        type(mock_course).lti_passports = PropertyMock(return_value=["{}:{}:{}".format(provider, key, secret)])
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
         lti_provider_key, lti_provider_secret = self.xblock.lti_provider_key_secret
 
         self.assertEqual(lti_provider_key, '')
@@ -209,7 +207,7 @@ class TestProperties(TestLtiConsumerXBlock):
         key = 'test'
         secret = 'secret'
         self.xblock.lti_id = provider
-        type(mock_course).lti_passports = PropertyMock(return_value=["{}{}{}".format(provider, key, secret)])
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}{key}{secret}"])
 
         with self.assertRaises(LtiError):
             _, _ = self.xblock.lti_provider_key_secret
@@ -242,7 +240,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         self.assertEqual(
             self.xblock.resource_link_id,
-            "{}-{}".format(self.xblock.runtime.hostname, self.xblock.location.html_id())
+            f"{self.xblock.runtime.hostname}-{self.xblock.location.html_id()}"
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
@@ -255,14 +253,14 @@ class TestProperties(TestLtiConsumerXBlock):
         mock_resource_link_id.__get__ = Mock(return_value='resource_link_id')
         mock_context_id.__get__ = Mock(return_value='context_id')
 
-        self.assertEqual(self.xblock.lis_result_sourcedid, "context_id:resource_link_id:{}".format(FAKE_USER_ID))
+        self.assertEqual(self.xblock.lis_result_sourcedid, f"context_id:resource_link_id:{FAKE_USER_ID}")
 
     def test_outcome_service_url(self):
         """
         Test `outcome_service_url` calls `runtime.handler_url` with thirdparty kwarg
         """
         handler_url = 'http://localhost:8005/outcome_service_handler'
-        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        self.xblock.runtime.handler_url = Mock(return_value=f"{handler_url}/?")
         url = self.xblock.outcome_service_url
 
         self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'outcome_service_handler', thirdparty=True)
@@ -273,7 +271,7 @@ class TestProperties(TestLtiConsumerXBlock):
         Test `result_service_url` calls `runtime.handler_url` with thirdparty kwarg
         """
         handler_url = 'http://localhost:8005/result_service_handler'
-        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        self.xblock.runtime.handler_url = Mock(return_value=f"{handler_url}/?")
         url = self.xblock.result_service_url
 
         self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'result_service_handler', thirdparty=True)
@@ -291,12 +289,12 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.custom_parameters = ['param_1=true', 'param_2 = false', 'lti_version=1.1']
 
         expected_params = {
-            u'custom_component_display_name': self.xblock.display_name,
-            u'custom_component_due_date': now.strftime('%Y-%m-%d %H:%M:%S'),
-            u'custom_component_graceperiod': str(one_day.total_seconds()),
-            u'custom_param_1': u'true',
-            u'custom_param_2': u'false',
-            u'lti_version': u'1.1'
+            'custom_component_display_name': self.xblock.display_name,
+            'custom_component_due_date': now.strftime('%Y-%m-%d %H:%M:%S'),
+            'custom_component_graceperiod': str(one_day.total_seconds()),
+            'custom_param_1': 'true',
+            'custom_param_2': 'false',
+            'lti_version': '1.1'
         }
 
         params = self.xblock.prefixed_custom_parameters
@@ -450,7 +448,7 @@ class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
         secret = 'secret'
         self.xblock.lti_id = provider
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
-        type(mock_course).lti_passports = PropertyMock(return_value=["{}:{}:{}".format(provider, key, secret)])
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
 
         with patch('lti_consumer.models.LtiConfiguration.block', return_value=self.xblock):
             self.xblock._get_lti_consumer()  # pylint: disable=protected-access
@@ -614,7 +612,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         provider = 'lti_provider'
         key = 'test'
         secret = 'secret'
-        type(mock_course).lti_passports = PropertyMock(return_value=["{}:{}:{}".format(provider, key, secret)])
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
 
         request = make_request('', 'GET')
         response = self.xblock.lti_launch_handler(request)
@@ -888,7 +886,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         Test `get_outcome_service_url` with default parameter
         """
         handler_url = 'http://localhost:8005/outcome_service_handler'
-        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        self.xblock.runtime.handler_url = Mock(return_value=f"{handler_url}/?")
         url = self.xblock.get_outcome_service_url()
 
         self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'outcome_service_handler', thirdparty=True)
@@ -899,7 +897,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         Test `get_outcome_service_url` calls service name grade_handler
         """
         handler_url = 'http://localhost:8005/outcome_service_handler'
-        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        self.xblock.runtime.handler_url = Mock(return_value=f"{handler_url}/?")
         url = self.xblock.get_outcome_service_url('grade_handler')
 
         self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'outcome_service_handler', thirdparty=True)
@@ -910,7 +908,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         Test `get_outcome_service_url` calls with service name lti_2_0_result_rest_handler
         """
         handler_url = 'http://localhost:8005/result_service_handler'
-        self.xblock.runtime.handler_url = Mock(return_value="{}/?".format(handler_url))
+        self.xblock.runtime.handler_url = Mock(return_value=f"{handler_url}/?")
         url = self.xblock.get_outcome_service_url('lti_2_0_result_rest_handler')
 
         self.xblock.runtime.handler_url.assert_called_with(self.xblock, 'result_service_handler', thirdparty=True)
@@ -1051,7 +1049,7 @@ class TestParseSuffix(TestLtiConsumerXBlock):
         Test `parse_handler_suffix` when `suffix` parameter can be parsed
         :return:
         """
-        parsed = parse_handler_suffix("user/{}".format(FAKE_USER_ID))
+        parsed = parse_handler_suffix(f"user/{FAKE_USER_ID}")
         self.assertEqual(parsed, FAKE_USER_ID)
 
 
@@ -1088,21 +1086,21 @@ class TestGetContext(TestLtiConsumerXBlock):
         """
         Test that allowed tags are not escaped in context['comment']
         """
-        comment = u'<{0}>This is a comment</{0}>!'.format(tag)
+        comment = '<{0}>This is a comment</{0}>!'.format(tag)
         self.xblock.set_user_module_score(Mock(), 0.92, 1.0, comment)
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
 
-        self.assertIn('<{}>'.format(tag), context['comment'])
+        self.assertIn(f'<{tag}>', context['comment'])
 
     def test_comment_retains_image_src(self):
         """
         Test that image tag has src and other attrs are sanitized
         """
-        comment = u'<img src="example.com/image.jpeg" onerror="myFunction()">'
+        comment = '<img src="example.com/image.jpeg" onerror="myFunction()">'
         self.xblock.set_user_module_score(Mock(), 0.92, 1.0, comment)
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
 
-        self.assertIn(u'<img src="example.com/image.jpeg">', context['comment'])
+        self.assertIn('<img src="example.com/image.jpeg">', context['comment'])
 
 
 @ddt.ddt
@@ -1204,7 +1202,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Craft request sent back by LTI tool
         request = make_request('', 'GET')
         request.query_string = (
-            "client_id={}&".format(client_id) +
+            f"client_id={client_id}&" +
             "redirect_uri=http://tool.example/launch&" +
             "state=state_test_123&" +
             "nonce=nonce&" +

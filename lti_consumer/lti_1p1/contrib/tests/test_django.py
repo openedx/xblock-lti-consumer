@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 Unit tests for lti_consumer.lti module
 """
 
+from unittest.mock import ANY, Mock, patch
+
 from django.test.testcases import TestCase
-from mock import Mock, patch, ANY
 
 from lti_consumer.lti_1p1.contrib.django import lti_embed
 

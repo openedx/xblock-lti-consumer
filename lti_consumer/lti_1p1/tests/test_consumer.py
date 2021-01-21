@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 Unit tests for lti_consumer.lti_1p1.consumer module
 """
 
 import unittest
 
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from lti_consumer.lti_1p1.exceptions import Lti1p1Error
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1, parse_result_json
@@ -13,74 +12,74 @@ from lti_consumer.tests.unit.test_utils import make_request
 
 INVALID_JSON_INPUTS = [
     ([
-        u"kk",   # ValueError
-        u"{{}",  # ValueError
-        u"{}}",  # ValueError
+        "kk",   # ValueError
+        "{{}",  # ValueError
+        "{}}",  # ValueError
         3,       # TypeError
         {},      # TypeError
-    ], u"Supplied JSON string in request body could not be decoded"),
+    ], "Supplied JSON string in request body could not be decoded"),
     ([
-        u"3",        # valid json, not array or object
-        u"[]",       # valid json, array too small
-        u"[3, {}]",  # valid json, 1st element not an object
-    ], u"Supplied JSON string is a list that does not contain an object as the first element"),
+        "3",        # valid json, not array or object
+        "[]",       # valid json, array too small
+        "[3, {}]",  # valid json, 1st element not an object
+    ], "Supplied JSON string is a list that does not contain an object as the first element"),
     ([
-        u'{"@type": "NOTResult"}',  # @type key must have value 'Result'
-    ], u"JSON object does not contain correct @type attribute"),
+        '{"@type": "NOTResult"}',  # @type key must have value 'Result'
+    ], "JSON object does not contain correct @type attribute"),
     ([
         # @context missing
-        u'{"@type": "Result", "resultScore": 0.1}',
-    ], u"JSON object does not contain required key"),
+        '{"@type": "Result", "resultScore": 0.1}',
+    ], "JSON object does not contain required key"),
     ([
-        u'''
+        '''
         {"@type": "Result",
          "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
          "resultScore": 100}'''  # score out of range
-    ], u"score value outside the permitted range of 0.0-1.0."),
+    ], "score value outside the permitted range of 0.0-1.0."),
     ([
-        u'''
+        '''
         {"@type": "Result",
          "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
          "resultScore": -2}'''  # score out of range
-    ], u"score value outside the permitted range of 0.0-1.0."),
+    ], "score value outside the permitted range of 0.0-1.0."),
     ([
-        u'''
+        '''
         {"@type": "Result",
          "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
          "resultScore": "1b"}''',   # score ValueError
-        u'''
+        '''
         {"@type": "Result",
          "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
          "resultScore": {}}''',   # score TypeError
-    ], u"Could not convert resultScore to float"),
+    ], "Could not convert resultScore to float"),
 ]
 
 VALID_JSON_INPUTS = [
-    (u'''
+    ('''
     {"@type": "Result",
      "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
-     "resultScore": 0.1}''', 0.1, u""),  # no comment means we expect ""
-    (u'''
+     "resultScore": 0.1}''', 0.1, ""),  # no comment means we expect ""
+    ('''
     [{"@type": "Result",
      "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
      "@id": "anon_id:abcdef0123456789",
-     "resultScore": 0.1}]''', 0.1, u""),  # OK to have array of objects -- just take the first.  @id is okay too
-    (u'''
+     "resultScore": 0.1}]''', 0.1, ""),  # OK to have array of objects -- just take the first.  @id is okay too
+    ('''
     {"@type": "Result",
      "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
      "resultScore": 0.1,
-     "comment": "ಠ益ಠ"}''', 0.1, u"ಠ益ಠ"),  # unicode comment
-    (u'''
+     "comment": "ಠ益ಠ"}''', 0.1, "ಠ益ಠ"),  # unicode comment
+    ('''
     {"@type": "Result",
-     "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result"}''', None, u""),  # no score means we expect None
-    (u'''
-    {"@type": "Result",
-     "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
-     "resultScore": 0.0}''', 0.0, u""),  # test lower score boundary
-    (u'''
+     "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result"}''', None, ""),  # no score means we expect None
+    ('''
     {"@type": "Result",
      "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
-     "resultScore": 1.0}''', 1.0, u""),  # test upper score boundary
+     "resultScore": 0.0}''', 0.0, ""),  # test lower score boundary
+    ('''
+    {"@type": "Result",
+     "@context": "http://purl.imsglobal.org/ctx/lis/v2/Result",
+     "resultScore": 1.0}''', 1.0, ""),  # test upper score boundary
 ]
 
 GET_RESULT_RESPONSE = {
