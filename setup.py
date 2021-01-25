@@ -80,7 +80,6 @@ setup(
         'License :: OSI Approved :: GNU Affero General Public License v3',
         'Natural Language :: English',
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.8",
     ]
 )

@@ -1,7 +1,6 @@
 """
 Unit tests for LTI 1.3 consumer implementation
 """
-from __future__ import absolute_import, unicode_literals
 
 from django.test.testcases import TestCase
 

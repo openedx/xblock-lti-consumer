@@ -1,18 +1,16 @@
 """
 Unit tests for LTI 1.3 consumer implementation
 """
-from __future__ import absolute_import, unicode_literals
+
+from unittest.mock import MagicMock
 
 import ddt
-from mock import MagicMock
-
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 
-from lti_consumer.models import LtiConfiguration
 from lti_consumer.lti_1p3.consumer import LtiConsumer1p3
 from lti_consumer.lti_1p3.extensions.rest_framework.permissions import LtiAgsPermissions
-
+from lti_consumer.models import LtiConfiguration
 
 # Variables required for testing and verification
 ISS = "http://test-platform.example/"
@@ -96,7 +94,7 @@ class TestLtiAuthentication(TestCase):
         # Make token and include it in the mock request
         token = self._make_token(token_scopes)
         self.mock_request.headers = {
-            "Authorization": "Bearer {}".format(token)
+            "Authorization": f"Bearer {token}"
         }
 
         # Test list view
@@ -124,7 +122,7 @@ class TestLtiAuthentication(TestCase):
         # Make token and include it in the mock request
         token = self._make_token([])
         self.mock_request.headers = {
-            "Authorization": "Bearer {}".format(token)
+            "Authorization": f"Bearer {token}"
         }
 
         # Test list view
@@ -163,7 +161,7 @@ class TestLtiAuthentication(TestCase):
         # Make token and include it in the mock request
         token = self._make_token(token_scopes)
         self.mock_request.headers = {
-            "Authorization": "Bearer {}".format(token)
+            "Authorization": f"Bearer {token}"
         }
 
         for action in ['create', 'update', 'partial_update', 'delete']:
@@ -184,7 +182,7 @@ class TestLtiAuthentication(TestCase):
         # Make token and include it in the mock request
         token = self._make_token([])
         self.mock_request.headers = {
-            "Authorization": "Bearer {}".format(token)
+            "Authorization": f"Bearer {token}"
         }
 
         # Test list view
@@ -210,7 +208,7 @@ class TestLtiAuthentication(TestCase):
         # Make token and include it in the mock request
         token = self._make_token(token_scopes)
         self.mock_request.headers = {
-            "Authorization": "Bearer {}".format(token)
+            "Authorization": f"Bearer {token}"
         }
 
         # Test results view
@@ -237,7 +235,7 @@ class TestLtiAuthentication(TestCase):
         # Make token and include it in the mock request
         token = self._make_token(token_scopes)
         self.mock_request.headers = {
-            "Authorization": "Bearer {}".format(token)
+            "Authorization": f"Bearer {token}"
         }
 
         # Test scores view

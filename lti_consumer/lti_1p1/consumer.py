@@ -69,7 +69,7 @@ def parse_result_json(json_str):
     try:
         json_obj = json.loads(json_str)
     except (ValueError, TypeError) as err:
-        msg = "Supplied JSON string in request body could not be decoded: {}".format(json_str)
+        msg = f"Supplied JSON string in request body could not be decoded: {json_str!r}"
         log.error("[LTI] %s", msg)
         raise Lti1p1Error(msg) from err
 
@@ -87,7 +87,7 @@ def parse_result_json(json_str):
     # '@type' must be "Result"
     result_type = json_obj.get("@type")
     if result_type != "Result":
-        msg = "JSON object does not contain correct @type attribute (should be 'Result', is z{})".format(result_type)
+        msg = f"JSON object does not contain correct @type attribute (should be 'Result', is z{result_type!r})"
         log.error("[LTI] %s", msg)
         raise Lti1p1Error(msg)
 
@@ -304,15 +304,15 @@ class LtiConsumer1p1:
         # Parse headers to pass to template as part of context:
         oauth_signature = dict([param.strip().replace('"', '').split('=') for param in oauth_signature.split(',')])
 
-        oauth_signature[u'oauth_nonce'] = oauth_signature.pop(u'OAuth oauth_nonce')
+        oauth_signature['oauth_nonce'] = oauth_signature.pop('OAuth oauth_nonce')
 
         # oauthlib encodes signature with
         # 'Content-Type': 'application/x-www-form-urlencoded'
         # so '='' becomes '%3D'.
         # We send form via browser, so browser will encode it again,
         # So we need to decode signature back:
-        oauth_signature[u'oauth_signature'] = urllib.parse.unquote(
-            oauth_signature[u'oauth_signature']
+        oauth_signature['oauth_signature'] = urllib.parse.unquote(
+            oauth_signature['oauth_signature']
         )
 
         # Add LTI parameters to OAuth parameters for sending in form.

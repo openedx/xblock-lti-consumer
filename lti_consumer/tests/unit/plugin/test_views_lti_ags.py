@@ -3,7 +3,7 @@ Tests for LTI Advantage Assignments and Grades Service views.
 """
 import json
 from datetime import timedelta
-from mock import patch, PropertyMock, Mock
+from unittest.mock import patch, PropertyMock, Mock
 
 from Cryptodome.PublicKey import RSA
 import ddt
@@ -90,7 +90,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         })
         # pylint: disable=no-member
         self.client.credentials(
-            HTTP_AUTHORIZATION="Bearer {}".format(token)
+            HTTP_AUTHORIZATION=f"Bearer {token}"
         )
 
 

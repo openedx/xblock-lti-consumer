@@ -194,13 +194,13 @@ class OutcomeService:
 
             values = {
                 'imsx_codeMajor': 'success',
-                'imsx_description': 'Score for {sourced_id} is now {score}'.format(sourced_id=sourced_id, score=score),
+                'imsx_description': f'Score for {sourced_id} is now {score}',
                 'imsx_messageIdentifier': escape(imsx_message_identifier),
                 'response': '<replaceResultResponse/>'
             }
-            log.debug(u"[LTI]: Grade is saved.")
+            log.debug("[LTI]: Grade is saved.")
             return response_xml_template.format(**values)
 
         unsupported_values['imsx_messageIdentifier'] = escape(imsx_message_identifier)
-        log.debug(u"[LTI]: Incorrect action.")
+        log.debug("[LTI]: Incorrect action.")
         return response_xml_template.format(**unsupported_values)

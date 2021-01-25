@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Unit tests for lti_consumer.outcomes module
 """
@@ -7,7 +6,7 @@ import textwrap
 import unittest
 from copy import copy
 
-from mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 from lti_consumer.exceptions import LtiError
 from lti_consumer.outcomes import OutcomeService, parse_grade_xml_body
@@ -321,10 +320,10 @@ class TestParseGradeXmlBody(unittest.TestCase):
 
         msg_id, sourced_id, score, action = parse_grade_xml_body(request_body_template)
 
-        self.assertEqual(msg_id, u'ţéšţ_message_id')
-        self.assertEqual(sourced_id, u'ţéšţ_sourced_id')
+        self.assertEqual(msg_id, 'ţéšţ_message_id')
+        self.assertEqual(sourced_id, 'ţéšţ_sourced_id')
         self.assertEqual(score, 1.0)
-        self.assertEqual(action, u'ţéšţ_action')
+        self.assertEqual(action, 'ţéšţ_action')
 
 
 class TestOutcomeService(TestLtiConsumerXBlock):

@@ -4,7 +4,7 @@ Unit tests for lti_consumer.oauth module
 
 import unittest
 
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from lti_consumer.lti_1p1.exceptions import Lti1p1Error
 from lti_consumer.lti_1p1.oauth import (get_oauth_request_signature,
@@ -13,14 +13,14 @@ from lti_consumer.lti_1p1.oauth import (get_oauth_request_signature,
 from lti_consumer.tests.unit.test_utils import make_request
 
 OAUTH_PARAMS = [
-    (u'oauth_nonce', u'80966668944732164491378916897'),
-    (u'oauth_timestamp', u'1378916897'),
-    (u'oauth_version', u'1.0'),
-    (u'oauth_signature_method', u'HMAC-SHA1'),
-    (u'oauth_consumer_key', u'test'),
-    (u'oauth_signature', u'frVp4JuvT1mVXlxktiAUjQ7%2F1cw%3D'),
+    ('oauth_nonce', '80966668944732164491378916897'),
+    ('oauth_timestamp', '1378916897'),
+    ('oauth_version', '1.0'),
+    ('oauth_signature_method', 'HMAC-SHA1'),
+    ('oauth_consumer_key', 'test'),
+    ('oauth_signature', 'frVp4JuvT1mVXlxktiAUjQ7%2F1cw%3D'),
 ]
-OAUTH_PARAMS_WITH_BODY_HASH = OAUTH_PARAMS + [(u'oauth_body_hash', u'2jmj7l5rSw0yVb/vlWAYkK/YBwk=')]
+OAUTH_PARAMS_WITH_BODY_HASH = OAUTH_PARAMS + [('oauth_body_hash', '2jmj7l5rSw0yVb/vlWAYkK/YBwk=')]
 
 
 class TestGetOauthRequestSignature(unittest.TestCase):
@@ -36,7 +36,7 @@ class TestGetOauthRequestSignature(unittest.TestCase):
         mock_client_sign.return_value = '', {'Authorization': ''}, ''
         signature = get_oauth_request_signature('test', 'secret', '', {}, '')
 
-        mock_client_sign.assert_called_with('', http_method=u'POST', body='', headers={})
+        mock_client_sign.assert_called_with('', http_method='POST', body='', headers={})
         self.assertEqual(signature, '')
 
     @patch('oauthlib.oauth1.Client.sign')

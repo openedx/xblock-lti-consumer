@@ -307,7 +307,7 @@ class LtiConfiguration(models.Model):
         return self._get_lti_1p1_consumer()
 
     def __str__(self):
-        return "[{}] {} - {}".format(self.config_store, self.version, self.location)
+        return f"[{self.config_store}] {self.version} - {self.location}"
 
     class Meta:
         app_label = 'lti_consumer'

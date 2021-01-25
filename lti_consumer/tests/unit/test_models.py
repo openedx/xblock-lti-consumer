@@ -2,16 +2,16 @@
 Unit tests for LTI models.
 """
 from datetime import timedelta
-from Cryptodome.PublicKey import RSA
-from django.utils import timezone
-from django.test.testcases import TestCase
+from unittest.mock import patch
 
+from Cryptodome.PublicKey import RSA
+from django.test.testcases import TestCase
+from django.utils import timezone
 from jwkest.jwk import RSAKey
-from mock import patch
 
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiAgsScore
+from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 from lti_consumer.tests.unit.test_utils import make_xblock
 
 
@@ -102,7 +102,7 @@ class TestLtiConfigurationModel(TestCase):
 
         self.assertEqual(
             str(lti_config),
-            "[CONFIG_ON_XBLOCK] lti_1p3 - {}".format(dummy_location)
+            f"[CONFIG_ON_XBLOCK] lti_1p3 - {dummy_location}"
         )
 
     def test_lti_consumer_ags_enabled(self):

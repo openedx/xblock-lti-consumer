@@ -2,7 +2,7 @@
 Tests for LTI 1.3 endpoint views.
 """
 import json
-from mock import patch
+from unittest.mock import patch
 
 from django.http import HttpResponse
 from django.test.testcases import TestCase
@@ -19,7 +19,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
         super().setUp()
 
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
-        self.url = '/lti_consumer/v1/public_keysets/{}'.format(self.location)
+        self.url = f'/lti_consumer/v1/public_keysets/{self.location}'
 
         # Set up LTI Configuration
         self.lti_config = LtiConfiguration.objects.create(
@@ -116,7 +116,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         super().setUp()
 
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
-        self.url = '/lti_consumer/v1/token/{}'.format(self.location)
+        self.url = f'/lti_consumer/v1/token/{self.location}'
 
         # Patch settings calls to LMS method
         xblock_handler_patcher = patch(

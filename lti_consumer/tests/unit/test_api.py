@@ -1,15 +1,16 @@
 """
 Tests for LTI API.
 """
+from unittest.mock import Mock, patch
+
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
-from mock import Mock, patch
 
 from lti_consumer.api import (
     _get_or_create_local_lti_config,
-    get_lti_consumer,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
+    get_lti_consumer
 )
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
