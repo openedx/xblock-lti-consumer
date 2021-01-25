@@ -69,7 +69,7 @@ def parse_result_json(json_str):
     try:
         json_obj = json.loads(json_str)
     except (ValueError, TypeError) as err:
-        msg = f"Supplied JSON string in request body could not be decoded: {json_str}"
+        msg = f"Supplied JSON string in request body could not be decoded: {json_str!r}"
         log.error("[LTI] %s", msg)
         raise Lti1p1Error(msg) from err
 
@@ -87,7 +87,7 @@ def parse_result_json(json_str):
     # '@type' must be "Result"
     result_type = json_obj.get("@type")
     if result_type != "Result":
-        msg = f"JSON object does not contain correct @type attribute (should be 'Result', is z{result_type})"
+        msg = f"JSON object does not contain correct @type attribute (should be 'Result', is z{result_type!r})"
         log.error("[LTI] %s", msg)
         raise Lti1p1Error(msg)
 
