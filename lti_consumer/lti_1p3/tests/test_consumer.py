@@ -706,3 +706,23 @@ class TestLtiAdvantageConsumer(TestCase):
         )
 
         self.assertEqual(content_items, [])
+
+    def test_set_dl_content_launch_parameters(self):
+        """
+        Check that the DL overrides replace LTI launch parameters
+        """
+        self._setup_deep_linking()
+
+        # Set DL variables and return LTI message
+        self.lti_consumer.set_dl_content_launch_parameters(
+            url="example.com",
+            custom={"test": "test"},
+        )
+        message = self.lti_consumer.get_lti_launch_message("test_link")
+
+        # Check if custom item was set
+        self.assertEqual(
+            message['https://purl.imsglobal.org/spec/lti/claim/custom'],
+            {"test": "test"}
+        )
+        self.assertEqual(self.lti_consumer.launch_url, "example.com")
