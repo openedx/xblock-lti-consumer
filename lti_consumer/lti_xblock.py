@@ -1057,19 +1057,38 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
             # Retrieve preflight response
             preflight_response = dict(request.GET)
+            lti_message_hint = preflight_response.get('lti_message_hint', '')
 
-            # Set launch url depending on launch type
-            if self.lti_advantage_deep_linking_enabled and \
-               preflight_response.get('lti_message_hint') == 'deep_linking_launch':
+            # Set LTI Launch URL
+            context.update({'launch_url': self.lti_1p3_launch_url})
+
+            # Modify LTI Launch URL dependind on launch type
+            # Deep Linking Launch - Configuration flow launched by
+            # course creators to set up content.
+            if self.lti_advantage_deep_linking_enabled and lti_message_hint == 'deep_linking_launch':
                 # Check if the user is staff before LTI doing deep linking launch.
                 # If not, raise exception and display error page
                 if user_role not in ['instructor', 'staff']:
                     raise AssertionError('Deep Linking can only be performed by instructors and staff.')
                 # Set deep linking launch
                 context.update({'launch_url': self.lti_advantage_deep_linking_launch_url})
-            else:
-                # Else just run a normal LTI launch
-                context.update({'launch_url': self.lti_1p3_launch_url})
+
+            # Deep Linking ltiResourceLink content presentation
+            # When content type is `ltiResourceLink`, the tool will be launched with
+            # different parameters, set by instructors when running the DL configuration flow.
+            elif self.lti_advantage_deep_linking_enabled and 'deep_linking_content_launch' in lti_message_hint:
+                # Retrieve Deep Linking parameters using lti_message_hint parameter.
+                deep_linking_id = lti_message_hint.split(':')[1]
+                from lti_consumer.api import get_deep_linking_data  # pylint: disable=import-outside-toplevel
+                dl_params = get_deep_linking_data(deep_linking_id, block=self)
+
+                # Modify LTI launch and set ltiResourceLink parameters
+                lti_consumer.set_dl_content_launch_parameters(
+                    url=dl_params.get('url'),
+                    custom=dl_params.get('custom')
+                )
+                if dl_params.get('url'):
+                    context.update({'launch_url': dl_params.get('url')})
 
             # Update context with LTI launch parameters
             context.update({

@@ -5,7 +5,7 @@ Some methods are meant to be used inside the XBlock, so they
 return plaintext to allow easy testing/mocking.
 """
 from .exceptions import LtiError
-from .models import LtiConfiguration
+from .models import LtiConfiguration, LtiDlContentItem
 from .utils import (
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
@@ -105,11 +105,43 @@ def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=Fa
     Computes and retrieves the LTI URL that starts the OIDC flow.
     """
     # Retrieve LTI consumer
-    lti_consumer = get_lti_consumer(config_id, block)
+    lti_config = _get_lti_config(config_id, block)
+    lti_consumer = lti_config.get_lti_consumer()
+
+    # Change LTI hint depending on LTI launch type
+    lti_hint = ""
+    if deep_link_launch:
+        lti_hint = "deep_linking_launch"
+    else:
+        # Check if there's any LTI DL content item
+        # This should only yield one result since we
+        # don't support multiple content items yet.
+        content_items = lti_config.ltidlcontentitem_set.filter(
+            content_type=LtiDlContentItem.LTI_RESOURCE_LINK,
+        ).only('id')
+
+        if content_items.count():
+            lti_hint = f"deep_linking_content_launch:{content_items.get().id}"
 
     # Prepare and return OIDC flow start url
     return lti_consumer.prepare_preflight_url(
         callback_url=get_lms_lti_launch_link(),
         hint=hint,
-        lti_hint=("deep_linking_launch" if deep_link_launch else "")
+        lti_hint=lti_hint
     )
+
+
+def get_deep_linking_data(deep_linking_id, config_id=None, block=None):
+    """
+    Retrieves deep linking attributes.
+
+    Only works with a single line item, this is a limitation in the
+    current content presentation implementation.
+    """
+    # Retrieve LTI Configuration
+    lti_config = _get_lti_config(config_id, block)
+    # Only filter DL content item from content item set in the same LTI configuration.
+    # This avoid a malicious user to input a random LTI id and perform LTI DL
+    # content launches outsite the scope of it's configuration.
+    content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_id)
+    return content_item.attributes
