@@ -16,7 +16,7 @@ compile-sass:  ## Compile the Sass assets
 
 quality:  ## Run the quality checks
 	pycodestyle --config=.pep8 lti_consumer
-	pylint --rcfile=pylintrc --django-settings-module=test_settings lti_consumer
+	pylint --django-settings-module=test_settings --rcfile=pylintrc lti_consumer
 
 test:  ## Run the tests
 	mkdir -p var
