@@ -298,6 +298,12 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+2.5.4 - 2021-02-XX
+------------------
+
+* Fix bug with `config_id` migration where an entry was created _during_
+  the migration and did _not_ receive a valid UUID value.
+
 2.5.3 - 2021-01-26
 ------------------
 
