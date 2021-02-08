@@ -1427,6 +1427,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             float: The css position offset to apply to the modal window
         """
+        if not viewport_percentage:
+            viewport_percentage = 80        # set to default value in case viewport_percentage is None
         return (100 - viewport_percentage) / 2
 
     def get_outcome_service_url(self, service_name="grade_handler"):
