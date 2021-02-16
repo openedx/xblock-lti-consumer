@@ -298,8 +298,11 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-2.5.4 - 2021-02-16
+2.6.0 - 2021-02-16
 ------------------
+
+* Deep Linking content presentation implementation, for resource links, HTML,
+  HTML links, and images.
 
 * Fix bug with `config_id` migration where an entry was created _during_
   the migration and did _not_ receive a valid UUID value.
