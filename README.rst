@@ -298,7 +298,7 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-2.5.4 - 2021-02-XX
+2.5.4 - 2021-02-16
 ------------------
 
 * Fix bug with `config_id` migration where an entry was created _during_
