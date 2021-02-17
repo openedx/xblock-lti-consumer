@@ -57,7 +57,7 @@ we're still left with an API pattern that would be actively encouraging clients 
 to crawl enrollment data.
 
 .. _`Names and Roles Provisioning Services (NRPS)`: http://www.imsglobal.org/spec/lti-nrps/v2p0
-.. _`even with pagination enable as defined in the spec`: http://www.imsglobal.org/spec/lti-nrps/v2p0#limit-query-parameter
+.. _`even with pagination as defined in the spec`: http://www.imsglobal.org/spec/lti-nrps/v2p0#limit-query-parameter
 
 Proposed solutions
 ==================
