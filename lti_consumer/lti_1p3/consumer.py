@@ -613,3 +613,17 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
         # Return contentitems
         return content_items
+
+    def set_dl_content_launch_parameters(
+        self,
+        url=None,
+        custom=None,
+    ):
+        """
+        Overrides LTI Consumer settings to do content presentation.
+        """
+        if url:
+            self.launch_url = url
+
+        if custom:
+            self.set_custom_parameters(custom)

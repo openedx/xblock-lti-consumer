@@ -1361,6 +1361,51 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Check response
         self.assertEqual(response.status_code, 403)
 
+    @patch('lti_consumer.api.get_deep_linking_data')
+    def test_callback_endpoint_dl_content_launch(self, mock_dl_data):
+        """
+        Test that the callback endpoint return the correct information when
+        doing a `ltiResourceLink` deep linking launch.
+        """
+        self.xblock.runtime.get_user_role.return_value = 'student'
+        mock_user_service = Mock()
+        mock_user_service.get_external_user_id.return_value = 2
+        self.xblock.runtime.service.return_value = mock_user_service
+        self.xblock.course.display_name_with_default = 'course_display_name'
+        self.xblock.course.display_org_with_default = 'course_display_org'
+
+        # Set deep linking mock data
+        mock_dl_data.return_value = {
+            "url": "https://deep-link-content/",
+            "custom": {
+                "parameter": "custom",
+            },
+        }
+
+        # Enable deep linking
+        self.xblock.lti_advantage_deep_linking_enabled = True
+
+        # Get LTI client_id
+        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
+
+        # Craft request sent back by LTI tool
+        request = make_request('', 'GET')
+        request.query_string = (
+            "client_id={}&".format(client_id) +
+            "redirect_uri=http://tool.example/launch&" +
+            "state=state_test_123&" +
+            "nonce=nonce&" +
+            "login_hint=oidchint&" +
+            "lti_message_hint=deep_linking_content_launch:1"
+        )
+
+        response = self.xblock.lti_1p3_launch_callback(request)
+        content = response.body.decode('utf-8')
+
+        # Check response
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("https://deep-link-content/", content)
+
 
 class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
     """

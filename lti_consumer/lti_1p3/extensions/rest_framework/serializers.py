@@ -238,8 +238,18 @@ class LtiDlTimeDeltaSerializer(serializers.Serializer):
     containing `startDateTime` and `endDateTime` to signal
     if content if available or gra
     """
-    startDateTime = serializers.DateTimeField(input_formats=[ISO_8601], format=ISO_8601, default_timezone=timezone.utc)
-    endDateTime = serializers.DateTimeField(input_formats=[ISO_8601], format=ISO_8601, default_timezone=timezone.utc)
+    startDateTime = serializers.DateTimeField(
+        input_formats=[ISO_8601],
+        format=ISO_8601,
+        default_timezone=timezone.utc,
+        required=False,
+    )
+    endDateTime = serializers.DateTimeField(
+        input_formats=[ISO_8601],
+        format=ISO_8601,
+        default_timezone=timezone.utc,
+        required=False,
+    )
 
 
 # pylint: disable=abstract-method

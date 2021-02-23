@@ -298,6 +298,12 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+2.7.0 - 2021-02-16
+------------------
+
+* Add support for presenting `ltiResourceLink` content from deep linking.
+
+
 2.6.0 - 2021-02-16
 ------------------
 
