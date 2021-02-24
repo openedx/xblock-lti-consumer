@@ -80,14 +80,25 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     lti_config = _get_lti_config(config_id, block)
     lti_consumer = lti_config.get_lti_consumer()
 
-    # Check if deep Linking is available, if so, retrieve it's launch url
+    # Check if deep Linking is available, if so, add some extra context:
+    # Deep linking launch URL, and if deep linking is already configured
     deep_linking_launch_url = None
+    deep_linking_content_items = []
+
     if lti_consumer.dl is not None:
         deep_linking_launch_url = lti_consumer.prepare_preflight_url(
             callback_url=get_lms_lti_launch_link(),
             hint=lti_config.location,
             lti_hint="deep_linking_launch"
         )
+
+        # Retrieve LTI Content Items (if any was set up)
+        dl_content_items = LtiDlContentItem.objects.filter(
+            lti_configuration=lti_config
+        )
+        # Add content item attributes to context
+        if dl_content_items.exists():
+            deep_linking_content_items = [item.attributes for item in dl_content_items]
 
     # Return LTI launch information for end user configuration
     return {
@@ -97,6 +108,7 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
         'oidc_callback': get_lms_lti_launch_link(),
         'token_url': get_lms_lti_access_token_link(lti_config.location),
         'deep_linking_launch_url': deep_linking_launch_url,
+        'deep_linking_content_items': deep_linking_content_items,
     }
 
 
