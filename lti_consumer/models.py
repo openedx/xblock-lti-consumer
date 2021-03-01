@@ -451,7 +451,7 @@ class LtiAgsScore(models.Model):
         if self.score_given and self.score_maximum is None:
             raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
 
-    def save(self, *args, **kwargs):  # pylint: disable=signature-differs
+    def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
 
