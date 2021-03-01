@@ -21,7 +21,7 @@ From the LTI-NRPS Specification:
 
 The LTI-NRPS services has two services which provide user data in the following format:
 
-.. code-block:
+.. code-block:: json
     {
         "id" : "https://lms.example.com/sections/2923/memberships",
         "context": {
