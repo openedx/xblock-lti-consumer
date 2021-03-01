@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE HTML>
 <html>
     <head>
@@ -6,10 +7,10 @@
     </head>
     <body>
         <p>
-            <b>Unauthorized.</b>
+            <b>{% trans "Unauthorized." %}</b>
         </p>
         <p>
-            Students don't have permissions to perform LTI Deep Linking configuration launches.
+            {% trans "Students don't have permissions to perform LTI Deep Linking configuration launches." %}
         </p>
     </body>
 </html>

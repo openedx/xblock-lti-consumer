@@ -924,7 +924,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Render template
         fragment = Fragment()
         loader = ResourceLoader(__name__)
-        fragment.add_content(loader.render_mako_template('/templates/html/lti_1p3_studio.html', context))
+        fragment.add_content(
+            loader.render_django_template(
+                '/templates/html/lti_1p3_studio.html',
+                context,
+                i18n_service=self.runtime.service(self, 'i18n')
+            ),
+        )
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
         fragment.initialize_js('LtiConsumerXBlock')

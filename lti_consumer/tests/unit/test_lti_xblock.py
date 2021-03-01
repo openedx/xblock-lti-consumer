@@ -1287,8 +1287,10 @@ class TestLtiConsumer1p3XBlock(TestCase):
             'oidc_callback': "mock-oidc_callback",
             'token_url': "mock-token_url",
         }
-
+        # Mock i18n service before fetching author view
+        self.xblock.runtime.service.return_value = None
         response = self.xblock.author_view({})
+
         self.assertIn("mock-client_id", response.content)
         self.assertIn("mock-keyset_url", response.content)
         self.assertIn("mock-token_url", response.content)

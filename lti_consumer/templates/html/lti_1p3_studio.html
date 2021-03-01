@@ -1,66 +1,58 @@
-<!DOCTYPE HTML>
-<html>
-    <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-        <title>LTI</title>
-    </head>
-    <body>
+{% load i18n %}
+<p>
+    <b>{% trans "LTI 1.3 Launches can only be performed from the LMS." %}</b>
+</p>
+
+<p>
+    {% trans "To set up the LTI integration, you need to register the LMS in the tool with the information provided below." %}
+</p>
+
+<p>
+    <b>{% trans "Client: " %}</b>
+    {{ client_id }}
+</p>
+
+<p>
+    <b>{% trans "Deployment ID: " %}</b>
+    {{ deployment_id }}
+</p>
+
+<p>
+    <b>{% trans "Keyset URL: " %}</b>
+    {{ keyset_url }}
+</p>
+
+<p>
+    <b>{% trans "OAuth Token URL: " %}</b>
+    {{ token_url }}
+</p>
+
+<p>
+    <b>{% trans "OIDC Callback URL: " %}</b>
+    {{ oidc_callback }}
+</p>
+
+{% if deep_linking_launch_url %}
+    <hr />
+    {% if deep_linking_content_items %}
         <p>
-            <b>LTI 1.3 Launches can only be performed from the LMS.</b>
+            <b>{% trans "Deep Linking is configured on this tool." %}</b>
+            {% trans "The Deep Linking configuration stored is presented below:" %}
         </p>
+        <code>
+            {{ deep_linking_content_items }}
+        </code>
 
         <p>
-            To set up the LTI integration, you need to register the LMS in the tool with the information provided below.
+            {% trans "If you run deep linking again, the content above will be replaced." %}
         </p>
-
-        <p>
-            <b>Client: </b>
-            ${client_id}
-        </p>
-
-        <p>
-            <b>Deployment ID: </b>
-            ${deployment_id}
-        </p>
-
-        <p>
-            <b>Keyset URL: </b>
-            ${keyset_url}
-        </p>
-
-        <p>
-            <b>OAuth Token URL: </b>
-            ${token_url}
-        </p>
-
-        <p>
-            <b>OIDC Callback URL: </b>
-            ${oidc_callback}
-        </p>
-
-        % if deep_linking_launch_url:
-            <hr />
-            % if deep_linking_content_items:
-                <p>
-                    <b>Deep Linking is configured on this tool.</b>
-                    The Deep Linking configuration stored is presented below:
-                </p>
-                <code>
-                    ${deep_linking_content_items}
-                </code>
-
-                <p>
-                    If you run deep linking again, the content above will be replaced.
-                </p>
-            % endif
-            <p>
-                You can configure this tool's content using LTI Deep Linking.
-                To do that, make sure the block is published and click the link below:
-            </p>
-            <a href="${deep_linking_launch_url}" target="_blank">
-                Deep Linking Launch - Configure tool
-                <i class="icon fa fa-external-link"></i>
-            </a>
-        % endif
-    </body>
-</html>
+    {% endif %}
+    <p>
+        {% trans "You can configure this tool's content using LTI Deep Linking." %}
+        {% trans "To do that, make sure the block is published and click the link below:" %}
+    </p>
+    <a href="{{ deep_linking_launch_url }}" target="_blank">
+        {% trans "Deep Linking Launch - Configure tool" %}
+        <i class="icon fa fa-external-link"></i>
+    </a>
+{% endif %}
