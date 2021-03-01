@@ -81,4 +81,4 @@ Placeholder.
 Consequences
 ============
 
-Depends on choosen approach.
+Depends on chosen approach.
