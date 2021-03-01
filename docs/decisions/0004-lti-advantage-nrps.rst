@@ -59,26 +59,58 @@ to crawl enrollment data.
 .. _`Names and Roles Provisioning Services (NRPS)`: http://www.imsglobal.org/spec/lti-nrps/v2p0
 .. _`even with pagination as defined in the spec`: http://www.imsglobal.org/spec/lti-nrps/v2p0#limit-query-parameter
 
-Proposed solutions
-==================
+Decision
+========
 
-Don't implement NRPS
-~~~~~~~~~~~~~~~~~~~~
-Placeholder.
+Implement the LTI NRPS for courses up to a predefined (and configurable) number of active enrollments.
+Above that number, the service endpoint will return HTTP status 403 (Forbidden).
 
-Implement NRPS gated by course
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Placeholder.
+This is the simplest implementation that allows us to provide the LTI NRPS service and mitigate the concerns mentioned above.
+The NRPS services availability and behavior will be controlled by the following toggles:
 
-Implement NRPS for courses up to a predefined number of students
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Placeholder.
+.. list-table::
+   :widths: auto
+   :header-rows: 1
 
-Implement NRPS limiting the context of the data retrieved
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Placeholder.
+   * - Toggle name
+     - Type
+     - Behavior
+   * - LTI_NRPS_ENABLED
+     - Feature flag
+     - Enables and disables LTI NRPS globally in the Open edX instance. Is disabled by default.
+   * - LTI_NRPS_ACTIVE_ENROLLMENT_LIMIT
+     - Django setting
+     - Controls the allowed number of active enrollments allowed where the API is still available.
+       Defaults to 1000 active enrollments at first.
+   * - LTI_NRPS_TRANSMIT_PII
+     - CourseWaffleFlag
+     - Allows the tool to access student and instructor PII (username, email, full name, profile picture).
+       Defaults to False.
+
 
 Consequences
 ============
 
-Depends on chosen approach.
+* Small courses will be able to use LTI NRPS endpoints on their tools, up to a limited amount of users.
+* Big MOOCs (with millions of users) won't be able to scrape enrollment data on edX and potentially cause stability issues.
+*
+
+
+Discarded solutions
+===================
+
+Don't implement NRPS
+~~~~~~~~~~~~~~~~~~~~
+This would not enable course creators to use LTI advantage tools that make use of this functionality.
+
+Implement NRPS gated by course
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+While this would work, it adds a maintenance burden of keeping and updating a whitelist.
+Also, long running MOOCs can grow to sizes that could potentially affect instance stability when
+using the API.
+
+Implement NRPS limiting the context of the data retrieved
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Complex to implement given the benefit. To get consistency on the LTI tool side, the implementation
+would need to create user groups and effectively isolate them in the tool (potentially using a different resourceLink),
+which doesn't work for a few LTI integrations (forums, course wide leaderboard, instructor grading inside the tool and others).
