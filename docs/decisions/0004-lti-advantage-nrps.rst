@@ -9,7 +9,7 @@ In Review
 Context
 =======
 
-One of the LTI Advantage services if the `Names and Roles Provisioning Services (NRPS)`_, which allows LTI tools
+One of the LTI Advantage services is the `Names and Roles Provisioning Services (NRPS)`_, which allows LTI tools
 to retrieve a user list associated with the learning context and internally provision resources for them.
 
 From the LTI-NRPS Specification:
