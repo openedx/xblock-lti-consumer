@@ -65,7 +65,7 @@ class TestLtiDeepLinking(TestCase):
                         'window',
                         'embed'
                     ],
-                    'accept_multiple': False,
+                    'accept_multiple': True,
                     'auto_create': True,
                     'title': '',
                     'text': '',

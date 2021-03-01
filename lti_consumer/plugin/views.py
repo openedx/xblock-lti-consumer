@@ -259,6 +259,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
 
 
 @require_http_methods(['GET'])
+@xframe_options_sameorigin
 def deep_linking_content_endpoint(request, lti_config_id=None):
     """
     Deep Linking endpoint for rendering Deep Linking Content Items.

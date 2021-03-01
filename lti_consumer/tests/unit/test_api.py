@@ -8,6 +8,7 @@ from django.test.testcases import TestCase
 
 from lti_consumer.api import (
     _get_or_create_local_lti_config,
+    get_lti_1p3_content_url,
     get_deep_linking_data,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
@@ -16,6 +17,45 @@ from lti_consumer.api import (
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.tests.unit.test_utils import make_xblock
+
+
+class Lti1P3TestCase(TestCase):
+    """
+    Reusable test case for testing LTI 1.3 configurations.
+    """
+    def setUp(self):
+        """
+        Set up an empty block configuration.
+        """
+        self.xblock = None
+        self.lti_config = None
+
+        return super().setUp()
+
+    def _setup_lti_block(self):
+        """
+        Set's up an LTI block that is used in some tests.
+        """
+        # Generate RSA and save exports
+        rsa_key = RSA.generate(1024)
+        public_key = rsa_key.publickey().export_key()
+
+        xblock_attributes = {
+            'lti_version': 'lti_1p3',
+            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_oidc_url': 'http://tool.example/oidc',
+            # We need to set the values below because they are not automatically
+            # generated until the user selects `lti_version == 'lti_1p3'` on the
+            # Studio configuration view.
+            'lti_1p3_tool_public_key': public_key,
+        }
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attributes)
+        # Set dummy location so that UsageKey lookup is valid
+        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
+        # Create lti configuration
+        self.lti_config = LtiConfiguration.objects.create(
+            location=self.xblock.location
+        )
 
 
 class TestGetOrCreateLocalLtiConfiguration(TestCase):
@@ -164,7 +204,14 @@ class TestGetLti1p3LaunchInfo(TestCase):
         block = Mock()
         block.location = 'block-v1:course+test+2020+type@problem+block@test'
         block.lti_version = LtiConfiguration.LTI_1P3
-        LtiConfiguration.objects.create(location=block.location)
+
+        # Create LTI Config and Deep linking object
+        lti_config = LtiConfiguration.objects.create(location=block.location)
+        LtiDlContentItem.objects.create(
+            lti_configuration=lti_config,
+            content_type=LtiDlContentItem.IMAGE,
+            attributes={"test": "this is a test attribute"}
+        )
 
         # Call API
         launch_info = get_lti_1p3_launch_info(block=block)
@@ -184,49 +231,17 @@ class TestGetLti1p3LaunchInfo(TestCase):
                     lti_config.lti_1p3_client_id
                 ),
                 'deep_linking_launch_url': 'https://example.com',
-                'deep_linking_content_items': []
+                'deep_linking_content_items': [{
+                    "test": "this is a test attribute",
+                }]
             }
         )
 
 
-class TestGetLti1p3LaunchUrl(TestCase):
+class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
     """
     Unit tests for get_lti_1p3_launch_start_url API method.
     """
-    def setUp(self):
-        """
-        Set up an empty block configuration.
-        """
-        self.xblock = None
-        self.lti_config = None
-
-        return super().setUp()
-
-    def _setup_lti_block(self):
-        """
-        Set's up an LTI block that is used in some tests.
-        """
-        # Generate RSA and save exports
-        rsa_key = RSA.generate(1024)
-        public_key = rsa_key.publickey().export_key()
-
-        xblock_attributes = {
-            'lti_version': 'lti_1p3',
-            'lti_1p3_launch_url': 'http://tool.example/launch',
-            'lti_1p3_oidc_url': 'http://tool.example/oidc',
-            # We need to set the values below because they are not automatically
-            # generated until the user selects `lti_version == 'lti_1p3'` on the
-            # Studio configuration view.
-            'lti_1p3_tool_public_key': public_key,
-        }
-        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attributes)
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
-        # Create lti configuration
-        self.lti_config = LtiConfiguration.objects.create(
-            location=self.xblock.location
-        )
-
     def test_no_parameters(self):
         """
         Check if the API creates a model if no object matching properties is found.
@@ -249,7 +264,21 @@ class TestGetLti1p3LaunchUrl(TestCase):
         launch_url = get_lti_1p3_launch_start_url(block=self.xblock, deep_link_launch=True)
         self.assertIn('lti_message_hint=deep_linking_launch', launch_url)
 
-    def test_lti_content_presentation(self):
+
+class TestGetLti1p3ContentUrl(Lti1P3TestCase):
+    """
+    Unit tests for get_lti_1p3_launch_start_url API method.
+    """
+    @patch("lti_consumer.api.get_lti_1p3_launch_start_url")
+    def test_lti_content_presentation(self, mock_get_launch_url):
+        """
+        Check if the correct LTI content presentation is returned on a normal LTI Launch.
+        """
+        mock_get_launch_url.return_value = 'test_url'
+        self._setup_lti_block()
+        self.assertEqual(get_lti_1p3_content_url(block=self.xblock), 'test_url')
+
+    def test_lti_content_presentation_single_link(self):
         """
         Check if the correct LTI content presentation is returned if a `ltiResourceLink`
         content type is present.
@@ -264,12 +293,34 @@ class TestGetLti1p3LaunchUrl(TestCase):
         )
 
         # Call API to retrieve content item URL
-        launch_url = get_lti_1p3_launch_start_url(block=self.xblock)
+        launch_url = get_lti_1p3_content_url(block=self.xblock)
         self.assertIn(
             # Checking for `deep_linking_content_launch:<content_item_id>`
             # URL Encoded `:` is `%3A`
             f'lti_message_hint=deep_linking_content_launch%3A{lti_content.id}',
-            launch_url
+            launch_url,
+        )
+
+    def test_lti_content_presentation_multiple_links(self):
+        """
+        Check if the correct LTI content presentation is returned if multiple LTI DL
+        content items are set up.
+        """
+        self._setup_lti_block()
+
+        # Create LTI DL content items
+        for _ in range(3):
+            LtiDlContentItem.objects.create(
+                lti_configuration=self.lti_config,
+                content_type=LtiDlContentItem.IMAGE,
+                attributes={},
+            )
+
+        # Call API to retrieve content item URL
+        self.assertIn(
+            # Checking for the content presentation URL
+            f"/api/lti_consumer/v1/lti/{self.lti_config.id}/lti-dl/content",
+            get_lti_1p3_content_url(block=self.xblock),
         )
 
 

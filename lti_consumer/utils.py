@@ -102,3 +102,15 @@ def get_lti_deeplinking_response_url(lti_config_id):
         lms_base=get_lms_base(),
         lti_config_id=str(lti_config_id),
     )
+
+
+def get_lti_deeplinking_content_url(lti_config_id):
+    """
+    Return the LTI Deep Linking content presentation endpoint
+
+    :param lti_config_id: LTI configuration id
+    """
+    return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/content".format(
+        lms_base=get_lms_base(),
+        lti_config_id=str(lti_config_id),
+    )
