@@ -118,7 +118,7 @@ def public_keyset_endpoint(request, usage_id=None):
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
     except (LtiError, InvalidKeyError, ObjectDoesNotExist) as exc:
-        log.info("Error while retrieving keyset for given usage_id.")
+        log.info("Error while retrieving keyset for usage_id %s: %r", usage_id, exc)
         raise Http404 from exc
 
 
@@ -143,7 +143,7 @@ def launch_gate_endpoint(request, suffix):
             suffix=suffix
         )
     except Exception as exc:
-        log.warning("Error preparing LTI 1.3 launch.")
+        log.warning("Error preparing LTI 1.3 launch for hint %s: %r", usage_key_str, exc)
         raise Http404 from exc
 
 
@@ -163,7 +163,7 @@ def access_token_endpoint(request, usage_id=None):
             handler='lti_1p3_access_token'
         )
     except Exception as exc:
-        log.warning("Error retrieving an access token for LTI 1.3 tool.")
+        log.warning("Error retrieving an access token for usage_id %s: %r", usage_id, exc)
         raise Http404 from exc
 
 
@@ -226,11 +226,16 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
 
     # If LtiConfiguration doesn't exist, error with 404 status.
     except LtiConfiguration.DoesNotExist as exc:
-        log.info("LtiConfiguration does not exist.")
+        log.info("LtiConfiguration %s does not exist: %r", lti_config_id, exc)
         raise Http404 from exc
     # Bad JWT message, invalid token, or any message validation issues
-    except (Lti1p3Exception, PermissionDenied):
-        log.info("Permission denied for user.")
+    except (Lti1p3Exception, PermissionDenied) as exc:
+        log.warning(
+            "Permission on LTI Config %s denied for user %s: %r",
+            lti_config,
+            request.user,
+            exc
+        )
         return render(
             request,
             'html/lti-dl/dl_response_error.html',
@@ -241,8 +246,8 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
             },
             status=403
         )
-    except KeyError:
-        log.info("LTI Content Type not supported.")
+    except KeyError as exc:
+        log.info("The selected LTI Content Type is not supported: %r", exc)
         return render(
             request,
             'html/lti-dl/dl_response_error.html',
@@ -260,12 +265,16 @@ def deep_linking_content_endpoint(request, lti_config_id=None):
         # Get LTI Configuration
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
     except LtiConfiguration.DoesNotExist as exc:
-        log.info("LtiConfiguration does not exist.")
+        log.info("LtiConfiguration %s does not exist: %r", lti_config_id, exc)
         raise Http404 from exc
 
     # check if user has proper access
     if not has_block_access(request.user, lti_config.block, lti_config.location.course_key):
-        log.info("Permission denied for user.")
+        log.warning(
+            "Permission on LTI Config %s denied for user %s.",
+            lti_config_id,
+            request.user
+        )
         raise PermissionDenied
 
     # Get all LTI-DL contents
@@ -273,7 +282,7 @@ def deep_linking_content_endpoint(request, lti_config_id=None):
 
     # If no LTI-DL contents found for current configuration, throw 404 error
     if not content_items.exists():
-        log.info("There's no Deep linking content for this LTI configuration.")
+        log.info("There's no Deep linking content for LTI configuration %s.", lti_config)
         raise Http404
 
     # Render LTI-DL contents
