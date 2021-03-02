@@ -19,7 +19,7 @@ From the LTI-NRPS Specification:
     within organizations, a course being an example of an organization. So a very common purpose for this service
     is to provide a roster (list of enrolments) for a course.
 
-The LTI-NRPS services has two services which provide user data in the following format:
+An LTI-NRPS services implementation consists of two services which provide user data in the following format:
 
 .. code-block:: json
     {
