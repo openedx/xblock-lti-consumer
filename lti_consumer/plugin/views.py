@@ -234,7 +234,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
             "Permission on LTI Config %s denied for user %s: %r",
             lti_config,
             request.user,
-            exc
+            exc,
         )
         return render(
             request,
@@ -273,7 +273,7 @@ def deep_linking_content_endpoint(request, lti_config_id=None):
         log.warning(
             "Permission on LTI Config %s denied for user %s.",
             lti_config_id,
-            request.user
+            request.user,
         )
         raise PermissionDenied
 
