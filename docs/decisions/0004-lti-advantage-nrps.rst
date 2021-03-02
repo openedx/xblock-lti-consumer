@@ -4,7 +4,7 @@ LTI Advantage NRPS (Names and Roles provisioning services)
 Status
 ======
 
-In Review
+Accepted
 
 Context
 =======
@@ -92,7 +92,7 @@ Consequences
 ============
 
 * Small courses will be able to use LTI NRPS endpoints on their tools, up to a limited amount of users.
-* Big MOOCs (with millions of users) won't be able to scrape enrollment data on edX and potentially cause stability issues.
+* Big MOOCs (with millions of users) won't allow scraping of enrollment data on edX and potentially cause stability issues.
 
 
 Discarded solutions
