@@ -56,8 +56,8 @@ students in a given course. Given the scale of some courses in edX.org, even if 
 we're still left with an API pattern that would be actively encouraging clients out there to make hundreds of thousands of successive requests in order
 to crawl enrollment data.
 
-.. _`Names and Roles Provisioning Services (NRPS)`: http://www.imsglobal.org/spec/lti-nrps/v2p0
-.. _`even with pagination as defined in the spec`: http://www.imsglobal.org/spec/lti-nrps/v2p0#limit-query-parameter
+.. _Names and Roles Provisioning Services (NRPS): http://www.imsglobal.org/spec/lti-nrps/v2p0
+.. _even with pagination as defined in the spec: http://www.imsglobal.org/spec/lti-nrps/v2p0#limit-query-parameter
 
 Decision
 ========
