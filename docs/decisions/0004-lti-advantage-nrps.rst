@@ -51,7 +51,7 @@ Where the only required fields for each member are :code:`user_id` and :code:`ro
 But since one of the purposes of this API is to enable tools access to user PII, the implementation should provide a flag to enable the consumer
 to pass additional PII parameters such as name, email, and a profile picture url.
 
-The main issue with enabling this API (`even with pagination as defined in the spec`_) is that it would allow tools to scrape enrollments for all
+The main issue with enabling this API (`even with pagination as defined in the spec`_) is that it would allow external third-party tools to scrape enrollments for all
 students in a given course. Given the scale of some courses in edX.org, even if the API is made more performant with cursor pagination,
 we're still left with an API pattern that would be actively encouraging clients out there to make hundreds of thousands of successive requests in order
 to crawl enrollment data.
