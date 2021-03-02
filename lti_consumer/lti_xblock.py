@@ -1111,7 +1111,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(template, content_type='text/html')
         except Lti1p3Exception as exc:
             log.warning(
-                "Error preparing LTI 1.3 launch for block %s: %r",
+                "Error preparing LTI 1.3 launch for block %r: %s",
                 str(self.location),  # pylint: disable=no-member
                 exc,
             )
@@ -1119,7 +1119,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(template, status=400, content_type='text/html')
         except AssertionError as exc:
             log.warning(
-                "Permission on LTI block %s denied for user %s: %r",
+                "Permission on LTI block %r denied for user %r: %s",
                 str(self.location),  # pylint: disable=no-member
                 self.external_user_id,
                 exc,

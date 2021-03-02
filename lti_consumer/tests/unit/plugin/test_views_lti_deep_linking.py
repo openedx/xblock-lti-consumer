@@ -136,7 +136,7 @@ class LtiDeepLinkingResponseEndpointTestCase(LtiDeepLinkingTestCase):
 
     def test_lti_deep_linking_with_invalid_content_type(self):
         """
-        Test that the endpoint returns 403 when content type is not supported.
+        Test that the endpoint returns 400 when content type is not supported.
         """
         response = self.client.post(
             self.url,
@@ -146,7 +146,7 @@ class LtiDeepLinkingResponseEndpointTestCase(LtiDeepLinkingTestCase):
                 }])
             },
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 400)
 
     def test_lti_deep_linking_valid_request(self):
         """
