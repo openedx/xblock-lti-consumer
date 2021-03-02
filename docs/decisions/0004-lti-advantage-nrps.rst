@@ -80,7 +80,7 @@ The NRPS services availability and behavior will be controlled by the following 
      - Enables and disables LTI NRPS globally in the Open edX instance. Is disabled by default.
    * - LTI_NRPS_ACTIVE_ENROLLMENT_LIMIT
      - Django setting
-     - Controls the allowed number of active enrollments allowed where the API is still available.
+     - Controls the allowed number of active enrollments when the API is enabled.
        Defaults to 1000 active enrollments at first.
    * - LTI_NRPS_TRANSMIT_PII
      - CourseWaffleFlag
