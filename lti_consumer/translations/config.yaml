@@ -1,0 +1,14 @@
+# Configuration for i18n workflow.
+
+locales:
+  - en  # English - Source Language
+  - ar  # Arabic
+  - es_419  # Spanish (Latin America)
+  - fr  # French
+  - he  # Hebrew
+  - hi  # Hindi
+  - ja_JP  # Japanese (Japan)
+  - ko_KR  # Korean (Korea)
+  - pt_BR  # Portuguese (Brazil)
+  - ru  # Russian
+  - zh_CN  # Chinese (China)

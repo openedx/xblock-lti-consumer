@@ -674,8 +674,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     raise ValueError
                 key = ':'.join(key)
             except ValueError as err:
-                msg = 'Could not parse LTI passport: {lti_passport!r}. Should be "id:key:secret" string.'
-                msg = self.ugettext(msg).format(lti_passport=lti_passport)
+                msg = self.ugettext(
+                    'Could not parse LTI passport: {lti_passport!r}. Should be "id:key:secret" string.'
+                ).format(lti_passport=lti_passport)
                 raise LtiError(msg) from err
 
             if lti_id == self.lti_id.strip():
@@ -810,8 +811,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     param_name, param_value = [p.strip() for p in custom_parameter.split('=', 1)]
                 except ValueError as err:
                     _ = self.runtime.service(self, "i18n").ugettext
-                    msg = 'Could not parse custom parameter: {custom_parameter!r}. Should be "x=y" string.'
-                    msg = self.ugettext(msg).format(custom_parameter=custom_parameter)
+                    msg = self.ugettext(
+                        'Could not parse custom parameter: {custom_parameter!r}. Should be "x=y" string.'
+                    ).format(custom_parameter=custom_parameter)
                     raise LtiError(msg) from err
 
                 # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
