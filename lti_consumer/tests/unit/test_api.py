@@ -183,7 +183,8 @@ class TestGetLti1p3LaunchInfo(TestCase):
                 'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
                     lti_config.lti_1p3_client_id
                 ),
-                'deep_linking_launch_url': 'https://example.com'
+                'deep_linking_launch_url': 'https://example.com',
+                'deep_linking_content_items': []
             }
         )
 

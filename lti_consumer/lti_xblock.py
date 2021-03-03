@@ -674,8 +674,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     raise ValueError
                 key = ':'.join(key)
             except ValueError as err:
-                msg = 'Could not parse LTI passport: {lti_passport!r}. Should be "id:key:secret" string.'
-                msg = self.ugettext(msg).format(lti_passport=lti_passport)
+                msg = self.ugettext(
+                    'Could not parse LTI passport: {lti_passport!r}. Should be "id:key:secret" string.'
+                ).format(lti_passport=lti_passport)
                 raise LtiError(msg) from err
 
             if lti_id == self.lti_id.strip():
@@ -810,8 +811,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     param_name, param_value = [p.strip() for p in custom_parameter.split('=', 1)]
                 except ValueError as err:
                     _ = self.runtime.service(self, "i18n").ugettext
-                    msg = 'Could not parse custom parameter: {custom_parameter!r}. Should be "x=y" string.'
-                    msg = self.ugettext(msg).format(custom_parameter=custom_parameter)
+                    msg = self.ugettext(
+                        'Could not parse custom parameter: {custom_parameter!r}. Should be "x=y" string.'
+                    ).format(custom_parameter=custom_parameter)
                     raise LtiError(msg) from err
 
                 # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
@@ -924,7 +926,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Render template
         fragment = Fragment()
         loader = ResourceLoader(__name__)
-        fragment.add_content(loader.render_mako_template('/templates/html/lti_1p3_studio.html', context))
+        fragment.add_content(
+            loader.render_django_template(
+                '/templates/html/lti_1p3_studio.html',
+                context,
+                i18n_service=self.runtime.service(self, 'i18n')
+            ),
+        )
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
         fragment.initialize_js('LtiConsumerXBlock')
@@ -1101,10 +1109,21 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
             template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
             return Response(template, content_type='text/html')
-        except Lti1p3Exception:
+        except Lti1p3Exception as exc:
+            log.warning(
+                "Error preparing LTI 1.3 launch for block %r: %s",
+                str(self.location),  # pylint: disable=no-member
+                exc,
+            )
             template = loader.render_mako_template('/templates/html/lti_1p3_launch_error.html', context)
             return Response(template, status=400, content_type='text/html')
-        except AssertionError:
+        except AssertionError as exc:
+            log.warning(
+                "Permission on LTI block %r denied for user %r: %s",
+                str(self.location),  # pylint: disable=no-member
+                self.external_user_id,
+                exc,
+            )
             template = loader.render_mako_template('/templates/html/lti_1p3_permission_error.html', context)
             return Response(template, status=403, content_type='text/html')
 
