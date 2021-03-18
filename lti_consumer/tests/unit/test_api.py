@@ -218,19 +218,19 @@ class TestGetLti1p3LaunchInfo(TestCase):
 
         # Retrieve created config and check full launch info data
         lti_config = LtiConfiguration.objects.get()
-        self.assertCountEqual(
+        self.assertEqual(
             launch_info,
             {
                 'client_id': lti_config.lti_1p3_client_id,
                 'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
-                    lti_config.lti_1p3_client_id
+                    lti_config.location
                 ),
                 'deployment_id': '1',
                 'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',
                 'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
-                    lti_config.lti_1p3_client_id
+                    lti_config.location
                 ),
-                'deep_linking_launch_url': 'https://example.com',
+                'deep_linking_launch_url': 'http://example.com',
                 'deep_linking_content_items': [{
                     "test": "this is a test attribute",
                 }]
