@@ -1420,12 +1420,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         else:
             # Runtime import since this will only run in the
             # Open edX LMS/Studio environments.
-            from lti_consumer.api import get_lti_1p3_launch_start_url  # pylint: disable=import-outside-toplevel
+            from lti_consumer.api import get_lti_1p3_content_url  # pylint: disable=import-outside-toplevel
 
             # Retrieve and set LTI 1.3 Launch start URL
-            lti_block_launch_handler = get_lti_1p3_launch_start_url(
+            lti_block_launch_handler = get_lti_1p3_content_url(
                 block=self,
-                deep_link_launch=False,
                 hint=str(self.location)  # pylint: disable=no-member
             )
 

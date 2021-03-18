@@ -52,8 +52,8 @@ class LtiDeepLinking:
                 "window",
                 "embed"
             ],
-            # Only accept a single item return from Deep Linking operation.
-            "accept_multiple": False,
+            # Accept multiple items on from Deep Linking responses.
+            "accept_multiple": True,
             # Automatically saves Content Items without asking to user
             "auto_create": True,
             # Other parameters

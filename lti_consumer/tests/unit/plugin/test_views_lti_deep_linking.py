@@ -604,3 +604,28 @@ class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
 
         if test_data.get('height'):
             self.assertContains(resp, 'height="{}"'.format(test_data['height']))
+
+    @patch('lti_consumer.plugin.views.has_block_access', return_value=True)
+    def test_dl_content_multiple_lti_resource_links(self, has_block_access):  # pylint: disable=unused-argument
+        """
+        Test if multiple `ltiResourceLink` content types are successfully rendered.
+        """
+        content_items = []
+        for _ in range(3):
+            content_items.append(
+                LtiDlContentItem.objects.create(
+                    lti_configuration=self.lti_config,
+                    content_type=LtiDlContentItem.LTI_RESOURCE_LINK,
+                    attributes={}
+                )
+            )
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+
+        # Check that there's three LTI Resource links presented
+        for item in content_items:
+            self.assertContains(
+                resp,
+                f"lti_message_hint=deep_linking_content_launch%3A{item.id}"
+            )

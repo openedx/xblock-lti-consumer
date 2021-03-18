@@ -222,6 +222,26 @@ To configure parameter processors add the following snippet to your Ansible vari
           - 'customer_package.lti_processors:team_and_cohort'
           - 'example_package.lti_processors:extra_lti_params'
 
+LTI Advantage Features
+======================
+
+This XBlock supports LTI 1.3 and the following LTI Avantage services:
+
+* Deep Linking (LTI-DL)
+* Assignments and Grades services (LTI-AGS)
+
+To enable LTI-AGS, your block needs two properties set: `has_score` and `weight`. Once that is configured, the
+service will be automatically enabled and the tool will be able to send scores back to the platform through
+a `LineItem`.
+
+To enable LTI-DL and its capabilities, you need to set the following feature flag:
+
+.. code:: yaml
+
+    FEATURES:
+        LTI_DEEP_LINKING_ENABLED: true
+
+
 Development
 ===========
 

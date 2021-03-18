@@ -7,6 +7,7 @@ return plaintext to allow easy testing/mocking.
 from .exceptions import LtiError
 from .models import LtiConfiguration, LtiDlContentItem
 from .utils import (
+    get_lti_deeplinking_content_url,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
     get_lms_lti_access_token_link,
@@ -112,7 +113,7 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     }
 
 
-def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=False, hint=""):
+def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=False, dl_content_id=None, hint=""):
     """
     Computes and retrieves the LTI URL that starts the OIDC flow.
     """
@@ -122,18 +123,14 @@ def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=Fa
 
     # Change LTI hint depending on LTI launch type
     lti_hint = ""
+    # Case 1: Performs Deep Linking configuration flow. Triggered by staff users to
+    # configure tool options and select content to be presented.
     if deep_link_launch:
         lti_hint = "deep_linking_launch"
-    else:
-        # Check if there's any LTI DL content item
-        # This should only yield one result since we
-        # don't support multiple content items yet.
-        content_items = lti_config.ltidlcontentitem_set.filter(
-            content_type=LtiDlContentItem.LTI_RESOURCE_LINK,
-        ).only('id')
-
-        if content_items.count():
-            lti_hint = f"deep_linking_content_launch:{content_items.get().id}"
+    # Case 2: Perform a LTI Launch for `ltiResourceLink` content types, since they
+    # need to use the launch mechanism from the callback view.
+    elif dl_content_id:
+        lti_hint = f"deep_linking_content_launch:{dl_content_id}"
 
     # Prepare and return OIDC flow start url
     return lti_consumer.prepare_preflight_url(
@@ -141,6 +138,41 @@ def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=Fa
         hint=hint,
         lti_hint=lti_hint
     )
+
+
+def get_lti_1p3_content_url(config_id=None, block=None, hint=""):
+    """
+    Computes and returns which URL the LTI consumer should launch to.
+
+    This can return:
+    1. A LTI Launch link if:
+        a. No deep linking is set
+        b. Deep Linking is configured, but a single ltiResourceLink was selected.
+    2. The Deep Linking content presentation URL if there's more than one
+       Lti DL content in the database.
+    """
+    # Retrieve LTI consumer
+    lti_config = _get_lti_config(config_id, block)
+
+    # List content items
+    content_items = lti_config.ltidlcontentitem_set.all()
+
+    # If there's no content items, return normal LTI launch URL
+    if not content_items.count():
+        return get_lti_1p3_launch_start_url(config_id, block, hint=hint)
+
+    # If there's a single `ltiResourceLink` content, return the launch
+    # url for that specif deep link
+    if content_items.count() == 1 and content_items.get().content_type == LtiDlContentItem.LTI_RESOURCE_LINK:
+        return get_lti_1p3_launch_start_url(
+            config_id,
+            block,
+            dl_content_id=content_items.get().id,
+            hint=hint,
+        )
+
+    # If there's more than one content item, return content presentation URL
+    return get_lti_deeplinking_content_url(lti_config.id)
 
 
 def get_deep_linking_data(deep_linking_id, config_id=None, block=None):
