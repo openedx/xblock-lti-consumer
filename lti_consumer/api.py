@@ -4,6 +4,9 @@ Python APIs used to handle LTI configuration and launches.
 Some methods are meant to be used inside the XBlock, so they
 return plaintext to allow easy testing/mocking.
 """
+
+import json
+
 from .exceptions import LtiError
 from .models import LtiConfiguration, LtiDlContentItem
 from .utils import (
@@ -109,7 +112,7 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
         'oidc_callback': get_lms_lti_launch_link(),
         'token_url': get_lms_lti_access_token_link(lti_config.location),
         'deep_linking_launch_url': deep_linking_launch_url,
-        'deep_linking_content_items': deep_linking_content_items,
+        'deep_linking_content_items': json.dumps(deep_linking_content_items, indent=4),
     }
 
 

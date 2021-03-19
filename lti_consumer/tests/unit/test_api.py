@@ -231,9 +231,9 @@ class TestGetLti1p3LaunchInfo(TestCase):
                     lti_config.location
                 ),
                 'deep_linking_launch_url': 'http://example.com',
-                'deep_linking_content_items': [{
-                    "test": "this is a test attribute",
-                }]
+
+                'deep_linking_content_items':
+                    '[\n    {\n        "test": "this is a test attribute"\n    }\n]',
             }
         )
 
