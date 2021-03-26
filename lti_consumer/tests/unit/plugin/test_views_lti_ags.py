@@ -41,7 +41,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
             # Intentionally using the same key for tool key to
             # allow using signing methods and make testing easier.
             'lti_1p3_tool_public_key': self.public_key,
-
+            'lti_advantage_ags_mode': 'programmatic',
             # xblock due date related attributes
             'due': timezone.now(),
             'graceperiod': timedelta(days=2),
@@ -461,12 +461,29 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         })
         score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
 
-        self._compat_mock.publish_grade.assert_called_once()
+        # Check that the function was called as expected
+        # and that the correct variables were passed as arguments
+        self.xblock.set_user_module_score.assert_called_once()
+        call_args = self.xblock.set_user_module_score.call_args.args
+        self.assertEqual(call_args, ('user_mock', 1, 1, 'comment'))
 
-        call_args = self._compat_mock.publish_grade.call_args.args
+    def test_exception_logging_on_grade_publish(self):
+        """
+        Check that the catch-all exception logging on the grade publish works as expected.
+        """
+        class LmsException(Exception):
+            pass
 
-        # as score_given is larger than score_maximum, it should pass score_maximum as given score
-        self.assertEqual(call_args, (self.xblock, self._mock_user, score.score_maximum, score.score_maximum,))
+        # Set block as graded
+        self.xblock.has_score = True
+        self.xblock.runtime.publish.side_effect = LmsException
+
+        # Return block bypassing LMS API
+        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+
+        # Check that the except statement catches the exception
+        with self.assertRaises(LmsException):
+            self._post_lti_score()
 
     @patch('lti_consumer.lti_xblock.timezone')
     def test_xblock_grade_publish_passed_due_date(self, timezone_patcher):
