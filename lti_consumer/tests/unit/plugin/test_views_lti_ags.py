@@ -422,44 +422,63 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
     @ddt.data(
         LtiAgsScore.PENDING,
         LtiAgsScore.PENDING_MANUAL,
-        LtiAgsScore.FULLY_GRADED,
         LtiAgsScore.FAILED,
         LtiAgsScore.NOT_READY,
     )
-    def test_xblock_grade_publish_on_score_save(self, grading_progress):
+    def test_grade_publish_not_called_when_pending(self, grading_progress):
         """
-        Test on LtiAgsScore save, if gradingProgress is Fully Graded then xblock grade should be submitted.
+        Check that the grade is not submmitted to LMS if the status is a pending one.
         """
-
+        # Set xblock attribute and make score request
+        self.xblock.has_score = True
         self._post_lti_score({
             "gradingProgress": grading_progress,
         })
 
-        if grading_progress == LtiAgsScore.FULLY_GRADED:
-            score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
+        self._compat_mock.load_block_as_anonymous_user.assert_not_called()
+        self._compat_mock.get_user_from_external_user_id.assert_not_called()
 
-            self._compat_mock.publish_grade.assert_called_once()
-            self._compat_mock.get_user_from_external_user_id.assert_called_once()
-            self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+    def test_xblock_grade_publish_on_score_save(self):
+        """
+        Test that the grade is submitted when gradingProgress is `FullyGraded`.
+        """
+        # Set up LMS mocks
+        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.get_user_from_external_user_id.return_value = 'user_mock'
+        self.xblock.set_user_module_score = Mock()
 
-            call_args = self._compat_mock.publish_grade.call_args.args
-            call_kwargs = self._compat_mock.publish_grade.call_args.kwargs
-            self.assertEqual(call_args, (self.xblock, self._mock_user, score.score_given, score.score_maximum,))
-            self.assertEqual(call_kwargs['comment'], score.comment)
-        else:
-            self._compat_mock.load_block_as_anonymous_user.assert_not_called()
-            self._compat_mock.get_user_from_external_user_id.assert_not_called()
-            self._compat_mock.publish_grade.assert_not_called()
+        # Set xblock attribute and make score request
+        self.xblock.has_score = True
+        self._post_lti_score({
+            "gradingProgress": "FullyGraded",
+        })
+
+        # Check if publish grade was called
+        self.xblock.set_user_module_score.assert_called_once()
+        self._compat_mock.get_user_from_external_user_id.assert_called_once()
+        self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+
+        call_args = self.xblock.set_user_module_score.call_args.args
+        self.assertEqual(call_args, ('user_mock', 0.83, 1, 'This is exceptional work.'))
 
     def test_grade_publish_score_bigger_than_maximum(self):
         """
         Test when given score is bigger than maximum score.
         """
+        # Return block bypassing LMS API
+        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.get_user_from_external_user_id.return_value = 'user_mock'
+        self.xblock.set_user_module_score = Mock()
+
+        # Set block as graded
+        self.xblock.has_score = True
+
+        # Post and retrieve score object
         self._post_lti_score({
             "scoreGiven": 110,
             "scoreMaximum": 100,
+            "comment": "comment",
         })
-        score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
 
         # Check that the function was called as expected
         # and that the correct variables were passed as arguments
@@ -490,35 +509,38 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         """
         Test grade publish after due date. Grade shouldn't publish
         """
+        self.xblock.set_user_module_score = Mock()
         timezone_patcher.now.return_value = timezone.now() + timedelta(days=30)
 
         self._post_lti_score()
 
+        # Check that the block wasn't set if due date is past
         self._compat_mock.load_block_as_anonymous_user.assert_called_once()
-
         self._compat_mock.get_user_from_external_user_id.assert_not_called()
-        self._compat_mock.publish_grade.assert_not_called()
+        self.xblock.set_user_module_score.assert_not_called()
 
     @patch('lti_consumer.lti_xblock.timezone')
     def test_xblock_grade_publish_accept_passed_due_date(self, timezone_patcher):
         """
         Test grade publish after due date when accept_grades_past_due is True. Grade should publish.
         """
-        xblock_attrs = {
-            'accept_grades_past_due': True,
-        }
-        xblock_attrs.update(self.xblock_attributes)
-        xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attrs)
-        self._compat_mock.load_block_as_anonymous_user.return_value = xblock
+        # Return block bypassing LMS API
+        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.get_user_from_external_user_id.return_value = 'user_mock'
+        self.xblock.set_user_module_score = Mock()
 
+        # Change block attribute
+        self.xblock.has_score = True
+        self.xblock.accept_grades_past_due = True
+
+        # Try sending grade after due date
         timezone_patcher.now.return_value = timezone.now() + timedelta(days=30)
-
         self._post_lti_score()
 
-        self._compat_mock.load_block_as_anonymous_user.assert_called_once()
-
-        self._compat_mock.get_user_from_external_user_id.assert_not_called()
-        self._compat_mock.publish_grade.assert_not_called()
+        # Check that the grade is published
+        self.xblock.set_user_module_score.assert_called_once()
+        call_args = self.xblock.set_user_module_score.call_args.args
+        self.assertEqual(call_args, ('user_mock', 0.83, 1, 'This is exceptional work.'))
 
     def test_create_multiple_scores_with_multiple_users(self):
         """
