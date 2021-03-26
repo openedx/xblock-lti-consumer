@@ -266,30 +266,38 @@ class LtiConfiguration(models.Model):
             )
 
             # Check if enabled and setup LTI-AGS
-            if self.block.has_score:
+            if self.block.lti_advantage_ags_mode != 'disabled':
+                lineitem = None
+                # If using the declarative approach, we should create a LineItem if it
+                # doesn't exist. This is because on this mode the tool is not able to create
+                # and manage lineitems using the AGS endpoints.
+                if self.block.lti_advantage_ags_mode == 'declarative':
+                    # Set grade attributes
+                    default_values = {
+                        'resource_id': self.block.location,
+                        'score_maximum': self.block.weight,
+                        'label': self.block.display_name,
+                    }
 
-                default_values = {
-                    'resource_id': self.block.location,
-                    'score_maximum': self.block.weight,
-                    'label': self.block.display_name,
-                }
+                    if hasattr(self.block, 'start'):
+                        default_values['start_date_time'] = self.block.start
 
-                if hasattr(self.block, 'start'):
-                    default_values['start_date_time'] = self.block.start
+                    if hasattr(self.block, 'due'):
+                        default_values['end_date_time'] = self.block.due
 
-                if hasattr(self.block, 'due'):
-                    default_values['end_date_time'] = self.block.due
-
-                # create LineItem if there is none for current lti configuration
-                lineitem, _ = LtiAgsLineItem.objects.get_or_create(
-                    lti_configuration=self,
-                    resource_link_id=self.block.location,
-                    defaults=default_values
-                )
+                    # create LineItem if there is none for current lti configuration
+                    lineitem, _ = LtiAgsLineItem.objects.get_or_create(
+                        lti_configuration=self,
+                        resource_link_id=self.block.location,
+                        defaults=default_values
+                    )
 
                 consumer.enable_ags(
                     lineitems_url=get_lti_ags_lineitems_url(self.id),
-                    lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id),
+                    lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
+                    allow_programmatic_grade_interaction=(
+                        self.block.lti_advantage_ags_mode == 'programmatic'
+                    )
                 )
 
             # Check if enabled and setup LTI-DL

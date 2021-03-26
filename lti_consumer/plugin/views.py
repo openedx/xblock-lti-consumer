@@ -43,6 +43,8 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
     LineItemParser,
     LineItemScoreParser,
 )
+from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
+
 from lti_consumer.plugin.compat import (
     run_xblock_handler,
     run_xblock_handler_noauth,
@@ -344,7 +346,8 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         detail=True,
         methods=['GET'],
         url_path='results/(?P<user_id>[^/.]+)?',
-        renderer_classes=[LineItemResultsRenderer]
+        renderer_classes=[LineItemResultsRenderer],
+        content_negotiation_class=IgnoreContentNegotiation,
     )
     def results(self, request, user_id=None, **kwargs):  # pylint: disable=unused-argument
         """
@@ -382,7 +385,8 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         detail=True,
         methods=['POST'],
         parser_classes=[LineItemScoreParser],
-        renderer_classes=[LineItemScoreRenderer]
+        renderer_classes=[LineItemScoreRenderer],
+        content_negotiation_class=IgnoreContentNegotiation,
     )
     def scores(self, request, *args, **kwargs):  # pylint: disable=unused-argument
         """

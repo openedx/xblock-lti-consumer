@@ -326,6 +326,21 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings,
         help=_("Enter the LTI Advantage Deep Linking Launch URL. "),
     )
+    lti_advantage_ags_mode = String(
+        display_name=_("LTI Assignment and Grades Service"),
+        values=[
+            {"display_name": _("Disabled"), "value": "disabled"},
+            {"display_name": _("Allow tools to submit grades only (declarative)"), "value": "declarative"},
+            {"display_name": _("Allow tools to manage and submit grade (programmatic)"), "value": "programmatic"},
+        ],
+        default='declarative',
+        scope=Scope.settings,
+        help=_(
+            "Enable the LTI-AGS service and select the functionality enabled for LTI tools. "
+            "The 'declarative' mode (default) will provide a tool with a LineItem created from the XBlock settings, "
+            "while the 'programmatic' one will allow tools to manage, create and link the grades."
+        ),
+    )
 
     # LTI 1.1 fields
     lti_id = String(
@@ -500,6 +515,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key',
         # LTI Advantage variables
         'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
+        'lti_advantage_ags_mode',
         # LTI 1.1 variables
         'lti_id', 'launch_url',
         # Other parameters

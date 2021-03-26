@@ -1,12 +1,12 @@
 """
 Unit tests for LTI models.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from Cryptodome.PublicKey import RSA
+from django.core.exceptions import ValidationError
 from django.test.testcases import TestCase
-from django.utils import timezone
 from jwkest.jwk import RSAKey
 
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
@@ -44,7 +44,7 @@ class TestLtiConfigurationModel(TestCase):
             # generated until the user selects `lti_version == 'lti_1p3'` on the
             # Studio configuration view.
             'lti_1p3_tool_public_key': self.public_key,
-            'has_score': True,
+            'lti_advantage_ags_mode': 'programmatic',
             'lti_advantage_deep_linking_enabled': True,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
@@ -127,14 +127,44 @@ class TestLtiConfigurationModel(TestCase):
                 'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint':
                 {
                     'scope': [
-                        'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
+                        'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/score',
                     ],
                     'lineitems': 'https://example.com/api/lti_consumer/v1/lti/3/lti-ags',
-                    'lineitem': 'https://example.com/api/lti_consumer/v1/lti/3/lti-ags/1',
                 }
             }
+        )
+
+    def test_lti_consumer_ags_declarative(self):
+        """
+        Check that a LineItem is created if AGS is set to the declarative mode.
+        """
+        self.xblock.lti_advantage_ags_mode = 'declarative'
+
+        # Include `start` and `due` dates
+        self.xblock.start = datetime.now(timezone.utc)
+        self.xblock.due = datetime.now(timezone.utc) + timedelta(days=2)
+
+        # Get LTI 1.3 consumer
+        self.lti_1p3_config.block = self.xblock
+        consumer = self.lti_1p3_config.get_lti_consumer()
+
+        # Check if lineitem was created
+        self.assertEqual(LtiAgsLineItem.objects.count(), 1)
+        lineitem = LtiAgsLineItem.objects.get()
+        self.assertEqual(lineitem.start_date_time, self.xblock.start)
+        self.assertEqual(lineitem.end_date_time, self.xblock.due)
+
+        # Check that there's no LineItem write permission in the token
+        ags_claim = consumer.extra_claims['https://purl.imsglobal.org/spec/lti-ags/claim/endpoint']
+        self.assertNotIn(
+            'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+            ags_claim.get('scope')
+        )
+        self.assertIn(
+            'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
+            ags_claim.get('scope')
         )
 
     def test_lti_consumer_deep_linking_enabled(self):
@@ -250,7 +280,7 @@ class TestLtiAgsScoreModel(TestCase):
         self._compat_mock = compat_mock.start()
         self._compat_mock.load_block_as_anonymous_user.return_value = make_xblock(
             'lti_consumer', LtiConsumerXBlock, {
-                'due': timezone.now(),
+                'due': datetime.now(timezone.utc),
                 'graceperiod': timedelta(days=2),
             }
         )
@@ -273,6 +303,15 @@ class TestLtiAgsScoreModel(TestCase):
             activity_progress=LtiAgsScore.COMPLETED,
             user_id='test-user'
         )
+
+    def test_no_score_max_fails_when_setting_score(self):
+        """
+        Test if the model raises an exception when trying to set a `scoreGiven` without `scoreMaximum`.
+        """
+        with self.assertRaises(ValidationError):
+            self.score.score_given = 10
+            self.score.score_maximum = None
+            self.score.save()
 
     def test_repr(self):
         """

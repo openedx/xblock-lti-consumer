@@ -494,7 +494,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         self,
         lineitems_url,
         lineitem_url=None,
-        allow_programatic_grade_interaction=False,
+        allow_programmatic_grade_interaction=False,
     ):
         """
         Enable LTI Advantage Assignments and Grades Service.
@@ -506,7 +506,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         self.ags = LtiAgs(
             lineitems_url=lineitems_url,
             lineitem_url=lineitem_url,
-            allow_creating_lineitems=allow_programatic_grade_interaction,
+            allow_creating_lineitems=allow_programmatic_grade_interaction,
             results_service_enabled=True,
             scores_service_enabled=True,
         )
