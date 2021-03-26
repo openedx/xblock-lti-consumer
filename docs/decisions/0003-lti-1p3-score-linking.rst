@@ -4,7 +4,7 @@ LTI Advantage AGS Score Linking
 Status
 ======
 
-In Review
+Replaced by :doc:`0005-lti-1p3-score-linking-improved.rst`
 
 Context
 =======
