@@ -108,9 +108,17 @@ def user_has_access(*args, **kwargs):
 def get_course_by_id(course_key):
     """
     Import and run `get_course_by_id` from LMS
+
+    TODO: Once the LMS has fully switched over to this new path [1],
+    we can remove the legacy (LMS) import support here.
+
+    - [1] https://github.com/edx/edx-platform/pull/27289
     """
     # pylint: disable=import-error,import-outside-toplevel
-    from lms.djangoapps.courseware.courses import get_course_by_id as lms_get_course_by_id
+    try:
+        from openedx.core.lib.courses import get_course_by_id as lms_get_course_by_id
+    except ImportError:
+        from lms.djangoapps.courseware.courses import get_course_by_id as lms_get_course_by_id
     return lms_get_course_by_id(course_key)
 
 
