@@ -73,7 +73,7 @@ django==2.2.19
     #   django-pyfs
     #   edx-lint
     #   edx-opaque-keys
-    #   jsonfield
+    #   jsonfield2
     #   xblock-sdk
 djangorestframework==3.9.4
     # via
@@ -123,8 +123,10 @@ jmespath==0.10.0
     #   -r requirements/test.txt
     #   boto3
     #   botocore
-jsonfield==3.1.0
-    # via -r requirements/test.txt
+jsonfield2==3.0.3
+    # via
+    #   -c requirements/constraints.txt
+    #   -r requirements/test.txt
 lazy-object-proxy==1.5.2
     # via
     #   -r requirements/test.txt

@@ -20,7 +20,7 @@ django==2.2.19
     #   -r requirements/base.in
     #   django-filter
     #   edx-opaque-keys
-    #   jsonfield
+    #   jsonfield2
 edx-opaque-keys[django]==2.2.0
     # via -r requirements/base.in
 fs==2.4.12
@@ -29,8 +29,10 @@ future==0.18.2
     # via pyjwkest
 idna==2.10
     # via requests
-jsonfield==3.1.0
-    # via -r requirements/base.in
+jsonfield2==3.0.3
+    # via
+    #   -c requirements/constraints.txt
+    #   -r requirements/base.in
 lazy==1.4
     # via -r requirements/base.in
 lxml==4.6.2
