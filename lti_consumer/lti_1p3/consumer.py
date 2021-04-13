@@ -443,7 +443,9 @@ class LtiConsumer1p3:
         # If `allowed_scopes` is empty, return true (just check
         # token validity).
         if allowed_scopes:
-            return any(scope in allowed_scopes for scope in token_scopes)
+            return any(
+                [scope in allowed_scopes for scope in token_scopes]
+            )
 
         return True
 
