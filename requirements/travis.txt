@@ -10,18 +10,18 @@ appdirs==1.4.4
     #   -r requirements/tox.txt
     #   fs
     #   virtualenv
-astroid==2.4.2
+astroid==2.5.1
     # via
     #   -r requirements/test.txt
     #   pylint
     #   pylint-celery
-bleach==3.2.3
+bleach==3.3.0
     # via -r requirements/test.txt
-boto3==1.16.62
+boto3==1.17.27
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.19.62
+botocore==1.20.27
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -44,17 +44,17 @@ click==7.1.2
     #   click-log
     #   code-annotations
     #   edx-lint
-code-annotations==1.0.2
+code-annotations==1.1.0
     # via
     #   -r requirements/test.txt
     #   edx-lint
-coverage==5.4
+coverage==5.5
     # via
     #   -r requirements/test.txt
     #   coveralls
-coveralls==3.0.0
+coveralls==3.0.1
     # via -r requirements/test.txt
-ddt==1.4.1
+ddt==1.4.2
     # via -r requirements/test.txt
 distlib==0.3.1
     # via
@@ -64,7 +64,7 @@ django-filter==2.4.0
     # via -r requirements/test.txt
 django-pyfs==3.0
     # via -r requirements/test.txt
-django==2.2.17
+django==2.2.19
     # via
     #   -c https://raw.githubusercontent.com/edx/edx-lint/master/edx_lint/files/common_constraints.txt
     #   -r requirements/test.txt
@@ -83,7 +83,7 @@ docopt==0.6.2
     # via
     #   -r requirements/test.txt
     #   coveralls
-edx-lint==3.0.2
+edx-lint==4.1.0
     # via -r requirements/test.txt
 edx-opaque-keys[django]==2.2.0
     # via -r requirements/test.txt
@@ -114,7 +114,7 @@ isort==5.7.0
     # via
     #   -r requirements/test.txt
     #   pylint
-jinja2==2.11.2
+jinja2==2.11.3
     # via
     #   -r requirements/test.txt
     #   code-annotations
@@ -127,7 +127,7 @@ jsonfield2==3.0.3
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/test.txt
-lazy-object-proxy==1.4.3
+lazy-object-proxy==1.5.2
     # via
     #   -r requirements/test.txt
     #   astroid
@@ -157,7 +157,7 @@ mock==3.0.5
     #   -r requirements/test.txt
 oauthlib==3.1.0
     # via -r requirements/test.txt
-packaging==20.8
+packaging==20.9
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -175,9 +175,9 @@ py==1.10.0
     # via
     #   -r requirements/tox.txt
     #   tox
-pycodestyle==2.6.0
+pycodestyle==2.7.0
     # via -r requirements/test.txt
-pycryptodomex==3.9.9
+pycryptodomex==3.10.1
     # via
     #   -r requirements/test.txt
     #   pyjwkest
@@ -196,14 +196,14 @@ pylint-plugin-utils==0.6
     #   -r requirements/test.txt
     #   pylint-celery
     #   pylint-django
-pylint==2.6.0
+pylint==2.7.2
     # via
     #   -r requirements/test.txt
     #   edx-lint
     #   pylint-celery
     #   pylint-django
     #   pylint-plugin-utils
-pymongo==3.11.2
+pymongo==3.11.3
     # via
     #   -r requirements/test.txt
     #   edx-opaque-keys
@@ -221,7 +221,7 @@ python-slugify==4.0.1
     # via
     #   -r requirements/test.txt
     #   code-annotations
-pytz==2020.5
+pytz==2021.1
     # via
     #   -r requirements/test.txt
     #   django
@@ -249,7 +249,6 @@ six==1.15.0
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
-    #   astroid
     #   bleach
     #   edx-lint
     #   fs
@@ -281,14 +280,14 @@ toml==0.10.2
     #   -r requirements/tox.txt
     #   pylint
     #   tox
-tox==3.21.3
+tox==3.23.0
     # via -r requirements/tox.txt
 urllib3==1.26.3
     # via
     #   -r requirements/test.txt
     #   botocore
     #   requests
-virtualenv==20.4.0
+virtualenv==20.4.2
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -301,7 +300,7 @@ webencodings==0.5.1
     # via
     #   -r requirements/test.txt
     #   bleach
-webob==1.8.6
+webob==1.8.7
     # via
     #   -r requirements/test.txt
     #   xblock
