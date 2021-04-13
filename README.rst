@@ -230,9 +230,15 @@ This XBlock supports LTI 1.3 and the following LTI Avantage services:
 * Deep Linking (LTI-DL)
 * Assignments and Grades services (LTI-AGS)
 
-To enable LTI-AGS, your block needs two properties set: `has_score` and `weight`. Once that is configured, the
-service will be automatically enabled and the tool will be able to send scores back to the platform through
-a `LineItem`.
+To enable LTI-AGS, you need to set **LTI Assignment and Grades Service** in Studio to
+allow tools to send back grades. There's two grade interaction models implemented:
+
+* **Allow tools to submit grades only (declarative)(Default)**: enables LTI-AGS and
+  creates a single fixed LineItem that the tools can send grades too.
+* **Allow tools to manage and submit grades (programmatic)**: enables LTI-AGS and
+  enables full access to LTI-AGS endpoints. Tools will be able to create, manage and
+  delete multiple LineItems, and set multiple grades per student per problem.
+  *In this implementation, the tool is responsible for managing grades and linking them in the LMS.*
 
 To enable LTI-DL and its capabilities, you need to set the following feature flag:
 
@@ -317,6 +323,12 @@ Please do not report security issues in public. Send security concerns via email
 
 Changelog
 =========
+
+2.8.0 - 2021-04-13
+------------------
+
+* LTI Advantage - AGS Service: Added support for programmatic grade management by LTI tools.
+* Improved grade publishing to LMS when using LTI-AGS.
 
 2.7.0 - 2021-02-16
 ------------------
