@@ -251,9 +251,7 @@ class LtiConsumer1p3:
             "iss": self.iss,
 
             # JWT aud and azp
-            "aud": [
-                self.client_id
-            ],
+            "aud": self.client_id,
             "azp": self.client_id,
 
             # LTI Deployment ID Claim:
