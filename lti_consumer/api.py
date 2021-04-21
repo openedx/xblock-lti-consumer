@@ -112,7 +112,8 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
         'oidc_callback': get_lms_lti_launch_link(),
         'token_url': get_lms_lti_access_token_link(lti_config.location),
         'deep_linking_launch_url': deep_linking_launch_url,
-        'deep_linking_content_items': json.dumps(deep_linking_content_items, indent=4),
+        'deep_linking_content_items':
+            json.dumps(deep_linking_content_items, indent=4) if deep_linking_content_items else None,
     }
 
 
