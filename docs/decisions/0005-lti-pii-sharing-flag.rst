@@ -51,7 +51,7 @@ The arguments for using the same flag are:
 3. It's confusing to have two flags with very similar purposes.
 4. There is already a double layer of flags here. Enabling this flag will enable
    configuring other option which in turn enable sending PII data. Adding
-   another separate flag doesn't help the situaiton. Even if the flag is only
+   another separate flag doesn't help the situation. Even if the flag is only
    needed for either tabs or XBlocks, there is another step to enabling sharing
    PII which can simply be skipped if undesired.
 
@@ -74,6 +74,9 @@ of just controlling if those fields are editable.
 
 Additionally, any PII sharing via LTI1.3 can also be folded under the same flag.
 
+We should also add an indication to users that this flag is the reason for their
+inability to edit these fields in UI instead of just hiding the fields. Users
+can be given information about getting this flag enabled for their course.
 
 Consequences
 ============
