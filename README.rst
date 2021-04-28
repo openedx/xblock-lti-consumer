@@ -329,6 +329,7 @@ Changelog
 
 * LTI Advantage - AGS Service: Added support for programmatic grade management by LTI tools.
 * Improved grade publishing to LMS when using LTI-AGS.
+* Increase LTI 1.3 token validity to 1h.
 
 2.7.0 - 2021-02-16
 ------------------
