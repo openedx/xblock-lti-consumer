@@ -332,7 +332,7 @@ class LtiConsumer1p3:
             "state": preflight_response.get("state"),
             "id_token": self.key_handler.encode_and_sign(
                 message=lti_launch_message,
-                expiration=300
+                expiration=3600
             )
         }
 
@@ -569,7 +569,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
                 "state": preflight_response.get("state"),
                 "id_token": self.key_handler.encode_and_sign(
                     message=lti_launch_message,
-                    expiration=300
+                    expiration=3600
                 )
             }
 
