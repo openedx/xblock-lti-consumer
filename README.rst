@@ -318,6 +318,13 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+2.11.0 - 2021-06-10
+-------------------
+
+* Move ``CourseEditLTIFieldsEnabledFlag`` from ``edx-platform`` to this repo
+  while retaining data from existing model.
+
+
 2.10.1 - 2021-06-09
 -------------------
 

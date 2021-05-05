@@ -12,15 +12,32 @@ certifi==2021.5.30
     # via requests
 chardet==4.0.0
     # via requests
+django-config-models==2.1.1
+    # via
+    #   -c requirements/constraints.txt
+    #   -r requirements/base.in
+django-crum==0.7.9
+    # via edx-django-utils
 django-filter==2.4.0
     # via -r requirements/base.in
+django-waffle==2.2.0
+    # via edx-django-utils
 django==2.2.24
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
+    #   django-config-models
     #   django-filter
+    #   djangorestframework
+    #   edx-django-utils
     #   edx-opaque-keys
     #   jsonfield2
+djangorestframework==3.12.4
+    # via
+    #   -c requirements/constraints.txt
+    #   django-config-models
+edx-django-utils==4.1.0
+    # via django-config-models
 edx-opaque-keys[django]==2.2.1
     # via -r requirements/base.in
 fs==2.4.13
@@ -29,8 +46,10 @@ future==0.18.2
     # via pyjwkest
 idna==2.10
     # via requests
-jsonfield2==4.0.0.post0
-    # via -r requirements/base.in
+jsonfield2==3.0.3
+    # via
+    #   -c requirements/constraints.txt
+    #   -r requirements/base.in
 lazy==1.4
     # via -r requirements/base.in
 lxml==4.6.3
@@ -45,12 +64,16 @@ markupsafe==2.0.1
     # via
     #   mako
     #   xblock
+newrelic==6.4.1.158
+    # via edx-django-utils
 oauthlib==3.1.1
     # via -r requirements/base.in
 packaging==20.9
     # via bleach
 pbr==5.6.0
     # via stevedore
+psutil==5.8.0
+    # via edx-django-utils
 pycryptodomex==3.10.1
     # via
     #   -r requirements/base.in
@@ -83,7 +106,9 @@ six==1.16.0
 sqlparse==0.4.1
     # via django
 stevedore==3.3.0
-    # via edx-opaque-keys
+    # via
+    #   edx-django-utils
+    #   edx-opaque-keys
 urllib3==1.26.5
     # via requests
 web-fragments==1.0.0

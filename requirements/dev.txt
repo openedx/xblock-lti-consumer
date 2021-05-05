@@ -18,15 +18,37 @@ chardet==4.0.0
     # via
     #   -r requirements/base.txt
     #   requests
+django-config-models==2.1.1
+    # via -r requirements/base.txt
+django-crum==0.7.9
+    # via
+    #   -r requirements/base.txt
+    #   edx-django-utils
 django-filter==2.4.0
     # via -r requirements/base.txt
+django-waffle==2.2.0
+    # via
+    #   -r requirements/base.txt
+    #   edx-django-utils
 django==2.2.24
     # via
     #   -r requirements/base.txt
+    #   django-config-models
+    #   django-crum
     #   django-filter
+    #   djangorestframework
+    #   edx-django-utils
     #   edx-i18n-tools
     #   edx-opaque-keys
     #   jsonfield2
+djangorestframework==3.12.4
+    # via
+    #   -r requirements/base.txt
+    #   django-config-models
+edx-django-utils==4.1.0
+    # via
+    #   -r requirements/base.txt
+    #   django-config-models
 edx-i18n-tools==0.5.0
     # via -r requirements/dev.in
 edx-opaque-keys[django]==2.2.1
@@ -43,7 +65,7 @@ idna==2.10
     # via
     #   -r requirements/base.txt
     #   requests
-jsonfield2==4.0.0.post0
+jsonfield2==3.0.3
     # via -r requirements/base.txt
 lazy==1.4
     # via -r requirements/base.txt
@@ -60,6 +82,10 @@ markupsafe==2.0.1
     #   -r requirements/base.txt
     #   mako
     #   xblock
+newrelic==6.4.1.158
+    # via
+    #   -r requirements/base.txt
+    #   edx-django-utils
 oauthlib==3.1.1
     # via -r requirements/base.txt
 packaging==20.9
@@ -68,7 +94,7 @@ packaging==20.9
     #   bleach
 path.py==12.5.0
     # via edx-i18n-tools
-path==15.1.2
+path==16.0.0
     # via path.py
 pbr==5.6.0
     # via
@@ -76,6 +102,10 @@ pbr==5.6.0
     #   stevedore
 polib==1.1.1
     # via edx-i18n-tools
+psutil==5.8.0
+    # via
+    #   -r requirements/base.txt
+    #   edx-django-utils
 pycryptodomex==3.10.1
     # via
     #   -r requirements/base.txt
@@ -128,6 +158,7 @@ sqlparse==0.4.1
 stevedore==3.3.0
     # via
     #   -r requirements/base.txt
+    #   edx-django-utils
     #   edx-opaque-keys
 urllib3==1.26.5
     # via

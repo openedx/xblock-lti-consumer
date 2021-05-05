@@ -10,7 +10,8 @@ from django.utils.translation import ugettext_lazy as _
 
 from jsonfield import JSONField
 from Cryptodome.PublicKey import RSA
-from opaque_keys.edx.django.models import UsageKeyField
+from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
+from config_models.models import ConfigurationModel
 
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
@@ -18,6 +19,7 @@ from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
+from lti_consumer.plugin.compat import request_cached
 from lti_consumer.utils import (
     get_lms_base,
     get_lti_ags_lineitems_url,
@@ -531,3 +533,54 @@ class LtiDlContentItem(models.Model):
 
     class Meta:
         app_label = 'lti_consumer'
+
+
+class CourseEditLTIFieldsEnabledFlag(ConfigurationModel):
+    """
+    Enables the editing of "request username" and "request email" fields
+    of LTI consumer for a specific course.
+
+    .. no_pii:
+    """
+    KEY_FIELDS = ('course_id',)
+
+    course_id = CourseKeyField(max_length=255, db_index=True)
+
+    @classmethod
+    @request_cached
+    def lti_access_to_learners_editable(cls, course_id, is_already_sharing_learner_info):
+        """
+        Looks at the currently active configuration model to determine whether
+        the feature that enables editing of "request username" and "request email"
+        fields of LTI consumer is available or not.
+
+        Backwards Compatibility:
+        Enable this feature for a course run who was sharing learner username/email
+        in the past.
+
+        Arguments:
+            course_id (CourseKey): course id for which we need to check this configuration
+            is_already_sharing_learner_info (bool): indicates whether LTI consumer is
+            already sharing edX learner username/email.
+        """
+        course_specific_config = (CourseEditLTIFieldsEnabledFlag.objects
+                                  .filter(course_id=course_id)
+                                  .order_by('-change_date')
+                                  .first())
+
+        if is_already_sharing_learner_info and not course_specific_config:
+            CourseEditLTIFieldsEnabledFlag.objects.create(course_id=course_id, enabled=True)
+            return True
+
+        return course_specific_config.enabled if course_specific_config else False
+
+    def __str__(self):
+        return (
+            f"Course '{self.course_id}': "
+            f"Edit LTI access to Learner information {'' if self.enabled else 'Not '}Enabled"
+        )
+
+    class Meta:
+        # This model was moved from edx-platform, with intention of retaining existing data.
+        # This is referencing the original table name.
+        db_table = "xblock_config_courseeditltifieldsenabledflag"
