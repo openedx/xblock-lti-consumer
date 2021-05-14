@@ -14,7 +14,7 @@ chardet==4.0.0
     # via requests
 django-filter==2.4.0
     # via -r requirements/base.in
-django==2.2.19
+django==2.2.23
     # via
     #   -c https://raw.githubusercontent.com/edx/edx-lint/master/edx_lint/files/common_constraints.txt
     #   -r requirements/base.in
@@ -23,7 +23,7 @@ django==2.2.19
     #   jsonfield2
 edx-opaque-keys[django]==2.2.0
     # via -r requirements/base.in
-fs==2.4.12
+fs==2.4.13
     # via xblock
 future==0.18.2
     # via pyjwkest
@@ -35,7 +35,7 @@ jsonfield2==3.0.3
     #   -r requirements/base.in
 lazy==1.4
     # via -r requirements/base.in
-lxml==4.6.2
+lxml==4.6.3
     # via
     #   -r requirements/base.in
     #   xblock
@@ -43,7 +43,7 @@ mako==1.1.4
     # via
     #   -r requirements/base.in
     #   xblock-utils
-markupsafe==1.1.1
+markupsafe==2.0.0
     # via
     #   mako
     #   xblock
@@ -51,7 +51,7 @@ oauthlib==3.1.0
     # via -r requirements/base.in
 packaging==20.9
     # via bleach
-pbr==5.5.1
+pbr==5.6.0
     # via stevedore
 pycryptodomex==3.10.1
     # via
@@ -59,7 +59,7 @@ pycryptodomex==3.10.1
     #   pyjwkest
 pyjwkest==1.4.2
     # via -r requirements/base.in
-pymongo==3.11.3
+pymongo==3.11.4
     # via edx-opaque-keys
 pyparsing==2.4.7
     # via packaging
@@ -76,7 +76,7 @@ requests==2.25.1
     # via pyjwkest
 simplejson==3.17.2
     # via xblock-utils
-six==1.15.0
+six==1.16.0
     # via
     #   bleach
     #   fs
@@ -90,7 +90,7 @@ stevedore==1.32.0
     # via
     #   -c requirements/constraints.txt
     #   edx-opaque-keys
-urllib3==1.26.3
+urllib3==1.26.4
     # via requests
 web-fragments==1.0.0
     # via

@@ -10,18 +10,18 @@ appdirs==1.4.4
     #   -r requirements/tox.txt
     #   fs
     #   virtualenv
-astroid==2.5.1
+astroid==2.5.6
     # via
     #   -r requirements/test.txt
     #   pylint
     #   pylint-celery
 bleach==3.3.0
     # via -r requirements/test.txt
-boto3==1.17.27
+boto3==1.17.72
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.20.27
+botocore==1.20.72
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -44,7 +44,7 @@ click==7.1.2
     #   click-log
     #   code-annotations
     #   edx-lint
-code-annotations==1.1.0
+code-annotations==1.1.1
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -64,7 +64,7 @@ django-filter==2.4.0
     # via -r requirements/test.txt
 django-pyfs==3.0
     # via -r requirements/test.txt
-django==2.2.19
+django==2.2.23
     # via
     #   -c https://raw.githubusercontent.com/edx/edx-lint/master/edx_lint/files/common_constraints.txt
     #   -r requirements/test.txt
@@ -83,7 +83,7 @@ docopt==0.6.2
     # via
     #   -r requirements/test.txt
     #   coveralls
-edx-lint==4.1.0
+edx-lint==5.0.0
     # via -r requirements/test.txt
 edx-opaque-keys[django]==2.2.0
     # via -r requirements/test.txt
@@ -96,7 +96,7 @@ fs-s3fs==1.1.1
     # via
     #   -r requirements/test.txt
     #   django-pyfs
-fs==2.4.12
+fs==2.4.13
     # via
     #   -r requirements/test.txt
     #   django-pyfs
@@ -110,11 +110,11 @@ idna==2.10
     # via
     #   -r requirements/test.txt
     #   requests
-isort==5.7.0
+isort==5.8.0
     # via
     #   -r requirements/test.txt
     #   pylint
-jinja2==2.11.3
+jinja2==3.0.0
     # via
     #   -r requirements/test.txt
     #   code-annotations
@@ -127,13 +127,13 @@ jsonfield2==3.0.3
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/test.txt
-lazy-object-proxy==1.5.2
+lazy-object-proxy==1.6.0
     # via
     #   -r requirements/test.txt
     #   astroid
 lazy==1.4
     # via -r requirements/test.txt
-lxml==4.6.2
+lxml==4.6.3
     # via
     #   -r requirements/test.txt
     #   xblock
@@ -141,7 +141,7 @@ mako==1.1.4
     # via
     #   -r requirements/test.txt
     #   xblock-utils
-markupsafe==1.1.1
+markupsafe==2.0.0
     # via
     #   -r requirements/test.txt
     #   jinja2
@@ -163,7 +163,7 @@ packaging==20.9
     #   -r requirements/tox.txt
     #   bleach
     #   tox
-pbr==5.5.1
+pbr==5.6.0
     # via
     #   -r requirements/test.txt
     #   stevedore
@@ -187,7 +187,7 @@ pylint-celery==0.3
     # via
     #   -r requirements/test.txt
     #   edx-lint
-pylint-django==2.4.2
+pylint-django==2.4.4
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -196,14 +196,14 @@ pylint-plugin-utils==0.6
     #   -r requirements/test.txt
     #   pylint-celery
     #   pylint-django
-pylint==2.7.2
+pylint==2.8.2
     # via
     #   -r requirements/test.txt
     #   edx-lint
     #   pylint-celery
     #   pylint-django
     #   pylint-plugin-utils
-pymongo==3.11.3
+pymongo==3.11.4
     # via
     #   -r requirements/test.txt
     #   edx-opaque-keys
@@ -217,7 +217,7 @@ python-dateutil==2.8.1
     #   -r requirements/test.txt
     #   botocore
     #   xblock
-python-slugify==4.0.1
+python-slugify==5.0.2
     # via
     #   -r requirements/test.txt
     #   code-annotations
@@ -237,7 +237,7 @@ requests==2.25.1
     #   -r requirements/test.txt
     #   coveralls
     #   pyjwkest
-s3transfer==0.3.4
+s3transfer==0.4.2
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -245,7 +245,7 @@ simplejson==3.17.2
     # via
     #   -r requirements/test.txt
     #   xblock-utils
-six==1.15.0
+six==1.16.0
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -280,14 +280,14 @@ toml==0.10.2
     #   -r requirements/tox.txt
     #   pylint
     #   tox
-tox==3.23.0
+tox==3.23.1
     # via -r requirements/tox.txt
-urllib3==1.26.3
+urllib3==1.26.4
     # via
     #   -r requirements/test.txt
     #   botocore
     #   requests
-virtualenv==20.4.2
+virtualenv==20.4.6
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -308,7 +308,7 @@ wrapt==1.12.1
     # via
     #   -r requirements/test.txt
     #   astroid
-xblock-sdk==0.2.2
+xblock-sdk==0.3.0
     # via -r requirements/test.txt
 xblock-utils==2.1.2
     # via -r requirements/test.txt
