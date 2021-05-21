@@ -114,7 +114,7 @@ def get_course_by_id(course_key):
 
     - [1] https://github.com/edx/edx-platform/pull/27289
     """
-    # pylint: disable=import-error,import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
     try:
         from openedx.core.lib.courses import get_course_by_id as lms_get_course_by_id
     except ImportError:
@@ -146,22 +146,27 @@ def batch_get_or_create_externalids(users):
     return ExternalId.batch_get_or_create_user_ids(users, 'lti')
 
 
-def get_course_members(*args, **kwargs):
+def get_course_members(course_key):
     """
-    Return a User queryset containing all members of a course.
+    Returns a dict containing all users associated with the given course
     """
     # pylint: disable=import-error,import-outside-toplevel
     from lms.djangoapps.course_api.api import get_course_members as core_get_course_members
-    return core_get_course_members(*args, **kwargs)
+    from lms.djangoapps.course_api.exceptions import OverEnrollmentLimitException
+
+    try:
+        return core_get_course_members(course_key)
+    except OverEnrollmentLimitException as ex:
+        raise LtiError('NRPS is not available for this course!') from ex
 
 
-def get_user_profile_image(user):
+def get_user_profile_image(user, request=None):
     """
     Given an User instance return profile image urls.
     """
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
-    return get_profile_image_urls_for_user(user)
+    return get_profile_image_urls_for_user(user, request)
 
 
 def get_lti_pii_course_waffle_flag():

@@ -33,16 +33,6 @@ def lti_nrps_enabled():
     return settings.FEATURES.get('LTI_NRPS_ENABLED', False) is True  # pragma: no cover
 
 
-def lti_nrps_enrollment_limit():
-    """
-    Returns acive enrollment limit to enable NRPS service.
-
-    For more, check the following ADR -
-    https://github.com/edx/xblock-lti-consumer/blob/master/docs/decisions/0004-lti-advantage-nrps.rst
-    """
-    return getattr(settings, 'LTI_NRPS_ACTIVE_ENROLLMENT_LIMIT', 1000)
-
-
 def expose_pii_fields(course_key):
     """
     Returns `true` if Use's PII fields can be exposed to LTI endpoints

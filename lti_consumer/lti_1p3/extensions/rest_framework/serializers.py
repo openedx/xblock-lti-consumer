@@ -392,18 +392,14 @@ class LtiNrpsContextMemberBasicSerializer(serializers.Serializer):
     user_id = serializers.CharField(source='external_id')
     roles = serializers.SerializerMethodField()
 
-    def get_roles(self, user):
+    def get_roles(self, user_info):
         """
         Prepare and return Context Roles for user.
         """
         roles = []
-        if len(user['enrollments']) > 0:
-            roles += LTI_1P3_CONTEXT_ROLE_MAP['student']
-
-        for accessrole in user['course_access_roles']:
-            if LTI_1P3_CONTEXT_ROLE_MAP.get(accessrole['role']):
-                roles += LTI_1P3_CONTEXT_ROLE_MAP[accessrole['role']]
-
+        for role in user_info['roles']:
+            if LTI_1P3_CONTEXT_ROLE_MAP.get(role):
+                roles += LTI_1P3_CONTEXT_ROLE_MAP[role]
         return set(roles)
 
 
@@ -411,7 +407,7 @@ class LtiNrpsContextMemberPIISerializer(LtiNrpsContextMemberBasicSerializer):
     """
     Personally identifiable information serializer for Context Member.
     """
-    name = serializers.CharField(source='profile.name', required=False)
+    name = serializers.CharField(required=False)
     picture = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
 

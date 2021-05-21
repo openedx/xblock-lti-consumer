@@ -5,7 +5,6 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
-from django.core.paginator import InvalidPage
 from django.http import JsonResponse, Http404
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
@@ -30,10 +29,8 @@ from lti_consumer.models import (
 from lti_consumer.lti_1p3.exceptions import (
     Lti1p3Exception,
     LtiDeepLinkingContentTypeNotSupported,
-    LtiNRPSEnrollmentLimitExceed,
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
-from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_ROLE_MAP
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiAgsLineItemSerializer,
     LtiAgsScoreSerializer,
@@ -58,9 +55,8 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
     LineItemScoreParser,
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
-from lti_consumer.lti_1p3.extensions.rest_framework.pagination import LinkHeaderPagination, LTINRPSMembershipPage
 from lti_consumer.plugin import compat
-from lti_consumer.utils import _, expose_pii_fields, lti_nrps_enrollment_limit
+from lti_consumer.utils import _, expose_pii_fields
 
 
 log = logging.getLogger(__name__)
@@ -447,51 +443,17 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         MembershipResultRenderer,
     ]
 
-    # Custom pagination class to support pagination via Link Header
-    pagination_class = LinkHeaderPagination
-
-    @staticmethod
-    def map_lti_to_lms_role(lti_role=None):
+    def get_profile_images(self, users):
         """
-        Maps given lti role to corresponding edx role.
+        Given a list of users, returns a dict mapping of corresponding profile images.
         """
-        if lti_role:
-            for edx_role, context_roles in LTI_1P3_CONTEXT_ROLE_MAP.items():
-                if lti_role in context_roles:
-                    return edx_role
-
-        # if no NRPS filter role provided or there was no match in LTI_1P3_CONTEXT_ROLE_MAP
-        return None
-
-    def get_filter_params(self):
-        """
-        Helper method to build filter arguments for get_course_membership python API
-        Returns:
-            access_roles (list): A list of roles if there any, otherwise None
-            include_students (bool)
-        """
-        # include all students, instructors and staffs
-        access_roles = ['instructor', 'staff']
-        include_students = True
-
-        lti_role_param = self.request.query_params.get('role', None)
-
-        if lti_role_param:
-            lti_role = self.map_lti_to_lms_role(lti_role_param)
-
-            if lti_role is None:
-                # role is not supported
-                access_roles = []
-                include_students = False
-            elif lti_role == 'student':
-                # exclude all instructors and staffs
-                access_roles = []
-            else:
-                # exclude students if filtered by any access role
-                include_students = False
-                access_roles = [lti_role]
-
-        return access_roles, include_students
+        # get profile images
+        profile_images = {}
+        for user in users:
+            # if user's image exists turn it to an absolute url
+            if user.profile.has_profile_image:
+                profile_images[user.id] = compat.get_user_profile_image(user, self.request)['small']
+        return profile_images
 
     def preprocess(self, data):
         """
@@ -502,19 +464,25 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         processed_data = []
 
         # batch get or create external ids for all users
-        user_ids = [user['id'] for user in data]
-        users = get_user_model().objects.filter(id__in=user_ids)
+        user_ids = data.keys()
+        users = get_user_model().objects.prefetch_related('profile').filter(id__in=user_ids)
+
+        # get external ids
         external_ids = compat.batch_get_or_create_externalids(users)
 
-        for user in data:
-            # append external ids to user dictonary
-            user['external_id'] = external_ids[user['id']].external_user_id
+        # get profile images
+        profile_images = self.get_profile_images(users)
 
-            # if user's image exists turn it to an absolute url
-            if user['profile']['profile_image']['has_image']:
-                picture_url = user['profile']['profile_image']['image_url_small']
-                user['profile']['profile_image']['image_url_small'] = self.request.build_absolute_uri(picture_url)
-            processed_data.append(user)
+        # import pdb; pdb.set_trace()
+        for userid, user_info in data.items():
+
+            # append external ids to user dictonary
+            user_info['external_id'] = external_ids[userid].external_user_id
+
+            if profile_images.get(userid):
+                user_info['picture'] = profile_images[userid]
+
+            processed_data.append(user_info)
 
         return processed_data
 
@@ -528,47 +496,17 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             return LtiNrpsContextMembershipBasicSerializer
 
-    def list(self, *args, **kwargs):  # pylint: disable=unused-argument
+    def list(self, *args, **kwargs):
         """
-        Overrides default list method of ModelViewSet.
-        Checks if enrollment limit satisfies for current request.
+        Overrides default list method of ModelViewSet. Calls LMS `get_course_members`
+        API and returns result.
         """
-        # paginator gets request object via `paginate_queryset` call, since we are not using that
-        # we need to set the request object for paginator ourselves.
-        self.paginator.request = self.request
 
         # get course key
         course_key = self.request.lti_configuration.location.course_key
 
-        # parse and build filter parameters for `get_course_member` python API
-        access_roles, include_students = self.get_filter_params()
-
-        # Get the page size and number from parameters
-        page_size = self.paginator.get_page_size(self.request)
-        page_number = self.request.query_params.get(self.paginator.page_query_param, 1)
-
         try:
-            data = compat.get_course_members(
-                course_key,
-                access_roles=access_roles,
-                include_students=include_students,
-                page=page_number,
-                per_page=page_size,
-            )
-
-            # check if total number of result is larger than specified limit
-            enrollment_limit = lti_nrps_enrollment_limit()
-            if data['count'] > enrollment_limit:
-                raise LtiNRPSEnrollmentLimitExceed(
-                    "The tool can't retrieve more than {} enrollments (tried {})".format(
-                        enrollment_limit,
-                        data['count'],
-                    )
-                )
-
-            # since we are not using the `paginate_queryset` method, we need to set page manually.
-            # this is required for using the `get_paginated_response` method later.
-            self.paginator.page = LTINRPSMembershipPage(data)
+            data = compat.get_course_members(course_key)
 
             # build correct format for the serializer
             result = {
@@ -576,23 +514,16 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
                 'context': {
                     'id': course_key
                 },
-                'members': self.preprocess(data['result']),
+                'members': self.preprocess(data),
             }
 
             # Serialize and return data NRPS reponse.
             serializer = self.get_serializer_class()(result)
-            return self.get_paginated_response(serializer.data)
+            return Response(serializer.data)
 
-        except LtiNRPSEnrollmentLimitExceed as ex:
+        except LtiError as ex:
             log.warning("LTI NRPS Error: %s", ex)
             return Response({
                 "error": "above_response_limit",
                 "explanation": "The number of retrieved users is bigger than the maximum allowed in the configuration.",
-            }, status=HTTP_403_FORBIDDEN)
-
-        except InvalidPage as ex:
-            log.warning("Pagination Error: %s", ex)
-            return Response({
-                "error": "invalid_page",
-                "explanation": "The page doesn't exists",
             }, status=HTTP_403_FORBIDDEN)
