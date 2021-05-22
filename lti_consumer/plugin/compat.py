@@ -160,15 +160,6 @@ def get_course_members(course_key):
         raise LtiError('NRPS is not available for this course!') from ex
 
 
-def get_user_profile_image(user, request=None):
-    """
-    Given an User instance return profile image urls.
-    """
-    # pylint: disable=import-error,import-outside-toplevel
-    from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
-    return get_profile_image_urls_for_user(user, request)
-
-
 def get_lti_pii_course_waffle_flag():
     """
     Returns Course Waffle Flag Override for PII information exposure.

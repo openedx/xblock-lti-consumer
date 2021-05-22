@@ -443,23 +443,10 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         MembershipResultRenderer,
     ]
 
-    def get_profile_images(self, users):
-        """
-        Given a list of users, returns a dict mapping of corresponding profile images.
-        """
-        # get profile images
-        profile_images = {}
-        for user in users:
-            # if user's image exists turn it to an absolute url
-            if user.profile.has_profile_image:
-                profile_images[user.id] = compat.get_user_profile_image(user, self.request)['small']
-        return profile_images
-
     def preprocess(self, data):
         """
         Preprocess the output of `get_membership` method. It now does followings -
             - Append external ids to the user
-            - Makes user profile picture link absolute
         """
         processed_data = []
 
@@ -470,17 +457,11 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         # get external ids
         external_ids = compat.batch_get_or_create_externalids(users)
 
-        # get profile images
-        profile_images = self.get_profile_images(users)
-
         # import pdb; pdb.set_trace()
         for userid, user_info in data.items():
 
             # append external ids to user dictonary
             user_info['external_id'] = external_ids[userid].external_user_id
-
-            if profile_images.get(userid):
-                user_info['picture'] = profile_images[userid]
 
             processed_data.append(user_info)
 

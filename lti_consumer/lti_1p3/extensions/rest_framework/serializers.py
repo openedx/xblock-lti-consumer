@@ -408,7 +408,6 @@ class LtiNrpsContextMemberPIISerializer(LtiNrpsContextMemberBasicSerializer):
     Personally identifiable information serializer for Context Member.
     """
     name = serializers.CharField(required=False)
-    picture = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
 
 
