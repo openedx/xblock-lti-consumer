@@ -52,7 +52,7 @@ jobs:
           --target-branch="${{ env.target_branch }}" --base-branch-name="upgrade-python-requirements" \
           --commit-message="chore: Updating Python Requirements" --pr-title="Python Requirements Update" \
           --pr-body="Python requirements update.Please review the [changelogs](https://openedx.atlassian.net/wiki/spaces/TE/pages/1001521320/Python+Package+Changelogs) for the upgraded packages." \
-          --user-reviewers="" --team-reviewers="teaching-and-learning" --delete-old-pull-requests
+          --user-reviewers="" --team-reviewers="community-engineering" --delete-old-pull-requests
 
       - name: Send failure notification
         if: ${{ failure() }}
@@ -63,6 +63,6 @@ jobs:
           username: ${{secrets.EDX_SMTP_USERNAME}}
           password: ${{secrets.EDX_SMTP_PASSWORD}}
           subject: Upgrade python requirements workflow failed in ${{github.repository}}
-          to: teaching-and-learning@edx.opsgenie.net
+          to: community-engineering@edx.opsgenie.net
           from: github-actions <github-actions@edx.org>
           body: Upgrade python requirements workflow in ${{github.repository}} failed! For details see "github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
