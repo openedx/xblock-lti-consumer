@@ -443,12 +443,10 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         MembershipResultRenderer,
     ]
 
-    def preprocess(self, data):
+    def attach_external_user_ids(self, data):
         """
-        Preprocess the output of `get_membership` method. It now does followings -
-            - Append external ids to the user
+        Preprocess the output of `get_membership` method amd appends external ids to each user.
         """
-        processed_data = []
 
         # batch get or create external ids for all users
         user_ids = data.keys()
@@ -457,15 +455,9 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         # get external ids
         external_ids = compat.batch_get_or_create_externalids(users)
 
-        # import pdb; pdb.set_trace()
-        for userid, user_info in data.items():
-
-            # append external ids to user dictonary
-            user_info['external_id'] = external_ids[userid].external_user_id
-
-            processed_data.append(user_info)
-
-        return processed_data
+        for userid in user_ids:
+            # append external ids to user
+            data[userid]['external_id'] = external_ids[userid].external_user_id
 
     def get_serializer_class(self):
         """
@@ -488,6 +480,7 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
 
         try:
             data = compat.get_course_members(course_key)
+            self.attach_external_user_ids(data)
 
             # build correct format for the serializer
             result = {
@@ -495,7 +488,7 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
                 'context': {
                     'id': course_key
                 },
-                'members': self.preprocess(data),
+                'members': data.values(),
             }
 
             # Serialize and return data NRPS reponse.
