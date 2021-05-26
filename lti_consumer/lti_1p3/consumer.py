@@ -498,7 +498,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         Returns LTI NRPS class or throw exception if not set up.
         """
         if not self.nrps:
-            raise exceptions.LtiNRPSServiceNotSetUp(
+            raise exceptions.LtiNrpsServiceNotSetUp(
                 "The LTI NRPS service was not set up for this consumer."
             )
 

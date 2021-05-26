@@ -261,13 +261,11 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
 
         # name & email should not be exposed.
         member_fields = response.data['members'][0].keys()
-        self.assertEqual(all([
-            'user_id' in member_fields,
-            'roles' in member_fields,
-            'status' in member_fields,
-            'email' not in member_fields,
-            'name' not in member_fields,
-        ]), True)
+        self.assertIn('user_id', member_fields)
+        self.assertIn('roles', member_fields)
+        self.assertIn('status', member_fields)
+        self.assertNotIn('email', member_fields)
+        self.assertNotIn('name', member_fields)
 
     @patch('lti_consumer.plugin.views.expose_pii_fields', return_value=True)
     @patch(
@@ -291,13 +289,11 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
 
         # name & email should be present along with user_id, roles etc.
         member_fields = response.data['members'][0].keys()
-        self.assertEqual(all([
-            'user_id' in member_fields,
-            'roles' in member_fields,
-            'status' in member_fields,
-            'email' in member_fields,
-            'name' in member_fields,
-        ]), True)
+        self.assertIn('user_id', member_fields)
+        self.assertIn('roles', member_fields)
+        self.assertIn('status', member_fields)
+        self.assertIn('email', member_fields)
+        self.assertIn('name', member_fields)
 
     @patch('lti_consumer.plugin.views.expose_pii_fields', return_value=False)
     @patch(

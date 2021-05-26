@@ -30,7 +30,7 @@ def lti_nrps_enabled():
     """
     Returns `true` if LTI NRPS is enabled for instance.
     """
-    return settings.FEATURES.get('LTI_NRPS_ENABLED', False) is True  # pragma: no cover
+    return settings.FEATURES.get('LTI_NRPS_ENABLED', False)  # pragma: no cover
 
 
 def expose_pii_fields(course_key):

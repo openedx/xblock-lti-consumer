@@ -157,7 +157,7 @@ def get_course_members(course_key):
     try:
         return core_get_course_members(course_key)
     except OverEnrollmentLimitException as ex:
-        raise LtiError('NRPS is not available for this course!') from ex
+        raise LtiError('NRPS is not available for {}'.format(course_key)) from ex
 
 
 def get_lti_pii_course_waffle_flag():

@@ -732,7 +732,7 @@ class TestLtiAdvantageConsumer(TestCase):
         """
         Test that when LTI NRPS isn't configured, the class yields an error.
         """
-        with self.assertRaises(exceptions.LtiNRPSServiceNotSetUp):
+        with self.assertRaises(exceptions.LtiNrpsServiceNotSetUp):
             self.lti_consumer.lti_nrps  # pylint: disable=pointless-statement
 
     def test_enable_nrps(self):
@@ -742,7 +742,7 @@ class TestLtiAdvantageConsumer(TestCase):
         self.lti_consumer.enable_nrps("http://example.com/20/membership")
 
         # Check that the NRPS class was properly instanced and set
-        self.assertEqual(type(self.lti_consumer.nrps), LtiNrps)
+        self.assertIsInstance(self.lti_consumer.nrps, LtiNrps)
 
         # Check retrieving class works
         lti_nrps_class = self.lti_consumer.lti_nrps
