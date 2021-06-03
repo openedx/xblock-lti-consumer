@@ -332,7 +332,7 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-2.9.0 - 2021-06-03
+2.9.1 - 2021-06-03
 ------------------
 
 * LTI Advantage - NRP Service: this completes Advantage compliance.
