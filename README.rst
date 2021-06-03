@@ -229,6 +229,7 @@ This XBlock supports LTI 1.3 and the following LTI Avantage services:
 
 * Deep Linking (LTI-DL)
 * Assignments and Grades services (LTI-AGS)
+* Names and Roles Provisioning services (LTI-NRP)
 
 To enable LTI-AGS, you need to set **LTI Assignment and Grades Service** in Studio to
 allow tools to send back grades. There's two grade interaction models implemented:
@@ -246,6 +247,13 @@ To enable LTI-DL and its capabilities, you need to set the following feature fla
 
     FEATURES:
         LTI_DEEP_LINKING_ENABLED: true
+
+To enable LTI-NRP, you need to set the following feature flag:
+
+.. code:: yaml
+
+    FEATURES:
+        LTI_NRPS_ENABLED: true
 
 
 Development
