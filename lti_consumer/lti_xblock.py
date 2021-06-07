@@ -264,12 +264,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default="lti_1p1",
         help=_(
             "Select the LTI version that your tool supports."
-            "<br />The XBlock LTI Consumer fully supports LTI 1.1.1 "
-            "and partially supports LTI 1.3 (only launches, no grade support)."
+            "<br />The XBlock LTI Consumer fully supports LTI 1.1.1, "
+            "LTI 1.3 and LTI Advantage features."
         ),
     )
     lti_1p3_launch_url = String(
-        display_name=_("LTI 1.3 Tool Launch URL"),
+        display_name=_("Tool Launch URL"),
         default='',
         scope=Scope.settings,
         help=_(
@@ -278,7 +278,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         ),
     )
     lti_1p3_oidc_url = String(
-        display_name=_("LTI 1.3 OIDC URL"),
+        display_name=_("Tool Initiate Login URL"),
         default='',
         scope=Scope.settings,
         help=_(
@@ -288,7 +288,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         ),
     )
     lti_1p3_tool_public_key = String(
-        display_name=_("LTI 1.3 Tool Public Key"),
+        display_name=_("Tool Public Key"),
         multiline_editor=True,
         default='',
         scope=Scope.settings,
@@ -330,10 +330,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     lti_advantage_deep_linking_launch_url = String(
-        display_name=_("LTI Advantage Deep Linking Launch URL"),
+        display_name=_("Deep Linking Launch URL"),
         default='',
         scope=Scope.settings,
-        help=_("Enter the LTI Advantage Deep Linking Launch URL. "),
+        help=_(
+            "Enter the LTI Advantage Deep Linking Launch URL. If the tool does not specify one, "
+            "use the same value as 'Tool Launch URL'."
+        ),
     )
     lti_advantage_ags_mode = String(
         display_name=_("LTI Assignment and Grades Service"),

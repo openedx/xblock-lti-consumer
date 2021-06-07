@@ -107,17 +107,17 @@ Instructions:
 3. In the course, create a new unit and add the LTI block.
 
    * Set ``LTI Version`` to ``LTI 1.3``.
-   * Set the ``LTI 1.3 Tool Launch URL`` to ``https://lti-ri.imsglobal.org/lti/tools/``
+   * Set the ``Tool Launch URL`` to ``https://lti-ri.imsglobal.org/lti/tools/``
 
 4. In Studio, you'll see a few parameters being displayed in the preview:
 
 .. code::
 
-    Client: f0532860-cb34-47a9-b16c-53deb077d4de
+    Client ID: f0532860-cb34-47a9-b16c-53deb077d4de
     Deployment ID: 1
     # Note that these are LMS URLS
     Keyset URL: http://localhost:18000/api/lti_consumer/v1/public_keysets/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
-    OAuth Token URL: http://localhost:18000/api/lti_consumer/v1/token/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
+    Access Token URL: http://localhost:18000/api/lti_consumer/v1/token/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
     OIDC Callback URL: http://localhost:18000/api/lti_consumer/v1/launch/
 
 
@@ -138,9 +138,9 @@ Instructions:
 
 .. code::
 
-    LTI 1.3 Tool Launch URL: https://lti-ri.imsglobal.org/lti/tools/[tool_id]/launches
-    LTI 1.3 OIDC URL: https://lti-ri.imsglobal.org/lti/tools/[tool_id]/login_initiations
-    LTI 1.3 Tool Public key: Public key from key page.
+    Tool Launch URL: https://lti-ri.imsglobal.org/lti/tools/[tool_id]/launches
+    Tool Initiate Login URL: https://lti-ri.imsglobal.org/lti/tools/[tool_id]/login_initiations
+    Tool Public key: Public key from key page.
 
 8. Publish block, log into LMS and navigate to the LTI block page.
 9. Click ``Send Request`` and verify that the LTI launch was successful.
