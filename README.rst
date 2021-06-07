@@ -332,6 +332,14 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+2.9.2 - 2021-06-06
+------------------
+
+* LTI 1.3, alogin with LTI Advantage features is now enabled by default.
+* LTI 1.3 settings were simplified to reduce confusion when setting up a LTI tool.
+* Code quality issues fixed
+
+
 2.9.1 - 2021-06-03
 ------------------
 
