@@ -5,6 +5,24 @@ from django.core.exceptions import ValidationError
 from lti_consumer.exceptions import LtiError
 
 
+# Waffle flags configuration
+
+# Namespace
+WAFFLE_NAMESPACE = 'lti_consumer'
+
+# Course Waffle Flags
+# .. toggle_name: lti_consumer.lti_nrps_transmit_pii
+# .. toggle_implementation: CourseWaffleFlag
+# .. toggle_default: False
+# .. toggle_description: When enabled, the LTI NRPS endpoint will include learner PII
+#    in the response (username, email, etc).
+# .. toggle_use_cases: open_edx
+# .. toggle_creation_date: 2021-06-03
+# .. toggle_tickets: TNL-7974, https://github.com/edx/xblock-lti-consumer/pull/124
+# .. toggle_warnings: None.
+LTI_NRPS_TRANSMIT_PII = 'lti_nrps_transmit_pii'
+
+
 def run_xblock_handler(*args, **kwargs):
     """
     Import and run `handle_xblock_callback` from LMS
@@ -166,4 +184,4 @@ def get_lti_pii_course_waffle_flag():
     """
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
-    return CourseWaffleFlag('lti_consumer', 'lti_nrps_transmit_pii', __name__)
+    return CourseWaffleFlag(WAFFLE_NAMESPACE, LTI_NRPS_TRANSMIT_PII, __name__)
