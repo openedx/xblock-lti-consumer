@@ -415,8 +415,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
         # Assert that 'ask_to_send_username' and 'ask_to_send_email' are not editable.
         self.assertFalse(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
 
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
-    def test_lti_1p3_fields_appear_when_enabled(self, lti_1p3_enabled_mock):
+    def test_lti_1p3_fields_appear(self):
         """
         Test that LTI 1.3 XBlock's fields appear when `lti_1p3_enabled` returns True.
         """
@@ -427,27 +426,12 @@ class TestEditableFields(TestLtiConsumerXBlock):
                     'lti_1p3_launch_url',
                     'lti_1p3_oidc_url',
                     'lti_1p3_tool_public_key',
-                ]
-            )
-        )
-        lti_1p3_enabled_mock.assert_called()
-
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
-    @patch('lti_consumer.lti_xblock.lti_deeplinking_enabled', return_value=True)
-    def test_lti_deeplinking_fields_appear_when_enabled(self, lti_1p3_enabled_mock, lti_deeplinking_enabled_mock):
-        """
-        Test that LTI 1.3 XBlock's fields appear when `lti_1p3_enabled` returns True.
-        """
-        self.assertTrue(
-            self.are_fields_editable(
-                fields=[
                     'lti_advantage_deep_linking_enabled',
-                    'lti_advantage_deep_linking_launch_url'
+                    'lti_advantage_deep_linking_launch_url',
+                    'lti_1p3_enable_nrps'
                 ]
             )
         )
-        lti_1p3_enabled_mock.assert_called()
-        lti_deeplinking_enabled_mock.assert_called()
 
 
 class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
@@ -1266,9 +1250,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.lti_1p3_launch_callback(make_request('', 'GET'))
         self.assertEqual(response.status_code, 404)
 
-    # pylint: disable=unused-argument
-    @patch('lti_consumer.lti_xblock.lti_1p3_enabled', return_value=True)
-    def test_studio_view(self, mock_lti_1p3_flag):
+    def test_studio_view(self):
         """
         Test that the studio settings view load the custom js.
         """

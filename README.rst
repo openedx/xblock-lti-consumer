@@ -18,14 +18,6 @@ root folder:
 
     $ pip install -r requirements/base.txt
 
-Additionally, to enable LTI 1.3 Launch support, the following FEATURE flag needs to be set in `/edx/etc/studio.yml` in your LMS container:
-
-.. code:: yaml
-
-    FEATURES:
-        LTI_1P3_ENABLED: true
-
-
 Installing in Docker Devstack
 -----------------------------
 
@@ -241,19 +233,13 @@ allow tools to send back grades. There's two grade interaction models implemente
   delete multiple LineItems, and set multiple grades per student per problem.
   *In this implementation, the tool is responsible for managing grades and linking them in the LMS.*
 
-To enable LTI-DL and its capabilities, you need to set the following feature flag:
+LTI-DL and its capabilities, you need to set these settings in the block:
 
-.. code:: yaml
+1. Locate the **Deep linking** setting and set it to **True (enabled)**.
+2. Set **Deep Linking Launch URL** setting. You can retrieve it from the tool you’re integrating with.
+   If it’s not provided, try using the same value as in the LTI 1.3 Tool Launch URL.
 
-    FEATURES:
-        LTI_DEEP_LINKING_ENABLED: true
-
-To enable LTI-NRP, you need to set the following feature flag:
-
-.. code:: yaml
-
-    FEATURES:
-        LTI_NRPS_ENABLED: true
+To enable LTI-NRPS, you set **Enable LTI NRPS** to **True** in the block settings on Studio.
 
 
 Development

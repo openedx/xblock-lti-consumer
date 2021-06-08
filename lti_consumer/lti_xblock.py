@@ -81,12 +81,7 @@ from .lti_1p3.exceptions import (
 )
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
-from .utils import (
-    _,
-    lti_1p3_enabled,
-    lti_deeplinking_enabled,
-    lti_nrps_enabled,
-)
+from .utils import _
 
 
 log = logging.getLogger(__name__)
@@ -625,41 +620,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     for field in self.editable_field_names
                     if field not in ('ask_to_send_username', 'ask_to_send_email')
                 )
-
-        # Hide LTI 1.3 fields depending on configuration flags
-        hide_fields = []
-
-        if not lti_deeplinking_enabled():
-            hide_fields += [
-                'lti_advantage_deep_linking_enabled',
-                'lti_advantage_deep_linking_launch_url'
-            ]
-
-        if not lti_nrps_enabled():
-            hide_fields.append('lti_1p3_enable_nrps')
-
-        if not lti_1p3_enabled():
-            hide_fields += [
-                'lti_version',
-                'lti_1p3_launch_url',
-                'lti_1p3_oidc_url',
-                'lti_1p3_tool_public_key',
-                'lti_advantage_ags_mode',
-                'lti_advantage_deep_linking_enabled',
-                'lti_advantage_deep_linking_launch_url',
-            ]
-        elif not lti_deeplinking_enabled():
-            hide_fields = [
-                'lti_advantage_deep_linking_enabled',
-                'lti_advantage_deep_linking_launch_url',
-            ]
-
-        if hide_fields:
-            # Transform data from `editable_fields` not to override the fields
-            # settings applied above
-            editable_fields = tuple(
-                field for field in editable_fields if field not in hide_fields
-            )
 
         return editable_fields
 
