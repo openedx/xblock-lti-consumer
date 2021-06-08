@@ -4,7 +4,7 @@ LTI Advantage NRPS (Names and Roles provisioning services)
 Status
 ======
 
-Accepted
+Accepted - PII flag replaced by :doc:`0005-lti-pii-sharing-flag.rst`
 
 Context
 =======
@@ -75,14 +75,14 @@ The NRPS services availability and behavior will be controlled by the following 
    * - Toggle name
      - Type
      - Behavior
-   * - LTI_NRPS_ENABLED
+   * - LTI_NRPS_ENABLED (removed)
      - Feature flag
-     - Enables and disables LTI NRPS globally in the Open edX instance. Is disabled by default.
+     - The service is always enabled in Studio.
    * - LTI_NRPS_ACTIVE_ENROLLMENT_LIMIT
      - Django setting
      - Controls the allowed number of active enrollments when the API is enabled.
        Defaults to 1000 active enrollments at first.
-   * - LTI_NRPS_TRANSMIT_PII
+   * - LTI_NRPS_TRANSMIT_PII (replaced by CourseEditLTIFieldsEnabledFlag in ADR linked above)
      - CourseWaffleFlag
      - Allows the tool to access student and instructor PII (username, email, full name, profile picture).
        Defaults to False.
