@@ -81,12 +81,7 @@ from .lti_1p3.exceptions import (
 )
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
-from .utils import (
-    _,
-    lti_1p3_enabled,
-    lti_deeplinking_enabled,
-    lti_nrps_enabled,
-)
+from .utils import _
 
 
 log = logging.getLogger(__name__)
@@ -264,12 +259,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default="lti_1p1",
         help=_(
             "Select the LTI version that your tool supports."
-            "<br />The XBlock LTI Consumer fully supports LTI 1.1.1 "
-            "and partially supports LTI 1.3 (only launches, no grade support)."
+            "<br />The XBlock LTI Consumer fully supports LTI 1.1.1, "
+            "LTI 1.3 and LTI Advantage features."
         ),
     )
     lti_1p3_launch_url = String(
-        display_name=_("LTI 1.3 Tool Launch URL"),
+        display_name=_("Tool Launch URL"),
         default='',
         scope=Scope.settings,
         help=_(
@@ -278,7 +273,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         ),
     )
     lti_1p3_oidc_url = String(
-        display_name=_("LTI 1.3 OIDC URL"),
+        display_name=_("Tool Initiate Login URL"),
         default='',
         scope=Scope.settings,
         help=_(
@@ -288,7 +283,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         ),
     )
     lti_1p3_tool_public_key = String(
-        display_name=_("LTI 1.3 Tool Public Key"),
+        display_name=_("Tool Public Key"),
         multiline_editor=True,
         default='',
         scope=Scope.settings,
@@ -330,10 +325,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
     lti_advantage_deep_linking_launch_url = String(
-        display_name=_("LTI Advantage Deep Linking Launch URL"),
+        display_name=_("Deep Linking Launch URL"),
         default='',
         scope=Scope.settings,
-        help=_("Enter the LTI Advantage Deep Linking Launch URL. "),
+        help=_(
+            "Enter the LTI Advantage Deep Linking Launch URL. If the tool does not specify one, "
+            "use the same value as 'Tool Launch URL'."
+        ),
     )
     lti_advantage_ags_mode = String(
         display_name=_("LTI Assignment and Grades Service"),
@@ -622,41 +620,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     for field in self.editable_field_names
                     if field not in ('ask_to_send_username', 'ask_to_send_email')
                 )
-
-        # Hide LTI 1.3 fields depending on configuration flags
-        hide_fields = []
-
-        if not lti_deeplinking_enabled():
-            hide_fields += [
-                'lti_advantage_deep_linking_enabled',
-                'lti_advantage_deep_linking_launch_url'
-            ]
-
-        if not lti_nrps_enabled():
-            hide_fields.append('lti_1p3_enable_nrps')
-
-        if not lti_1p3_enabled():
-            hide_fields += [
-                'lti_version',
-                'lti_1p3_launch_url',
-                'lti_1p3_oidc_url',
-                'lti_1p3_tool_public_key',
-                'lti_advantage_ags_mode',
-                'lti_advantage_deep_linking_enabled',
-                'lti_advantage_deep_linking_launch_url',
-            ]
-        elif not lti_deeplinking_enabled():
-            hide_fields = [
-                'lti_advantage_deep_linking_enabled',
-                'lti_advantage_deep_linking_launch_url',
-            ]
-
-        if hide_fields:
-            # Transform data from `editable_fields` not to override the fields
-            # settings applied above
-            editable_fields = tuple(
-                field for field in editable_fields if field not in hide_fields
-            )
 
         return editable_fields
 

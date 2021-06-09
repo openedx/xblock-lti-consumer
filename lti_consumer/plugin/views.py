@@ -353,7 +353,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         renderer_classes=[LineItemResultsRenderer],
         content_negotiation_class=IgnoreContentNegotiation,
     )
-    def results(self, request, user_id=None, **kwargs):  # pylint: disable=unused-argument
+    def results(self, request, user_id=None, **kwargs):
         """
         Return a Result list for an LtiAgsLineItem
 
@@ -392,7 +392,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         renderer_classes=[LineItemScoreRenderer],
         content_negotiation_class=IgnoreContentNegotiation,
     )
-    def scores(self, request, *args, **kwargs):  # pylint: disable=unused-argument
+    def scores(self, request, *args, **kwargs):
         """
         Create a Score record for an LtiAgsLineItem
 

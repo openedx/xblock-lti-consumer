@@ -12,27 +12,6 @@ def _(text):
     return text
 
 
-def lti_1p3_enabled():
-    """
-    Returns `true` if LTI 1.3 integration is enabled for instance.
-    """
-    return settings.FEATURES.get('LTI_1P3_ENABLED', False) is True  # pragma: no cover
-
-
-def lti_deeplinking_enabled():
-    """
-    Returns `true` if LTI Advantage deep linking is enabled for instance.
-    """
-    return settings.FEATURES.get('LTI_DEEP_LINKING_ENABLED', False) is True  # pragma: no cover
-
-
-def lti_nrps_enabled():
-    """
-    Returns `true` if LTI NRPS is enabled for instance.
-    """
-    return settings.FEATURES.get('LTI_NRPS_ENABLED', False)  # pragma: no cover
-
-
 def expose_pii_fields(course_key):
     """
     Returns `true` if Use's PII fields can be exposed to LTI endpoints

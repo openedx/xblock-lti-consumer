@@ -14,10 +14,7 @@ ROOT_URLCONF = 'test_urls'
 LMS_ROOT_URL = "https://example.com"
 
 # Dummy FEATURES dict
-FEATURES = {
-    'LTI_1P3_ENABLED': False,
-    'LTI_DEEPLINKING_ENABLED': False,
-}
+FEATURES = {}
 
 # Set rest framework settings to test pagination
 REST_FRAMEWORK = {
