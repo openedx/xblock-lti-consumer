@@ -319,7 +319,7 @@ Changelog
 =========
 
 2.10.0 - 2021-06-09
-------------------
+-------------------
 
 * LTI 1.3 and LTI Advantage features are now enabled by default.
 * LTI 1.3 settings were simplified to reduce confusion when setting up a LTI tool.
