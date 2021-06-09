@@ -3,11 +3,13 @@
 
 -r base.txt               # Core dependencies for the cookiecutter
 
-ddt
 coveralls
-mock
+ddt
 django-pyfs
-edx_lint
-pycodestyle
 djangorestframework
+edx_lint
+mock
+pycodestyle
+readme-renderer
+twine
 xblock-sdk

@@ -20,6 +20,8 @@ compile-sass:  ## Compile the Sass assets
 quality:  ## Run the quality checks
 	pycodestyle --config=.pep8 lti_consumer
 	pylint --rcfile=pylintrc lti_consumer
+	python setup.py -q sdist
+	twine check dist/*
 
 test:  ## Run the tests
 	mkdir -p var
