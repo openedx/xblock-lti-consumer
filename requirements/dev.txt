@@ -10,7 +10,7 @@ appdirs==1.4.4
     #   fs
 bleach==3.3.0
     # via -r requirements/base.txt
-certifi==2020.12.5
+certifi==2021.5.30
     # via
     #   -r requirements/base.txt
     #   requests
@@ -20,7 +20,7 @@ chardet==4.0.0
     #   requests
 django-filter==2.4.0
     # via -r requirements/base.txt
-django==2.2.23
+django==2.2.24
     # via
     #   -r requirements/base.txt
     #   django-filter
@@ -60,7 +60,7 @@ markupsafe==2.0.1
     #   -r requirements/base.txt
     #   mako
     #   xblock
-oauthlib==3.1.0
+oauthlib==3.1.1
     # via -r requirements/base.txt
 packaging==20.9
     # via
