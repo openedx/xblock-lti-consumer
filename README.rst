@@ -318,7 +318,7 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-2.9.2 - 2021-06-06
+2.10.0 - 2021-06-09
 ------------------
 
 * LTI 1.3 and LTI Advantage features are now enabled by default.
