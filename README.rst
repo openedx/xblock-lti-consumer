@@ -233,7 +233,7 @@ allow tools to send back grades. There's two grade interaction models implemente
   delete multiple LineItems, and set multiple grades per student per problem.
   *In this implementation, the tool is responsible for managing grades and linking them in the LMS.*
 
-LTI-DL and its capabilities, you need to set these settings in the block:
+To enable LTI-DL and its capabilities, you need to set these settings in the block:
 
 1. Locate the **Deep linking** setting and set it to **True (enabled)**.
 2. Set **Deep Linking Launch URL** setting. You can retrieve it from the tool you’re integrating with.
