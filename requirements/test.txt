@@ -16,9 +16,9 @@ bleach==3.3.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.17.91
+boto3==1.17.92
     # via fs-s3fs
-botocore==1.20.91
+botocore==1.20.92
     # via
     #   boto3
     #   s3transfer
@@ -26,6 +26,8 @@ certifi==2021.5.30
     # via
     #   -r requirements/base.txt
     #   requests
+cffi==1.14.5
+    # via cryptography
 chardet==4.0.0
     # via
     #   -r requirements/base.txt
@@ -45,6 +47,8 @@ coverage==5.5
     # via coveralls
 coveralls==3.1.0
     # via -r requirements/test.in
+cryptography==3.4.7
+    # via secretstorage
 ddt==1.4.2
     # via -r requirements/test.in
 django-filter==2.4.0
@@ -96,6 +100,10 @@ importlib-metadata==4.5.0
     #   twine
 isort==5.8.0
     # via pylint
+jeepney==0.6.0
+    # via
+    #   keyring
+    #   secretstorage
 jinja2==3.0.1
     # via code-annotations
 jmespath==0.10.0
@@ -146,6 +154,8 @@ pkginfo==1.7.0
     # via twine
 pycodestyle==2.7.0
     # via -r requirements/test.in
+pycparser==2.20
+    # via cffi
 pycryptodomex==3.10.1
     # via
     #   -r requirements/base.txt
@@ -211,6 +221,8 @@ rfc3986==1.5.0
     # via twine
 s3transfer==0.4.2
     # via boto3
+secretstorage==3.3.1
+    # via keyring
 simplejson==3.17.2
     # via
     #   -r requirements/base.txt

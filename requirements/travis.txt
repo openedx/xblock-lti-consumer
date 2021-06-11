@@ -19,11 +19,11 @@ bleach==3.3.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.17.91
+boto3==1.17.92
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.20.91
+botocore==1.20.92
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -32,6 +32,10 @@ certifi==2021.5.30
     # via
     #   -r requirements/test.txt
     #   requests
+cffi==1.14.5
+    # via
+    #   -r requirements/test.txt
+    #   cryptography
 chardet==4.0.0
     # via
     #   -r requirements/test.txt
@@ -60,6 +64,10 @@ coverage==5.5
     #   coveralls
 coveralls==3.1.0
     # via -r requirements/test.txt
+cryptography==3.4.7
+    # via
+    #   -r requirements/test.txt
+    #   secretstorage
 ddt==1.4.2
     # via -r requirements/test.txt
 distlib==0.3.2
@@ -129,6 +137,11 @@ isort==5.8.0
     # via
     #   -r requirements/test.txt
     #   pylint
+jeepney==0.6.0
+    # via
+    #   -r requirements/test.txt
+    #   keyring
+    #   secretstorage
 jinja2==3.0.1
     # via
     #   -r requirements/test.txt
@@ -200,6 +213,10 @@ py==1.10.0
     #   tox
 pycodestyle==2.7.0
     # via -r requirements/test.txt
+pycparser==2.20
+    # via
+    #   -r requirements/test.txt
+    #   cffi
 pycryptodomex==3.10.1
     # via
     #   -r requirements/test.txt
@@ -282,6 +299,10 @@ s3transfer==0.4.2
     # via
     #   -r requirements/test.txt
     #   boto3
+secretstorage==3.3.1
+    # via
+    #   -r requirements/test.txt
+    #   keyring
 simplejson==3.17.2
     # via
     #   -r requirements/test.txt
