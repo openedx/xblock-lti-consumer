@@ -16,7 +16,7 @@ django-filter==2.4.0
     # via -r requirements/base.in
 django==2.2.24
     # via
-    #   -c https://raw.githubusercontent.com/edx/edx-lint/master/edx_lint/files/common_constraints.txt
+    #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
     #   django-filter
     #   edx-opaque-keys
@@ -29,10 +29,8 @@ future==0.18.2
     # via pyjwkest
 idna==2.10
     # via requests
-jsonfield2==3.0.3
-    # via
-    #   -c requirements/constraints.txt
-    #   -r requirements/base.in
+jsonfield2==4.0.0.post0
+    # via -r requirements/base.in
 lazy==1.4
     # via -r requirements/base.in
 lxml==4.6.3
@@ -82,13 +80,10 @@ six==1.16.0
     #   fs
     #   pyjwkest
     #   python-dateutil
-    #   stevedore
 sqlparse==0.4.1
     # via django
-stevedore==1.32.0
-    # via
-    #   -c requirements/constraints.txt
-    #   edx-opaque-keys
+stevedore==3.3.0
+    # via edx-opaque-keys
 urllib3==1.26.5
     # via requests
 web-fragments==1.0.0

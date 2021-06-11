@@ -43,7 +43,7 @@ idna==2.10
     # via
     #   -r requirements/base.txt
     #   requests
-jsonfield2==3.0.3
+jsonfield2==4.0.0.post0
     # via -r requirements/base.txt
 lazy==1.4
     # via -r requirements/base.txt
@@ -121,12 +121,11 @@ six==1.16.0
     #   fs
     #   pyjwkest
     #   python-dateutil
-    #   stevedore
 sqlparse==0.4.1
     # via
     #   -r requirements/base.txt
     #   django
-stevedore==1.32.0
+stevedore==3.3.0
     # via
     #   -r requirements/base.txt
     #   edx-opaque-keys
