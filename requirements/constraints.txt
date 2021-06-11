@@ -14,4 +14,4 @@
 # TODO: Many pinned dependencies should be unpinned and/or moved to this constraints file.
 
 # Same as in edx-platform
-djangorestframework==3.9.4
+djangorestframework<4
