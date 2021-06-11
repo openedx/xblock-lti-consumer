@@ -6,82 +6,82 @@
 #
 appdirs==1.4.4
     # via
-    #   -r test.txt
-    #   -r tox.txt
+    #   -r requirements/test.txt
+    #   -r requirements/tox.txt
     #   fs
     #   virtualenv
 astroid==2.5.6
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   pylint
     #   pylint-celery
 bleach==3.3.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.17.91
+boto3==1.17.93
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.20.91
+botocore==1.20.93
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   boto3
     #   s3transfer
 certifi==2021.5.30
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   requests
 cffi==1.14.5
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   cryptography
 chardet==4.0.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   requests
 click-log==0.3.2
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   edx-lint
 click==8.0.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   click-log
     #   code-annotations
     #   edx-lint
 code-annotations==1.1.2
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   edx-lint
 colorama==0.4.4
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   twine
 coverage==5.5
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   coveralls
 coveralls==3.1.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 cryptography==3.4.7
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   secretstorage
 ddt==1.4.2
-    # via -r test.txt
+    # via -r requirements/test.txt
 distlib==0.3.2
     # via
-    #   -r tox.txt
+    #   -r requirements/tox.txt
     #   virtualenv
 django-filter==2.4.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 django-pyfs==3.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 django==2.2.24
     # via
-    #   -c common_constraints.txt
-    #   -r test.txt
+    #   -c requirements/common_constraints.txt
+    #   -r requirements/test.txt
     #   django-filter
     #   django-pyfs
     #   djangorestframework
@@ -89,300 +89,298 @@ django==2.2.24
     #   edx-opaque-keys
     #   jsonfield2
     #   xblock-sdk
-djangorestframework==3.11.2
+djangorestframework==3.12.4
     # via
-    #   -c constraints.txt
-    #   -r test.txt
+    #   -c requirements/constraints.txt
+    #   -r requirements/test.txt
 docopt==0.6.2
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   coveralls
 docutils==0.16
     # via
-    #   -c common_constraints.txt
-    #   -r test.txt
+    #   -c requirements/common_constraints.txt
+    #   -r requirements/test.txt
     #   readme-renderer
 edx-lint==5.0.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 edx-opaque-keys[django]==2.2.1
-    # via -r test.txt
+    # via -r requirements/test.txt
 filelock==3.0.12
     # via
-    #   -r tox.txt
+    #   -r requirements/tox.txt
     #   tox
     #   virtualenv
 fs-s3fs==1.1.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   django-pyfs
 fs==2.4.13
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   django-pyfs
     #   fs-s3fs
     #   xblock
 future==0.18.2
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   pyjwkest
 idna==2.10
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   requests
 importlib-metadata==4.5.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   keyring
     #   twine
 isort==5.8.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   pylint
 jeepney==0.6.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   keyring
     #   secretstorage
 jinja2==3.0.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   code-annotations
 jmespath==0.10.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   boto3
     #   botocore
-jsonfield2==3.0.3
-    # via -r test.txt
+jsonfield2==4.0.0.post0
+    # via -r requirements/test.txt
 keyring==23.0.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   twine
 lazy-object-proxy==1.6.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   astroid
 lazy==1.4
-    # via -r test.txt
+    # via -r requirements/test.txt
 lxml==4.6.3
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   xblock
 mako==1.1.4
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   xblock-utils
 markupsafe==2.0.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   jinja2
     #   mako
     #   xblock
 mccabe==0.6.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   pylint
-mock==3.0.5
-    # via -r test.txt
+mock==4.0.3
+    # via -r requirements/test.txt
 oauthlib==3.1.1
-    # via -r test.txt
+    # via -r requirements/test.txt
 packaging==20.9
     # via
-    #   -r test.txt
-    #   -r tox.txt
+    #   -r requirements/test.txt
+    #   -r requirements/tox.txt
     #   bleach
     #   tox
 pbr==5.6.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   stevedore
 pkginfo==1.7.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   twine
 pluggy==0.13.1
     # via
-    #   -r tox.txt
+    #   -r requirements/tox.txt
     #   tox
 py==1.10.0
     # via
-    #   -r tox.txt
+    #   -r requirements/tox.txt
     #   tox
 pycodestyle==2.7.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 pycparser==2.20
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   cffi
 pycryptodomex==3.10.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   pyjwkest
 pygments==2.9.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   readme-renderer
 pyjwkest==1.4.2
-    # via -r test.txt
+    # via -r requirements/test.txt
 pylint-celery==0.3
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   edx-lint
 pylint-django==2.4.4
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   edx-lint
 pylint-plugin-utils==0.6
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   pylint-celery
     #   pylint-django
 pylint==2.8.3
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   edx-lint
     #   pylint-celery
     #   pylint-django
     #   pylint-plugin-utils
 pymongo==3.11.4
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   edx-opaque-keys
 pyparsing==2.4.7
     # via
-    #   -r test.txt
-    #   -r tox.txt
+    #   -r requirements/test.txt
+    #   -r requirements/tox.txt
     #   packaging
 python-dateutil==2.8.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   botocore
     #   xblock
 python-slugify==5.0.2
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   code-annotations
 pytz==2021.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   django
     #   fs
     #   xblock
 pyyaml==5.4.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   code-annotations
     #   xblock
 readme-renderer==29.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   twine
 requests-toolbelt==0.9.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   twine
 requests==2.25.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   coveralls
     #   pyjwkest
     #   requests-toolbelt
     #   twine
 rfc3986==1.5.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   twine
 s3transfer==0.4.2
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   boto3
 secretstorage==3.3.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   keyring
 simplejson==3.17.2
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   xblock-utils
 six==1.16.0
     # via
-    #   -r test.txt
-    #   -r tox.txt
+    #   -r requirements/test.txt
+    #   -r requirements/tox.txt
     #   bleach
     #   edx-lint
     #   fs
     #   fs-s3fs
-    #   mock
     #   pyjwkest
     #   python-dateutil
     #   readme-renderer
-    #   stevedore
     #   tox
     #   virtualenv
 sqlparse==0.4.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   django
-stevedore==1.32.0
+stevedore==3.3.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   code-annotations
     #   edx-opaque-keys
 text-unidecode==1.3
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   python-slugify
 toml==0.10.2
     # via
-    #   -r test.txt
-    #   -r tox.txt
+    #   -r requirements/test.txt
+    #   -r requirements/tox.txt
     #   pylint
     #   tox
 tox==3.23.1
-    # via -r tox.txt
+    # via -r requirements/tox.txt
 tqdm==4.61.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   twine
 twine==3.4.1
-    # via -r test.txt
+    # via -r requirements/test.txt
 urllib3==1.26.5
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   botocore
     #   requests
 virtualenv==20.4.7
     # via
-    #   -r tox.txt
+    #   -r requirements/tox.txt
     #   tox
 web-fragments==1.0.0
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   xblock
     #   xblock-utils
 webencodings==0.5.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   bleach
 webob==1.8.7
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   xblock
 wrapt==1.12.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   astroid
 xblock-sdk==0.3.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 xblock-utils==2.1.3
-    # via -r test.txt
+    # via -r requirements/test.txt
 xblock==1.4.2
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   xblock-utils
-zipp==1.1.1
+zipp==3.4.1
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
