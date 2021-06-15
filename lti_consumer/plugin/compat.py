@@ -1,8 +1,17 @@
 """
 Compatibility layer to isolate core-platform method calls from implementation.
 """
+import logging
+from typing import Callable
+
 from django.core.exceptions import ValidationError
+from django.forms import ModelForm
+from opaque_keys.edx.keys import CourseKey
+
 from lti_consumer.exceptions import LtiError
+
+
+log = logging.getLogger(__name__)
 
 
 # Waffle flags configuration
@@ -185,3 +194,25 @@ def get_lti_pii_course_waffle_flag():
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
     return CourseWaffleFlag(WAFFLE_NAMESPACE, LTI_NRPS_TRANSMIT_PII, __name__)
+
+
+def request_cached(func) -> Callable[[Callable], Callable]:
+    """
+    Import the `request_cached` decorator from LMS and apply it if available.
+    """
+    try:
+        # pylint: disable=import-outside-toplevel
+        from openedx.core.lib.cache_utils import request_cached as lms_request_cached
+        return lms_request_cached(func)
+    except ImportError:
+        log.warning("Unable to import `request_cached`. This is normal if running tests.")
+        return func
+
+
+def clean_course_id(model_form: ModelForm) -> CourseKey:
+    """
+    Import and run `clean_course_id` from LMS
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.lib.courses import clean_course_id as lms_clean_course_id
+    return lms_clean_course_id(model_form)
