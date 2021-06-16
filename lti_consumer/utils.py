@@ -2,7 +2,6 @@
 Utility functions for LTI Consumer block
 """
 from django.conf import settings
-from lti_consumer.plugin.compat import get_lti_pii_course_waffle_flag
 
 
 def _(text):
@@ -10,17 +9,6 @@ def _(text):
     Make '_' a no-op so we can scrape strings
     """
     return text
-
-
-def expose_pii_fields(course_key):
-    """
-    Returns `true` if Use's PII fields can be exposed to LTI endpoints
-    for given course key. ex - LTI-NRPS Context Membership Endpoint.
-
-    Args:
-        course_key
-    """
-    return get_lti_pii_course_waffle_flag().is_enabled(course_key)
 
 
 def get_lms_base():

@@ -17,7 +17,7 @@ from opaque_keys.edx.locator import CourseLocator
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import (
-    CourseEditLTIFieldsEnabledFlag,
+    CourseAllowPIISharingInLTIFlag,
     LtiAgsLineItem,
     LtiAgsScore,
     LtiConfiguration,
@@ -371,7 +371,7 @@ def lti_consumer_fields_editing_flag(course_id, enabled_for_course=False):
         enabled_for_course (bool): whether feature is enabled for 'course_id'
     """
     RequestCache.clear_all_namespaces()
-    CourseEditLTIFieldsEnabledFlag.objects.create(course_id=course_id, enabled=enabled_for_course)
+    CourseAllowPIISharingInLTIFlag.objects.create(course_id=course_id, enabled=enabled_for_course)
     yield
 
 
@@ -403,7 +403,7 @@ class TestLTIConsumerHideFieldsFlag(TestCase):
             course_id=self.course_id,
             enabled_for_course=enabled_for_course
         ):
-            feature_enabled = CourseEditLTIFieldsEnabledFlag.lti_access_to_learners_editable(
+            feature_enabled = CourseAllowPIISharingInLTIFlag.lti_access_to_learners_editable(
                 self.course_id,
                 is_already_sharing_learner_info,
             )
@@ -418,11 +418,11 @@ class TestLTIConsumerHideFieldsFlag(TestCase):
         This tests the backward compatibility which currently is: if an existing course run is already
         sharing learner information then this feature should be enabled for that course run by default.
         """
-        feature_enabled = CourseEditLTIFieldsEnabledFlag.lti_access_to_learners_editable(
+        feature_enabled = CourseAllowPIISharingInLTIFlag.lti_access_to_learners_editable(
             self.course_id,
             is_already_sharing_learner_info,
         )
-        feature_flag_created = CourseEditLTIFieldsEnabledFlag.objects.filter(course_id=self.course_id).exists()
+        feature_flag_created = CourseAllowPIISharingInLTIFlag.objects.filter(course_id=self.course_id).exists()
         self.assertEqual(feature_flag_created, is_already_sharing_learner_info)
         self.assertEqual(feature_enabled, is_already_sharing_learner_info)
 
@@ -434,10 +434,10 @@ class TestLTIConsumerHideFieldsFlag(TestCase):
             course_id=self.course_id,
             enabled_for_course=True
         ):
-            self.assertTrue(CourseEditLTIFieldsEnabledFlag.lti_access_to_learners_editable(self.course_id, False))
+            self.assertTrue(CourseAllowPIISharingInLTIFlag.lti_access_to_learners_editable(self.course_id, False))
 
         with lti_consumer_fields_editing_flag(
             course_id=self.course_id,
             enabled_for_course=False
         ):
-            self.assertFalse(CourseEditLTIFieldsEnabledFlag.lti_access_to_learners_editable(self.course_id, False))
+            self.assertFalse(CourseAllowPIISharingInLTIFlag.lti_access_to_learners_editable(self.course_id, False))
