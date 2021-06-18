@@ -16,9 +16,9 @@ bleach==3.3.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.17.93
+boto3==1.17.97
     # via fs-s3fs
-botocore==1.20.93
+botocore==1.20.97
     # via
     #   boto3
     #   s3transfer
