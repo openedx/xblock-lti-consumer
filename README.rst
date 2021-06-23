@@ -318,6 +318,12 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+3.0.1 - 2021-07-09
+-------------------
+
+* Added multi device support on student_view for mobile.
+
+
 3.0.0 - 2021-06-16
 -------------------
 
