@@ -64,7 +64,7 @@ markupsafe==2.0.1
     # via
     #   mako
     #   xblock
-newrelic==6.4.1.158
+newrelic==6.4.3.160
     # via edx-django-utils
 oauthlib==3.1.1
     # via -r requirements/base.in
