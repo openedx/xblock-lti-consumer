@@ -16,9 +16,9 @@ bleach==3.3.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.17.97
+boto3==1.17.100
     # via fs-s3fs
-botocore==1.20.97
+botocore==1.20.100
     # via
     #   boto3
     #   s3transfer
@@ -120,7 +120,7 @@ importlib-metadata==4.5.0
     # via
     #   keyring
     #   twine
-isort==5.8.0
+isort==5.9.1
     # via pylint
 jeepney==0.6.0
     # via
@@ -160,7 +160,7 @@ mccabe==0.6.1
     # via pylint
 mock==4.0.3
     # via -r requirements/test.in
-newrelic==6.4.1.158
+newrelic==6.4.3.160
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
