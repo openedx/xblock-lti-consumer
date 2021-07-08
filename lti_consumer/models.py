@@ -11,6 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 from Cryptodome.PublicKey import RSA
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
+from opaque_keys.edx.keys import CourseKey
 from config_models.models import ConfigurationModel
 
 # LTI 1.1
@@ -329,6 +330,22 @@ class LtiConfiguration(models.Model):
 
         return self._get_lti_1p1_consumer()
 
+    @property
+    def pii_share_username(self):
+        return self.lti_config.get('pii_share_username', False)  # pylint: disable=no-member
+
+    @pii_share_username.setter
+    def pii_share_username(self, value):
+        self.lti_config['pii_share_username'] = value  # pylint: disable=unsupported-assignment-operation
+
+    @property
+    def pii_share_email(self):
+        return self.lti_config.get('pii_share_email', False)  # pylint: disable=no-member
+
+    @pii_share_email.setter
+    def pii_share_email(self, value):
+        self.lti_config['pii_share_email'] = value  # pylint: disable=unsupported-assignment-operation
+
     def __str__(self):
         return f"[{self.config_store}] {self.version} - {self.location}"
 
@@ -535,10 +552,14 @@ class LtiDlContentItem(models.Model):
         app_label = 'lti_consumer'
 
 
-class CourseEditLTIFieldsEnabledFlag(ConfigurationModel):
+class CourseAllowPIISharingInLTIFlag(ConfigurationModel):
     """
-    Enables the editing of "request username" and "request email" fields
-    of LTI consumer for a specific course.
+    Enables the sharing of PII via LTI for the specific course.
+
+    Depending on where it's used, further action might be needed to actually
+    enable sharing PII. For instance, in the LTI XBlock setting this flag
+    will allow editing the "request username" and "request email" fields, which
+    will also need to be set to actually share PII.
 
     .. no_pii:
     """
@@ -548,7 +569,7 @@ class CourseEditLTIFieldsEnabledFlag(ConfigurationModel):
 
     @classmethod
     @request_cached
-    def lti_access_to_learners_editable(cls, course_id, is_already_sharing_learner_info):
+    def lti_access_to_learners_editable(cls, course_id: CourseKey, is_already_sharing_learner_info: bool) -> bool:
         """
         Looks at the currently active configuration model to determine whether
         the feature that enables editing of "request username" and "request email"
@@ -563,13 +584,13 @@ class CourseEditLTIFieldsEnabledFlag(ConfigurationModel):
             is_already_sharing_learner_info (bool): indicates whether LTI consumer is
             already sharing edX learner username/email.
         """
-        course_specific_config = (CourseEditLTIFieldsEnabledFlag.objects
+        course_specific_config = (CourseAllowPIISharingInLTIFlag.objects
                                   .filter(course_id=course_id)
                                   .order_by('-change_date')
                                   .first())
 
         if is_already_sharing_learner_info and not course_specific_config:
-            CourseEditLTIFieldsEnabledFlag.objects.create(course_id=course_id, enabled=True)
+            CourseAllowPIISharingInLTIFlag.objects.create(course_id=course_id, enabled=True)
             return True
 
         return course_specific_config.enabled if course_specific_config else False

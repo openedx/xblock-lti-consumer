@@ -14,24 +14,6 @@ from lti_consumer.exceptions import LtiError
 log = logging.getLogger(__name__)
 
 
-# Waffle flags configuration
-
-# Namespace
-WAFFLE_NAMESPACE = 'lti_consumer'
-
-# Course Waffle Flags
-# .. toggle_name: lti_consumer.lti_nrps_transmit_pii
-# .. toggle_implementation: CourseWaffleFlag
-# .. toggle_default: False
-# .. toggle_description: When enabled, the LTI NRPS endpoint will include learner PII
-#    in the response (username, email, etc).
-# .. toggle_use_cases: open_edx
-# .. toggle_creation_date: 2021-06-03
-# .. toggle_tickets: TNL-7974, https://github.com/edx/xblock-lti-consumer/pull/124
-# .. toggle_warnings: None.
-LTI_NRPS_TRANSMIT_PII = 'lti_nrps_transmit_pii'
-
-
 def run_xblock_handler(*args, **kwargs):
     """
     Import and run `handle_xblock_callback` from LMS
@@ -185,15 +167,6 @@ def get_course_members(course_key):
         return core_get_course_members(course_key)
     except OverEnrollmentLimitException as ex:
         raise LtiError('NRPS is not available for {}'.format(course_key)) from ex
-
-
-def get_lti_pii_course_waffle_flag():
-    """
-    Returns Course Waffle Flag Override for PII information exposure.
-    """
-    # pylint: disable=import-error,import-outside-toplevel
-    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
-    return CourseWaffleFlag(WAFFLE_NAMESPACE, LTI_NRPS_TRANSMIT_PII, __name__)
 
 
 def request_cached(func) -> Callable[[Callable], Callable]:

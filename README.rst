@@ -318,9 +318,21 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
+3.0.0 - 2021-06-16
+-------------------
+
+* Rename `CourseEditLTIFieldsEnabledFlag` to `CourseAllowPIISharingInLTIFlag`
+  to highlight its increased scope.
+* Use `CourseAllowPIISharingInLTIFlag` for LTI1.3 in lieu of the current
+  `CourseWaffleFlag`.
+
+
 2.11.0 - 2021-06-10
 -------------------
 
+* NOTE: This release requires a corresponding change in edx-platform that was
+  implemented in https://github.com/edx/edx-platform/pull/27529
+  As such, this release cannot be installed in releases before Maple.
 * Move ``CourseEditLTIFieldsEnabledFlag`` from ``edx-platform`` to this repo
   while retaining data from existing model.
 

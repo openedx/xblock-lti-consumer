@@ -19,6 +19,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.status import HTTP_403_FORBIDDEN
 
+from lti_consumer.api import get_lti_pii_sharing_state_for_course
 from lti_consumer.exceptions import LtiError
 from lti_consumer.models import (
     LtiConfiguration,
@@ -56,7 +57,7 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
 from lti_consumer.plugin import compat
-from lti_consumer.utils import _, expose_pii_fields
+from lti_consumer.utils import _
 
 
 log = logging.getLogger(__name__)
@@ -464,7 +465,7 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         Overrides ModelViewSet's `get_serializer_class` method.
         Checks if PII fields can be exposed and returns appropiate serializer.
         """
-        if expose_pii_fields(self.request.lti_configuration.location.course_key):
+        if get_lti_pii_sharing_state_for_course(self.request.lti_configuration.location.course_key):
             return LtiNrpsContextMembershipPIISerializer
         else:
             return LtiNrpsContextMembershipBasicSerializer

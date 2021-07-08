@@ -49,7 +49,7 @@ with open('README.rst') as _f:
 
 setup(
     name='lti-consumer-xblock',
-    version='2.11.0',
+    version='3.0.0',
     author='Open edX project',
     author_email='oscm@edx.org',
     description='This XBlock implements the consumer side of the LTI specification.',

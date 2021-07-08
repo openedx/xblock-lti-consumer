@@ -7,8 +7,10 @@ return plaintext to allow easy testing/mocking.
 
 import json
 
+from opaque_keys.edx.keys import CourseKey
+
 from .exceptions import LtiError
-from .models import LtiConfiguration, LtiDlContentItem
+from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
 from .utils import (
     get_lti_deeplinking_content_url,
     get_lms_lti_keyset_link,
@@ -189,7 +191,20 @@ def get_deep_linking_data(deep_linking_id, config_id=None, block=None):
     # Retrieve LTI Configuration
     lti_config = _get_lti_config(config_id, block)
     # Only filter DL content item from content item set in the same LTI configuration.
-    # This avoid a malicious user to input a random LTI id and perform LTI DL
-    # content launches outsite the scope of it's configuration.
+    # This avoids a malicious user to input a random LTI id and perform LTI DL
+    # content launches outside the scope of its configuration.
     content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_id)
     return content_item.attributes
+
+
+def get_lti_pii_sharing_state_for_course(course_key: CourseKey) -> bool:
+    """
+    Returns the status of PII sharing for the provided course.
+
+    Args:
+        course_key (CourseKey): Course key for the course to check for PII sharing
+
+    Returns:
+        bool: The state of PII sharing for this course for LTI.
+    """
+    return CourseAllowPIISharingInLTIFlag.current(course_key).enabled

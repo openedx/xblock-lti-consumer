@@ -1,7 +1,7 @@
 """
 Tests for LTI Names and Role Provisioning Service views.
 """
-from mock import patch, PropertyMock
+from mock import Mock, patch, PropertyMock
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
@@ -226,12 +226,12 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         response = self.client.get(self.context_membership_endpoint)
         self.assertEqual(response.status_code, 403)
 
-    @patch('lti_consumer.plugin.views.expose_pii_fields', return_value=False)
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
     @patch(
         'lti_consumer.plugin.views.compat.get_course_members',
-        side_effect=patch_get_memberships()
+        Mock(side_effect=patch_get_memberships()),
     )
-    def test_token_with_correct_scope(self, get_course_members_patcher, expose_pii_fields_patcher):  # pylint: disable=unused-argument
+    def test_token_with_correct_scope(self):
         """
         Test if context membership returns correct response when token has correct scope
         """
@@ -240,14 +240,14 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['content-type'], 'application/vnd.ims.lti-nrps.v2.membershipcontainer+json')
 
-    @patch('lti_consumer.plugin.views.expose_pii_fields', return_value=False)
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
     @patch(
         'lti_consumer.plugin.views.compat.get_course_members',
-        side_effect=patch_get_memberships({
+        Mock(side_effect=patch_get_memberships({
             'student': 4
-        })
+        })),
     )
-    def test_get_without_pii(self, get_course_members_patcher, expose_pii_fields_patcher):  # pylint: disable=unused-argument
+    def test_get_without_pii(self, expose_pii_fields_patcher):
         """
         Test context membership endpoint response structure with PII not exposed.
         """
@@ -267,14 +267,14 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         self.assertNotIn('email', member_fields)
         self.assertNotIn('name', member_fields)
 
-    @patch('lti_consumer.plugin.views.expose_pii_fields', return_value=True)
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=True)
     @patch(
         'lti_consumer.plugin.views.compat.get_course_members',
-        side_effect=patch_get_memberships({
+        Mock(side_effect=patch_get_memberships({
             'student': 4
-        })
+        })),
     )
-    def test_get_with_pii(self, get_course_members_patcher, expose_pii_fields_patcher):  # pylint: disable=unused-argument
+    def test_get_with_pii(self, expose_pii_fields_patcher):
         """
         Test context membership endpoint response structure with PII exposed.
         """
@@ -295,14 +295,14 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         self.assertIn('email', member_fields)
         self.assertIn('name', member_fields)
 
-    @patch('lti_consumer.plugin.views.expose_pii_fields', return_value=False)
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
     @patch(
         'lti_consumer.plugin.views.compat.get_course_members',
-        side_effect=patch_get_memberships({
+        Mock(side_effect=patch_get_memberships({
             'exception': True
-        })
+        })),
     )
-    def test_enrollment_limit_gate(self, get_course_members_patcher, expose_pii_fields_patcher):  # pylint: disable=unused-argument
+    def test_enrollment_limit_gate(self):
         """
         Test if number of enrolled user is larger than the limit, api returns 404 response.
         """
