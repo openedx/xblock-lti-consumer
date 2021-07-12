@@ -937,6 +937,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment.initialize_js('LtiConsumerXBlock')
         return fragment
 
+    @XBlock.supports("multi_device")
     def student_view(self, context):
         """
         XBlock student view of this component.
