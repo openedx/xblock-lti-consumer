@@ -21,7 +21,7 @@ django==2.2.24
     #   django-filter
     #   djangorestframework
     #   edx-django-utils
-    #   jsonfield2
+    #   jsonfield
 django-config-models==2.2.0
     # via
     #   -c requirements/constraints.txt
@@ -46,10 +46,8 @@ future==0.18.2
     # via pyjwkest
 idna==3.2
     # via requests
-jsonfield2==3.0.3
-    # via
-    #   -c requirements/constraints.txt
-    #   -r requirements/base.in
+jsonfield==3.1.0
+    # via -r requirements/base.in
 lazy==1.4
     # via -r requirements/base.in
 lxml==4.6.3

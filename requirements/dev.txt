@@ -27,7 +27,7 @@ django==2.2.24
     #   djangorestframework
     #   edx-django-utils
     #   edx-i18n-tools
-    #   jsonfield2
+    #   jsonfield
 django-config-models==2.2.0
     # via -r requirements/base.txt
 django-crum==0.7.9
@@ -64,7 +64,7 @@ idna==3.2
     # via
     #   -r requirements/base.txt
     #   requests
-jsonfield2==3.0.3
+jsonfield==3.1.0
     # via -r requirements/base.txt
 lazy==1.4
     # via -r requirements/base.txt
