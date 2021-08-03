@@ -10,5 +10,6 @@ locales:
   - ja_JP  # Japanese (Japan)
   - ko_KR  # Korean (Korea)
   - pt_BR  # Portuguese (Brazil)
+  - pt_PT  # Portuguese (Portugal)
   - ru  # Russian
   - zh_CN  # Chinese (China)
