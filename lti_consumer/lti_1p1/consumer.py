@@ -146,6 +146,9 @@ class LtiConsumer1p1:
         self.lti_launch_presentation_locale = None
         self.lti_custom_parameters = None
 
+        # Extra claims - used for custom parameter processors
+        self.extra_claims = {}
+
     def set_user_data(
             self,
             user_id,
@@ -241,6 +244,14 @@ class LtiConsumer1p1:
 
         self.lti_custom_parameters = custom_parameters
 
+    def set_extra_claims(self, claim):
+        """
+        Updates launch extra claims using python's dict .update method
+        """
+        if not isinstance(claim, dict):
+            raise ValueError('Invalid extra claim: {!r} is not a dict.'.format(claim))
+        self.extra_claims.update(claim)
+
     def generate_launch_request(self, resource_link_id):
         """
         Signs LTI launch request and returns signature and OAuth parameters.
@@ -287,6 +298,10 @@ class LtiConsumer1p1:
         # Appending custom parameter for signing.
         if self.lti_custom_parameters:
             lti_parameters.update(self.lti_custom_parameters)
+
+        # Extra claims - from custom parameter processors
+        if self.extra_claims:
+            lti_parameters.update(self.extra_claims)
 
         headers = {
             # This is needed for body encoding:
