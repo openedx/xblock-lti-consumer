@@ -1009,6 +1009,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         lti_consumer.set_custom_parameters(self.prefixed_custom_parameters)
 
+        for processor in self.get_parameter_processors():
+            try:
+                default_params = getattr(processor, 'lti_xblock_default_params', {})
+                lti_consumer.set_extra_claims(default_params)
+                lti_consumer.set_extra_claims(processor(self) or {})
+            except Exception:  # pylint: disable=broad-except
+                # Log the error without causing a 500-error.
+                # Useful for catching casual runtime errors in the processors.
+                log.exception('Error in XBlock LTI parameter processor "%s"', processor)
+
         lti_parameters = lti_consumer.generate_launch_request(self.resource_link_id)
         loader = ResourceLoader(__name__)
         context = self._get_context_for_template()
