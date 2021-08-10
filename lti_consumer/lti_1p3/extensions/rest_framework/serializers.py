@@ -19,12 +19,11 @@ class UsageKeyField(serializers.Field):
     from the platform like so:
     `from openedx.core.lib.api.serializers import UsageKeyField`
     """
-    # pylint: disable=arguments-differ
-    def to_representation(self, data):
+    def to_representation(self, value):
         """
         Convert a usage key to unicode.
         """
-        return str(data)
+        return str(value)
 
     def to_internal_value(self, data):
         """

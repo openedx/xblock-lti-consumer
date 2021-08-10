@@ -88,7 +88,6 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
             "iss": "https://example.com",
             "scopes": scopes,
         })
-        # pylint: disable=no-member
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Bearer {token}"
         )
@@ -123,7 +122,7 @@ class LtiAgsViewSetTokenTests(LtiAgsLineItemViewSetTestCase):
         """
         Test the LTI AGS list view when there's an invalid token.
         """
-        self.client.credentials(HTTP_AUTHORIZATION=authorization)  # pylint: disable=no-member
+        self.client.credentials(HTTP_AUTHORIZATION=authorization)
         response = self.client.get(self.lineitem_endpoint)
 
         self.assertEqual(response.status_code, 403)
