@@ -181,7 +181,6 @@ class LtiNrpsTestCase(APITransactionTestCase):
             "iss": "https://example.com",
             "scopes": scopes,
         })
-        # pylint: disable=no-member
         self.client.credentials(
             HTTP_AUTHORIZATION="Bearer {}".format(token)
         )
