@@ -146,7 +146,8 @@ class LtiConsumer1p3:
 
     def set_launch_presentation_claim(
             self,
-            document_target="iframe"
+            document_target="iframe",
+            **other_claims
     ):
         """
         Optional: Set launch presentation claims
@@ -161,6 +162,7 @@ class LtiConsumer1p3:
             "https://purl.imsglobal.org/spec/lti/claim/launch_presentation": {
                 # Can be one of: iframe, frame, window
                 "document_target": document_target,
+                **other_claims,
                 # TODO: Add support for `return_url` handler to allow the tool
                 # to return error messages back to the lms.
                 # See the spec referenced above for more information.
