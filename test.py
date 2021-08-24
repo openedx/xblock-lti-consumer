@@ -4,7 +4,9 @@ Run tests for the LTI Consumer XBlock
 """
 
 import os
+import logging
 import sys
+import warnings
 
 if __name__ == '__main__':
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'test_settings')
@@ -27,6 +29,12 @@ if __name__ == '__main__':
         raise
 
     settings.INSTALLED_APPS += ('lti_consumer',)
+
+    # Suppress logging: it just clutters the test output with error logs that are expected.
+    logging.disable(logging.CRITICAL)
+
+    # Suppress a warning from XBlock: "IdGenerator will be required in the future in order to support XBlockAsides"
+    warnings.filterwarnings("ignore", category=FutureWarning, message=r"IdGenerator will be required.*")
 
     arguments = sys.argv[1:]
     options = [argument for argument in arguments if argument.startswith('-')]
