@@ -22,3 +22,5 @@ venv/
 
 # pyenv
 .python-version
+
+.tox
