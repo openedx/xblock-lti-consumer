@@ -1,12 +1,16 @@
 language: python
 sudo: false
+
+python:
+- '3.8'
+env:
+  - TOXENV=py38-django22
+  - TOXENV=quality
 install:
   - pip install -r requirements/travis.txt
+script:
+  - tox
 after_success: coveralls
-env:
-  global:
-    secure: AuuqhAgQEkI96lauuaWuRBXKKCIBJ8hKpc1YzA6lGJGIsIoU7sH9IqNBk3mAr8kMOgodFoI5zYLGJhEgc/tEvzsHpp7NWFXC0yhJQjgMHzi7JgFzhoRAFfEBOb08+dSfjNyvXP+ULegoKHpt8AkJ3konSSKavOWy0IPr42p7YsHnj1F8uOr7kXO+LZVPStFuWTS56HCO38Gxeq/rnfsNJadlffJu5AFitkxoMWrvML4D10fzsJSgcIUi8MLhueQ6z7gaD0SH9UDJicSU+7u6ERP5mqzuamdW0JgAOwGJLS3fTgDyIlnn8jqe2nsoZlHGLet80096lmfqkVK8RA52H+tbXM3m157pmrJO90eJXIfW10fliPizKG0aO3lX54Ebl0DCfo7J7/kwRcPbjw1REGVOwHCpkzUzWgsLug5brvgft7uHxMSTvFhzUhGCqUnad/T5gmR7wVvHCB+XIWAt/iMFGt6wMHyoYnvzq7tUA4GP9qaEZnGbyQi4JgzpCcfbtWniAumxzAyOJKMWp8/1D0xIRo4xP3yHy/uUb/GQQHwnxE5FVMbSs0LmL3zsdIhldhjwCXl9yGuIqhlfUNbCBguHQAAB2xlKu17RgBVyzWxY2POjF4pe0839ohUU8S9oYEhb+3ydk+Gni8X93CelwMTBwks08tkpl1xFtar0yao=
-
 deploy:
   provider: pypi
   user: edx
@@ -16,12 +20,3 @@ deploy:
     tags: true
   password:
     secure: DKlhHIFctJS9k/1sdlKfL34MwVIHxZn6QwrQ4/jMaiucNARP7MUoTEhd5wEN7wNMyafsYfkY960/dJuqgF6ztZzt7jYX+Nu9o0YEOM742f5hcqQcn/k2GrU2X5+hMgAVUL3YP4JlZwst4pRM1eRlzXgsoxqCET84V2biS1d04ivJgKO5T9NNHTeIQDRDpSpUVuloY1qVMS6IFewLjL6XZuCYtCBXBcBN29EDFvy8v683JAZyz332Xr8R0yF/u09XFKnW+migeiT9gWNafIKXgDAidr0gbkF4r71OdGCUxhCwa+/IHnAYCptajzd4QUd2gj5yOccbVhtUondK3DSA6NaAHdwFjmU7XS5XouDlMS83wyTbqGlEXj9dEuY6lq/UXeUjvfmbqUc1W5qi7eKGxY2qZ1+3HucnCVlPbzgEVMxnPN/YtPe59SSay60gFD7KyZfxxavLsuhSFM4+aZ/hyW9pI1vu+k9UuVVEw9QisUORHHg5YYC75BsVXI5kkhXAF7F880cFlV+DPEt7mwM0xsAPcbyStmmJ+7sXkoI6bWF+QsveqgY4SPYD14bZ8v3PK4b5UzrQOHSEpa1NNrm7942lnkySoC5Rm6YIShnLdJ+Gdf8wb4RezqnhmZcKVc/9QXQcUga+nj5CRUb9wFVncmak2tf8aAvfqeML8pHzkrs=
-
-jobs:
-  include:
-    - name: Python 3.8 - Tests
-      script: make test
-      python: '3.8'
-    - name: Code Quality
-      script: make quality
-      python: '3.8'
