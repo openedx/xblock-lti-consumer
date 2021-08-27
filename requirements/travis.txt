@@ -8,7 +8,7 @@ appdirs==1.4.4
     # via
     #   -r requirements/test.txt
     #   fs
-astroid==2.6.6
+astroid==2.7.2
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -17,15 +17,15 @@ backports.entry-points-selectable==1.1.0
     # via
     #   -r requirements/tox.txt
     #   virtualenv
-bleach==4.0.0
+bleach==4.1.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.18.15
+boto3==1.18.30
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.21.15
+botocore==1.21.30
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -66,7 +66,7 @@ coverage==5.5
     #   coveralls
 coveralls==3.2.0
     # via -r requirements/test.txt
-cryptography==3.4.7
+cryptography==3.4.8
     # via
     #   -r requirements/test.txt
     #   secretstorage
@@ -118,7 +118,7 @@ docutils==0.17.1
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-edx-django-utils==4.2.0
+edx-django-utils==4.3.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
@@ -149,7 +149,7 @@ idna==3.2
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==4.6.3
+importlib-metadata==4.7.1
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -176,7 +176,7 @@ jsonfield2==3.0.3
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/test.txt
-keyring==23.0.1
+keyring==23.1.0
     # via
     #   -r requirements/test.txt
     #   twine
@@ -190,7 +190,7 @@ lxml==4.6.3
     # via
     #   -r requirements/test.txt
     #   xblock
-mako==1.1.4
+mako==1.1.5
     # via
     #   -r requirements/test.txt
     #   xblock-utils
@@ -206,7 +206,7 @@ mccabe==0.6.1
     #   pylint
 mock==4.0.3
     # via -r requirements/test.txt
-newrelic==6.8.0.163
+newrelic==6.8.1.164
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -228,9 +228,11 @@ pkginfo==1.7.1
     #   twine
 platformdirs==2.2.0
     # via
+    #   -r requirements/test.txt
     #   -r requirements/tox.txt
+    #   pylint
     #   virtualenv
-pluggy==0.13.1
+pluggy==1.0.0
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -252,13 +254,13 @@ pycryptodomex==3.10.1
     # via
     #   -r requirements/test.txt
     #   pyjwkest
-pygments==2.9.0
+pygments==2.10.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.9.6
+pylint==2.10.2
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -334,7 +336,7 @@ secretstorage==3.3.1
     # via
     #   -r requirements/test.txt
     #   keyring
-simplejson==3.17.3
+simplejson==3.17.5
     # via
     #   -r requirements/test.txt
     #   xblock-utils
@@ -355,7 +357,7 @@ sqlparse==0.4.1
     # via
     #   -r requirements/test.txt
     #   django
-stevedore==3.3.0
+stevedore==3.4.0
     # via
     #   -r requirements/test.txt
     #   code-annotations
@@ -371,9 +373,9 @@ toml==0.10.2
     #   -r requirements/tox.txt
     #   pylint
     #   tox
-tox==3.24.1
+tox==3.24.3
     # via -r requirements/tox.txt
-tqdm==4.62.0
+tqdm==4.62.2
     # via
     #   -r requirements/test.txt
     #   twine
@@ -384,7 +386,7 @@ urllib3==1.26.6
     #   -r requirements/test.txt
     #   botocore
     #   requests
-virtualenv==20.7.0
+virtualenv==20.7.2
     # via
     #   -r requirements/tox.txt
     #   tox
