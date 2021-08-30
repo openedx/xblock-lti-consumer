@@ -20,3 +20,7 @@ FEATURES = {}
 REST_FRAMEWORK = {
     'PAGE_SIZE': 10
 }
+
+DEFAULT_HASHING_ALGORITHM = "sha1"
+
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"

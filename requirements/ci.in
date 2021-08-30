@@ -1,0 +1,5 @@
+# Requirements for running tests in Github Actions
+-c constraints.txt
+
+-r test.txt
+-r tox.txt

@@ -435,8 +435,8 @@ Changelog
 * LTI 1.3 support.
 
 
-.. |Build Status| image:: https://travis-ci.com/edx/xblock-lti-consumer.svg
-  :target: https://travis-ci.com/edx/xblock-lti-consumer
+.. |Build Status| image:: https://github.com/edx/xblock-lti-consumer/workflows/Python%20CI/badge.svg?branch=master
+  :target: https://github.com/edx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
 
 .. |Coveralls| image:: https://coveralls.io/repos/edx/xblock-lti-consumer/badge.svg?branch=master&service=github
   :target: https://coveralls.io/github/edx/xblock-lti-consumer?branch=master
