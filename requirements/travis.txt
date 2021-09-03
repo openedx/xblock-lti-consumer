@@ -8,7 +8,7 @@ appdirs==1.4.4
     # via
     #   -r requirements/test.txt
     #   fs
-astroid==2.7.2
+astroid==2.7.3
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -21,11 +21,11 @@ bleach==4.1.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.18.30
+boto3==1.18.35
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.21.30
+botocore==1.21.35
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -86,7 +86,6 @@ django==2.2.24
     #   django-pyfs
     #   djangorestframework
     #   edx-django-utils
-    #   edx-lint
     #   jsonfield2
     #   xblock-sdk
 django-config-models==2.2.0
@@ -118,11 +117,11 @@ docutils==0.17.1
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-edx-django-utils==4.3.0
+edx-django-utils==4.4.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
-edx-lint==5.0.0
+edx-lint==5.1.0
     # via -r requirements/test.txt
 edx-opaque-keys[django]==2.2.2
     # via -r requirements/test.txt
@@ -149,7 +148,7 @@ idna==3.2
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==4.7.1
+importlib-metadata==4.8.1
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -226,7 +225,7 @@ pkginfo==1.7.1
     # via
     #   -r requirements/test.txt
     #   twine
-platformdirs==2.2.0
+platformdirs==2.3.0
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -407,7 +406,7 @@ wrapt==1.12.1
     # via
     #   -r requirements/test.txt
     #   astroid
-xblock==1.5.0
+xblock==1.5.1
     # via
     #   -r requirements/test.txt
     #   xblock-utils
