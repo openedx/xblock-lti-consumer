@@ -34,10 +34,6 @@ certifi==2021.5.30
     # via
     #   -r requirements/test.txt
     #   requests
-cffi==1.14.6
-    # via
-    #   -r requirements/test.txt
-    #   cryptography
 charset-normalizer==2.0.4
     # via
     #   -r requirements/test.txt
@@ -87,7 +83,7 @@ django==2.2.24
     #   djangorestframework
     #   edx-django-utils
     #   edx-lint
-    #   jsonfield2
+    #   jsonfield
     #   xblock-sdk
 django-config-models==2.2.0
     # via
@@ -149,7 +145,7 @@ idna==3.2
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==4.7.1
+importlib-metadata==4.6.3
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -158,11 +154,6 @@ isort==5.9.3
     # via
     #   -r requirements/test.txt
     #   pylint
-jeepney==0.7.1
-    # via
-    #   -r requirements/test.txt
-    #   keyring
-    #   secretstorage
 jinja2==3.0.1
     # via
     #   -r requirements/test.txt
@@ -172,10 +163,8 @@ jmespath==0.10.0
     #   -r requirements/test.txt
     #   boto3
     #   botocore
-jsonfield2==3.0.3
-    # via
-    #   -c requirements/constraints.txt
-    #   -r requirements/test.txt
+jsonfield==3.1.0
+    # via -r requirements/test.txt
 keyring==23.1.0
     # via
     #   -r requirements/test.txt
@@ -246,10 +235,6 @@ py==1.10.0
     #   tox
 pycodestyle==2.7.0
     # via -r requirements/test.txt
-pycparser==2.20
-    # via
-    #   -r requirements/test.txt
-    #   cffi
 pycryptodomex==3.10.1
     # via
     #   -r requirements/test.txt

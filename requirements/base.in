@@ -13,5 +13,5 @@ pycryptodomex
 pyjwkest
 edx-opaque-keys[django]
 django-filter
-jsonfield2
+jsonfield
 django-config-models         # Configuration models for Django allowing config management with auditing
