@@ -130,7 +130,7 @@ def public_keyset_endpoint(request, usage_id=None):
 
 
 @require_http_methods(["GET", "POST"])
-def launch_gate_endpoint(request, suffix):
+def launch_gate_endpoint(request, suffix=None):
     """
     Gate endpoint that triggers LTI launch endpoint XBlock handler
 

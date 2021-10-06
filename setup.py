@@ -49,7 +49,7 @@ with open('README.rst') as _f:
 
 setup(
     name='lti-consumer-xblock',
-    version='3.0.4',
+    version='3.1.0',
     author='Open edX project',
     author_email='oscm@edx.org',
     description='This XBlock implements the consumer side of the LTI specification.',
@@ -78,6 +78,9 @@ setup(
         'Development Status :: 5 - Production/Stable',
         'Framework :: Django',
         'Framework :: Django :: 2.2',
+        'Framework :: Django :: 3.0',
+        'Framework :: Django :: 3.1',
+        'Framework :: Django :: 3.2',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU Affero General Public License v3',
         'Natural Language :: English',

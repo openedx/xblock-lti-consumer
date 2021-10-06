@@ -21,11 +21,11 @@ bleach==4.1.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.18.30
+boto3==1.18.31
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.21.30
+botocore==1.21.31
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -62,10 +62,6 @@ coverage==5.5
     #   coveralls
 coveralls==3.2.0
     # via -r requirements/test.txt
-cryptography==3.4.8
-    # via
-    #   -r requirements/test.txt
-    #   secretstorage
 ddt==1.4.2
     # via -r requirements/test.txt
 distlib==0.3.2
@@ -145,7 +141,7 @@ idna==3.2
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==4.6.3
+importlib-metadata==4.8.1
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -317,10 +313,6 @@ s3transfer==0.5.0
     # via
     #   -r requirements/test.txt
     #   boto3
-secretstorage==3.3.1
-    # via
-    #   -r requirements/test.txt
-    #   keyring
 simplejson==3.17.5
     # via
     #   -r requirements/test.txt
