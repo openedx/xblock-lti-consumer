@@ -332,19 +332,19 @@ class LtiConfiguration(models.Model):
 
     @property
     def pii_share_username(self):
-        return self.lti_config.get('pii_share_username', False)
+        return self.lti_config.get('pii_share_username', False)     # pylint: disable=no-member
 
     @pii_share_username.setter
     def pii_share_username(self, value):
-        self.lti_config['pii_share_username'] = value
+        self.lti_config['pii_share_username'] = value               # pylint: disable=unsupported-assignment-operation
 
     @property
     def pii_share_email(self):
-        return self.lti_config.get('pii_share_email', False)
+        return self.lti_config.get('pii_share_email', False)        # pylint: disable=no-member
 
     @pii_share_email.setter
     def pii_share_email(self, value):
-        self.lti_config['pii_share_email'] = value
+        self.lti_config['pii_share_email'] = value                  # pylint: disable=unsupported-assignment-operation
 
     def __str__(self):
         return f"[{self.config_store}] {self.version} - {self.location}"
