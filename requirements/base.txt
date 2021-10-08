@@ -10,7 +10,7 @@ bleach==4.1.0
     # via -r requirements/base.in
 certifi==2021.5.30
     # via requests
-charset-normalizer==2.0.4
+charset-normalizer==2.0.6
     # via requests
 django==2.2.24
     # via
@@ -28,7 +28,7 @@ django-config-models==2.2.0
     #   -r requirements/base.in
 django-crum==0.7.9
     # via edx-django-utils
-django-filter==2.4.0
+django-filter==21.1
     # via -r requirements/base.in
 django-waffle==2.2.1
     # via edx-django-utils
@@ -36,7 +36,7 @@ djangorestframework==3.12.4
     # via
     #   -c requirements/constraints.txt
     #   django-config-models
-edx-django-utils==4.3.0
+edx-django-utils==4.4.0
     # via django-config-models
 edx-opaque-keys[django]==2.2.2
     # via -r requirements/base.in
@@ -62,7 +62,7 @@ markupsafe==2.0.1
     # via
     #   mako
     #   xblock
-newrelic==6.8.1.164
+newrelic==7.0.0.166
     # via edx-django-utils
 oauthlib==3.1.1
     # via -r requirements/base.in
@@ -72,7 +72,7 @@ pbr==5.6.0
     # via stevedore
 psutil==5.8.0
     # via edx-django-utils
-pycryptodomex==3.10.1
+pycryptodomex==3.10.4
     # via
     #   -r requirements/base.in
     #   pyjwkest
@@ -84,7 +84,7 @@ pyparsing==2.4.7
     # via packaging
 python-dateutil==2.8.2
     # via xblock
-pytz==2021.1
+pytz==2021.3
     # via
     #   django
     #   fs
@@ -101,13 +101,13 @@ six==1.16.0
     #   fs
     #   pyjwkest
     #   python-dateutil
-sqlparse==0.4.1
+sqlparse==0.4.2
     # via django
 stevedore==3.4.0
     # via
     #   edx-django-utils
     #   edx-opaque-keys
-urllib3==1.26.6
+urllib3==1.26.7
     # via requests
 web-fragments==1.1.0
     # via
@@ -117,7 +117,7 @@ webencodings==0.5.1
     # via bleach
 webob==1.8.7
     # via xblock
-xblock==1.5.0
+xblock==1.5.1
     # via
     #   -r requirements/base.in
     #   xblock-utils
