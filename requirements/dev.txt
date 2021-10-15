@@ -10,11 +10,11 @@ appdirs==1.4.4
     #   fs
 bleach==4.1.0
     # via -r requirements/base.txt
-certifi==2021.5.30
+certifi==2021.10.8
     # via
     #   -r requirements/base.txt
     #   requests
-charset-normalizer==2.0.6
+charset-normalizer==2.0.7
     # via
     #   -r requirements/base.txt
     #   requests
@@ -60,7 +60,7 @@ future==0.18.2
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-idna==3.2
+idna==3.3
     # via
     #   -r requirements/base.txt
     #   requests
@@ -81,7 +81,7 @@ markupsafe==2.0.1
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==7.0.0.166
+newrelic==7.2.1.168
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -105,7 +105,7 @@ psutil==5.8.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-pycryptodomex==3.10.4
+pycryptodomex==3.11.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -129,7 +129,7 @@ pytz==2021.3
     #   django
     #   fs
     #   xblock
-pyyaml==5.4.1
+pyyaml==6.0
     # via
     #   -r requirements/base.txt
     #   edx-i18n-tools
