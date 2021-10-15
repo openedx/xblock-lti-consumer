@@ -89,6 +89,10 @@ class LtiConfiguration(models.Model):
         blank=True,
     )
 
+    reusable = models.BooleanField(
+        default=False,
+    )
+
     # This is where the configuration is stored in the model if stored on this model.
     lti_config = JSONField(
         null=False,

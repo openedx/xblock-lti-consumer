@@ -140,6 +140,17 @@ class LaunchTarget:
     NEW_WINDOW = LaunchTargetOption('New Window', 'new_window')
 
 
+def get_reusable_lti_configurations():
+    # Runtime import since this will only run in the
+    # Open edX LMS/Studio environments.
+    from lti_consumer.api import get_reusable_lti_1p1_configurations  # pylint: disable=import-outside-toplevel
+    return [
+        { "display_name": "New", "value": "new" },
+        *[{ "display_name": config.id, "value": str(config.id) }
+          for config in get_reusable_lti_1p1_configurations()],
+    ]
+
+
 @XBlock.needs('i18n')
 @XBlock.wants('user')
 @XBlock.wants('settings')
@@ -262,6 +273,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "<br />The XBlock LTI Consumer fully supports LTI 1.1.1, "
             "LTI 1.3 and LTI Advantage features."
         ),
+    )
+    lti_reuse = Boolean(
+        display_name="Reuse LTI Configuration",
+        scope=Scope.settings,
+    )
+    lti_reuseable = String(
+        display_name="Reuseable LTI Configurations",
+        scope=Scope.settings,
+        values=get_reusable_lti_configurations,
+        default="new",
     )
     lti_1p3_launch_url = String(
         display_name=_("Tool Launch URL"),
@@ -519,7 +540,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     editable_field_names = (
         'display_name', 'description',
         # LTI 1.3 variables
-        'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key', 'lti_1p3_enable_nrps',
+        'lti_version', 'lti_reuse', 'lti_reuseable', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key', 'lti_1p3_enable_nrps',
         # LTI Advantage variables
         'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
         'lti_advantage_ags_mode',
@@ -865,6 +886,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Open edX LMS/Studio environments.
         # pylint: disable=import-outside-toplevel
         from lti_consumer.api import get_lti_consumer
+
+        if self.lti_reuse and self.lti_reuseable:
+            return get_lti_consumer(config_id=self.lti_reuseable)
 
         return get_lti_consumer(block=self)
 
@@ -1290,6 +1314,25 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             content_type=LtiConsumer1p1.CONTENT_TYPE_RESULT_JSON,
         )
 
+    @XBlock.handler
+    def submit_studio_edits(self, request, suffix=''):
+        response = super().submit_studio_edits(request, suffix)
+
+        # Runtime import since this will only run in the
+        # Open edX LMS/Studio environments.
+        from lti_consumer.api import create_reusable_lti_1p1_configuration  # pylint: disable=import-outside-toplevel
+
+        if self.lti_version == "lti_1p1" and self.lti_reuse:
+            # if self.lti_config_id:
+            #     lti_config = self.get_lti_consumer(config_id=self.lti_config_id)
+            if self.lti_reuseable == "new":
+                lti_config = create_reusable_lti_1p1_configuration()
+                self.lti_reuseable = str(lti_config.id)
+                lti_config.lti_1p1_client_key, lti_config.lti_1p1_client_secret = self.lti_provider_key_secret
+                lti_config.lti_1p1_launch_url = self.launch_url
+                lti_config.save()
+        return response
+
     def _result_service_get(self, lti_consumer, user):
         """
         Helper request handler for GET requests to LTI 2.0 result endpoint
@@ -1427,6 +1470,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if self.lti_version == 'lti_1p1':
             # Set launch handler depending on LTI version
             lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
+            if self.lti_reuse and self.lti_reuseable:
+                lti_consumer = self._get_lti_consumer()
         else:
             # Runtime import since this will only run in the
             # Open edX LMS/Studio environments.
@@ -1439,7 +1484,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
 
         return {
-            'launch_url': self.launch_url.strip(),
+            'launch_url': lti_consumer.lti_launch_url if self.lti_version == 'lti_1p1' and self.lti_reuse and lti_consumer else self.launch_url.strip(),
             'lti_1p3_launch_url': self.lti_1p3_launch_url.strip(),
             'element_id': self.location.html_id(),  # pylint: disable=no-member
             'element_class': self.category,

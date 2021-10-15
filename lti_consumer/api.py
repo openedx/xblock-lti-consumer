@@ -78,6 +78,22 @@ def get_lti_consumer(config_id=None, block=None):
     return _get_lti_config(config_id, block).get_lti_consumer()
 
 
+def create_reusable_lti_1p1_configuration():
+    lti_config = LtiConfiguration.objects.create(
+        version="lti_1p1",
+        config_store=LtiConfiguration.CONFIG_ON_DB,
+        reusable=True
+    )
+    return lti_config
+
+
+def get_reusable_lti_1p1_configurations():
+    return LtiConfiguration.objects.filter(
+        version="lti_1p1",
+        reusable=True,
+    )
+
+
 def get_lti_1p3_launch_info(config_id=None, block=None):
     """
     Retrieves the Client ID, Keyset URL and other urls used to configure a LTI tool.
