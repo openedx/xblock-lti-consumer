@@ -16,23 +16,23 @@ bleach==4.1.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.18.57
+boto3==1.18.62
     # via fs-s3fs
-botocore==1.21.57
+botocore==1.21.62
     # via
     #   boto3
     #   s3transfer
-certifi==2021.5.30
+certifi==2021.10.8
     # via
     #   -r requirements/base.txt
     #   requests
-cffi==1.14.6
+cffi==1.15.0
     # via cryptography
-charset-normalizer==2.0.6
+charset-normalizer==2.0.7
     # via
     #   -r requirements/base.txt
     #   requests
-click==8.0.1
+click==8.0.3
     # via
     #   click-log
     #   code-annotations
@@ -108,7 +108,7 @@ future==0.18.2
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-idna==3.2
+idna==3.3
     # via
     #   -r requirements/base.txt
     #   requests
@@ -154,7 +154,7 @@ mccabe==0.6.1
     # via pylint
 mock==4.0.3
     # via -r requirements/test.in
-newrelic==7.0.0.166
+newrelic==7.2.1.168
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -176,11 +176,11 @@ psutil==5.8.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-pycodestyle==2.7.0
+pycodestyle==2.8.0
     # via -r requirements/test.in
 pycparser==2.20
     # via cffi
-pycryptodomex==3.10.4
+pycryptodomex==3.11.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -223,7 +223,7 @@ pytz==2021.3
     #   django
     #   fs
     #   xblock
-pyyaml==5.4.1
+pyyaml==6.0
     # via
     #   -r requirements/base.txt
     #   code-annotations
