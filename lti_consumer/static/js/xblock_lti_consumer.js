@@ -106,17 +106,58 @@ function LtiConsumerXBlock(runtime, element) {
 
             // If this instance is configured to require username and/or email, ask user if it is okay to send them
             // Do not launch if it is not okay
+
+            function confirmDialog(message) {
+                var def = $.Deferred();
+                $('<div></div>').appendTo('body') // TODO: this will need some cute styling. It looks like trash but it works.
+                  .html('<div><h6>' + message + '</h6></div>')
+                  .dialog({
+                    modal: true,
+                    title: 'Confirm', //TODO: int8lize these
+                    zIndex: 10000,
+                    autoOpen: true,
+                    width: 'auto',
+                    resizable: false,
+                    buttons: {
+                      Yes: function() {
+                        $('body').append('<h1>Confirm Dialog Result: <i>Yes</i></h1>'); //TODO: int8lize these
+                        def.resolve("Yes");
+                        $(this).dialog("close");
+                      },
+                      No: function() {
+                        $('body').append('<h1>Confirm Dialog Result: <i>No</i></h1>'); //TODO: int8lize these
+                        def.resolve("No");
+                        $(this).dialog("close");
+                      }
+                    },
+                    close: function(event, ui) {
+                      $(this).remove();
+                    }
+                  });
+
+                return def.promise();
+              };
+
+
             if(askToSendUsername && askToSendEmail) {
-                launch = confirm(gettext("Click OK to have your username and e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
+                msg = gettext("Click OK to have your username and e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information.");
             } else if (askToSendUsername) {
-                launch = confirm(gettext("Click OK to have your username sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
+                msg = gettext("Click OK to have your username sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information.");
             } else if (askToSendEmail) {
-                launch = confirm(gettext("Click OK to have your e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information."));
+                msg = gettext("Click OK to have your e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information.");
             }
 
-            if (launch) {
-                window.open($(this).data('target'));
-            }
+            var destination = $(this).data('target')
+
+            $.when(confirmDialog(msg)).then(
+                function(status) {
+                    if (status == "Yes") {
+                        console.log(destination);
+                        //do the next step
+                        window.open(destination);
+                    }
+                }
+            );
         });
     });
 }
