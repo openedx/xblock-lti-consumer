@@ -13,7 +13,7 @@ astroid==2.8.4
     #   -r requirements/test.txt
     #   pylint
     #   pylint-celery
-backports.entry-points-selectable==1.1.0
+backports.entry-points-selectable==1.1.1
     # via
     #   -r requirements/tox.txt
     #   virtualenv
@@ -21,11 +21,11 @@ bleach==4.1.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.19.11
+boto3==1.20.4
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.22.11
+botocore==1.23.4
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -60,11 +60,11 @@ colorama==0.4.4
     # via
     #   -r requirements/test.txt
     #   twine
-coverage==6.1.1
+coverage==6.1.2
     # via
     #   -r requirements/test.txt
     #   coveralls
-coveralls==3.3.0
+coveralls==3.3.1
     # via -r requirements/test.txt
 cryptography==35.0.0
     # via
@@ -148,12 +148,12 @@ idna==3.3
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==4.8.1
+importlib-metadata==4.8.2
     # via
     #   -r requirements/test.txt
     #   keyring
     #   twine
-isort==5.10.0
+isort==5.10.1
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -162,7 +162,7 @@ jeepney==0.7.1
     #   -r requirements/test.txt
     #   keyring
     #   secretstorage
-jinja2==3.0.2
+jinja2==3.0.3
     # via
     #   -r requirements/test.txt
     #   code-annotations
@@ -203,7 +203,7 @@ mccabe==0.6.1
     #   pylint
 mock==4.0.3
     # via -r requirements/test.txt
-newrelic==7.2.3.170
+newrelic==7.2.4.171
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -243,7 +243,7 @@ py==1.11.0
     #   tox
 pycodestyle==2.8.0
     # via -r requirements/test.txt
-pycparser==2.20
+pycparser==2.21
     # via
     #   -r requirements/test.txt
     #   cffi
@@ -375,7 +375,7 @@ tqdm==4.62.3
     # via
     #   -r requirements/test.txt
     #   twine
-twine==3.5.0
+twine==3.6.0
     # via -r requirements/test.txt
 typing-extensions==3.10.0.2
     # via
