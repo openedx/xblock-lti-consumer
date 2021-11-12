@@ -102,7 +102,6 @@ function LtiConsumerXBlock(runtime, element) {
 
         // Apply click handler to new window launch button
         $element.find('.btn-lti-new-window').click(function(){
-            var launch = true;
 
             // If this instance is configured to require username and/or email, ask user if it is okay to send them
             // Do not launch if it is not okay
@@ -113,19 +112,19 @@ function LtiConsumerXBlock(runtime, element) {
                   .html('<div><h6>' + message + '</h6></div>')
                   .dialog({
                     modal: true,
-                    title: 'Confirm', //TODO: int8lize these
+                    title: 'Confirm',
                     zIndex: 10000,
                     autoOpen: true,
                     width: 'auto',
                     resizable: false,
                     buttons: {
                       Yes: function() {
-                        $('body').append('<h1>Confirm Dialog Result: <i>Yes</i></h1>'); //TODO: int8lize these
-                        def.resolve("Yes");
+                        $('body').append('<h1>Confirm Dialog Result: <i>Yes</i></h1>');
+                        def.resolve("OK");
                         $(this).dialog("close");
                       },
                       No: function() {
-                        $('body').append('<h1>Confirm Dialog Result: <i>No</i></h1>'); //TODO: int8lize these
+                        $('body').append('<h1>Confirm Dialog Result: <i>No</i></h1>');
                         def.resolve("No");
                         $(this).dialog("close");
                       }
@@ -151,9 +150,7 @@ function LtiConsumerXBlock(runtime, element) {
 
             $.when(confirmDialog(msg)).then(
                 function(status) {
-                    if (status == "Yes") {
-                        console.log(destination);
-                        //do the next step
+                    if (status == "Ok") {
                         window.open(destination);
                     }
                 }
