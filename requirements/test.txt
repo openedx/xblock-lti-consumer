@@ -16,9 +16,9 @@ bleach==4.1.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.19.11
+boto3==1.20.4
     # via fs-s3fs
-botocore==1.22.11
+botocore==1.23.4
     # via
     #   boto3
     #   s3transfer
@@ -43,9 +43,9 @@ code-annotations==1.2.0
     # via edx-lint
 colorama==0.4.4
     # via twine
-coverage==6.1.1
+coverage==6.1.2
     # via coveralls
-coveralls==3.3.0
+coveralls==3.3.1
     # via -r requirements/test.in
 cryptography==35.0.0
     # via secretstorage
@@ -112,17 +112,17 @@ idna==3.3
     # via
     #   -r requirements/base.txt
     #   requests
-importlib-metadata==4.8.1
+importlib-metadata==4.8.2
     # via
     #   keyring
     #   twine
-isort==5.10.0
+isort==5.10.1
     # via pylint
 jeepney==0.7.1
     # via
     #   keyring
     #   secretstorage
-jinja2==3.0.2
+jinja2==3.0.3
     # via code-annotations
 jmespath==0.10.0
     # via
@@ -154,7 +154,7 @@ mccabe==0.6.1
     # via pylint
 mock==4.0.3
     # via -r requirements/test.in
-newrelic==7.2.3.170
+newrelic==7.2.4.171
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -178,7 +178,7 @@ psutil==5.8.0
     #   edx-django-utils
 pycodestyle==2.8.0
     # via -r requirements/test.in
-pycparser==2.20
+pycparser==2.21
     # via cffi
 pycryptodomex==3.11.0
     # via
@@ -276,7 +276,7 @@ toml==0.10.2
     # via pylint
 tqdm==4.62.3
     # via twine
-twine==3.5.0
+twine==3.6.0
     # via -r requirements/test.in
 typing-extensions==3.10.0.2
     # via
