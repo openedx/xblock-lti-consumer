@@ -318,11 +318,16 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-3.0.2 - 2021-11-12
+3.1.1 - 2021-11-12
 -------------------
 
 * The modal to confirm information transfer on open of lti in new tab/window has been updated
   because of a change in how browsers handle iframe permissions.
+
+3.1.0 - 2021-10-?
+-------------------
+
+* The changes which led to this version change were not adequetly documented.
 
 3.0.1 - 2021-07-09
 -------------------
