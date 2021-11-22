@@ -110,7 +110,7 @@ function LtiConsumerXBlock(runtime, element) {
             function confirmDialog(message) {
                 var def = $.Deferred();
                 $('<div></div>').appendTo('body') // TODO: this will need some cute styling. It looks like trash but it works.
-                  .html('<div><h6>' + message + '</h6></div>')
+                  .html('<div><p>' + message + '</p></div>')
                   .dialog({
                     modal: true,
                     title: 'Confirm',
@@ -118,6 +118,7 @@ function LtiConsumerXBlock(runtime, element) {
                     autoOpen: true,
                     width: 'auto',
                     resizable: false,
+                    dialogClass: 'confirm-dialog',
                     buttons: {
                       OK: function() {
                         $('body').append('<h1>Confirm Dialog Result: <i>Yes</i></h1>');
@@ -133,8 +134,7 @@ function LtiConsumerXBlock(runtime, element) {
                     close: function(event, ui) {
                       $(this).remove();
                     }
-                  });
-
+                  }).prev().css('background', 'white').css('color', '#000').css('border-color', 'transparent');
                 return def.promise();
               };
 
