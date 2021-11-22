@@ -318,7 +318,9 @@ Please do not report security issues in public. Send security concerns via email
 Changelog
 =========
 
-3.1.1 - 2021-11-12
+Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
+
+3.1.2 - 2021-11-12
 -------------------
 
 * The modal to confirm information transfer on open of lti in new tab/window has been updated
