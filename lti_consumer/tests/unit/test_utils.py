@@ -3,6 +3,7 @@ Utility functions used within unit tests
 """
 
 from unittest.mock import Mock
+import urllib
 from webob import Request
 from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
@@ -50,6 +51,21 @@ def make_request(body, method='POST'):
     request.method = 'POST'
     request.body = body.encode('utf-8')
     request.method = method
+    return request
+
+
+def make_jwt_request(token, **overrides):
+    """
+    Builds a Request with a JWT body.
+    """
+    body = {
+        "grant_type": "client_credentials",
+        "client_assertion_type": "something",
+        "client_assertion": token,
+        "scope": "",
+    }
+    request = make_request(urllib.parse.urlencode({**body, **overrides}), 'POST')
+    request.content_type = 'application/x-www-form-urlencoded'
     return request
 
 
