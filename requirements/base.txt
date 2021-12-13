@@ -7,15 +7,15 @@
 appdirs==1.4.4
     # via fs
 bleach==4.1.0
-    # via -r requirements/base.in
+    # via -r base.in
 certifi==2021.10.8
     # via requests
 charset-normalizer==2.0.7
     # via requests
 django==2.2.24
     # via
-    #   -c requirements/common_constraints.txt
-    #   -r requirements/base.in
+    #   -c common_constraints.txt
+    #   -r base.in
     #   django-config-models
     #   django-crum
     #   django-filter
@@ -24,22 +24,22 @@ django==2.2.24
     #   jsonfield
 django-config-models==2.2.0
     # via
-    #   -c requirements/constraints.txt
-    #   -r requirements/base.in
+    #   -c constraints.txt
+    #   -r base.in
 django-crum==0.7.9
     # via edx-django-utils
 django-filter==21.1
-    # via -r requirements/base.in
+    # via -r base.in
 django-waffle==2.2.1
     # via edx-django-utils
 djangorestframework==3.12.4
     # via
-    #   -c requirements/constraints.txt
+    #   -c constraints.txt
     #   django-config-models
 edx-django-utils==4.4.0
     # via django-config-models
 edx-opaque-keys[django]==2.2.2
-    # via -r requirements/base.in
+    # via -r base.in
 fs==2.4.13
     # via xblock
 future==0.18.2
@@ -47,16 +47,16 @@ future==0.18.2
 idna==3.3
     # via requests
 jsonfield==3.1.0
-    # via -r requirements/base.in
+    # via -r base.in
 lazy==1.4
-    # via -r requirements/base.in
-lxml==4.6.4
+    # via -r base.in
+lxml==4.6.5
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   xblock
 mako==1.1.5
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   xblock-utils
 markupsafe==2.0.1
     # via
@@ -65,7 +65,7 @@ markupsafe==2.0.1
 newrelic==7.2.4.171
     # via edx-django-utils
 oauthlib==3.1.1
-    # via -r requirements/base.in
+    # via -r base.in
 packaging==21.2
     # via bleach
 pbr==5.7.0
@@ -74,10 +74,10 @@ psutil==5.8.0
     # via edx-django-utils
 pycryptodomex==3.11.0
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   pyjwkest
 pyjwkest==1.4.2
-    # via -r requirements/base.in
+    # via -r base.in
 pymongo==3.12.1
     # via edx-opaque-keys
 pyparsing==2.4.7
@@ -119,10 +119,10 @@ webob==1.8.7
     # via xblock
 xblock==1.5.1
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   xblock-utils
 xblock-utils==2.2.0
-    # via -r requirements/base.in
+    # via -r base.in
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

@@ -6,21 +6,21 @@
 #
 appdirs==1.4.4
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   fs
 bleach==4.1.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 certifi==2021.10.8
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   requests
 charset-normalizer==2.0.7
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   requests
 django==2.2.24
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django-config-models
     #   django-crum
     #   django-filter
@@ -29,67 +29,67 @@ django==2.2.24
     #   edx-i18n-tools
     #   jsonfield
 django-config-models==2.2.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 django-crum==0.7.9
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 django-filter==21.1
-    # via -r requirements/base.txt
+    # via -r base.txt
 django-waffle==2.2.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 djangorestframework==3.12.4
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django-config-models
 edx-django-utils==4.4.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django-config-models
 edx-i18n-tools==0.5.0
-    # via -r requirements/dev.in
+    # via -r dev.in
 edx-opaque-keys[django]==2.2.2
-    # via -r requirements/base.txt
+    # via -r base.txt
 fs==2.4.13
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
 future==0.18.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   pyjwkest
 idna==3.3
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   requests
 jsonfield==3.1.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 lazy==1.4
-    # via -r requirements/base.txt
-lxml==4.6.4
+    # via -r base.txt
+lxml==4.6.5
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
 mako==1.1.5
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock-utils
 markupsafe==2.0.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   mako
     #   xblock
 newrelic==7.2.4.171
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 oauthlib==3.1.1
-    # via -r requirements/base.txt
+    # via -r base.txt
 packaging==21.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   bleach
 path==16.2.0
     # via path.py
@@ -97,54 +97,54 @@ path.py==12.5.0
     # via edx-i18n-tools
 pbr==5.7.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   stevedore
 polib==1.1.1
     # via edx-i18n-tools
 psutil==5.8.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 pycryptodomex==3.11.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   pyjwkest
 pyjwkest==1.4.2
-    # via -r requirements/base.txt
+    # via -r base.txt
 pymongo==3.12.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-opaque-keys
 pyparsing==2.4.7
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   packaging
 python-dateutil==2.8.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
 pytz==2021.3
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django
     #   fs
     #   xblock
 pyyaml==6.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-i18n-tools
     #   xblock
 requests==2.26.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   pyjwkest
 simplejson==3.17.5
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock-utils
 six==1.16.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   bleach
     #   edx-i18n-tools
     #   fs
@@ -152,36 +152,36 @@ six==1.16.0
     #   python-dateutil
 sqlparse==0.4.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django
 stevedore==3.5.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
     #   edx-opaque-keys
 urllib3==1.26.7
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   requests
 web-fragments==1.1.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
     #   xblock-utils
 webencodings==0.5.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   bleach
 webob==1.8.7
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
 xblock==1.5.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock-utils
 xblock-utils==2.2.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
