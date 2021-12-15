@@ -3,12 +3,14 @@ Unit tests for LtiConsumerXBlock
 """
 
 import json
+import logging
 import urllib.parse
 from datetime import timedelta
 from unittest.mock import Mock, NonCallableMock, PropertyMock, patch
 
 import ddt
 from Cryptodome.PublicKey import RSA
+from django.conf import settings as dj_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
 from jwkest.jwk import RSAKey
@@ -19,6 +21,7 @@ from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.tests.unit import test_utils
 from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_request, make_xblock
+from lti_consumer.utils import resolve_custom_parameter_template
 
 HTML_PROBLEM_PROGRESS = '<div class="problem-progress">'
 HTML_ERROR_MESSAGE = '<h3 class="error_message">'
@@ -300,6 +303,30 @@ class TestProperties(TestLtiConsumerXBlock):
         params = self.xblock.prefixed_custom_parameters
 
         self.assertEqual(params, expected_params)
+
+    @patch('lti_consumer.lti_xblock.resolve_custom_parameter_template')
+    def test_templated_custom_parameters(self, mock_resolve_custom_parameter_template):
+        """
+        Test `prefixed_custom_parameters` when a custom parameter with templated value has been provided.
+        """
+        now = timezone.now()
+        one_day = timedelta(days=1)
+        self.xblock.due = now
+        self.xblock.graceperiod = one_day
+        self.xblock.custom_parameters = ['dynamic_param_1=${template_value}', 'param_2=false']
+        mock_resolve_custom_parameter_template.return_value = 'resolved_template_value'
+        expected_params = {
+            'custom_component_display_name': self.xblock.display_name,
+            'custom_component_due_date': now.strftime('%Y-%m-%d %H:%M:%S'),
+            'custom_component_graceperiod': str(one_day.total_seconds()),
+            'custom_dynamic_param_1': 'resolved_template_value',
+            'custom_param_2': 'false',
+        }
+
+        params = self.xblock.prefixed_custom_parameters
+
+        self.assertEqual(params, expected_params)
+        mock_resolve_custom_parameter_template.assert_called_once_with(self.xblock, '${template_value}')
 
     def test_invalid_custom_parameter(self):
         """
@@ -1532,3 +1559,77 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
 
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 200)
+
+
+@patch('lti_consumer.utils.log')
+@patch('lti_consumer.utils.import_module')
+class TestDynamicCustomParametersResolver(TestLtiConsumerXBlock):
+    """
+    Unit tests for lti_xblock utils resolve_custom_parameter_template method.
+    """
+
+    def setUp(self):
+        super().setUp()
+
+        self.logger = logging.getLogger()
+        dj_settings.LTI_CUSTOM_PARAM_TEMPLATES = {
+            'templated_param_value': 'customer_package.module:func',
+        }
+        self.mock_processor_module = Mock(func=Mock())
+
+    def test_successful_resolve_custom_parameter_template(self, mock_import_module, *_):
+        """
+        Test a successful module import and execution. The template value to be resolved
+        should be replaced by the processor.
+        """
+
+        custom_parameter_template_value = '${templated_param_value}'
+        expected_resolved_value = 'resolved_value'
+        mock_import_module.return_value = self.mock_processor_module
+        self.mock_processor_module.func.return_value = expected_resolved_value
+
+        resolved_value = resolve_custom_parameter_template(self.xblock, custom_parameter_template_value)
+
+        mock_import_module.assert_called_once()
+        self.assertEqual(resolved_value, expected_resolved_value)
+
+    def test_resolve_custom_parameter_template_with_invalid_data_type_returned(self, mock_import_module, mock_log):
+        """
+        Test a successful module import and execution. The value returned by the processor should be a string object.
+        Otherwise, it should log an error.
+        """
+
+        custom_parameter_template_value = '${templated_param_value}'
+        mock_import_module.return_value = self.mock_processor_module
+        self.mock_processor_module.func.return_value = 1
+
+        resolved_value = resolve_custom_parameter_template(self.xblock, custom_parameter_template_value)
+
+        self.assertEqual(resolved_value, custom_parameter_template_value)
+        assert mock_log.error.called
+
+    def test_resolve_custom_parameter_template_with_invalid_module(self, mock_import_module, mock_log):
+        """
+        Test a failed import with an undefined module. This should log an error.
+        """
+        mock_import_module.side_effect = ModuleNotFoundError
+        custom_parameter_template_value = '${not_defined_parameter_template}'
+
+        resolved_value = resolve_custom_parameter_template(self.xblock, custom_parameter_template_value)
+
+        self.assertEqual(resolved_value, custom_parameter_template_value)
+        assert mock_log.error.called
+
+    def test_lti_custom_param_templates_not_configured(self, mock_import_module, mock_log):
+        """
+        Test the feature with LTI_CUSTOM_PARAM_TEMPLATES setting attribute not configured.
+        """
+        custom_parameter_template_value = '${templated_param_value}'
+
+        dj_settings.__delattr__('LTI_CUSTOM_PARAM_TEMPLATES')
+
+        resolved_value = resolve_custom_parameter_template(self.xblock, custom_parameter_template_value)
+
+        self.assertEqual(resolved_value, custom_parameter_template_value)
+        assert mock_log.error.called
+        mock_import_module.asser_not_called()
