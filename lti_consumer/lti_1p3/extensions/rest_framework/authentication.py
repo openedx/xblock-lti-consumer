@@ -3,7 +3,7 @@ Django REST Framework extensions for LTI 1.3 & LTI Advantage implementation.
 
 Implements a custom authentication class to be used by LTI Advantage extensions.
 """
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import authentication
 from rest_framework import exceptions
 

@@ -2,10 +2,9 @@
 Unit tests for LTI 1.3 consumer implementation
 """
 from __future__ import absolute_import, unicode_literals
+from unittest.mock import patch
 
 from django.test.testcases import TestCase
-from mock import patch
-
 from lti_consumer.lti_1p3.constants import LTI_DEEP_LINKING_ACCEPTED_TYPES
 from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
 from lti_consumer.lti_1p3 import exceptions
