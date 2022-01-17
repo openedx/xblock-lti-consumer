@@ -453,3 +453,5 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 
 .. |Coveralls| image:: https://coveralls.io/repos/edx/xblock-lti-consumer/badge.svg?branch=master&service=github
   :target: https://coveralls.io/github/edx/xblock-lti-consumer?branch=master
+
+test
