@@ -81,7 +81,7 @@ markupsafe==2.0.1
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==7.2.4.171
+newrelic==7.2.3.170
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
