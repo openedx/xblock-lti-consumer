@@ -1,0 +1,7 @@
+# Requirements for Quality runs
+-c constraints.txt
+
+-r base.txt 
+
+pycodestyle
+pylint
