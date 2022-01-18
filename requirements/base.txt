@@ -6,13 +6,15 @@
 #
 appdirs==1.4.4
     # via fs
+asgiref==3.4.1
+    # via django
 bleach==4.1.0
     # via -r requirements/base.in
 certifi==2021.10.8
     # via requests
-charset-normalizer==2.0.7
+charset-normalizer==2.0.10
     # via requests
-django==2.2.24
+django==3.2.11
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
@@ -22,7 +24,7 @@ django==2.2.24
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
-django-config-models==2.2.0
+django-config-models==2.2.2
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/base.in
@@ -30,17 +32,17 @@ django-crum==0.7.9
     # via edx-django-utils
 django-filter==21.1
     # via -r requirements/base.in
-django-waffle==2.2.1
+django-waffle==2.3.0
     # via edx-django-utils
-djangorestframework==3.12.4
+djangorestframework==3.13.1
     # via
     #   -c requirements/constraints.txt
     #   django-config-models
-edx-django-utils==4.4.0
+edx-django-utils==4.4.1
     # via django-config-models
 edx-opaque-keys[django]==2.2.2
     # via -r requirements/base.in
-fs==2.4.13
+fs==2.4.14
     # via xblock
 future==0.18.2
     # via pyjwkest
@@ -50,11 +52,11 @@ jsonfield==3.1.0
     # via -r requirements/base.in
 lazy==1.4
     # via -r requirements/base.in
-lxml==4.6.4
+lxml==4.7.1
     # via
     #   -r requirements/base.in
     #   xblock
-mako==1.1.5
+mako==1.1.6
     # via
     #   -r requirements/base.in
     #   xblock-utils
@@ -66,34 +68,35 @@ newrelic==7.2.4.171
     # via edx-django-utils
 oauthlib==3.1.1
     # via -r requirements/base.in
-packaging==21.2
+packaging==21.3
     # via bleach
-pbr==5.7.0
+pbr==5.8.0
     # via stevedore
-psutil==5.8.0
+psutil==5.9.0
     # via edx-django-utils
-pycryptodomex==3.11.0
+pycryptodomex==3.12.0
     # via
     #   -r requirements/base.in
     #   pyjwkest
 pyjwkest==1.4.2
     # via -r requirements/base.in
-pymongo==3.12.1
+pymongo==4.0.1
     # via edx-opaque-keys
-pyparsing==2.4.7
+pyparsing==3.0.6
     # via packaging
 python-dateutil==2.8.2
     # via xblock
 pytz==2021.3
     # via
     #   django
+    #   djangorestframework
     #   fs
     #   xblock
 pyyaml==6.0
     # via xblock
-requests==2.26.0
+requests==2.27.1
     # via pyjwkest
-simplejson==3.17.5
+simplejson==3.17.6
     # via xblock-utils
 six==1.16.0
     # via
@@ -107,9 +110,9 @@ stevedore==3.5.0
     # via
     #   edx-django-utils
     #   edx-opaque-keys
-urllib3==1.26.7
+urllib3==1.26.8
     # via requests
-web-fragments==1.1.0
+web-fragments==2.0.0
     # via
     #   xblock
     #   xblock-utils

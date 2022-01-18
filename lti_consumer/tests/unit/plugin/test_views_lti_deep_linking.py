@@ -1,9 +1,9 @@
 """
 Tests for LTI Advantage Assignments and Grades Service views.
 """
-import ddt
-from mock import patch, PropertyMock, Mock
+from unittest.mock import patch, PropertyMock, Mock
 
+import ddt
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase

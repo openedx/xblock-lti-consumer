@@ -6,13 +6,13 @@ import json
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
-from django.utils.translation import ugettext_lazy as _
 
 from jsonfield import JSONField
 from Cryptodome.PublicKey import RSA
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from opaque_keys.edx.keys import CourseKey
 from config_models.models import ConfigurationModel
+from django.utils.translation import gettext_lazy as _
 
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1

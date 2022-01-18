@@ -1,7 +1,7 @@
 """
 Tests for LTI Names and Role Provisioning Service views.
 """
-from mock import Mock, patch, PropertyMock
+from unittest.mock import Mock, patch, PropertyMock
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
