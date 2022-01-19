@@ -81,7 +81,7 @@ from .lti_1p3.exceptions import (
 )
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
-from .utils import _
+from .utils import _, resolve_custom_parameter_template
 
 
 log = logging.getLogger(__name__)
@@ -100,6 +100,7 @@ ROLE_MAP = {
     'staff': 'Administrator',
     'instructor': 'Instructor',
 }
+CUSTOM_PARAMETER_TEMPLATE_TAGS = ('${', '}')
 
 
 def parse_handler_suffix(suffix):
@@ -818,6 +819,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 # LTI specs: 'custom_' should be prepended before each custom parameter, as pointed in link above.
                 if param_name not in LTI_PARAMETERS:
                     param_name = 'custom_' + param_name
+
+                if (param_value.startswith(CUSTOM_PARAMETER_TEMPLATE_TAGS[0]) and
+                        param_value.endswith(CUSTOM_PARAMETER_TEMPLATE_TAGS[1])):
+                    param_value = resolve_custom_parameter_template(self, param_value)
 
                 custom_parameters[param_name] = param_value
 

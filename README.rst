@@ -214,6 +214,53 @@ To configure parameter processors add the following snippet to your Ansible vari
           - 'customer_package.lti_processors:team_and_cohort'
           - 'example_package.lti_processors:extra_lti_params'
 
+Dynamic LTI Custom Parameters
+=============================
+
+This XBlock gives us the capability to attach static and dynamic custom parameters in the custom parameters field,
+in the case we need to declare a dynamic custom parameter we must set the value of the parameter as a templated parameter
+wrapped with the tags '${' and '}' just like the following example:
+
+.. code:: python
+
+    ["static_param=static_value", "dynamic_custom_param=${templated_param_value}"]
+
+Defining a dynamic LTI Custom Parameter Processor
+-------------------------------------------------
+
+The custom parameter processor is a function that expects an XBlock instance, and returns a ``string`` which should be the resolved value.
+Exceptions must be handled by the processor itself.
+
+.. code:: python
+
+    def get_course_name(xblock):
+        try:
+            course = CourseOverview.objects.get(id=xblock.course.id)
+        except CourseOverview.DoesNotExist:
+            log.error('Course does not exist.')
+            return ''
+
+        return course.display_name
+
+Note. The processor function must return a ``string`` object.
+
+Configuring the LTI Dynamic Custom Parameters Settings
+------------------------------------------------------
+
+The setting LTI_CUSTOM_PARAM_TEMPLATES must be set in order to map the template value for the dynamic custom parameter
+as the following example:
+
+.. code:: python
+
+    LTI_CUSTOM_PARAM_TEMPLATES = {
+        'templated_param_value': 'customer_package.module:func',
+    }
+
+* 'templated_param_value': custom parameter template name.
+* 'customer_package.module:func': custom parameter processor path and function name.
+
+
+
 LTI Advantage Features
 ======================
 
@@ -319,6 +366,11 @@ Changelog
 =========
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
+
+3.2.0 - 2022-01-18
+-------------------
+
+* Dynamic custom parameters support with the help of template parameter processors.
 
 3.1.2 - 2021-11-12
 -------------------
