@@ -2,10 +2,8 @@
 Unit tests for LtiConsumerXBlock
 """
 
-from contextlib import contextmanager
 import json
 import logging
-import urllib.parse
 from datetime import timedelta
 from unittest.mock import Mock, NonCallableMock, PropertyMock, patch
 
