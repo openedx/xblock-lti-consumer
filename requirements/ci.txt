@@ -12,7 +12,7 @@ asgiref==3.4.1
     # via
     #   -r requirements/test.txt
     #   django
-astroid==2.8.4
+astroid==2.9.3
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -21,11 +21,11 @@ bleach==4.1.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.20.37
+boto3==1.20.40
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.23.37
+botocore==1.23.40
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -34,6 +34,10 @@ certifi==2021.10.8
     # via
     #   -r requirements/test.txt
     #   requests
+cffi==1.15.0
+    # via
+    #   -r requirements/test.txt
+    #   cryptography
 charset-normalizer==2.0.10
     # via
     #   -r requirements/test.txt
@@ -62,6 +66,10 @@ coverage==6.2
     #   coveralls
 coveralls==3.3.1
     # via -r requirements/test.txt
+cryptography==36.0.1
+    # via
+    #   -r requirements/test.txt
+    #   secretstorage
 ddt==1.4.4
     # via -r requirements/test.txt
 distlib==0.3.4
@@ -80,7 +88,7 @@ django==3.2.11
     #   edx-django-utils
     #   jsonfield
     #   xblock-sdk
-django-config-models==2.2.2
+django-config-models==2.3.0
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/test.txt
@@ -90,7 +98,7 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==21.1
     # via -r requirements/test.txt
-django-pyfs==3.1.0
+django-pyfs==3.2.0
     # via -r requirements/test.txt
 django-waffle==2.3.0
     # via
@@ -149,6 +157,11 @@ isort==5.10.1
     # via
     #   -r requirements/test.txt
     #   pylint
+jeepney==0.7.1
+    # via
+    #   -r requirements/test.txt
+    #   keyring
+    #   secretstorage
 jinja2==3.0.3
     # via
     #   -r requirements/test.txt
@@ -190,7 +203,7 @@ mccabe==0.6.1
     #   pylint
 mock==4.0.3
     # via -r requirements/test.txt
-newrelic==7.2.4.171
+newrelic==7.4.0.172
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -230,6 +243,10 @@ py==1.11.0
     #   tox
 pycodestyle==2.8.0
     # via -r requirements/test.txt
+pycparser==2.21
+    # via
+    #   -r requirements/test.txt
+    #   cffi
 pycryptodomex==3.12.0
     # via
     #   -r requirements/test.txt
@@ -240,7 +257,7 @@ pygments==2.11.2
     #   readme-renderer
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.11.1
+pylint==2.12.2
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -313,6 +330,10 @@ s3transfer==0.5.0
     # via
     #   -r requirements/test.txt
     #   boto3
+secretstorage==3.3.1
+    # via
+    #   -r requirements/test.txt
+    #   keyring
 simplejson==3.17.6
     # via
     #   -r requirements/test.txt

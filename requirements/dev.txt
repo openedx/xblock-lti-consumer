@@ -32,7 +32,7 @@ django==3.2.11
     #   edx-django-utils
     #   edx-i18n-tools
     #   jsonfield
-django-config-models==2.2.2
+django-config-models==2.3.0
     # via -r requirements/base.txt
 django-crum==0.7.9
     # via
@@ -85,7 +85,7 @@ markupsafe==2.0.1
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==7.2.4.171
+newrelic==7.4.0.172
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
