@@ -367,6 +367,11 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+3.3.0 - 2022-01-20
+-------------------
+
+* Added support for specifying LTI 1.3 JWK URLs.
+
 3.2.0 - 2022-01-18
 -------------------
 

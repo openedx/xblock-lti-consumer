@@ -14,6 +14,8 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
     const lti1P3FieldList = [
         "lti_1p3_launch_url",
         "lti_1p3_oidc_url",
+        "lti_1p3_tool_key_mode",
+        "lti_1p3_tool_keyset_url",
         "lti_1p3_tool_public_key",
         "lti_advantage_ags_mode",
         "lti_advantage_deep_linking_enabled",
@@ -72,12 +74,37 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
         });
     }
 
+    /**
+     * Only display the field appropriate for the selected key mode.
+     */
+    function toggleLtiToolKeyMode() {
+        const ltiKeyModeField = $(element).find('#xb-field-edit-lti_1p3_tool_key_mode');
+
+        // find the field containers
+        const ltiKeysetUrlField = $(element).find('[data-field-name=lti_1p3_tool_keyset_url]');
+        const ltiPublicKeyField = $(element).find('[data-field-name=lti_1p3_tool_public_key]');
+
+        const selectedKeyMode = ltiKeyModeField.children("option:selected").val();
+        if (selectedKeyMode === 'public_key') {
+            ltiKeysetUrlField.hide();
+            ltiPublicKeyField.show();
+        } else if (selectedKeyMode === 'keyset_url') {
+            ltiPublicKeyField.hide();
+            ltiKeysetUrlField.show();
+        }
+    }
+
     // Call once component is instanced to hide fields
     toggleLtiFields();
+    toggleLtiToolKeyMode();
 
     // Bind to onChange method of lti_version selector
     $(element).find('#xb-field-edit-lti_version').bind('change', function() {
         toggleLtiFields();
-     });
+    });
 
+    // Bind to onChange method of lti_1p3_tool_key_mode selector
+    $(element).find('#xb-field-edit-lti_1p3_tool_key_mode').bind('change', function() {
+        toggleLtiToolKeyMode();
+    });
 }

@@ -68,8 +68,15 @@ class ToolKeyHandler:
         keyset = []
 
         if self.keyset_url:
-            # TODO: Improve support for keyset handling, handle errors.
-            keyset.extend(load_jwks_from_url(self.keyset_url))
+            try:
+                keys = load_jwks_from_url(self.keyset_url)
+            except Exception as err:
+                # Broad Exception is required here because jwkest raises
+                # an Exception object explicitly.
+                # Beware that many different scenarios are being handled
+                # as an invalid key when the JWK loading fails.
+                raise exceptions.NoSuitableKeys() from err
+            keyset.extend(keys)
 
         if self.public_key and kid:
             # Fill in key id of stored key.

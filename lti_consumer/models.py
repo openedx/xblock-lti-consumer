@@ -266,7 +266,7 @@ class LtiConfiguration(models.Model):
                 rsa_key_id=self.lti_1p3_private_key_id,
                 # LTI 1.3 Tool key/keyset url
                 tool_key=self.block.lti_1p3_tool_public_key,
-                tool_keyset_url=None,
+                tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
             )
 
             # Check if enabled and setup LTI-AGS

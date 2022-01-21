@@ -4,7 +4,6 @@ Unit tests for LtiConsumerXBlock
 
 import json
 import logging
-import urllib.parse
 from datetime import timedelta
 from unittest.mock import Mock, NonCallableMock, PropertyMock, patch
 
@@ -13,14 +12,14 @@ from Cryptodome.PublicKey import RSA
 from django.conf import settings as dj_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
-from jwkest.jwk import RSAKey
+from jwkest.jwk import RSAKey, KEYS
 
 from lti_consumer.api import get_lti_1p3_launch_info
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.tests.unit import test_utils
-from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_request, make_xblock
+from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_jwt_request, make_request, make_xblock
 from lti_consumer.utils import resolve_custom_parameter_template
 
 HTML_PROBLEM_PROGRESS = '<div class="problem-progress">'
@@ -452,6 +451,8 @@ class TestEditableFields(TestLtiConsumerXBlock):
                     'lti_version',
                     'lti_1p3_launch_url',
                     'lti_1p3_oidc_url',
+                    'lti_1p3_tool_key_mode',
+                    'lti_1p3_tool_keyset_url',
                     'lti_1p3_tool_public_key',
                     'lti_advantage_deep_linking_enabled',
                     'lti_advantage_deep_linking_launch_url',
@@ -1484,17 +1485,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         """
         Test request with invalid JWT.
         """
-        request = make_request(
-            urllib.parse.urlencode({
-                "grant_type": "client_credentials",
-                "client_assertion_type": "something",
-                "client_assertion": "invalid-jwt",
-                "scope": "",
-            }),
-            'POST'
-        )
-        request.content_type = 'application/x-www-form-urlencoded'
-
+        request = make_jwt_request("invalid-jwt")
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json_body, {'error': 'invalid_grant'})
@@ -1503,15 +1494,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         """
         Test request with invalid grant.
         """
-        request = make_request(
-            urllib.parse.urlencode({
-                "grant_type": "password",
-                "client_assertion_type": "something",
-                "client_assertion": "invalit-jwt",
-                "scope": "",
-            }),
-            'POST'
-        )
+        request = make_jwt_request("invalid-jwt", grant_type="password")
         request.content_type = 'application/x-www-form-urlencoded'
 
         response = self.xblock.lti_1p3_access_token(request)
@@ -1526,17 +1509,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self.xblock.save()
 
         jwt = create_jwt(self.key, {})
-        request = make_request(
-            urllib.parse.urlencode({
-                "grant_type": "client_credentials",
-                "client_assertion_type": "something",
-                "client_assertion": jwt,
-                "scope": "",
-            }),
-            'POST'
-        )
-        request.content_type = 'application/x-www-form-urlencoded'
-
+        request = make_jwt_request(jwt)
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json_body, {'error': 'invalid_client'})
@@ -1546,17 +1519,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         Test request with valid JWT.
         """
         jwt = create_jwt(self.key, {})
-        request = make_request(
-            urllib.parse.urlencode({
-                "grant_type": "client_credentials",
-                "client_assertion_type": "something",
-                "client_assertion": jwt,
-                "scope": "",
-            }),
-            'POST'
-        )
-        request.content_type = 'application/x-www-form-urlencoded'
-
+        request = make_jwt_request(jwt)
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 200)
 
@@ -1633,3 +1596,87 @@ class TestDynamicCustomParametersResolver(TestLtiConsumerXBlock):
         self.assertEqual(resolved_value, custom_parameter_template_value)
         assert mock_log.error.called
         mock_import_module.asser_not_called()
+
+
+class TestLti1p3AccessTokenJWK(TestCase):
+    """
+    Unit tests for LtiConsumerXBlock Access Token endpoint when using a
+    LTI 1.3 setup with JWK authentication.
+    """
+    def setUp(self):
+        super().setUp()
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, {
+            'lti_version': 'lti_1p3',
+            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_oidc_url': 'http://tool.example/oidc',
+            'lti_1p3_tool_keyset_url': "http://tool.example/keyset",
+        })
+        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
+        self.xblock.save()
+
+        self.key = RSAKey(key=RSA.generate(2048), kid="1")
+
+        jwt = create_jwt(self.key, {})
+        self.request = make_jwt_request(jwt)
+
+    def make_keyset(self, keys):
+        """
+        Builds a keyset object with the given keys.
+        """
+        jwks = KEYS()
+        jwks._keys = keys  # pylint: disable=protected-access
+        return jwks
+
+    @patch("lti_consumer.lti_1p3.key_handlers.load_jwks_from_url")
+    def test_access_token_using_keyset_url(self, load_jwks_from_url):
+        """
+        Test request using the provider's keyset URL instead of a public key.
+        """
+        load_jwks_from_url.return_value = self.make_keyset([self.key])
+        response = self.xblock.lti_1p3_access_token(self.request)
+        load_jwks_from_url.assert_called_once_with("http://tool.example/keyset")
+        self.assertEqual(response.status_code, 200)
+
+    @patch("lti_consumer.lti_1p3.key_handlers.load_jwks_from_url")
+    def test_access_token_using_keyset_url_with_empty_keys(self, load_jwks_from_url):
+        """
+        Test request where the provider's keyset URL returns an empty list of keys.
+        """
+        load_jwks_from_url.return_value = self.make_keyset([])
+        response = self.xblock.lti_1p3_access_token(self.request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json_body, {"error": "invalid_client"})
+
+    @patch("lti_consumer.lti_1p3.key_handlers.load_jwks_from_url")
+    def test_access_token_using_keyset_url_with_wrong_keys(self, load_jwks_from_url):
+        """
+        Test request where the provider's keyset URL returns wrong keys.
+        """
+        key = RSAKey(key=RSA.generate(2048), kid="2")
+        load_jwks_from_url.return_value = self.make_keyset([key])
+        response = self.xblock.lti_1p3_access_token(self.request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json_body, {"error": "invalid_client"})
+
+    @patch("jwkest.jwk.request")
+    def test_access_token_using_keyset_url_that_fails(self, request):
+        """
+        Test request where the provider's keyset URL request fails.
+        """
+        request.side_effect = Exception("request fails")
+        response = self.xblock.lti_1p3_access_token(self.request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json_body, {'error': 'invalid_client'})
+
+    @patch("jwkest.jwk.request")
+    def test_access_token_using_keyset_url_with_invalid_contents(self, request):
+        """
+        Test request where the provider's keyset URL doesn't return valid JSON.
+        """
+        response_mock = Mock()
+        response_mock.status_code = 200
+        response_mock.text = b'this is not a valid json'
+        request.return_value = response_mock
+        response = self.xblock.lti_1p3_access_token(self.request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json_body, {'error': 'invalid_client'})

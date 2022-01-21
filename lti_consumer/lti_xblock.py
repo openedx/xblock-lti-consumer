@@ -283,6 +283,33 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "prior to doing the launch request."
         ),
     )
+
+    lti_1p3_tool_key_mode = String(
+        display_name=_("Tool Public Key Mode"),
+        scope=Scope.settings,
+        values=[
+            {"display_name": "Public Key", "value": "public_key"},
+            {"display_name": "Keyset URL", "value": "keyset_url"},
+        ],
+        default="public_key",
+        help=_(
+            "Select how the tool's public key information will be specified."
+        ),
+    )
+    lti_1p3_tool_keyset_url = String(
+        display_name=_("Tool Keyset URL"),
+        default='',
+        scope=Scope.settings,
+        help=_(
+            "Enter the LTI 1.3 Tool's JWK keysets URL."
+            "<br />This link should retrieve a JSON file containing"
+            " public keys and signature algorithm information, so"
+            " that the LMS can check if the messages and launch"
+            " requests received have the signature from the tool."
+            "<br /><b>This is not required when doing LTI 1.3 Launches"
+            " without LTI Advantage nor Basic Outcomes requests.</b>"
+        ),
+    )
     lti_1p3_tool_public_key = String(
         display_name=_("Tool Public Key"),
         multiline_editor=True,
@@ -520,7 +547,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     editable_field_names = (
         'display_name', 'description',
         # LTI 1.3 variables
-        'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_public_key', 'lti_1p3_enable_nrps',
+        'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url',
+        'lti_1p3_tool_key_mode', 'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key',
+        'lti_1p3_enable_nrps',
         # LTI Advantage variables
         'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
         'lti_advantage_ags_mode',
@@ -573,6 +602,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             validation.add(ValidationMessage(ValidationMessage.ERROR, str(
                 _("Custom Parameters must be a list")
             )))
+
+        # keyset URL and public key are mutually exclusive
+        if data.lti_1p3_tool_key_mode == 'keyset_url':
+            data.lti_1p3_tool_public_key = ''
+        elif data.lti_1p3_tool_key_mode == 'public_key':
+            data.lti_1p3_tool_keyset_url = ''
 
     def get_settings(self):
         """
