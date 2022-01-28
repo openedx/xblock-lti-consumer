@@ -6,7 +6,7 @@
 #
 appdirs==1.4.4
     # via fs
-asgiref==3.4.1
+asgiref==3.5.0
     # via django
 bleach==4.1.0
     # via -r requirements/base.in
@@ -24,7 +24,7 @@ django==3.2.11
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
-django-config-models==2.2.2
+django-config-models==2.3.0
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/base.in
@@ -38,7 +38,7 @@ djangorestframework==3.13.1
     # via
     #   -c requirements/constraints.txt
     #   django-config-models
-edx-django-utils==4.4.1
+edx-django-utils==4.4.2
     # via django-config-models
 edx-opaque-keys[django]==2.2.2
     # via -r requirements/base.in
@@ -64,7 +64,7 @@ markupsafe==2.0.1
     # via
     #   mako
     #   xblock
-newrelic==7.2.4.171
+newrelic==7.4.0.172
     # via edx-django-utils
 oauthlib==3.1.1
     # via -r requirements/base.in
@@ -74,7 +74,7 @@ pbr==5.8.0
     # via stevedore
 psutil==5.9.0
     # via edx-django-utils
-pycryptodomex==3.12.0
+pycryptodomex==3.13.0
     # via
     #   -r requirements/base.in
     #   pyjwkest
@@ -82,7 +82,7 @@ pyjwkest==1.4.2
     # via -r requirements/base.in
 pymongo==4.0.1
     # via edx-opaque-keys
-pyparsing==3.0.6
+pyparsing==3.0.7
     # via packaging
 python-dateutil==2.8.2
     # via xblock

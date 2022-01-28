@@ -8,11 +8,11 @@ appdirs==1.4.4
     # via
     #   -r requirements/base.txt
     #   fs
-asgiref==3.4.1
+asgiref==3.5.0
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.8.4
+astroid==2.9.3
     # via
     #   pylint
     #   pylint-celery
@@ -20,9 +20,9 @@ bleach==4.1.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.20.37
+boto3==1.20.45
     # via fs-s3fs
-botocore==1.23.37
+botocore==1.23.45
     # via
     #   boto3
     #   s3transfer
@@ -30,6 +30,8 @@ certifi==2021.10.8
     # via
     #   -r requirements/base.txt
     #   requests
+cffi==1.15.0
+    # via cryptography
 charset-normalizer==2.0.10
     # via
     #   -r requirements/base.txt
@@ -45,16 +47,17 @@ code-annotations==1.2.0
     # via edx-lint
 colorama==0.4.4
     # via twine
-coverage==6.2
+coverage==6.3
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
+cryptography==36.0.1
+    # via secretstorage
 ddt==1.4.4
     # via -r requirements/test.in
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.txt
-    #   -r requirements/test.in
     #   django-config-models
     #   django-crum
     #   django-filter
@@ -63,7 +66,7 @@ ddt==1.4.4
     #   edx-django-utils
     #   jsonfield
     #   xblock-sdk
-django-config-models==2.2.2
+django-config-models==2.3.0
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/base.txt
@@ -73,7 +76,7 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==21.1
     # via -r requirements/base.txt
-django-pyfs==3.1.0
+django-pyfs==3.2.0
     # via -r requirements/test.in
 django-waffle==2.3.0
     # via
@@ -89,7 +92,7 @@ docopt==0.6.2
     # via coveralls
 docutils==0.18.1
     # via readme-renderer
-edx-django-utils==4.4.1
+edx-django-utils==4.4.2
     # via
     #   -r requirements/base.txt
     #   django-config-models
@@ -119,6 +122,10 @@ importlib-metadata==4.10.1
     #   twine
 isort==5.10.1
     # via pylint
+jeepney==0.7.1
+    # via
+    #   keyring
+    #   secretstorage
 jinja2==3.0.3
     # via code-annotations
 jmespath==0.10.0
@@ -151,7 +158,7 @@ mccabe==0.6.1
     # via pylint
 mock==4.0.3
     # via -r requirements/test.in
-newrelic==7.2.4.171
+newrelic==7.4.0.172
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -175,7 +182,9 @@ psutil==5.9.0
     #   edx-django-utils
 pycodestyle==2.8.0
     # via -r requirements/test.in
-pycryptodomex==3.12.0
+pycparser==2.21
+    # via cffi
+pycryptodomex==3.13.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -183,7 +192,7 @@ pygments==2.11.2
     # via readme-renderer
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.11.1
+pylint==2.12.2
     # via
     #   edx-lint
     #   pylint-celery
@@ -201,7 +210,7 @@ pymongo==4.0.1
     # via
     #   -r requirements/base.txt
     #   edx-opaque-keys
-pyparsing==3.0.6
+pyparsing==3.0.7
     # via
     #   -r requirements/base.txt
     #   packaging
@@ -241,6 +250,8 @@ rfc3986==2.0.0
     # via twine
 s3transfer==0.5.0
     # via boto3
+secretstorage==3.3.1
+    # via keyring
 simplejson==3.17.6
     # via
     #   -r requirements/base.txt
