@@ -149,7 +149,6 @@ class TestLti1p3Consumer(TestCase):
         Check if preflight request is properly formed and has all required keys.
         """
         preflight_request_data = self.lti_consumer.prepare_preflight_url(
-            callback_url=LAUNCH_URL,
             hint="test-hint",
             lti_hint="test-lti-hint"
         )

@@ -60,7 +60,6 @@ def load_block_as_anonymous_user(location):
             student_data=None,
             course_id=location.course_key,
             track_function=None,
-            xqueue_callback_url_prefix="",
             request_token="",
         )
 
