@@ -1,7 +1,7 @@
 """
 Runtime will load the XBlock class from here.
 """
-from .lti_xblock import LtiConsumerXBlock
 from .apps import LTIConsumerApp
+from .lti_xblock import LtiConsumerXBlock
 
-__version__ = '3.2.0'
+__version__ = '3.3.0'
