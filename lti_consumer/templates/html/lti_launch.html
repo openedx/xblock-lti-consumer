@@ -1,3 +1,5 @@
+{% load i18n %}
+
 <!DOCTYPE HTML>
 <html>
     <head>
@@ -5,26 +7,27 @@
         <title>LTI</title>
     </head>
     <body>
-        ## This form will be hidden.
-        ## LTI module JavaScript will trigger a "submit" on the form, and the
-        ## result will be rendered instead.
+        {% comment %}
+            This form will be hidden.
+            LTI module JavaScript will trigger a "submit" on the form, and the
+            result will be rendered instead. 
+        {% endcomment %}
         <form
-            id="lti-${element_id}"
-            action="${launch_url}"
+            id="lti-{{element_id}}"
+            action="{{launch_url}}"
             method="post"
             encType="application/x-www-form-urlencoded"
             style="display:none;"
         >
+            {% for param_name, param_value in lti_parameters.items %}
+                <input name="{{param_name}}" value="{{param_value}}" />
+            {% endfor %}
 
-            % for param_name, param_value in lti_parameters.items():
-                <input name="${param_name}" value="${param_value}" />
-            % endfor
-
-            <input type="submit" value="Press to Launch" />
+            <input type="submit" value="{% trans "Press to Launch" %}" />
         </form>
         <script type="text/javascript">
             (function (d) {
-                var element = d.getElementById("lti-${element_id}");
+                var element = d.getElementById("lti-{{element_id}}");
                 if (element) {
                     element.submit();
                 }

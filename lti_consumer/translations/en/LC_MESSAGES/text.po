@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-01-18 07:25-0300\n"
+"POT-Creation-Date: 2022-02-01 17:24-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,79 +38,79 @@ msgstr ""
 msgid "Invalid token signature."
 msgstr ""
 
-#: lti_xblock.py:126
+#: lti_xblock.py:127
 msgid "No valid user id found in endpoint URL"
 msgstr ""
 
-#: lti_xblock.py:232
+#: lti_xblock.py:233
 msgid "Display Name"
 msgstr ""
 
-#: lti_xblock.py:234
+#: lti_xblock.py:235
 msgid ""
 "Enter the name that students see for this component. Analytics reports may "
 "also use the display name to identify this component."
 msgstr ""
 
-#: lti_xblock.py:238
+#: lti_xblock.py:239
 msgid "LTI Consumer"
 msgstr ""
 
-#: lti_xblock.py:241
+#: lti_xblock.py:242
 msgid "LTI Application Information"
 msgstr ""
 
-#: lti_xblock.py:243
+#: lti_xblock.py:244
 msgid ""
 "Enter a description of the third party application. If requesting username "
 "and/or email, use this text box to inform users why their username and/or "
 "email will be forwarded to a third party application."
 msgstr ""
 
-#: lti_xblock.py:253
+#: lti_xblock.py:254
 msgid "LTI Version"
 msgstr ""
 
-#: lti_xblock.py:261
+#: lti_xblock.py:262
 msgid ""
 "Select the LTI version that your tool supports.<br />The XBlock LTI Consumer "
 "fully supports LTI 1.1.1, LTI 1.3 and LTI Advantage features."
 msgstr ""
 
-#: lti_xblock.py:267
+#: lti_xblock.py:268
 msgid "Tool Launch URL"
 msgstr ""
 
-#: lti_xblock.py:271
+#: lti_xblock.py:272
 msgid ""
 "Enter the LTI 1.3 Tool Launch URL. <br />This is the URL the LMS will use to "
 "launch the LTI Tool."
 msgstr ""
 
-#: lti_xblock.py:276
+#: lti_xblock.py:277
 msgid "Tool Initiate Login URL"
 msgstr ""
 
-#: lti_xblock.py:280
+#: lti_xblock.py:281
 msgid ""
 "Enter the LTI 1.3 Tool OIDC Authorization url (can also be called login or "
 "login initiation URL).<br />This is the URL the LMS will use to start a LTI "
 "authorization prior to doing the launch request."
 msgstr ""
 
-#: lti_xblock.py:287
+#: lti_xblock.py:288
 msgid "Tool Public Key Mode"
 msgstr ""
 
-#: lti_xblock.py:295
+#: lti_xblock.py:296
 msgid "Select how the tool's public key information will be specified."
 msgstr ""
 
-#: lti_xblock.py:299
+#: lti_xblock.py:300
 msgid "Tool Keyset URL"
 msgstr ""
 
-#: lti_xblock.py:303
+#: lti_xblock.py:304
 msgid ""
 "Enter the LTI 1.3 Tool's JWK keysets URL.<br />This link should retrieve a "
 "JSON file containing public keys and signature algorithm information, so "
@@ -119,11 +119,11 @@ msgid ""
 "Launches without LTI Advantage nor Basic Outcomes requests.</b>"
 msgstr ""
 
-#: lti_xblock.py:313
+#: lti_xblock.py:314
 msgid "Tool Public Key"
 msgstr ""
 
-#: lti_xblock.py:318
+#: lti_xblock.py:319
 msgid ""
 "Enter the LTI 1.3 Tool's public key.<br />This is a string that starts with "
 "'-----BEGIN PUBLIC KEY-----' and is required so that the LMS can check if "
@@ -132,61 +132,61 @@ msgid ""
 "Advantage nor Basic Outcomes requests.</b>"
 msgstr ""
 
-#: lti_xblock.py:328
+#: lti_xblock.py:329
 msgid "Enable LTI NRPS"
 msgstr ""
 
-#: lti_xblock.py:329
+#: lti_xblock.py:330
 msgid "Enable LTI Names and Role Provisioning Services."
 msgstr ""
 
-#: lti_xblock.py:336
+#: lti_xblock.py:337
 msgid "LTI 1.3 Block Client ID - DEPRECATED"
 msgstr ""
 
-#: lti_xblock.py:339
+#: lti_xblock.py:340
 msgid "DEPRECATED - This is now stored in the LtiConfiguration model."
 msgstr ""
 
-#: lti_xblock.py:342
+#: lti_xblock.py:343
 msgid "LTI 1.3 Block Key - DEPRECATED"
 msgstr ""
 
-#: lti_xblock.py:349
+#: lti_xblock.py:350
 msgid "Deep linking"
 msgstr ""
 
-#: lti_xblock.py:350
+#: lti_xblock.py:351
 msgid "Select True if you want to enable LTI Advantage Deep Linking."
 msgstr ""
 
-#: lti_xblock.py:355
+#: lti_xblock.py:356
 msgid "Deep Linking Launch URL"
 msgstr ""
 
-#: lti_xblock.py:359
+#: lti_xblock.py:360
 msgid ""
 "Enter the LTI Advantage Deep Linking Launch URL. If the tool does not "
 "specify one, use the same value as 'Tool Launch URL'."
 msgstr ""
 
-#: lti_xblock.py:364
+#: lti_xblock.py:365
 msgid "LTI Assignment and Grades Service"
 msgstr ""
 
-#: lti_xblock.py:366
+#: lti_xblock.py:367
 msgid "Disabled"
 msgstr ""
 
-#: lti_xblock.py:367
+#: lti_xblock.py:368
 msgid "Allow tools to submit grades only (declarative)"
 msgstr ""
 
-#: lti_xblock.py:368
+#: lti_xblock.py:369
 msgid "Allow tools to manage and submit grade (programmatic)"
 msgstr ""
 
-#: lti_xblock.py:373
+#: lti_xblock.py:374
 msgid ""
 "Enable the LTI-AGS service and select the functionality enabled for LTI "
 "tools. The 'declarative' mode (default) will provide a tool with a LineItem "
@@ -194,11 +194,11 @@ msgid ""
 "tools to manage, create and link the grades."
 msgstr ""
 
-#: lti_xblock.py:381
+#: lti_xblock.py:382
 msgid "LTI ID"
 msgstr ""
 
-#: lti_xblock.py:383
+#: lti_xblock.py:384
 #, python-brace-format
 msgid ""
 "Enter the LTI ID for the external LTI provider. This value must be the same "
@@ -207,11 +207,11 @@ msgid ""
 "documentation{anchor_close} for more details on this setting."
 msgstr ""
 
-#: lti_xblock.py:395
+#: lti_xblock.py:396
 msgid "LTI URL"
 msgstr ""
 
-#: lti_xblock.py:397
+#: lti_xblock.py:398
 #, python-brace-format
 msgid ""
 "Enter the URL of the external tool that this component launches. This "
@@ -220,11 +220,11 @@ msgid ""
 "this setting."
 msgstr ""
 
-#: lti_xblock.py:410
+#: lti_xblock.py:411
 msgid "Custom Parameters"
 msgstr ""
 
-#: lti_xblock.py:412
+#: lti_xblock.py:413
 #, python-brace-format
 msgid ""
 "Add the key/value pair for any custom parameters, such as the page your e-"
@@ -233,11 +233,11 @@ msgid ""
 "documentation{anchor_close} for more details on this setting."
 msgstr ""
 
-#: lti_xblock.py:422
+#: lti_xblock.py:423
 msgid "LTI Launch Target"
 msgstr ""
 
-#: lti_xblock.py:424
+#: lti_xblock.py:425
 msgid ""
 "Select Inline if you want the LTI content to open in an IFrame in the "
 "current page. Select Modal if you want the LTI content to open in a modal "
@@ -246,210 +246,210 @@ msgid ""
 "Tool is set to False."
 msgstr ""
 
-#: lti_xblock.py:438
+#: lti_xblock.py:439
 msgid "Button Text"
 msgstr ""
 
-#: lti_xblock.py:440
+#: lti_xblock.py:441
 msgid ""
 "Enter the text on the button used to launch the third party application. "
 "This setting is only used when Hide External Tool is set to False and LTI "
 "Launch Target is set to Modal or New Window."
 msgstr ""
 
-#: lti_xblock.py:448
+#: lti_xblock.py:449
 msgid "Inline Height"
 msgstr ""
 
-#: lti_xblock.py:450
+#: lti_xblock.py:451
 msgid ""
 "Enter the desired pixel height of the iframe which will contain the LTI "
 "tool. This setting is only used when Hide External Tool is set to False and "
 "LTI Launch Target is set to Inline."
 msgstr ""
 
-#: lti_xblock.py:458
+#: lti_xblock.py:459
 msgid "Modal Height"
 msgstr ""
 
-#: lti_xblock.py:460
+#: lti_xblock.py:461
 msgid ""
 "Enter the desired viewport percentage height of the modal overlay which will "
 "contain the LTI tool. This setting is only used when Hide External Tool is "
 "set to False and LTI Launch Target is set to Modal."
 msgstr ""
 
-#: lti_xblock.py:468
+#: lti_xblock.py:469
 msgid "Modal Width"
 msgstr ""
 
-#: lti_xblock.py:470
+#: lti_xblock.py:471
 msgid ""
 "Enter the desired viewport percentage width of the modal overlay which will "
 "contain the LTI tool. This setting is only used when Hide External Tool is "
 "set to False and LTI Launch Target is set to Modal."
 msgstr ""
 
-#: lti_xblock.py:478
+#: lti_xblock.py:479
 msgid "Scored"
 msgstr ""
 
-#: lti_xblock.py:479
+#: lti_xblock.py:480
 msgid ""
 "Select True if this component will receive a numerical score from the "
 "external LTI system."
 msgstr ""
 
-#: lti_xblock.py:486
+#: lti_xblock.py:487
 msgid ""
 "Enter the number of points possible for this component.  The default value "
 "is 1.0.  This setting is only used when Scored is set to True."
 msgstr ""
 
-#: lti_xblock.py:495
+#: lti_xblock.py:496
 msgid ""
 "The score kept in the xblock KVS -- duplicate of the published score in "
 "django DB"
 msgstr ""
 
-#: lti_xblock.py:500
+#: lti_xblock.py:501
 msgid "Comment as returned from grader, LTI2.0 spec"
 msgstr ""
 
-#: lti_xblock.py:505
+#: lti_xblock.py:506
 msgid "Hide External Tool"
 msgstr ""
 
-#: lti_xblock.py:507
+#: lti_xblock.py:508
 msgid ""
 "Select True if you want to use this component as a placeholder for syncing "
 "with an external grading  system rather than launch an external tool.  This "
 "setting hides the Launch button and any IFrames for this component."
 msgstr ""
 
-#: lti_xblock.py:515
+#: lti_xblock.py:516
 msgid "Accept grades past deadline"
 msgstr ""
 
-#: lti_xblock.py:516
+#: lti_xblock.py:517
 msgid ""
 "Select True to allow third party systems to post grades past the deadline."
 msgstr ""
 
-#: lti_xblock.py:524
+#: lti_xblock.py:525
 msgid "Request user's username"
 msgstr ""
 
 #. Translators: This is used to request the user's username for a third party service.
-#: lti_xblock.py:526
+#: lti_xblock.py:527
 msgid "Select True to request the user's username."
 msgstr ""
 
-#: lti_xblock.py:531
+#: lti_xblock.py:532
 msgid "Request user's email"
 msgstr ""
 
 #. Translators: This is used to request the user's email for a third party service.
-#: lti_xblock.py:533
+#: lti_xblock.py:534
 msgid "Select True to request the user's email address."
 msgstr ""
 
-#: lti_xblock.py:538
+#: lti_xblock.py:539
 msgid "Send extra parameters"
 msgstr ""
 
-#: lti_xblock.py:539
+#: lti_xblock.py:540
 msgid ""
 "Select True to send the extra parameters, which might contain Personally "
 "Identifiable Information. The processors are site-wide, please consult the "
 "site administrator if you have any questions."
 msgstr ""
 
-#: lti_xblock.py:602
+#: lti_xblock.py:603
 msgid "Custom Parameters must be a list"
 msgstr ""
 
-#: lti_xblock.py:712
+#: lti_xblock.py:713
 msgid ""
 "Could not parse LTI passport: {lti_passport!r}. Should be \"id:key:secret\" "
 "string."
 msgstr ""
 
-#: lti_xblock.py:728 lti_xblock.py:744
+#: lti_xblock.py:729 lti_xblock.py:745
 msgid "Could not get user id for current request"
 msgstr ""
 
-#: lti_xblock.py:849
+#: lti_xblock.py:850
 msgid ""
 "Could not parse custom parameter: {custom_parameter!r}. Should be \"x=y\" "
 "string."
 msgstr ""
 
-#: lti_xblock.py:1304
+#: lti_xblock.py:1310
 msgid "[LTI]: Real user not found against anon_id: {}"
 msgstr ""
 
-#: models.py:69
+#: models.py:72
 msgid "Configuration Stored on XBlock fields"
 msgstr ""
 
-#: models.py:70
+#: models.py:73
 msgid "Configuration Stored on this model"
 msgstr ""
 
-#: models.py:94
+#: models.py:97
 msgid "LTI configuration data."
 msgstr ""
 
-#: models.py:101
+#: models.py:104
 msgid "The URL of the external tool that initiates the launch."
 msgstr ""
 
-#: models.py:106
+#: models.py:109
 msgid "Client key provided by the LTI tool provider."
 msgstr ""
 
-#: models.py:112
+#: models.py:115
 msgid "Client secret provided by the LTI tool provider."
 msgstr ""
 
-#: models.py:118
+#: models.py:121
 msgid "Platform's generated Private key. Keep this value secret."
 msgstr ""
 
-#: models.py:124
+#: models.py:127
 msgid "Platform's generated Private key ID"
 msgstr ""
 
-#: models.py:129
+#: models.py:132
 msgid "Platform's generated JWK keyset."
 msgstr ""
 
-#: models.py:135
+#: models.py:138
 msgid "Client ID used by LTI tool"
 msgstr ""
 
-#: models.py:145
+#: models.py:148
 msgid "LTI Configuration stores on XBlock needs a block location set."
 msgstr ""
 
-#: models.py:152
+#: models.py:155
 msgid "Invalid LTI configuration."
 msgstr ""
 
-#: models.py:162
+#: models.py:165
 msgid "Block location not set, it's not possible to retrieve the block."
 msgstr ""
 
-#: plugin/views.py:244
+#: plugin/views.py:246
 msgid "The selected content type is not supported by Open edX."
 msgstr ""
 
-#: plugin/views.py:259
+#: plugin/views.py:261
 msgid "You don't have access to save LTI Content Items."
 msgstr ""
 
-#: plugin/views.py:260
+#: plugin/views.py:262
 msgid ""
 "Please check that you have course staff permissions and double check this "
 "block's LTI settings."
@@ -544,7 +544,11 @@ msgstr ""
 msgid "Deep Linking Launch - Configure tool"
 msgstr ""
 
-#: static/js/xblock_lti_consumer.js:110
+#: templates/html/lti_launch.html:27
+msgid "Press to Launch"
+msgstr ""
+
+#: static/js/xblock_lti_consumer.js:142
 msgid ""
 "Click OK to have your username and e-mail address sent to a 3rd party "
 "application.\n"
@@ -552,14 +556,14 @@ msgid ""
 "Click Cancel to return to this page without sending your information."
 msgstr ""
 
-#: static/js/xblock_lti_consumer.js:112
+#: static/js/xblock_lti_consumer.js:144
 msgid ""
 "Click OK to have your username sent to a 3rd party application.\n"
 "\n"
 "Click Cancel to return to this page without sending your information."
 msgstr ""
 
-#: static/js/xblock_lti_consumer.js:114
+#: static/js/xblock_lti_consumer.js:146
 msgid ""
 "Click OK to have your e-mail address sent to a 3rd party application.\n"
 "\n"
