@@ -8,24 +8,36 @@ appdirs==1.4.4
     # via
     #   -r requirements/test.txt
     #   fs
-asgiref==3.4.1
+arrow==1.2.2
+    # via
+    #   -r requirements/test.txt
+    #   jinja2-time
+asgiref==3.5.0
     # via
     #   -r requirements/test.txt
     #   django
-astroid==2.8.4
+astroid==2.9.3
     # via
     #   -r requirements/test.txt
     #   pylint
     #   pylint-celery
+binaryornot==0.4.4
+    # via
+    #   -r requirements/test.txt
+    #   cookiecutter
 bleach==4.1.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.20.37
+boto==2.49.0
+    # via
+    #   -r requirements/test.txt
+    #   xblock-sdk
+boto3==1.20.46
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.23.37
+botocore==1.23.46
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -34,7 +46,11 @@ certifi==2021.10.8
     # via
     #   -r requirements/test.txt
     #   requests
-charset-normalizer==2.0.10
+chardet==4.0.0
+    # via
+    #   -r requirements/test.txt
+    #   binaryornot
+charset-normalizer==2.0.11
     # via
     #   -r requirements/test.txt
     #   requests
@@ -43,6 +59,7 @@ click==8.0.3
     #   -r requirements/test.txt
     #   click-log
     #   code-annotations
+    #   cookiecutter
     #   edx-lint
 click-log==0.3.2
     # via
@@ -56,7 +73,11 @@ colorama==0.4.4
     # via
     #   -r requirements/test.txt
     #   twine
-coverage==6.2
+cookiecutter==1.7.3
+    # via
+    #   -r requirements/test.txt
+    #   xblock-sdk
+coverage==6.3
     # via
     #   -r requirements/test.txt
     #   coveralls
@@ -80,7 +101,7 @@ django==3.2.11
     #   edx-django-utils
     #   jsonfield
     #   xblock-sdk
-django-config-models==2.2.2
+django-config-models==2.3.0
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/test.txt
@@ -90,8 +111,10 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==21.1
     # via -r requirements/test.txt
-django-pyfs==3.1.0
-    # via -r requirements/test.txt
+django-pyfs==3.2.0
+    # via
+    #   -r requirements/test.txt
+    #   xblock-sdk
 django-waffle==2.3.0
     # via
     #   -r requirements/test.txt
@@ -109,13 +132,13 @@ docutils==0.18.1
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-edx-django-utils==4.4.1
+edx-django-utils==4.4.2
     # via
     #   -r requirements/test.txt
     #   django-config-models
 edx-lint==5.2.1
     # via -r requirements/test.txt
-edx-opaque-keys[django]==2.2.2
+edx-opaque-keys[django]==2.3.0
     # via -r requirements/test.txt
 filelock==3.4.2
     # via
@@ -132,6 +155,7 @@ fs-s3fs==1.1.1
     # via
     #   -r requirements/test.txt
     #   django-pyfs
+    #   xblock-sdk
 future==0.18.2
     # via
     #   -r requirements/test.txt
@@ -153,6 +177,12 @@ jinja2==3.0.3
     # via
     #   -r requirements/test.txt
     #   code-annotations
+    #   cookiecutter
+    #   jinja2-time
+jinja2-time==0.2.0
+    # via
+    #   -r requirements/test.txt
+    #   cookiecutter
 jmespath==0.10.0
     # via
     #   -r requirements/test.txt
@@ -165,7 +195,9 @@ keyring==23.5.0
     #   -r requirements/test.txt
     #   twine
 lazy==1.4
-    # via -r requirements/test.txt
+    # via
+    #   -r requirements/test.txt
+    #   xblock-sdk
 lazy-object-proxy==1.7.1
     # via
     #   -r requirements/test.txt
@@ -174,6 +206,7 @@ lxml==4.7.1
     # via
     #   -r requirements/test.txt
     #   xblock
+    #   xblock-sdk
 mako==1.1.6
     # via
     #   -r requirements/test.txt
@@ -190,11 +223,11 @@ mccabe==0.6.1
     #   pylint
 mock==4.0.3
     # via -r requirements/test.txt
-newrelic==7.2.4.171
+newrelic==7.4.0.172
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
-oauthlib==3.1.1
+oauthlib==3.2.0
     # via -r requirements/test.txt
 packaging==21.3
     # via
@@ -220,6 +253,10 @@ pluggy==1.0.0
     # via
     #   -r requirements/tox.txt
     #   tox
+poyo==0.5.0
+    # via
+    #   -r requirements/test.txt
+    #   cookiecutter
 psutil==5.9.0
     # via
     #   -r requirements/test.txt
@@ -230,7 +267,7 @@ py==1.11.0
     #   tox
 pycodestyle==2.8.0
     # via -r requirements/test.txt
-pycryptodomex==3.12.0
+pycryptodomex==3.14.0
     # via
     #   -r requirements/test.txt
     #   pyjwkest
@@ -240,7 +277,7 @@ pygments==2.11.2
     #   readme-renderer
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.11.1
+pylint==2.12.2
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -260,24 +297,30 @@ pylint-plugin-utils==0.7
     #   -r requirements/test.txt
     #   pylint-celery
     #   pylint-django
-pymongo==4.0.1
+pymongo==3.12.3
     # via
     #   -r requirements/test.txt
     #   edx-opaque-keys
-pyparsing==3.0.6
+pyparsing==3.0.7
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
     #   packaging
+pypng==0.0.21
+    # via
+    #   -r requirements/test.txt
+    #   xblock-sdk
 python-dateutil==2.8.2
     # via
     #   -r requirements/test.txt
+    #   arrow
     #   botocore
     #   xblock
 python-slugify==5.0.2
     # via
     #   -r requirements/test.txt
     #   code-annotations
+    #   cookiecutter
 pytz==2021.3
     # via
     #   -r requirements/test.txt
@@ -297,10 +340,12 @@ readme-renderer==32.0
 requests==2.27.1
     # via
     #   -r requirements/test.txt
+    #   cookiecutter
     #   coveralls
     #   pyjwkest
     #   requests-toolbelt
     #   twine
+    #   xblock-sdk
 requests-toolbelt==0.9.1
     # via
     #   -r requirements/test.txt
@@ -316,12 +361,14 @@ s3transfer==0.5.0
 simplejson==3.17.6
     # via
     #   -r requirements/test.txt
+    #   xblock-sdk
     #   xblock-utils
 six==1.16.0
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
     #   bleach
+    #   cookiecutter
     #   edx-lint
     #   fs
     #   fs-s3fs
@@ -375,6 +422,7 @@ web-fragments==2.0.0
     # via
     #   -r requirements/test.txt
     #   xblock
+    #   xblock-sdk
     #   xblock-utils
 webencodings==0.5.1
     # via
@@ -384,6 +432,7 @@ webob==1.8.7
     # via
     #   -r requirements/test.txt
     #   xblock
+    #   xblock-sdk
 wrapt==1.13.3
     # via
     #   -r requirements/test.txt
@@ -391,8 +440,9 @@ wrapt==1.13.3
 xblock==1.5.1
     # via
     #   -r requirements/test.txt
+    #   xblock-sdk
     #   xblock-utils
-xblock-sdk==0.4.0
+xblock-sdk==0.5.1
     # via -r requirements/test.txt
 xblock-utils==2.2.0
     # via -r requirements/test.txt
