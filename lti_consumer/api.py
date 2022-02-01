@@ -93,7 +93,6 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
 
     if lti_consumer.dl is not None:
         deep_linking_launch_url = lti_consumer.prepare_preflight_url(
-            callback_url=get_lms_lti_launch_link(),
             hint=lti_config.location,
             lti_hint="deep_linking_launch"
         )
@@ -140,7 +139,6 @@ def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=Fa
 
     # Prepare and return OIDC flow start url
     return lti_consumer.prepare_preflight_url(
-        callback_url=get_lms_lti_launch_link(),
         hint=hint,
         lti_hint=lti_hint
     )
