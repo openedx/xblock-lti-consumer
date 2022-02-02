@@ -367,6 +367,13 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+3.4.2 - 2022-02-01
+------------------
+
+* Fix LTI 1.1 form rendering so it properly renders quotes present in titles.
+* Migrate LTI 1.1 launch template from Mako to Django template.
+* Internationalize LTI 1.1 launch template.
+
 3.4.1 - 2022-02-01
 ------------------
 
