@@ -132,16 +132,29 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `role` returns the correct LTI role string
         """
-        self.xblock.runtime.get_user_role.return_value = 'student'
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_role': 'student'
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertEqual(self.xblock.role, 'Student')
 
-        self.xblock.runtime.get_user_role.return_value = 'guest'
+        fake_user.opt_attrs = {
+            'edx-platform.user_role': 'guest'
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertEqual(self.xblock.role, 'Student')
 
-        self.xblock.runtime.get_user_role.return_value = 'staff'
+        fake_user.opt_attrs = {
+            'edx-platform.user_role': 'staff'
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertEqual(self.xblock.role, 'Administrator')
 
-        self.xblock.runtime.get_user_role.return_value = 'instructor'
+        fake_user.opt_attrs = {
+            'edx-platform.user_role': 'instructor'
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertEqual(self.xblock.role, 'Instructor')
 
     def test_course(self):
@@ -218,21 +231,25 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `user_id` returns the user_id string
         """
-        self.xblock.runtime.anonymous_student_id = FAKE_USER_ID
-        self.assertEqual(self.xblock.user_id, FAKE_USER_ID)
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.anonymous_user_id': FAKE_USER_ID
+        }
 
-    def test_user_id_url_encoded(self):
-        """
-        Test `user_id` url encodes the user id
-        """
-        self.xblock.runtime.anonymous_student_id = 'user_id?&. '
-        self.assertEqual(self.xblock.user_id, 'user_id%3F%26.%20')
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertEqual(self.xblock.user_id, FAKE_USER_ID)
 
     def test_user_id_none(self):
         """
         Test `user_id` raises LtiError when the user id cannot be returned
         """
-        self.xblock.runtime.anonymous_student_id = None
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.anonymous_user_id': None
+        }
+
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+
         with self.assertRaises(LtiError):
             __ = self.xblock.user_id
 
@@ -494,7 +511,7 @@ class TestExtractRealUserData(TestLtiConsumerXBlock):
         """
         Test user_email, user_username, and user_language not available
         """
-        self.xblock.runtime.get_real_user = NonCallableMock()
+        self.xblock.runtime.service(self, 'user').get_current_user = NonCallableMock()
 
         real_user_data = self.xblock.extract_real_user_data()
         self.assertIsNone(real_user_data['user_email'])
@@ -504,34 +521,42 @@ class TestExtractRealUserData(TestLtiConsumerXBlock):
     def test_get_real_user_callable(self):
         """
         Test user_email, and user_username available, but not user_language
+        See also documentation of new user service:
+        https://github.com/openedx/XBlock/blob/master/xblock/reference/user_service.py
         """
         fake_user = Mock()
-        fake_user.email = 'abc@example.com'
-        fake_user.username = 'fake'
-        fake_user.preferences = None
+        fake_user_email = 'abc@example.com'
+        fake_user.emails = [fake_user_email]
+        fake_user.full_name = 'fake'
+        fake_user.opt_attrs = {}
 
-        self.xblock.runtime.get_real_user = Mock(return_value=fake_user)
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
 
         real_user_data = self.xblock.extract_real_user_data()
-        self.assertEqual(real_user_data['user_email'], fake_user.email)
-        self.assertEqual(real_user_data['user_username'], fake_user.username)
+        self.assertEqual(real_user_data['user_email'], fake_user_email)
+        self.assertEqual(real_user_data['user_username'], fake_user.full_name)
         self.assertIsNone(real_user_data['user_language'])
 
     def test_get_real_user_callable_with_language_preference(self):
         """
         Test user_language available
+        See also documentation of new user service:
+        https://github.com/openedx/XBlock/blob/master/xblock/reference/user_service.py
         """
         fake_user = Mock()
-        fake_user.email = 'abc@example.com'
-        fake_user.username = 'fake'
-        mock_language_pref = Mock()
-        mock_language_pref.value = PropertyMock(return_value='en')
-        fake_user.preferences.filter = Mock(return_value=[mock_language_pref])
+        fake_user.emails = ['abc@example.com']
+        fake_user.full_name = 'fake'
+        pref_language = "en"
+        fake_user.opt_attrs = {
+            "edx-platform.user_preferences": {
+                "pref-lang": "en"
+            }
+        }
 
-        self.xblock.runtime.get_real_user = Mock(return_value=fake_user)
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
 
         real_user_data = self.xblock.extract_real_user_data()
-        self.assertEqual(real_user_data['user_language'], mock_language_pref.value)
+        self.assertEqual(real_user_data['user_language'], pref_language)
 
 
 class TestStudentView(TestLtiConsumerXBlock):
@@ -630,7 +655,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
         self.xblock.due = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
-        self.xblock.runtime.get_real_user = Mock(return_value=None)
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=None)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
