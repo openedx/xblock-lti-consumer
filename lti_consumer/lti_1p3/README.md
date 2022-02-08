@@ -84,9 +84,7 @@ def lti_preflight_request(request):
     The platform needs to know the tool OIDC endpoint.
     """
     lti_consumer = _get_lti1p3_consumer()
-    context = lti_consumer.prepare_preflight_url(
-        callback_url=get_lms_lti_launch_link()
-    )
+    context = lti_consumer.prepare_preflight_url()
 
     # This template should render a simple redirection to the URL
     # provided by the context through the `oidc_url` key above.
