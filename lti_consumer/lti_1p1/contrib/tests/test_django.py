@@ -105,10 +105,10 @@ class TestLtiEmbed(TestCase):
         mock_set_custom_parameters.assert_called_with(expected_custom_parameters)
 
     @patch('lti_consumer.lti_1p1.contrib.django.LtiConsumer1p1.generate_launch_request', Mock(return_value={'a': 1}))
-    @patch('lti_consumer.lti_1p1.contrib.django.ResourceLoader.render_mako_template')
-    def test_make_template_rendered_with_correct_context_and_returned(self, mock_render_mako_template):
+    @patch('lti_consumer.lti_1p1.contrib.django.ResourceLoader.render_django_template')
+    def test_make_template_rendered_with_correct_context_and_returned(self, mock_render_django_template):
         fake_template = 'SOME_TEMPLATE'
-        mock_render_mako_template.return_value = fake_template
+        mock_render_django_template.return_value = fake_template
 
         rendered_template = lti_embed(
             html_element_id=self.html_element_id,
@@ -132,5 +132,5 @@ class TestLtiEmbed(TestCase):
             'launch_url': self.lti_launch_url,
             'lti_parameters': {'a': 1}
         }
-        mock_render_mako_template.assert_called_with(ANY, expected_context)
+        mock_render_django_template.assert_called_with(ANY, expected_context)
         self.assertEqual(rendered_template, fake_template)
