@@ -367,6 +367,11 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+3.4.3 - 2022-02-09
+------------------
+
+* fix: Changed user from `None` to `Anonymous User` in authenticated requests
+
 3.4.2 - 2022-02-01
 ------------------
 
