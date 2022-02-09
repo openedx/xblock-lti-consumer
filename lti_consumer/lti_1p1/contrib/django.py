@@ -125,5 +125,5 @@ def lti_embed(
 
     # Render the form template and return the template
     loader = ResourceLoader(__name__)
-    template = loader.render_mako_template('../../templates/html/lti_launch.html', context)
+    template = loader.render_django_template('../../templates/html/lti_launch.html', context)
     return template
