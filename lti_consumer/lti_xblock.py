@@ -1075,7 +1075,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         loader = ResourceLoader(__name__)
         context = self._get_context_for_template()
         context.update({'lti_parameters': lti_parameters})
-        template = loader.render_mako_template('/templates/html/lti_launch.html', context)
+        template = loader.render_django_template('/templates/html/lti_launch.html', context)
         return Response(template, content_type='text/html')
 
     @XBlock.handler

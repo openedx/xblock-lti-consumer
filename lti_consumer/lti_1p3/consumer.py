@@ -90,7 +90,6 @@ class LtiConsumer1p3:
 
     def prepare_preflight_url(
             self,
-            callback_url,
             hint="hint",
             lti_hint="lti_hint"
     ):
@@ -102,7 +101,7 @@ class LtiConsumer1p3:
             "iss": self.iss,
             "client_id": self.client_id,
             "lti_deployment_id": self.deployment_id,
-            "target_link_uri": callback_url,
+            "target_link_uri": self.launch_url,
             "login_hint": hint,
             "lti_message_hint": lti_hint
         }
