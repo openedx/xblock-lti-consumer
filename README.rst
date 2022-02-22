@@ -367,6 +367,13 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+3.4.4 - 2022-03-03
+------------------
+
+* Fix LTI 1.3 Deep Linking launch url - always perform launch on launch URL, but update `target_link_uri` when
+  loading deep linking content.
+  See LTI 1.3 spec at: https://www.imsglobal.org/spec/lti/v1p3#target-link-uri
+
 3.4.3 - 2022-02-01
 ------------------
 
