@@ -1145,8 +1145,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     url=dl_params.get('url'),
                     custom=dl_params.get('custom')
                 )
-                if dl_params.get('url'):
-                    context.update({'launch_url': dl_params.get('url')})
 
             # Update context with LTI launch parameters
             context.update({
