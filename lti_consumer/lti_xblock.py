@@ -1163,7 +1163,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 str(self.location),  # pylint: disable=no-member
                 exc,
             )
-            template = loader.render_mako_template('/templates/html/lti_1p3_launch_error.html', context)
+            template = loader.render_django_template('/templates/html/lti_1p3_launch_error.html', context)
             return Response(template, status=400, content_type='text/html')
         except AssertionError as exc:
             log.warning(
@@ -1172,7 +1172,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 self.external_user_id,
                 exc,
             )
-            template = loader.render_mako_template('/templates/html/lti_1p3_permission_error.html', context)
+            template = loader.render_django_template('/templates/html/lti_1p3_permission_error.html', context)
             return Response(template, status=403, content_type='text/html')
 
     @XBlock.handler
