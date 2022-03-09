@@ -213,7 +213,6 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
                 content_type = content_item.get('type')
 
                 # Retrieve serializer (or raise)
-                # pylint: disable=consider-iterating-dictionary
                 if content_type not in LTI_DL_CONTENT_TYPE_SERIALIZER_MAP.keys():
                     raise LtiDeepLinkingContentTypeNotSupported()
                 serializer_cls = LTI_DL_CONTENT_TYPE_SERIALIZER_MAP[content_type]

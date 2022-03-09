@@ -685,11 +685,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Get system user role and convert it to LTI role.
         """
-        try:
-            role = self.runtime.service(self, 'user').get_current_user().opt_attrs['edx-platform.user_role']
-        # opt_attrs might not be present or the "edx-platform.user_role" key if opt_attrs is present
-        except (KeyError, AttributeError):
-            role = "student"
+        role = self.runtime.service(self, 'user').get_current_user().opt_attrs.get('edx-platform.user_role', 'student')
         return ROLE_MAP.get(role, 'Student')
 
     @property
@@ -731,7 +727,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         This defaults to 'student' when testing in studio.
         It will return the proper anonymous ID in the LMS.
         """
-        user_id = self.runtime.service(self, 'user').get_current_user().opt_attrs['edx-platform.anonymous_user_id']
+        user_id = self.runtime.service(self, 'user').get_current_user().opt_attrs.get(
+            'edx-platform.anonymous_user_id', None)
 
         if user_id is None:
             raise LtiError(self.ugettext("Could not get user id for current request"))
@@ -920,26 +917,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Extract and return real user data from the runtime
         """
+        user = self.runtime.service(self, 'user').get_current_user()
         user_data = {
             'user_email': None,
             'user_username': None,
             'user_language': None,
         }
-        if callable(self.runtime.service(self, 'user').get_current_user):
-            real_user_object = self.runtime.service(self, 'user').get_current_user()
 
-            try:
-                user_data['user_email'] = getattr(real_user_object, "emails", [])[0]
-            except IndexError:
-                user_data['user_email'] = None
+        try:
+            user_data['user_email'] = user.emails[0]
+        except IndexError:
+            user_data['user_email'] = None
 
-            user_data['user_username'] = getattr(real_user_object, "full_name", "")
-
-            if getattr(real_user_object, 'opt_attrs', None):
-                user_preferences = real_user_object.opt_attrs.get("edx-platform.user_preferences", None)
-
-                if user_preferences is not None:
-                    user_data['user_language'] = user_preferences.get('pref-lang', None)
+        user_data['user_username'] = user.opt_attrs.get("edx-platform.username", None)
+        user_data['user_language'] = user.opt_attrs.get("edx-platform.user_preferences", {}).get("pref-lang", None)
 
         return user_data
 

@@ -5,7 +5,7 @@ Unit tests for LtiConsumerXBlock
 import json
 import logging
 from datetime import timedelta
-from unittest.mock import Mock, NonCallableMock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import ddt
 from Cryptodome.PublicKey import RSA
@@ -507,17 +507,6 @@ class TestExtractRealUserData(TestLtiConsumerXBlock):
     Unit tests for LtiConsumerXBlock.extract_real_user_data()
     """
 
-    def test_get_real_user_not_callable(self):
-        """
-        Test user_email, user_username, and user_language not available
-        """
-        self.xblock.runtime.service(self, 'user').get_current_user = NonCallableMock()
-
-        real_user_data = self.xblock.extract_real_user_data()
-        self.assertIsNone(real_user_data['user_email'])
-        self.assertIsNone(real_user_data['user_username'])
-        self.assertIsNone(real_user_data['user_language'])
-
     def test_get_real_user_callable(self):
         """
         Test user_email, and user_username available, but not user_language
@@ -527,14 +516,16 @@ class TestExtractRealUserData(TestLtiConsumerXBlock):
         fake_user = Mock()
         fake_user_email = 'abc@example.com'
         fake_user.emails = [fake_user_email]
-        fake_user.full_name = 'fake'
-        fake_user.opt_attrs = {}
+        fake_username = 'fake'
+        fake_user.opt_attrs = {
+            "edx-platform.username": fake_username
+        }
 
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
 
         real_user_data = self.xblock.extract_real_user_data()
         self.assertEqual(real_user_data['user_email'], fake_user_email)
-        self.assertEqual(real_user_data['user_username'], fake_user.full_name)
+        self.assertEqual(real_user_data['user_username'], fake_username)
         self.assertIsNone(real_user_data['user_language'])
 
     def test_get_real_user_callable_with_language_preference(self):
@@ -655,7 +646,16 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
         self.xblock.due = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
-        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=None)
+
+        fake_user = Mock()
+        fake_user_email = 'abc@example.com'
+        fake_user.emails = [fake_user_email]
+        fake_username = 'fake'
+        fake_user.opt_attrs = {
+            "edx-platform.username": fake_username
+        }
+
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
