@@ -17,9 +17,10 @@ from .utils import (
     get_lms_lti_launch_link,
     get_lms_lti_access_token_link,
 )
+from .filters import get_external_config_from_filter
 
 
-def _get_or_create_local_lti_config(lti_version, block_location):
+def _get_or_create_local_lti_config(lti_version, block_location, external_id=None):
     """
     Retrieves the id of the LTI Configuration for the
     block and location, or creates one if it doesn't exist.
@@ -30,15 +31,20 @@ def _get_or_create_local_lti_config(lti_version, block_location):
 
     Returns LTI configuration.
     """
-    lti_config, _ = LtiConfiguration.objects.get_or_create(
-        location=block_location,
-        config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
-    )
+    # The create operation is only performed when there is no existing configuration for the block
+    lti_config, _ = LtiConfiguration.objects.get_or_create(location=block_location)
 
     if lti_config.version != lti_version:
         lti_config.version = lti_version
-        lti_config.save()
 
+    if external_id:
+        lti_config.config_store = LtiConfiguration.CONFIG_EXTERNAL
+        lti_config.external_id = external_id
+    else:
+        lti_config.config_store = LtiConfiguration.CONFIG_ON_XBLOCK
+        lti_config.external_id = None
+
+    lti_config.save()
     # Return configuration ID
     return lti_config
 
@@ -53,10 +59,21 @@ def _get_lti_config(config_id=None, block=None):
     if config_id:
         lti_config = LtiConfiguration.objects.get(pk=config_id)
     elif block:
-        lti_config = _get_or_create_local_lti_config(
-            block.lti_version,
-            block.location,
-        )
+        if block.config_type == 'external':
+            config = get_external_config_from_filter(
+                {"course_key": block.location.course_key},
+                block.external_config
+            )
+            lti_config = _get_or_create_local_lti_config(
+                config.get("version"),
+                block.location,
+                block.external_config
+            )
+        else:
+            lti_config = _get_or_create_local_lti_config(
+                block.lti_version,
+                block.location,
+            )
         # Since the block was passed, preload it to avoid
         # having to instance the modulestore and fetch it again.
         lti_config.block = block

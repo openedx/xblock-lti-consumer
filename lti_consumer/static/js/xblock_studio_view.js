@@ -31,7 +31,7 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
      *   visible: boolean. `true` shows the container, and `false` hides it.
      */
     function toggleFieldVisibility(field, visible) {
-        const componentQuery = '[data-field-name="'+ field + '"]';
+        const componentQuery = '[data-field-name="' + field + '"]';
         const fieldContainer = element.find(componentQuery);
 
         if (visible) {
@@ -94,17 +94,46 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
         }
     }
 
+    /**
+     * Toggle visibility of LTI configuration fields based on the config type
+     *
+     *  new - Show all the LTI 1.1/1.3 config fields
+     *  external - Show only the External Config ID field
+     */
+    function toggleLtiConfigType() {
+        const configType = $(element).find('#xb-field-edit-config_type').val();
+        const configFields = lti1P1FieldList.concat(lti1P3FieldList, ['lti_version']);
+
+        if (configType === "external") {
+            // hide the lti_verison and all the LTI 1.1 and LTI 1.3 fields
+            configFields.forEach(function (field) {
+                toggleFieldVisibility(field, false);
+            })
+        } else {
+            // show the lti_version and toggleLtiFields to auto decide which fields are shown
+            toggleFieldVisibility("lti_version", true);
+            toggleLtiFields();
+        }
+
+        toggleFieldVisibility("external_config", configType === "external");
+    }
+
     // Call once component is instanced to hide fields
     toggleLtiFields();
     toggleLtiToolKeyMode();
+    toggleLtiConfigType();
 
     // Bind to onChange method of lti_version selector
-    $(element).find('#xb-field-edit-lti_version').bind('change', function() {
+    $(element).find('#xb-field-edit-lti_version').bind('change', function () {
         toggleLtiFields();
     });
 
     // Bind to onChange method of lti_1p3_tool_key_mode selector
-    $(element).find('#xb-field-edit-lti_1p3_tool_key_mode').bind('change', function() {
+    $(element).find('#xb-field-edit-lti_1p3_tool_key_mode').bind('change', function () {
         toggleLtiToolKeyMode();
+    });
+
+    $(element).find('#xb-field-edit-config_type').bind('change', function () {
+        toggleLtiConfigType();
     });
 }

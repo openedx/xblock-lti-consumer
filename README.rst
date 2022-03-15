@@ -369,6 +369,13 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+4.0.0 - 2022-05-09
+------------------
+
+* Adds support for loading external LTI configurations from Open edX plugins implementing filters for the event
+  `org.openedx.xblock.lti_consumer.configuration.listed.v1`. This can be enabled by setting a Course Waffle Flag
+  `lti_consumer.enable_external_config_filter` for specific courses.
+
 3.4.6 - 2022-03-31
 ------------------
 
