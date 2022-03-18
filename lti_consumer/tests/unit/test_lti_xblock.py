@@ -1441,7 +1441,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         # Check response
         self.assertEqual(response.status_code, 200)
-        self.assertIn("https://deep-link-content/", content)
+        self.assertIn("http://tool.example/launch", content)
 
 
 class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
