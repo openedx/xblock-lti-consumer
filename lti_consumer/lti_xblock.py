@@ -685,7 +685,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Get system user role and convert it to LTI role.
         """
-        return ROLE_MAP.get(self.runtime.get_user_role(), 'Student')
+        role = self.runtime.service(self, 'user').get_current_user().opt_attrs.get('edx-platform.user_role', 'student')
+        return ROLE_MAP.get(role, 'Student')
 
     @property
     def course(self):
@@ -723,11 +724,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     def user_id(self):
         """
         Returns the opaque anonymous_student_id for the current user.
+        This defaults to 'student' when testing in studio.
+        It will return the proper anonymous ID in the LMS.
         """
-        user_id = self.runtime.anonymous_student_id
+        user_id = self.runtime.service(self, 'user').get_current_user().opt_attrs.get(
+            'edx-platform.anonymous_user_id', None)
+
         if user_id is None:
             raise LtiError(self.ugettext("Could not get user id for current request"))
-        return str(urllib.parse.quote(user_id))
+        return str(user_id)
 
     def get_icon_class(self):
         """ Returns the icon class """
@@ -912,22 +917,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Extract and return real user data from the runtime
         """
+        user = self.runtime.service(self, 'user').get_current_user()
         user_data = {
             'user_email': None,
             'user_username': None,
             'user_language': None,
         }
 
-        if callable(self.runtime.get_real_user):
-            real_user_object = self.runtime.get_real_user(self.runtime.anonymous_student_id)
-            user_data['user_email'] = getattr(real_user_object, "email", "")
-            user_data['user_username'] = getattr(real_user_object, "username", "")
-            user_preferences = getattr(real_user_object, "preferences", None)
+        try:
+            user_data['user_email'] = user.emails[0]
+        except IndexError:
+            user_data['user_email'] = None
 
-            if user_preferences is not None:
-                language_preference = user_preferences.filter(key='pref-lang')
-                if len(language_preference) == 1:
-                    user_data['user_language'] = language_preference[0].value
+        user_data['user_username'] = user.opt_attrs.get("edx-platform.username", None)
+        user_data['user_language'] = user.opt_attrs.get("edx-platform.user_preferences", {}).get("pref-lang", None)
 
         return user_data
 
