@@ -139,9 +139,11 @@ Instructions:
 
 .. admonition:: Testing using ``ngrok``
 
-    When launching LTI 1.3 requests through ``ngrok``, make sure you set ``DCS_SESSION_COOKIE_SAMESITE = 'None'`` in your
-    ``devstack.py`` (located in /edx/app/edxapp/edx-platform/(lms|cms)/envs``) when doing LTI 1.3 launches in the
-    devstack through ngrok. Do not forget to restart your services after updating the ``.py`` files.
+    When launching LTI 1.3 requests through ``ngrok``, make sure your LMS is serving session cookies marked as
+    ``Secure`` and with the ``SameSite`` attribute set to ``None``. You can do this by changing ``SESSION_COOKIE_SECURE: true``
+    and ``DCS_SESSION_COOKIE_SAMESITE: None`` in your ``lms.yml`` configuration files. Note that this will break logins
+    for locally accessed URLs in the devstack.
+
 
 Custom LTI Parameters
 =====================
@@ -366,6 +368,12 @@ Changelog
 =========
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
+
+3.4.5 - 2022-03-16
+------------------
+
+* Fix LTI Deep Linking return endpoint permission checking method by replacing the old one with the proper
+  Studio API call.
 
 3.4.4 - 2022-03-03
 ------------------
