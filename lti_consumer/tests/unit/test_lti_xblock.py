@@ -1293,6 +1293,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         response_body = response.body.decode('utf-8')
         self.assertIn("There was an error while launching the LTI 1.3 tool.", response_body)
+        self.assertNotIn("% trans", response_body)
 
     def test_launch_callback_endpoint_when_using_lti_1p1(self):
         """
@@ -1397,6 +1398,9 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         # Check response
         self.assertEqual(response.status_code, 403)
+        response_body = response.body.decode('utf-8')
+        self.assertIn("Students don't have permissions to perform", response_body)
+        self.assertNotIn("% trans", response_body)
 
     @patch('lti_consumer.api.get_deep_linking_data')
     def test_callback_endpoint_dl_content_launch(self, mock_dl_data):

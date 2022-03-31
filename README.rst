@@ -369,6 +369,11 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+3.4.6 - 2022-03-31
+------------------
+
+* Fix rendering of `lti_1p3_launch_error.html` and `lti_1p3_permission_error.html` templates
+
 3.4.5 - 2022-03-16
 ------------------
 
