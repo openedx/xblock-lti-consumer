@@ -113,6 +113,18 @@ def user_has_access(*args, **kwargs):
     return has_access(*args, **kwargs)
 
 
+def user_has_studio_write_access(*args, **kwargs):
+    """
+    Import and run `has_studio_write_access` from common modules.
+
+    Used to check if someone saving deep linking content has the
+    correct write permissions for a given.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from common.djangoapps.student.auth import has_studio_write_access
+    return has_studio_write_access(*args, **kwargs)
+
+
 def get_course_by_id(course_key):
     """
     Import and run `get_course_by_id` from LMS
