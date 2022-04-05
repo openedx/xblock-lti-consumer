@@ -89,10 +89,17 @@ class LtiDeepLinkingResponseEndpointTestCase(LtiDeepLinkingTestCase):
         super().setUp()
 
         # Patch method that calls platform core to ask for user permissions
-        studio_access_patcher = patch('lti_consumer.plugin.views.user_has_staff_access')
-        self.addCleanup(studio_access_patcher.stop)
-        self._mock_has_studio_write_acess = studio_access_patcher.start()
-        self._mock_has_studio_write_acess.return_value = True
+        compat_mock = patch("lti_consumer.signals.compat")
+        self.addCleanup(compat_mock.stop)
+        self._compat_mock = compat_mock.start()
+        self._compat_mock.user_has_studio_write_access.return_value = True
+
+        has_studio_write_acess_patcher = patch(
+            'lti_consumer.plugin.views.compat.user_has_studio_write_access',
+            return_value=True
+        )
+        self.addCleanup(has_studio_write_acess_patcher.stop)
+        self._mock_has_studio_write_acess = has_studio_write_acess_patcher.start()
 
         # Deep Linking response endpoint
         self.url = '/lti_consumer/v1/lti/{}/lti-dl/response'.format(self.lti_config.id)

@@ -63,13 +63,6 @@ from lti_consumer.utils import _
 log = logging.getLogger(__name__)
 
 
-def user_has_staff_access(user, course_key):
-    """
-    Check if an user has write permissions to a given course.
-    """
-    return compat.user_has_access(user, "staff", course_key)
-
-
 def has_block_access(user, block, course_key):
     """
     Checks if a user has access to given xblock.
@@ -183,25 +176,30 @@ def access_token_endpoint(request, usage_id=None):
 @require_http_methods(["POST"])
 def deep_linking_response_endpoint(request, lti_config_id=None):
     """
-    Deep Linking response endpoint where tool can send back
+    Deep Linking response endpoint where tool can send back Deep Linking
+    content selected by instructions in the tool's UI.
+
+    For this feature to work, the LMS session cookies need to be Secure
+    and have the `SameSite` attribute set to `None`, otherwise we won't
+    be able to check user permissions.
     """
     try:
         # Retrieve LTI configuration
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
 
-        # First, check if the user has sufficient permissions to
-        # save LTI Deep Linking content through the student.auth API.
-        course_key = lti_config.location.course_key
-        if not user_has_staff_access(request.user, course_key):
-            raise PermissionDenied()
-
         # Get LTI consumer
         lti_consumer = lti_config.get_lti_consumer()
 
-        # Retrieve Deep Linking return message and validate parameters
+        # Validate Deep Linking return message and return decoded message
         content_items = lti_consumer.check_and_decode_deep_linking_token(
             request.POST.get("JWT")
         )
+
+        # Check if the user has sufficient permissions to
+        # save LTI Deep Linking content through the student.auth API.
+        course_key = lti_config.location.course_key
+        if not compat.user_has_studio_write_access(request.user, course_key):
+            raise PermissionDenied()
 
         # On a transaction, clear older DeepLinking selections, then
         # verify and save each content item passed from the tool.
