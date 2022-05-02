@@ -76,9 +76,7 @@ dill==0.3.4
     #   jsonfield
     #   xblock-sdk
 django-config-models==2.3.0
-    # via
-    #   -c requirements/constraints.txt
-    #   -r requirements/base.txt
+    # via -r requirements/base.txt
 django-crum==0.7.9
     # via
     #   -r requirements/base.txt
@@ -95,7 +93,6 @@ django-waffle==2.4.1
     #   edx-django-utils
 djangorestframework==3.13.1
     # via
-    #   -c requirements/constraints.txt
     #   -r requirements/base.txt
     #   -r requirements/test.in
     #   django-config-models

@@ -11,10 +11,3 @@
 # Common constraints for edx repos
 -c common_constraints.txt
 
-# TODO: Many pinned dependencies should be unpinned and/or moved to this constraints file.
-
-# Same as in edx-platform
-djangorestframework<4
-
-# Same as in edx-platform
-django-config-models>=1.0.0
