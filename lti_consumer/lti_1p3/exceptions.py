@@ -21,6 +21,10 @@ class NoSuitableKeys(Lti1p3Exception):
     pass
 
 
+class BadJwtSignature(Lti1p3Exception):
+    pass
+
+
 class UnknownClientId(Lti1p3Exception):
     pass
 

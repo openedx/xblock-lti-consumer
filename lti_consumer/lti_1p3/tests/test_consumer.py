@@ -119,7 +119,10 @@ class TestLti1p3Consumer(TestCase):
     @ddt.data(
         (
             'student',
-            ['http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student']
+            [
+                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student',
+                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
+            ]
         ),
         (
             'staff',
@@ -188,7 +191,8 @@ class TestLti1p3Consumer(TestCase):
             {
                 "sub": "1",
                 "https://purl.imsglobal.org/spec/lti/claim/roles": [
-                    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student"
+                    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student",
+                    'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
                 ]
             }
         ),
@@ -210,7 +214,7 @@ class TestLti1p3Consumer(TestCase):
         Check if setting user data works
         """
         self.lti_consumer.set_user_data(**data)
-        self.assertEqual(
+        self.assertCountEqual(
             self.lti_consumer.lti_claim_user_data,
             expected_output
         )

@@ -27,7 +27,8 @@ LTI_1P3_ROLE_MAP = {
         'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor',
     ],
     'student': [
-        'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student'
+        'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student',
+        'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
     ],
     'guest': [
         'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student'
@@ -83,3 +84,16 @@ class LTI_1P3_CONTEXT_TYPE(Enum):  # pylint: disable=invalid-name
     course_offering = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseOffering'
     course_section = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseSection'
     course_template = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseTemplate'
+
+
+# This represents the set of valid, optional user claims that can be specified in the LTI launch
+# message for proctoring.
+LTI_1P3_PROCTORING_OPTIONAL_USER_CLAIMS = {
+    'given_name',
+    'family_name',
+    'name',
+    'email',
+    'email_verified',
+    'picture',
+    'locale',
+}

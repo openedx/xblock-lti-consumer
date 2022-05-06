@@ -118,13 +118,6 @@ class TestLtiConfigurationModel(TestCase):
 
         self.assertIsInstance(lti_consumer, LtiConsumer1p1)
 
-        lti_1p3_config = LtiConfiguration.objects.create(
-            version=LtiConfiguration.LTI_1P3,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
-        )
-        with self.assertRaises(NotImplementedError):
-            lti_1p3_config.get_lti_consumer()
-
     def test_repr(self):
         """
         Test String representation of model.

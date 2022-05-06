@@ -100,13 +100,13 @@ def lti_launch_endpoint(request):
 
     # Required user claim data
     lti_consumer.set_user_data(
-      user_id=request.user,
+      user_id=request.user.id,
       # Pass django user role to library
       role='student'
     )
 
     context.update({
-      "preflight_response": dict(request.GET),
+      "preflight_response": request.GET.dict(),
       "launch_request": lti_consumer.generate_launch_request(
         resource_link=self.resource_link_id,
         preflight_response=request.GET

@@ -10,11 +10,14 @@ from .constants import (
     LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS,
     LTI_1P3_ACCESS_TOKEN_SCOPES,
     LTI_1P3_CONTEXT_TYPE,
+    LTI_1P3_PROCTORING_OPTIONAL_USER_CLAIMS,
 )
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 from .ags import LtiAgs
 from .deep_linking import LtiDeepLinking
 from .nprs import LtiNrps
+from .proctoring import LtiProctoring
+from .utils import check_token_claim
 
 
 class LtiConsumer1p3:
@@ -41,6 +44,9 @@ class LtiConsumer1p3:
         self.launch_url = lti_launch_url
         self.client_id = client_id
         self.deployment_id = deployment_id
+
+        # Variables representing claims received from the tool
+        self.redirect_uri = None
 
         # Set up platform message signature class
         self.key_handler = PlatformKeyHandler(rsa_key, rsa_key_id)
@@ -301,7 +307,6 @@ class LtiConsumer1p3:
             # Extra claims - From LTI Advantage extensions
             if self.extra_claims:
                 lti_message.update(self.extra_claims)
-
         return lti_message
 
     def generate_launch_request(
@@ -416,9 +421,15 @@ class LtiConsumer1p3:
 
         :param response: the preflight response to be validated
         """
+
         try:
             assert response.get("nonce")
             assert response.get("state")
+            # We do not validate that the redirect_uri matches one of the preregistered launch endpoints for the
+            # Tool integration identified by the client_id. Many Tools complain or stop working if we do.
+            # Furthermore, when using deep linking, the content URL changes, and it is complicated to verify the content
+            # URL against pregistered URLs if the consumer is being instanced without looking at the stored deep linking
+            # configurations.
             assert response.get("redirect_uri")
             assert response.get("client_id") == self.client_id
         except AssertionError as err:
@@ -456,7 +467,7 @@ class LtiConsumer1p3:
 
 class LtiAdvantageConsumer(LtiConsumer1p3):
     """
-    LTI Advantage  Consumer Implementation.
+    LTI Advantage Consumer Implementation.
 
     Builds on top of the LTI 1.3 consumer and adds support for
     the following LTI Advantage Services:
@@ -465,6 +476,10 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
       retrieve and send back grades into the platform.
       Note: this is a partial implementation with read-only LineItems.
       Reference spec: https://www.imsglobal.org/spec/lti-ags/v2p0
+    * Proctoring Service: "for proctored testing, a test delivery or
+      assessment management system [that] can launch from a platform to a
+      proctoring service that allows a test to be proctored."
+      Reference spec: https://www.imsglobal.org/spec/proctoring/v1p0
     """
     def __init__(self, *args, **kwargs):
         """
@@ -475,6 +490,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         # LTI Advantage services
         self.ags = None
         self.dl = None
+        self.proctoring = None
 
         # LTI NRPS Variables
         self.nrps = None
@@ -540,54 +556,126 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         """
         self.dl = LtiDeepLinking(deep_linking_launch_url, deep_linking_return_url)
 
+    def enable_proctoring(
+        self,
+        attempt_number,
+        session_data,
+        resource_link,
+        start_assessment_url=None,
+    ):
+        """
+        Enable LTI 1.3 Proctoring Service.
+
+        This will include the LTI Proctoring Service claims in the LTI launch message
+        and set up the required class.
+        """
+        self.proctoring = LtiProctoring(attempt_number, session_data, resource_link, start_assessment_url)
+
+    def set_proctoring_user_data(self, **kwargs):
+        """
+        Set the optional user data claims, per the Proctoring Services specification.
+        """
+        for key, value in kwargs.items():
+            if key in LTI_1P3_PROCTORING_OPTIONAL_USER_CLAIMS:
+                self.lti_claim_user_data.update(
+                    {key: value}
+                )
+
+    def _generate_deep_linking_launch_request(self, preflight_response, resource_link):
+        """
+        Build LTI message for Deep Linking launches.
+        """
+        # Validate preflight response
+        self._validate_preflight_response(preflight_response)
+
+        # Get LTI Launch Message
+        lti_launch_message = self.get_lti_launch_message(
+            resource_link=resource_link,
+            include_extra_claims=False,
+        )
+
+        # Update message type to LtiDeepLinkingRequest,
+        # replacing the normal launch request.
+        lti_launch_message.update({
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingRequest",
+        })
+        # Include deep linking claim
+        lti_launch_message.update(
+            # TODO: Add extra settings
+            self.dl.get_lti_deep_linking_launch_claim()
+        )
+
+        # Nonce from OIDC preflight launch request
+        lti_launch_message.update({
+            "nonce": preflight_response.get("nonce")
+        })
+
+        # Return new lanch message, used by XBlock to present the launch
+        return {
+            "state": preflight_response.get("state"),
+            "id_token": self.key_handler.encode_and_sign(
+                message=lti_launch_message,
+                expiration=3600
+            )
+        }
+
+    def _generate_proctoring_launch_request(self, preflight_response, resource_link, lti_message_hint):
+        """
+        Build LTI message for Proctoring launches.
+        """
+        # Validate preflight response
+        self._validate_preflight_response(preflight_response)
+
+        # Get LTI Launch Message
+        lti_launch_message = self.get_lti_launch_message(
+            resource_link=resource_link,
+            include_extra_claims=False,
+        )
+
+        # Nonce from OIDC preflight launch request
+        lti_launch_message.update({
+            "nonce": preflight_response.get("nonce")
+        })
+
+        if lti_message_hint == "LtiStartProctoring":
+            proctoring_claims = self.proctoring.get_lti_proctoring_start_proctoring_claims()
+        elif lti_message_hint == "LtiEndAssessment":
+            proctoring_claims = self.proctoring.get_lti_proctoring_end_assessment_claims()
+        else:
+            raise ValueError('lti_message_hint must be one of [LtiStartProctoring, LtiStartAssessment]')
+
+        lti_launch_message.update(proctoring_claims)
+
+        # Return new lanch message, used to present the launch
+        return {
+            "state": preflight_response.get("state"),
+            "id_token": self.key_handler.encode_and_sign(
+                message=lti_launch_message,
+                expiration=3600
+            )
+        }
+
     def generate_launch_request(
             self,
             preflight_response,
             resource_link
     ):
         """
-        Build LTI message for Deep linking launches.
+        Build LTI message for Deep Linking or Proctoring launches.
 
-        Overrides method from LtiConsumer1p3 to allow handling LTI Deep linking messages
+        Overrides method from LtiConsumer1p3 to allow handling LTI Deep linking messages or LTI Proctoring messages.
         """
+        lti_message_hint = preflight_response.get("lti_message_hint")
+
         # Check if Deep Linking is enabled and that this is a Deep Link Launch
-        if self.dl and preflight_response.get("lti_message_hint") == "deep_linking_launch":
-            # Validate preflight response
-            self._validate_preflight_response(preflight_response)
+        if self.dl and lti_message_hint == "deep_linking_launch":
+            return self._generate_deep_linking_launch_request(preflight_response, resource_link)
 
-            # Get LTI Launch Message
-            lti_launch_message = self.get_lti_launch_message(
-                resource_link=resource_link,
-                include_extra_claims=False,
-            )
+        if self.proctoring and lti_message_hint in ['LtiStartProctoring', 'LtiEndAssessment']:
+            return self._generate_proctoring_launch_request(preflight_response, resource_link, lti_message_hint)
 
-            # Update message type to LtiDeepLinkingRequest,
-            # replacing the normal launch request.
-            lti_launch_message.update({
-                "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingRequest",
-            })
-            # Include deep linking claim
-            lti_launch_message.update(
-                # TODO: Add extra settings
-                self.dl.get_lti_deep_linking_launch_claim()
-            )
-
-            # Nonce from OIDC preflight launch request
-            lti_launch_message.update({
-                "nonce": preflight_response.get("nonce")
-            })
-
-            # Return new lanch message, used by XBlock to present the launch
-            return {
-                "state": preflight_response.get("state"),
-                "id_token": self.key_handler.encode_and_sign(
-                    message=lti_launch_message,
-                    expiration=3600
-                )
-            }
-
-        # Call LTI Launch if Deep Linking is not
-        # set up or this isn't a Deep Link Launch
+        # Call LTI Launch if Deep Linking or Proctoring are not
+        # set up or this isn't a Deep Link or Proctoring launch
         return super().generate_launch_request(
             preflight_response,
             resource_link
@@ -624,6 +712,111 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
         # Return contentitems
         return content_items
+
+    def check_and_decode_proctoring_token(self, token):
+        """
+        Check and decode Proctoring LtiStartAssessment response and return relevant data to the Assessment Platform.
+        """
+        if not self.proctoring:
+            raise exceptions.LtiAdvantageServiceNotSetUp()
+
+        # Decode token and check expiration.
+        proctoring_response = self.tool_jwt.validate_and_decode(token)
+
+        # TODO: We MUST perform other forms of validation here.
+        # TODO: We MUST validate the verified_user claim if it is provided, although it is optional to provide it.
+        #       An Assessment Platform MAY reject the Start Assessment message if a required identity claim is missing
+        #       (indicating that it has not been verified by the Proctoring Tool).  Which identity claims a
+        #       Proctoring Tool will verify is subject to agreement outside of the scope of this specification but, at a
+        #       minimum, it is recommended that Proctoring Tools performing identity verification are able to verify the
+        #       given_name, family_name and name claims.
+        #       See 3.3 Transferring the Candidate Back to the Assessment Platform.
+
+        # Check Required LTI Claims
+        # -------------------------
+
+        # Check that the response message_type claim is "LtiStartAssessment".
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/message_type"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            "LtiStartAssessment",
+            f"Token's {claim_key} claim should be LtiStartAssessment."
+        )
+
+        # # Check that the response version claim is "1.3.0".
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/version"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            "1.3.0",
+            f"Token's {claim_key} claim should be 1.3.0."
+        )
+
+        # Check that the response session_data claim is the correct anti-CSRF token.
+        claim_key = "https://purl.imsglobal.org/spec/lti-ap/claim/session_data"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            self.proctoring.session_data,
+            f"Token's {claim_key} claim is not correct."
+        )
+
+        # TODO: Right now, the library doesn't support additional claims within the resource_link claim.
+        #       Once it does, we should check the entire claim instead of just the id.
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/resource_link"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            {"id": self.proctoring.resource_link},
+            f"Token's {claim_key} claim is not correct."
+        )
+
+        claim_key = "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            self.proctoring.attempt_number,
+            f"Token's {claim_key} claim is not correct."
+        )
+
+        # Check Optional LTI Claims
+        # -------------------------
+
+        verified_user = proctoring_response.get("https://purl.imsglobal.org/spec/lti-ap/claim/verified_user", {})
+        # See 4.3.2.1 Verified user claim.
+        # The iss and sub attributes SHOULD NOT be included as they are opaque to the Proctoring Tool and cannot be
+        # independently verified.
+        iss = verified_user.get('iss')
+        if iss is not None:
+            raise exceptions.InvalidClaimValue('Token verified_user claim should not contain the iss claim.')
+        sub = verified_user.get('sub')
+        if sub is not None:
+            raise exceptions.InvalidClaimValue('Token verified_user claim should not contain the sub claim.')
+
+        # See 4.3.2.1 Verified user claim.
+        # If the picture attribute is provided it MUST point to a picture taken by the Proctoring Tool.
+        # It MUST NOT be the same picture provided by the Assessment Platform in the Start Proctoring message.
+        picture = verified_user.get('picture')
+        if picture and picture == self.lti_claim_user_data.get('picture'):
+            raise exceptions.InvalidClaimValue(
+                'If the verified_claim is provided and contains the picture claim,'
+                ' the picture claim should not be the same picture provided by the Assessment Platform to the Tool.'
+            )
+        # TODO: We can leverage these verified user claims. For example, we could use
+        #       these claims for Name Affirmation.
+
+        end_assessment_return = proctoring_response.get(
+            "https://purl.imsglobal.org/spec/lti-ap/claim/end_assessment_return"
+        )
+
+        # Let's return data to the Assessment Platform that it may find useful.
+        response = {
+            'end_assessment_return': end_assessment_return,
+            'verified_user': verified_user,
+        }
+
+        return response
 
     def set_dl_content_launch_parameters(
         self,
