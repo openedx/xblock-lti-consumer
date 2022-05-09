@@ -137,13 +137,13 @@ class TestProperties(TestLtiConsumerXBlock):
             'edx-platform.user_role': 'student'
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
-        self.assertEqual(self.xblock.role, 'Student')
+        self.assertEqual(self.xblock.role, 'Student,Learner')
 
         fake_user.opt_attrs = {
             'edx-platform.user_role': 'guest'
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
-        self.assertEqual(self.xblock.role, 'Student')
+        self.assertEqual(self.xblock.role, 'Student,Learner')
 
         fake_user.opt_attrs = {
             'edx-platform.user_role': 'staff'

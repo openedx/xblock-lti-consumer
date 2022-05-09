@@ -96,7 +96,7 @@ DOCS_ANCHOR_TAG_OPEN = (
 )
 RESULT_SERVICE_SUFFIX_PARSER = re.compile(r"^user/(?P<anon_id>\w+)", re.UNICODE)
 ROLE_MAP = {
-    'student': 'Student',
+    'student': 'Student,Learner',
     'staff': 'Administrator',
     'instructor': 'Instructor',
 }
@@ -716,7 +716,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Get system user role and convert it to LTI role.
         """
         role = self.runtime.service(self, 'user').get_current_user().opt_attrs.get('edx-platform.user_role', 'student')
-        return ROLE_MAP.get(role, 'Student')
+        return ROLE_MAP.get(role, 'Student,Learner')
 
     @property
     def course(self):
