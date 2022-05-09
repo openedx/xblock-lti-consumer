@@ -33,11 +33,11 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.22.4
+boto3==1.22.9
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.25.4
+botocore==1.25.9
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -46,6 +46,11 @@ certifi==2021.10.8
     # via
     #   -r requirements/test.txt
     #   requests
+cffi==1.15.0
+    # via
+    #   -r requirements/test.txt
+    #   cryptography
+    #   pynacl
 chardet==4.0.0
     # via
     #   -r requirements/test.txt
@@ -60,6 +65,7 @@ click==8.1.3
     #   click-log
     #   code-annotations
     #   cookiecutter
+    #   edx-django-utils
     #   edx-lint
 click-log==0.4.0
     # via
@@ -83,6 +89,10 @@ coverage==6.3.2
     #   coveralls
 coveralls==3.3.1
     # via -r requirements/test.txt
+cryptography==37.0.2
+    # via
+    #   -r requirements/test.txt
+    #   secretstorage
 ddt==1.4.4
     # via -r requirements/test.txt
 dill==0.3.4
@@ -104,6 +114,7 @@ django==3.2.13
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
+    #   openedx-filters
     #   xblock-sdk
 django-config-models==2.3.0
     # via -r requirements/test.txt
@@ -133,7 +144,7 @@ docutils==0.18.1
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-edx-django-utils==4.6.0
+edx-django-utils==4.8.1
     # via
     #   -r requirements/test.txt
     #   django-config-models
@@ -174,6 +185,11 @@ isort==5.10.1
     # via
     #   -r requirements/test.txt
     #   pylint
+jeepney==0.8.0
+    # via
+    #   -r requirements/test.txt
+    #   keyring
+    #   secretstorage
 jinja2==3.1.2
     # via
     #   -r requirements/test.txt
@@ -230,11 +246,13 @@ newrelic==7.10.0.175
     #   edx-django-utils
 oauthlib==3.2.0
     # via -r requirements/test.txt
+openedx-filters==0.6.2
+    # via -r requirements/test.txt
 packaging==21.3
     # via
     #   -r requirements/tox.txt
     #   tox
-pbr==5.8.1
+pbr==5.9.0
     # via
     #   -r requirements/test.txt
     #   stevedore
@@ -266,6 +284,10 @@ py==1.11.0
     #   tox
 pycodestyle==2.8.0
     # via -r requirements/test.txt
+pycparser==2.21
+    # via
+    #   -r requirements/test.txt
+    #   cffi
 pycryptodomex==3.14.1
     # via
     #   -r requirements/test.txt
@@ -301,6 +323,10 @@ pymongo==3.12.3
     # via
     #   -r requirements/test.txt
     #   edx-opaque-keys
+pynacl==1.5.0
+    # via
+    #   -r requirements/test.txt
+    #   edx-django-utils
 pyparsing==3.0.8
     # via
     #   -r requirements/tox.txt
@@ -352,7 +378,7 @@ rfc3986==2.0.0
     # via
     #   -r requirements/test.txt
     #   twine
-rich==12.3.0
+rich==12.4.1
     # via
     #   -r requirements/test.txt
     #   twine
@@ -360,6 +386,10 @@ s3transfer==0.5.2
     # via
     #   -r requirements/test.txt
     #   boto3
+secretstorage==3.3.2
+    # via
+    #   -r requirements/test.txt
+    #   keyring
 simplejson==3.17.6
     # via
     #   -r requirements/test.txt

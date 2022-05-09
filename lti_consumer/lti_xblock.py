@@ -81,7 +81,7 @@ from .lti_1p3.exceptions import (
 )
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
-from .utils import _, resolve_custom_parameter_template
+from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled
 
 
 log = logging.getLogger(__name__)
@@ -248,8 +248,21 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default="",
         scope=Scope.settings
     )
+    config_type = String(
+        display_name=_("Configuration Type"),
+        scope=Scope.settings,
+        values=[
+            {"display_name": _("Configuration on block"), "value": "new"},
+            {"display_name": _("Reusable Configuration"), "value": "external"},
+        ],
+        default="new",
+        help=_(
+            "Select 'Configuration on block' to configure a new LTI Tool. "
+            "If the support staff provided you with a pre-configured LTI reusable Tool ID, select"
+            "'Reusable Configuration' and enter it in the text field below."
+        )
+    )
 
-    # LTI 1.3 fields
     lti_version = String(
         display_name=_("LTI Version"),
         scope=Scope.settings,
@@ -264,6 +277,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "LTI 1.3 and LTI Advantage features."
         ),
     )
+
+    external_config = String(
+        display_name=_("LTI Reusable Configuration ID"),
+        scope=Scope.settings,
+        help=_("Enter the reusable LTI external configuration ID provided by the support staff."),
+    )
+
+    # LTI 1.3 fields
     lti_1p3_launch_url = String(
         display_name=_("Tool Launch URL"),
         default='',
@@ -545,9 +566,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     # Possible editable fields
     editable_field_names = (
-        'display_name', 'description',
+        'display_name', 'description', 'config_type', 'lti_version', 'external_config',
         # LTI 1.3 variables
-        'lti_version', 'lti_1p3_launch_url', 'lti_1p3_oidc_url',
+        'lti_1p3_launch_url', 'lti_1p3_oidc_url',
         'lti_1p3_tool_key_mode', 'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key',
         'lti_1p3_enable_nrps',
         # LTI Advantage variables
@@ -642,6 +663,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         'ask_to_send_email' fields depending on the configuration service.
         """
         editable_fields = self.editable_field_names
+
+        # If the support for external configuration is not enabled for the course
+        # then let's remove the external config related fields from edit form
+        if not external_config_filter_enabled(self.location.course_key):  # pylint: disable=no-member
+            editable_fields = tuple(
+                field
+                for field in editable_fields
+                if field not in ['config_type', 'external_config']
+            )
         # update the editable fields if this XBlock is configured to not to allow the
         # editing of 'ask_to_send_username' and 'ask_to_send_email'.
         config_service = self.runtime.service(self, 'lti-configuration')
@@ -653,7 +683,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             ):
                 editable_fields = tuple(
                     field
-                    for field in self.editable_field_names
+                    for field in editable_fields
                     if field not in ('ask_to_send_username', 'ask_to_send_email')
                 )
 
@@ -1464,8 +1494,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         allowed_tags = bleach.sanitizer.ALLOWED_TAGS + ['img']
         allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
         sanitized_comment = bleach.clean(self.score_comment, tags=allowed_tags, attributes=allowed_attributes)
+        launch_url = self.launch_url
 
-        if self.lti_version == 'lti_1p1':
+        if self.config_type == "external":
+            launch_url = self._get_lti_consumer().lti_launch_url
+
+        # As we currently support only LTI 1.1 for external configuration, let's simply
+        # use the same logic as the LTI 1.1 for getting the launch handler.
+        # NOTE: This needs to change when the LTI 1.3 support is added in the future.
+        if self.lti_version == 'lti_1p1' or self.config_type == 'external':
             # Set launch handler depending on LTI version
             lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
         else:
@@ -1480,7 +1517,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
 
         return {
-            'launch_url': self.launch_url.strip(),
+            'launch_url': launch_url.strip(),
             'lti_1p3_launch_url': self.lti_1p3_launch_url.strip(),
             'element_id': self.location.html_id(),  # pylint: disable=no-member
             'element_class': self.category,

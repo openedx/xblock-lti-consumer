@@ -14,6 +14,33 @@ from lti_consumer.exceptions import LtiError
 log = logging.getLogger(__name__)
 
 
+# Waffle flags configuration
+
+# Namespace
+WAFFLE_NAMESPACE = 'lti_consumer'
+
+# Course Waffle Flags
+# .. toggle_name: lti_consumer.enable_external_config_filter
+# .. toggle_implementation: CourseWaffleFlag
+# .. toggle_default: False
+# .. toggle_description: Enables fetching of LTI configurations from external
+#    sources like plugins using openedx-filters mechanism.
+# .. toggle_use_cases: open_edx
+# .. toggle_creation_date: 2022-03-31
+# .. toggle_tickets: https://github.com/openedx/xblock-lti-consumer/pull/239
+# .. toggle_warnings: None.
+ENABLE_EXTERNAL_CONFIG_FILTER = 'enable_external_config_filter'
+
+
+def get_external_config_waffle_flag():
+    """
+    Import and return Waffle flag for enabling external LTI configuration.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
+    return CourseWaffleFlag(WAFFLE_NAMESPACE, ENABLE_EXTERNAL_CONFIG_FILTER, __name__)
+
+
 def run_xblock_handler(*args, **kwargs):
     """
     Import and run `handle_xblock_callback` from LMS

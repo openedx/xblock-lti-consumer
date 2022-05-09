@@ -75,6 +75,12 @@ class TestLtiConfigurationModel(TestCase):
             version=LtiConfiguration.LTI_1P3
         )
 
+        self.lti_1p1_external = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P1,
+            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            external_id="test-external-id"
+        )
+
     @patch("lti_consumer.models.LtiConfiguration._get_lti_1p3_consumer")
     @patch("lti_consumer.models.LtiConfiguration._get_lti_1p1_consumer")
     def test_get_lti_consumer(self, lti_1p1_mock, lti_1p3_mock):
@@ -86,6 +92,23 @@ class TestLtiConfigurationModel(TestCase):
 
         self.lti_1p3_config.get_lti_consumer()
         lti_1p3_mock.assert_called()
+
+    @patch("lti_consumer.models.LtiConsumer1p1")
+    @patch("lti_consumer.models.get_external_config_from_filter")
+    def test_get_lti_consumer_calls_filters_to_get_external_config(self, mock_filter, mock_consumer):
+        """
+        Check when get_lti_consumer is called on an object with config type set to external
+        the configuration is fetched using the filters
+        """
+        mock_filter.return_value = {
+            "lti_1p1_client_key": "client_key",
+            "lti_1p1_client_secret": "secret",
+            "lti_1p1_launch_url": "https://example.com"
+        }
+        mock_consumer.return_value = "consumer"
+
+        self.assertEqual(self.lti_1p1_external.get_lti_consumer(), "consumer")
+        mock_consumer.assert_called_once_with("https://example.com", "client_key", "secret")
 
     def test_xblock_store_lti1p1(self):
         """

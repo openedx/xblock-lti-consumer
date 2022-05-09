@@ -13,6 +13,7 @@ from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from opaque_keys.edx.keys import CourseKey
 from config_models.models import ConfigurationModel
 from django.utils.translation import gettext_lazy as _
+from lti_consumer.filters import get_external_config_from_filter
 
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
@@ -63,19 +64,30 @@ class LtiConfiguration(models.Model):
     )
 
     # Configuration storage
-    # Initally, this only supports the configuration
-    # stored on the block, but should be expanded to
-    # enable storing LTI configuration in this model.
+    # Initally, this only supported the configuration
+    # stored on the block. Now it has been expanded to
+    # enable storing LTI configuration in the model itself or in an external
+    # configuration service fetchable using openedx-filters
     CONFIG_ON_XBLOCK = 'CONFIG_ON_XBLOCK'
     CONFIG_ON_DB = 'CONFIG_ON_DB'
+    CONFIG_EXTERNAL = 'CONFIG_EXTERNAL'
     CONFIG_STORE_CHOICES = [
         (CONFIG_ON_XBLOCK, _('Configuration Stored on XBlock fields')),
         (CONFIG_ON_DB, _('Configuration Stored on this model')),
+        (CONFIG_EXTERNAL, _('Configuration Stored on external service')),
     ]
     config_store = models.CharField(
         max_length=255,
         choices=CONFIG_STORE_CHOICES,
         default=CONFIG_ON_XBLOCK,
+    )
+
+    # ID of the configuration if the configuration is obtained from the
+    # external service using filters
+    external_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
     )
 
     # A secondary ID for this configuration that can be used in URLs without leaking primary id.
@@ -237,6 +249,11 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_XBLOCK:
             key, secret = self.block.lti_provider_key_secret
             launch_url = self.block.launch_url
+        elif self.config_store == self.CONFIG_EXTERNAL:
+            config = get_external_config_from_filter({}, self.external_id)
+            key = config.get("lti_1p1_client_key")
+            secret = config.get("lti_1p1_client_secret")
+            launch_url = config.get("lti_1p1_launch_url")
         else:
             key = self.lti_1p1_client_key
             secret = self.lti_1p1_client_secret

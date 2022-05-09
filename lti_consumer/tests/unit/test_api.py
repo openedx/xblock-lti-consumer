@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
+from opaque_keys.edx.locations import Location
 
 from lti_consumer.api import (
     _get_or_create_local_lti_config,
@@ -125,6 +126,50 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         lti_config.refresh_from_db()
         self.assertEqual(lti_config.version, LtiConfiguration.LTI_1P3)
 
+    def test_create_model_instance_with_external_id(self):
+        """
+        Check if the API creates a model with an external ID.
+        """
+        location = 'block-v1:course+test+2020+type@problem+block@test'
+        lti_version = LtiConfiguration.LTI_1P3
+
+        lti_config = _get_or_create_local_lti_config(
+            lti_version=lti_version,
+            block_location=location,
+            external_id="test_plugin:test-id"
+        )
+
+        self.assertEqual(lti_config.version, lti_version)
+        self.assertEqual(str(lti_config.location), location)
+        self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_EXTERNAL)
+        self.assertEqual(lti_config.external_id, "test_plugin:test-id")
+
+    def test_external_config_values_are_cleared(self):
+        """
+        Check if the API clears external configuration values when external id is none
+        """
+        location = 'block-v1:course+test+2020+type@problem+block@test'
+        lti_version = LtiConfiguration.LTI_1P3
+
+        lti_config = LtiConfiguration.objects.create(
+            location=location,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            external_id="test_plugin:test-id"
+        )
+
+        _get_or_create_local_lti_config(
+            lti_version=lti_version,
+            block_location=location,
+            external_id=None
+        )
+
+        lti_config.refresh_from_db()
+        self.assertEqual(lti_config.version, lti_version)
+        self.assertEqual(str(lti_config.location), location)
+        self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
+        self.assertEqual(lti_config.external_id, None)
+
 
 class TestGetLtiConsumer(TestCase):
     """
@@ -158,6 +203,29 @@ class TestGetLtiConsumer(TestCase):
         with patch("lti_consumer.models.LtiConfiguration.get_lti_consumer") as mock_get_lti_consumer:
             get_lti_consumer(config_id=lti_config.id)
             mock_get_lti_consumer.assert_called_once()
+
+    def test_retrieve_from_external_configuration(self):
+        """
+        Check if the API creates a model from the external configuration ID
+        """
+        external_id = 'my-plugin:my-lti-tool'
+
+        block = Mock()
+        block.config_type = 'external'
+        block.location = Location('edx', 'Demo_Course', '2020', 'T2', 'UNIV')
+        block.external_config = external_id
+        block.lti_version = LtiConfiguration.LTI_1P1
+
+        # Call API
+        with patch("lti_consumer.models.LtiConfiguration.get_lti_consumer") as mock_get_lti_consumer, \
+                patch("lti_consumer.api.get_external_config_from_filter") as mock_get_from_filter:
+            mock_get_from_filter.return_value = {"version": "lti_1p1"}
+            get_lti_consumer(block=block)
+            mock_get_lti_consumer.assert_called_once()
+            mock_get_from_filter.assert_called_once_with({"course_key": block.location.course_key}, external_id)
+
+        # Check that there's just a single LTI Config in the models
+        self.assertEqual(LtiConfiguration.objects.all().count(), 1)
 
 
 class TestGetLti1p3LaunchInfo(TestCase):

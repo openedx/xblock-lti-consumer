@@ -6,6 +6,8 @@ from importlib import import_module
 
 from django.conf import settings
 
+from lti_consumer.plugin.compat import get_external_config_waffle_flag
+
 log = logging.getLogger(__name__)
 
 
@@ -152,3 +154,13 @@ def resolve_custom_parameter_template(xblock, template):
         return template
 
     return template_value
+
+
+def external_config_filter_enabled(course_key):
+    """
+    Returns True if external config filter is enabled for the course via Waffle Flag.
+
+    Arguments:
+        course_key (opaque_keys.edx.locator.CourseLocator): Course Key
+    """
+    return get_external_config_waffle_flag().is_enabled(course_key)

@@ -405,6 +405,15 @@ class TestEditableFields(TestLtiConsumerXBlock):
     Unit tests for LtiConsumerXBlock.editable_fields
     """
 
+    def setUp(self):
+        super().setUp()
+        self.waffle_patch = patch('lti_consumer.lti_xblock.external_config_filter_enabled')
+        self.mock_flag = self.waffle_patch.start()
+
+    def tearDown(self):
+        self.waffle_patch.stop()
+        super().tearDown()
+
     def get_mock_lti_configuration(self, editable):
         """
         Returns a mock object of lti-configuration service
@@ -477,6 +486,16 @@ class TestEditableFields(TestLtiConsumerXBlock):
                 ]
             )
         )
+
+    def test_external_config_fields_are_editable_only_when_waffle_flag_is_set(self):
+        """
+        Test that the external configuration fields are editable only when the waffle flag is set.
+        """
+        self.mock_flag.return_value = True
+        self.assertTrue(self.are_fields_editable(fields=['config_type', 'external_config']))
+
+        self.mock_flag.return_value = False
+        self.assertFalse(self.are_fields_editable(fields=['config_type', 'external_config']))
 
 
 class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
@@ -1238,6 +1257,13 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
+        self.patcher = patch("lti_consumer.lti_xblock.external_config_filter_enabled")
+        self.mock_filter_enabled = self.patcher.start()
+
+    def tearDown(self) -> None:
+        self.patcher.stop()
+        super().tearDown()
+
     def test_launch_callback_endpoint(self):
         """
         Test the LTI 1.3 callback endpoint.
@@ -1308,6 +1334,9 @@ class TestLtiConsumer1p3XBlock(TestCase):
         """
         Test that the studio settings view load the custom js.
         """
+        self.xblock.location = Mock()
+        self.xblock.location.__get__ = 'block-v1:course+test+2020+type@problem+block@test'
+        self.xblock.location.course_key = 'course-v1:Demo_Course'
         response = self.xblock.studio_view({})
         self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
 
