@@ -369,6 +369,10 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+4.0.1 - 2022-05-09
+------------------
+* Add `Learner` to LTI launch roles in addition to the `Student` value
+
 4.0.0 - 2022-05-09
 ------------------
 
