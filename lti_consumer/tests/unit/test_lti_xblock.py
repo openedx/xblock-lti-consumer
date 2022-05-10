@@ -1074,10 +1074,12 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         mock_runtime = self.xblock.runtime = Mock()
         mock_lti_consumer = Mock()
         mock_user = Mock()
+        mock_rebind_user_service = Mock()
+        mock_runtime.service.return_value = mock_rebind_user_service
 
         self.xblock._result_service_get(mock_lti_consumer, mock_user)  # pylint: disable=protected-access
 
-        mock_runtime.rebind_noauth_module_to_user.assert_called_with(self.xblock, mock_user)
+        mock_rebind_user_service.rebind_noauth_module_to_user.assert_called_with(self.xblock, mock_user)
         mock_lti_consumer.get_result.assert_called_with()
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.module_score', PropertyMock(return_value=0.5))
@@ -1210,12 +1212,15 @@ class TestSetScore(TestLtiConsumerXBlock):
 
     def test_rebind_called(self):
         """
-        Test that `runtime.rebind_noauth_module_to_user` is called
+        Test that `rebind_noauth_module_to_user` service is called
         """
+        mock_rebind_user_service = Mock()
+        self.xblock.runtime.service = Mock()
+        self.xblock.runtime.service.return_value = mock_rebind_user_service
         user = Mock(user_id=FAKE_USER_ID)
         self.xblock.set_user_module_score(user, 0.92, 1.0, 'Great Job!')
 
-        self.xblock.runtime.rebind_noauth_module_to_user.assert_called_with(self.xblock, user)
+        mock_rebind_user_service.rebind_noauth_module_to_user.assert_called_with(self.xblock, user)
 
     def test_publish_grade_event_called(self):
         """
