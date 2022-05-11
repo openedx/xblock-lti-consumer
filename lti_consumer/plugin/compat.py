@@ -38,7 +38,7 @@ def get_external_config_waffle_flag():
     """
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
-    return CourseWaffleFlag(WAFFLE_NAMESPACE, ENABLE_EXTERNAL_CONFIG_FILTER, __name__)
+    return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_EXTERNAL_CONFIG_FILTER}', __name__)
 
 
 def run_xblock_handler(*args, **kwargs):
