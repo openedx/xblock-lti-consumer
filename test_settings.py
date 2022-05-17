@@ -12,6 +12,7 @@ ROOT_URLCONF = 'test_urls'
 
 # LMS Urls - for LTI 1.3 testing
 LMS_ROOT_URL = "https://example.com"
+LMS_BASE = "example.com"
 
 # Dummy FEATURES dict
 FEATURES = {}

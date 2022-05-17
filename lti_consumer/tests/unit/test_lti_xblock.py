@@ -292,13 +292,15 @@ class TestProperties(TestLtiConsumerXBlock):
         with self.assertRaises(LtiError):
             __ = self.xblock.external_user_id
 
+    @override_settings(LMS_BASE="edx.org")
     def test_resource_link_id(self):
         """
         Test `resource_link_id` returns appropriate string
         """
+        hostname = "edx.org"
         self.assertEqual(
             self.xblock.resource_link_id,
-            f"{self.xblock.runtime.hostname}-{self.xblock.location.html_id()}"  # pylint: disable=no-member
+            f"{hostname}-{self.xblock.location.html_id()}"  # pylint: disable=no-member
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')

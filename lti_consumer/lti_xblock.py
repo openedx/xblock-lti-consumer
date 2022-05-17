@@ -881,9 +881,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         i4x-2-3-lti-31de800015cf4afb973356dbe81496df this part of resource_link_id:
         makes resource_link_id to be unique among courses inside same system.
         """
-        return str(urllib.parse.quote(
-            f"{self.runtime.hostname}-{self.location.html_id()}"  # pylint: disable=no-member
-        ))
+        return str(urllib.parse.quote(f"{settings.LMS_BASE}-{self.location.html_id()}"))  # pylint: disable=no-member
 
     @property
     def lis_result_sourcedid(self):
