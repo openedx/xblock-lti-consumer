@@ -28,7 +28,7 @@ WAFFLE_NAMESPACE = 'lti_consumer'
 # .. toggle_use_cases: open_edx
 # .. toggle_creation_date: 2022-03-31
 # .. toggle_tickets: https://github.com/openedx/xblock-lti-consumer/pull/239
-# .. toggle_warnings: None.
+# .. toggle_warning: None.
 ENABLE_EXTERNAL_CONFIG_FILTER = 'enable_external_config_filter'
 
 
