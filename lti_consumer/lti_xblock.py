@@ -1307,48 +1307,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
             Failure: https://tools.ietf.org/html/rfc6749#section-5.2
         """
-        if self.lti_version != "lti_1p3":
-            return Response(status=404)
-        if request.method != "POST":
-            return Response(status=405)
-
-        lti_consumer = self._get_lti_consumer()
-        try:
-            token = lti_consumer.access_token(
-                dict(urllib.parse.parse_qsl(
-                    request.body.decode('utf-8'),
-                    keep_blank_values=True
-                ))
-            )
-            # The returned `token` is compliant with RFC 6749 so we just
-            # need to return a 200 OK response with the token as Json body
-            return Response(json_body=token, content_type="application/json")
-
-        # Handle errors and return a proper response
-        except MissingRequiredClaim:
-            # Missing request attibutes
-            return Response(
-                json_body={"error": "invalid_request"},
-                status=400
-            )
-        except (MalformedJwtToken, TokenSignatureExpired):
-            # Triggered when a invalid grant token is used
-            return Response(
-                json_body={"error": "invalid_grant"},
-                status=400,
-            )
-        except (NoSuitableKeys, UnknownClientId):
-            # Client ID is not registered in the block or
-            # isn't possible to validate token using available keys.
-            return Response(
-                json_body={"error": "invalid_client"},
-                status=400,
-            )
-        except UnsupportedGrantType:
-            return Response(
-                json_body={"error": "unsupported_grant_type"},
-                status=400,
-            )
+        # We are redirecting a POST request here, so use 308 instead of 301
+        # XXX This should be rethought
+        r = Response()
+        r.location = f"/lti_consumer/v1/token/{self.location}"
+        r.status_code = 308  # Permanant redirect
+        return r
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument

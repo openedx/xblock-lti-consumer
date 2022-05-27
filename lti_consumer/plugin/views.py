@@ -2,6 +2,7 @@
 LTI consumer plugin passthrough views
 """
 import logging
+import urllib
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
@@ -17,7 +18,7 @@ from opaque_keys.edx.keys import UsageKey
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.status import HTTP_403_FORBIDDEN
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course
 from lti_consumer.exceptions import LtiError
@@ -30,6 +31,12 @@ from lti_consumer.models import (
 from lti_consumer.lti_1p3.exceptions import (
     Lti1p3Exception,
     LtiDeepLinkingContentTypeNotSupported,
+    UnsupportedGrantType,
+    MalformedJwtToken,
+    MissingRequiredClaim,
+    NoSuitableKeys,
+    TokenSignatureExpired,
+    UnknownClientId,
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
@@ -154,17 +161,43 @@ def access_token_endpoint(request, usage_id=None):
     Gate endpoint to enable tools to retrieve access tokens
     """
     try:
-        usage_key = UsageKey.from_string(usage_id)
-
-        return compat.run_xblock_handler_noauth(
-            request=request,
-            course_id=str(usage_key.course_key),
-            usage_id=str(usage_key),
-            handler='lti_1p3_access_token'
-        )
+        location = UsageKey.from_string(usage_id)
     except Exception as exc:
         log.warning("Error retrieving an access token for usage_id %r: %s", usage_id, exc)
         raise Http404 from exc
+
+    try:
+        lti_config = LtiConfiguration.objects.get(location=location)
+    except LtiConfiguration.DoesNotExist as exc:
+        log.warning("Error getting the LTI configuration for usage id %r: %s", usage_id, exc)
+        raise Http404 from exc
+
+    if lti_config.version != lti_config.LTI_1P3:
+        raise Http404("Invalid LTI Version")
+
+    lti_consumer = lti_config.get_lti_consumer()
+    try:
+        token = lti_consumer.access_token(
+            dict(urllib.parse.parse_qsl(
+                request.body.decode('utf-8'),
+                keep_blank_values=True
+            ))
+        )
+        return Response(token)
+
+    # Handle errors and return a proper response
+    except MissingRequiredClaim:
+        # Missing request attibutes
+        return Response({"error": "invalid_request"}, status=HTTP_400_BAD_REQUEST)
+    except (MalformedJwtToken, TokenSignatureExpired):
+        # Triggered when a invalid grant token is used
+        return Response({"error": "invalid_grant"}, status=HTTP_400_BAD_REQUEST)
+    except (NoSuitableKeys, UnknownClientId):
+        # Client ID is not registered in the block or
+        # isn't possible to validate token using available keys.
+        return Response({"error": "invalid_client"}, status=HTTP_400_BAD_REQUEST)
+    except UnsupportedGrantType:
+        return Response({"error": "unsupported_grant_type"}, status=HTTP_400_BAD_REQUEST)
 
 
 # Post from external tool that doesn't
