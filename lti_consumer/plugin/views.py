@@ -158,7 +158,16 @@ def launch_gate_endpoint(request, suffix=None):
 @require_http_methods(["POST"])
 def access_token_endpoint(request, usage_id=None):
     """
-    Gate endpoint to enable tools to retrieve access tokens
+    Gate endpoint to enable tools to retrieve access tokens for the LTI 1.3 tool.
+
+    This endpoint is only valid when a LTI 1.3 tool is being used.
+
+    Returns:
+        JsonResponse or Http404
+
+    References:
+        Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
+        Failure: https://tools.ietf.org/html/rfc6749#section-5.2
     """
     try:
         location = UsageKey.from_string(usage_id)
@@ -173,7 +182,7 @@ def access_token_endpoint(request, usage_id=None):
         raise Http404 from exc
 
     if lti_config.version != lti_config.LTI_1P3:
-        raise Http404("Invalid LTI Version")
+        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_400_BAD_REQUEST)
 
     lti_consumer = lti_config.get_lti_consumer()
     try:
@@ -183,21 +192,21 @@ def access_token_endpoint(request, usage_id=None):
                 keep_blank_values=True
             ))
         )
-        return Response(token)
+        return JsonResponse(token)
 
     # Handle errors and return a proper response
     except MissingRequiredClaim:
         # Missing request attibutes
-        return Response({"error": "invalid_request"}, status=HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "invalid_request"}, status=HTTP_400_BAD_REQUEST)
     except (MalformedJwtToken, TokenSignatureExpired):
         # Triggered when a invalid grant token is used
-        return Response({"error": "invalid_grant"}, status=HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "invalid_grant"}, status=HTTP_400_BAD_REQUEST)
     except (NoSuitableKeys, UnknownClientId):
         # Client ID is not registered in the block or
         # isn't possible to validate token using available keys.
-        return Response({"error": "invalid_client"}, status=HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "invalid_client"}, status=HTTP_400_BAD_REQUEST)
     except UnsupportedGrantType:
-        return Response({"error": "unsupported_grant_type"}, status=HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "unsupported_grant_type"}, status=HTTP_400_BAD_REQUEST)
 
 
 # Post from external tool that doesn't

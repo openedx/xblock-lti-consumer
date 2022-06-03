@@ -71,15 +71,7 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 from .exceptions import LtiError
 from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
 from .lti_1p1.oauth import log_authorization_header
-from .lti_1p3.exceptions import (
-    Lti1p3Exception,
-    UnsupportedGrantType,
-    MalformedJwtToken,
-    MissingRequiredClaim,
-    NoSuitableKeys,
-    TokenSignatureExpired,
-    UnknownClientId,
-)
+from .lti_1p3.exceptions import Lti1p3Exception
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
 from .track import track_event
@@ -1290,29 +1282,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
             template = loader.render_django_template('/templates/html/lti_1p3_permission_error.html', context)
             return Response(template, status=403, content_type='text/html')
-
-    @XBlock.handler
-    def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument
-        """
-        XBlock handler for creating access tokens for the LTI 1.3 tool.
-
-        This endpoint is only valid when a LTI 1.3 tool is being used.
-
-        Returns:
-            webob.response:
-                Either an access token or error message detailing the failure.
-                All responses are RFC 6749 compliant.
-
-        References:
-            Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
-            Failure: https://tools.ietf.org/html/rfc6749#section-5.2
-        """
-        # We are redirecting a POST request here, so use 308 instead of 301
-        # XXX This should be rethought
-        r = Response()
-        r.location = f"/lti_consumer/v1/token/{self.location}"
-        r.status_code = 308  # Permanant redirect
-        return r
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument
