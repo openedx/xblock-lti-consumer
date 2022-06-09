@@ -1646,7 +1646,7 @@ class TestDynamicCustomParametersResolver(TestLtiConsumerXBlock):
         """
         custom_parameter_template_value = '${templated_param_value}'
 
-        dj_settings.__delattr__('LTI_CUSTOM_PARAM_TEMPLATES')
+        del dj_settings.LTI_CUSTOM_PARAM_TEMPLATES
 
         resolved_value = resolve_custom_parameter_template(self.xblock, custom_parameter_template_value)
 
