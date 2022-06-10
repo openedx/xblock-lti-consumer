@@ -28,6 +28,7 @@ from lti_consumer.models import (
     LtiDlContentItem,
 )
 
+from lti_consumer.lti_1p3.consumer import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.exceptions import (
     Lti1p3Exception,
     LtiDeepLinkingContentTypeNotSupported,
@@ -138,20 +139,116 @@ def launch_gate_endpoint(request, suffix=None):
     OIDC response parameter `login_hint` to locate the block
     and run the proper handler.
     """
-    try:
-        usage_key_str = request.GET.get('login_hint')
-        usage_key = UsageKey.from_string(usage_key_str)
+    # Get the login_hint from the request
+    usage_id = request.GET.get('login_hint')
+    if not usage_id:
+        return JsonResponse({"error": "invalid_login_hint"}, status=HTTP_400_BAD_REQUEST)
 
-        return compat.run_xblock_handler(
-            request=request,
-            course_id=str(usage_key.course_key),
-            usage_id=str(usage_key),
-            handler='lti_1p3_launch_callback',
-            suffix=suffix
+    usage_key = UsageKey.from_string(usage_id)
+    try:
+        lti_config = LtiConfiguration.objects.get(
+            location=usage_key
         )
-    except Exception as exc:
-        log.warning("Error preparing LTI 1.3 launch for hint %r: %s", usage_key_str, exc)
-        raise Http404 from exc
+    except LtiConfiguration.DoesNotExist:
+        log.error("Invalid usage_id '%s' for LTI 1.3 Launch callback", usage_id)
+        raise Http404("LTI Configuration not found.")
+
+    if lti_config.version != LtiConfiguration.LTI_1P3:
+        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_400_BAD_REQUEST)
+
+    context = {}
+
+    course_key = usage_key.course_key
+    course = compat.get_course_by_id(course_key)
+    user_role = compat.get_user_role(request.user, course_key)
+    external_user_id = compat.get_external_id_for_user(request.user)
+    lti_consumer = lti_config.get_lti_consumer()
+
+    try:
+        # Pass user data
+        # Pass django user role to library
+        lti_consumer.set_user_data(user_id=external_user_id, role=user_role)
+
+        # Set launch context
+        # Hardcoded for now, but we need to translate from
+        # self.launch_target to one of the LTI compliant names,
+        # either `iframe`, `frame` or `window`
+        # This is optional though
+        lti_consumer.set_launch_presentation_claim('iframe')
+
+        # Set context claim
+        # This is optional
+        context_title = " - ".join([
+            course.display_name_with_default,
+            course.display_org_with_default
+        ])
+        # Course ID is the context ID for the LTI for now. This can be changed to be
+        # more specific in the future for supporting other tools like discussions, etc.
+        lti_consumer.set_context_claim(
+            str(course_key),
+            context_types=[LTI_1P3_CONTEXT_TYPE.course_offering],
+            context_title=context_title,
+            context_label=str(course_key)
+        )
+
+        # Retrieve preflight response
+        preflight_response = dict(request.GET)
+        lti_message_hint = preflight_response.get('lti_message_hint', '')
+
+        # Set LTI Launch URL
+        context.update({'launch_url': lti_consumer.launch_url})
+
+        # Modify LTI Launch URL dependind on launch type
+        # Deep Linking Launch - Configuration flow launched by
+        # course creators to set up content.
+        if lti_consumer.dl and lti_message_hint == 'deep_linking_launch':
+            # Check if the user is staff before LTI doing deep linking launch.
+            # If not, raise exception and display error page
+            if user_role not in ['instructor', 'staff']:
+                raise AssertionError('Deep Linking can only be performed by instructors and staff.')
+            # Set deep linking launch
+            context.update({'launch_url': lti_consumer.dl.deep_linking_launch_url})
+
+        # Deep Linking ltiResourceLink content presentation
+        # When content type is `ltiResourceLink`, the tool will be launched with
+        # different parameters, set by instructors when running the DL configuration flow.
+        elif lti_consumer.dl and 'deep_linking_content_launch' in lti_message_hint:
+            # Retrieve Deep Linking parameters using lti_message_hint parameter.
+            deep_linking_id = lti_message_hint.split(':')[1]
+            content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_id)
+            dl_params = content_item.attributes
+
+            # Modify LTI launch and set ltiResourceLink parameters
+            lti_consumer.set_dl_content_launch_parameters(
+                url=dl_params.get('url'),
+                custom=dl_params.get('custom')
+            )
+
+        # Update context with LTI launch parameters
+        context.update({
+            "preflight_response": preflight_response,
+            "launch_request": lti_consumer.generate_launch_request(
+                resource_link=usage_id,
+                preflight_response=preflight_response
+            )
+        })
+
+        return render(request, 'html/lti_1p3_launch.html', context)
+    except Lti1p3Exception as exc:
+        log.warning(
+            "Error preparing LTI 1.3 launch for block %r: %s",
+            usage_id,
+            exc,
+        )
+        return render('html/lti_1p3_launch_error.html', context, status=400)
+    except AssertionError as exc:
+        log.warning(
+            "Permission on LTI block %r denied for user %r: %s",
+            usage_id,
+            external_user_id,
+            exc,
+        )
+        return render('html/lti_1p3_permission_error.html', context, status=403)
 
 
 @csrf_exempt

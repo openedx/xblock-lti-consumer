@@ -4,8 +4,7 @@ Compatibility layer to isolate core-platform method calls from implementation.
 import logging
 from typing import Callable
 
-# from edx_toggles.toggles import WaffleFlag
-# from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from opaque_keys.edx.keys import CourseKey
@@ -260,3 +259,21 @@ def get_event_tracker():
         return tracker
     except ModuleNotFoundError:
         return None
+
+
+def get_user_role(user: User, course_key: CourseKey) -> str:
+    """
+    Import the get_user_role from LMS and return the value.
+    """
+    # pylint: disable=import-outside-toplevel
+    from lms.djangoapps.courseware.access import get_user_role
+    return get_user_role(user, course_key)
+
+
+def get_external_id_for_user(user: User) -> str:
+    """
+    Import and run `get_external_id_for_user` from LMS
+    """
+    # pylint: disable=import-outside-toplevel
+    from lms.djangoapps.external_user_ids.models import ExternalId
+    return ExternalId.add_new_user_id(user, 'lti')
