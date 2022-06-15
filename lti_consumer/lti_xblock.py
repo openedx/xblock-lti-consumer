@@ -57,6 +57,7 @@ from collections import namedtuple
 from importlib import import_module
 
 import bleach
+from django.conf import settings
 from django.utils import timezone
 from web_fragments.fragment import Fragment
 
@@ -1320,7 +1321,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         lti_consumer = self._get_lti_consumer()
         lti_consumer.set_outcome_service_url(self.outcome_service_url)
 
-        if self.runtime.debug:
+        if settings.DEBUG:
             lti_provider_key, lti_provider_secret = self.lti_provider_key_secret
             log_authorization_header(request, lti_provider_key, lti_provider_secret)
 

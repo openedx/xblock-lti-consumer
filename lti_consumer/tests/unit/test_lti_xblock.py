@@ -10,6 +10,7 @@ from unittest.mock import Mock, PropertyMock, patch
 import ddt
 from Cryptodome.PublicKey import RSA
 from django.conf import settings as dj_settings
+from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
 from jwkest.jwk import RSAKey, KEYS
@@ -722,20 +723,19 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         super().setUp()
         self.lti_provider_key = 'test'
         self.lti_provider_secret = 'secret'
-        self.xblock.runtime.debug = False
         self.xblock.runtime.get_real_user = Mock()
         self.xblock.accept_grades_past_due = True
         self.mock_lti_consumer = Mock()
         self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
 
+    @override_settings(DEBUG=True)
     @patch('lti_consumer.lti_xblock.log_authorization_header')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret')
     def test_runtime_debug_true(self, mock_lti_provider_key_secret, mock_log_auth_header):
         """
-        Test `log_authorization_header` is called when runtime.debug is True
+        Test `log_authorization_header` is called when settings.DEBUG is True
         """
         mock_lti_provider_key_secret.__get__ = Mock(return_value=(self.lti_provider_key, self.lti_provider_secret))
-        self.xblock.runtime.debug = True
         request = make_request('', 'GET')
         self.xblock.result_service_handler(request)
 
@@ -744,9 +744,8 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
     @patch('lti_consumer.lti_xblock.log_authorization_header')
     def test_runtime_debug_false(self, mock_log_auth_header):
         """
-        Test `log_authorization_header` is not called when runtime.debug is False
+        Test `log_authorization_header` is not called when settings.DEBUG is False
         """
-        self.xblock.runtime.debug = False
         self.xblock.result_service_handler(make_request('', 'GET'))
 
         assert not mock_log_auth_header.called
@@ -1647,7 +1646,7 @@ class TestDynamicCustomParametersResolver(TestLtiConsumerXBlock):
         """
         custom_parameter_template_value = '${templated_param_value}'
 
-        dj_settings.__delattr__('LTI_CUSTOM_PARAM_TEMPLATES')
+        del dj_settings.LTI_CUSTOM_PARAM_TEMPLATES
 
         resolved_value = resolve_custom_parameter_template(self.xblock, custom_parameter_template_value)
 
