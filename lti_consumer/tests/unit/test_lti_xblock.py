@@ -1734,7 +1734,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
 
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_request'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_request'})
 
     def test_access_token_malformed(self):
         """
@@ -1743,7 +1743,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         request = make_jwt_request("invalid-jwt")
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_grant'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_grant'})
 
     def test_access_token_invalid_grant(self):
         """
@@ -1754,7 +1754,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
 
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'unsupported_grant_type'})
+        self.assertJSONEqual(response.content, {'error': 'unsupported_grant_type'})
 
     def test_access_token_invalid_client(self):
         """
@@ -1767,7 +1767,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         request = make_jwt_request(jwt)
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_client'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_client'})
 
     def test_access_token(self):
         """
@@ -1900,7 +1900,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         load_jwks_from_url.return_value = self.make_keyset([])
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {"error": "invalid_client"})
+        self.assertJSONEqual(response.content, {"error": "invalid_client"})
 
     @patch("lti_consumer.lti_1p3.key_handlers.load_jwks_from_url")
     def test_access_token_using_keyset_url_with_wrong_keys(self, load_jwks_from_url):
@@ -1911,7 +1911,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         load_jwks_from_url.return_value = self.make_keyset([key])
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {"error": "invalid_client"})
+        self.assertJSONEqual(response.content, {"error": "invalid_client"})
 
     @patch("jwkest.jwk.request")
     def test_access_token_using_keyset_url_that_fails(self, request):
@@ -1921,7 +1921,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         request.side_effect = Exception("request fails")
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_client'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_client'})
 
     @patch("jwkest.jwk.request")
     def test_access_token_using_keyset_url_with_invalid_contents(self, request):
@@ -1934,4 +1934,4 @@ class TestLti1p3AccessTokenJWK(TestCase):
         request.return_value = response_mock
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_client'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_client'})

@@ -71,8 +71,6 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 from .exceptions import LtiError
 from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
 from .lti_1p1.oauth import log_authorization_header
-from .lti_1p3.exceptions import Lti1p3Exception
-from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
 from .track import track_event
 from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled, database_config_enabled
@@ -1181,6 +1179,53 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         #    }
         #    track_event('xblock.launch_request', event)
 
+    def _save_lti_1p3_config_to_db(self):
+        """
+        Save LTI 1.3 config to the database.
+        """
+        from .api import _get_lti_config  # pylint: disable=import-outside-toplevel
+        conf = _get_lti_config(block=self)
+        # Transfer the config to DB so that the django view can initialize the LTI1P3Consumer
+        # without having to load the XBlock
+        conf.lti_config = self._lti_1p3_config_as_dict()
+        conf.config_store = conf.CONFIG_ON_DB
+        conf.save()
+        return conf
+
+    def _lti_1p3_config_as_dict(self):
+        return dict(
+            lti_1p3_launch_url=self.lti_1p3_launch_url,
+            lti_1p3_oidc_url=self.lti_1p3_oidc_url,
+            lti_1p3_tool_key_mode=self.lti_1p3_tool_key_mode,
+            lti_1p3_tool_keyset_url=self.lti_1p3_tool_keyset_url,
+            lti_1p3_tool_public_key=self.lti_1p3_tool_public_key,
+            lti_1p3_enable_nrps=self.lti_1p3_enable_nrps,
+            lti_1p3_block_key=self.lti_1p3_block_key,
+            lti_advantage_deep_linking_enabled=self.lti_advantage_deep_linking_enabled,
+            lti_advantage_deep_linking_launch_url=self.lti_advantage_deep_linking_launch_url,
+            lti_advantage_ags_mode=self.lti_advantage_ags_mode,
+            weight=self.weight,
+            display_name=self.display_name,
+        )
+
+    @XBlock.handler
+    def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument
+        """
+        XBlock handler for creating access tokens for the LTI 1.3 tool.
+        This endpoint is only valid when a LTI 1.3 tool is being used.
+        Returns:
+            webob.response:
+                Either an access token or error message detailing the failure.
+                All responses are RFC 6749 compliant.
+        References:
+            Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
+            Failure: https://tools.ietf.org/html/rfc6749#section-5.2
+        """
+        # Update the DB with the LTI 1.3 config and fetch the config
+        conf = self._save_lti_1p3_config_to_db()
+
+        from .plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
+        return access_token_endpoint(request, conf.id)
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument

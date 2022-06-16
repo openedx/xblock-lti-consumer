@@ -31,7 +31,7 @@ urlpatterns = [
         name='lti_consumer.launch_gate'
     ),
     re_path(
-        f'lti_consumer/v1/token/{settings.USAGE_ID_PATTERN}$',
+        r'lti_consumer/v1/token/(?P<lti_config_id>[-\w]+)$',
         access_token_endpoint,
         name='lti_consumer.access_token'
     ),

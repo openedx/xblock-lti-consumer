@@ -4,6 +4,7 @@ LTI configuration and linking models.
 import logging
 import uuid
 import json
+from functools import partial
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
@@ -473,20 +474,65 @@ class LtiConfiguration(models.Model):
         """
         # If LTI configuration is stored in the XBlock.
         if self.config_store == self.CONFIG_ON_XBLOCK:
-            consumer = LtiAdvantageConsumer(
-                iss=get_lms_base(),
-                lti_oidc_url=self.block.lti_1p3_oidc_url,
-                lti_launch_url=self.block.lti_1p3_launch_url,
-                client_id=self.lti_1p3_client_id,
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id="1",
-                # XBlock Private RSA Key
-                rsa_key=self.lti_1p3_private_key,
-                rsa_key_id=self.lti_1p3_private_key_id,
-                # LTI 1.3 Tool key/keyset url
-                tool_key=self.block.lti_1p3_tool_public_key,
-                tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
+            getconf = partial(getattr, self.block)
+
+        # NOTE This is a flaky way to determine if the LTI configuration is stored in the DB.
+        elif self.config_store == self.CONFIG_ON_DB and "lti_1p3_launch_url" in self.lti_config:
+            getconf = partial(self.lti_config.get)
+        else:
+            # There's no configuration stored locally, so throw
+            # NotImplemented.
+            raise NotImplementedError
+
+        consumer = LtiAdvantageConsumer(
+            iss=get_lms_base(),
+            lti_oidc_url=getconf('lti_1p3_oidc_url'),
+            lti_launch_url=getconf('lti_1p3_launch_url'),
+            client_id=self.lti_1p3_client_id,
+            # Deployment ID hardcoded to 1 since
+            # we're not using multi-tenancy.
+            deployment_id="1",
+            # XBlock Private RSA Key
+            rsa_key=self.lti_1p3_private_key,
+            rsa_key_id=self.lti_1p3_private_key_id,
+            # LTI 1.3 Tool key/keyset url
+            tool_key=getconf('lti_1p3_tool_public_key'),
+            tool_keyset_url=getconf('lti_1p3_tool_keyset_url'),
+        )
+
+        # Check if enabled and setup LTI-AGS
+        if getconf('lti_advantage_ags_mode') != 'disabled':
+            lineitem = None
+            # If using the declarative approach, we should create a LineItem if it
+            # doesn't exist. This is because on this mode the tool is not able to create
+            # and manage lineitems using the AGS endpoints.
+            if getconf('lti_advantage_ags_mode') == 'declarative':
+                # Set grade attributes
+                default_values = {
+                    'resource_id': self.location,
+                    'score_maximum': getconf('weight'),
+                    'label': getconf('display_name'),
+                }
+
+                if getconf('start', None):
+                    default_values['start_date_time'] = getconf('start')
+
+                if getconf('due', None):
+                    default_values['end_date_time'] = getconf('due')
+
+                # create LineItem if there is none for current lti configuration
+                lineitem, _ = LtiAgsLineItem.objects.get_or_create(
+                    lti_configuration=self,
+                    resource_link_id=self.location,
+                    defaults=default_values
+                )
+
+            consumer.enable_ags(
+                lineitems_url=get_lti_ags_lineitems_url(self.id),
+                lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
+                allow_programmatic_grade_interaction=(
+                    getconf('lti_advantage_ags_mode') == 'programmatic'
+                )
             )
         elif self.config_store == self.CONFIG_ON_DB:
             consumer = LtiAdvantageConsumer(
@@ -511,7 +557,6 @@ class LtiConfiguration(models.Model):
         self._setup_lti_1p3_ags(consumer)
         self._setup_lti_1p3_deep_linking(consumer)
         self._setup_lti_1p3_nrps(consumer)
-
         return consumer
 
     def get_lti_consumer(self):

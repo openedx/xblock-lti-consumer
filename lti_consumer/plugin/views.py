@@ -253,7 +253,7 @@ def launch_gate_endpoint(request, suffix=None):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def access_token_endpoint(request, usage_id=None):
+def access_token_endpoint(request, lti_config_id):
     """
     Gate endpoint to enable tools to retrieve access tokens for the LTI 1.3 tool.
 
@@ -266,20 +266,15 @@ def access_token_endpoint(request, usage_id=None):
         Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
         Failure: https://tools.ietf.org/html/rfc6749#section-5.2
     """
-    try:
-        location = UsageKey.from_string(usage_id)
-    except Exception as exc:
-        log.warning("Error retrieving an access token for usage_id %r: %s", usage_id, exc)
-        raise Http404 from exc
 
     try:
-        lti_config = LtiConfiguration.objects.get(location=location)
+        lti_config = LtiConfiguration.objects.get(pk=lti_config_id)
     except LtiConfiguration.DoesNotExist as exc:
-        log.warning("Error getting the LTI configuration for usage id %r: %s", usage_id, exc)
+        log.warning("Error getting the LTI configuration with id %r: %s", lti_config_id, exc)
         raise Http404 from exc
 
     if lti_config.version != lti_config.LTI_1P3:
-        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "invalid_lti_version"}, status=404)
 
     lti_consumer = lti_config.get_lti_consumer()
     try:
