@@ -264,7 +264,7 @@ def get_user_role(user, course_key: CourseKey) -> str:
     """
     Import the get_user_role from LMS and return the value.
     """
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-error,import-outside-toplevel
     from lms.djangoapps.courseware.access import get_user_role as get_role
     return get_role(user, course_key)
 
@@ -273,6 +273,6 @@ def get_external_id_for_user(user) -> str:
     """
     Import and run `get_external_id_for_user` from LMS
     """
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.external_user_ids.models import ExternalId
     return ExternalId.add_new_user_id(user, 'lti')

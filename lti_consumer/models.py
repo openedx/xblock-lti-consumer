@@ -478,7 +478,7 @@ class LtiConfiguration(models.Model):
 
         # NOTE This is a flaky way to determine if the LTI configuration is stored in the DB.
         elif self.config_store == self.CONFIG_ON_DB and "lti_1p3_launch_url" in self.lti_config:
-            getconf = partial(self.lti_config.get)
+            getconf = partial(self.lti_config.get)  # pylint: disable=no-member
         else:
             # There's no configuration stored locally, so throw
             # NotImplemented.

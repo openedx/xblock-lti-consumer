@@ -1167,7 +1167,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_callback(self, request, suffix=''):  # pylint: disable=unused-argument
+    def lti_1p3_launch_callback(self, request, suffix=''):
         """
         THIS HAS BEEN MOVED TO plugins.views.launch_gate_endpoint
         """
@@ -1178,6 +1178,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         #        'launch_url': self.lti_1p3_launch_url,
         #    }
         #    track_event('xblock.launch_request', event)
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
+
+        # Backward compatibility - copy the config to the DB
+        self._save_lti_1p3_config_to_db()
+
+        from .plugin.views import launch_gate_endpoint  # pylint: disable=import-outside-toplevel
+        request.user = self.runtime.service(self, 'user').get_current_user()
+        return launch_gate_endpoint(request, suffix)
 
     def _save_lti_1p3_config_to_db(self):
         """

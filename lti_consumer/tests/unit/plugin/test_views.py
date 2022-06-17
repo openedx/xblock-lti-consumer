@@ -6,9 +6,10 @@ from unittest.mock import patch, Mock
 
 from django.http import HttpResponse
 from django.test.testcases import TestCase
+from django.urls import reverse
 
 from Cryptodome.PublicKey import RSA
-from jwkest.jwk import RSAKey, KEYS
+from jwkest.jwk import RSAKey
 from opaque_keys.edx.keys import UsageKey
 from lti_consumer.models import LtiConfiguration
 from lti_consumer.lti_1p3.exceptions import (
@@ -95,21 +96,6 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.addCleanup(xblock_handler_patcher.stop)
         self._mock_xblock_handler = xblock_handler_patcher.start()
 
-    def test_launch_gate(self):
-        """
-        Check that the launch endpoint correctly maps to the
-        `lti_1p3_launch_callback` XBlock handler.
-        """
-        response = self.client.get(self.url, self.request)
-
-        # Check response
-        self.assertEqual(response.status_code, 200)
-        # Check function call arguments
-        self._mock_xblock_handler.assert_called_once()
-        kwargs = self._mock_xblock_handler.call_args.kwargs
-        self.assertEqual(kwargs['usage_id'], self.location)
-        self.assertEqual(kwargs['handler'], 'lti_1p3_launch_callback')
-
     def test_invalid_usage_key(self):
         """
         Check that passing a invalid login_hint yields HTTP code 404.
@@ -141,6 +127,9 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         self.key = RSAKey(key=RSA.generate(2048), kid="1")
 
     def get_body(self, token, **overrides):
+        """
+        Create the JSON to form the request body using the token
+        """
         body = {
             "grant_type": "client_credentials",
             "client_assertion_type": "something",
@@ -160,25 +149,19 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         config.save()
 
         body = self.get_body(create_jwt(self.key, {}))
-        response = self.client.post(self.url, data=body)
+        url = reverse('lti_consumer:lti_consumer.access_token', args=[config.id])
+        response = self.client.post(url, data=body)
 
         self.mock_client.access_token.called_once_with(body)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), token)
 
-    @patch('lti_consumer.plugin.views.UsageKey.from_string', side_effect=Exception())
-    def test_invalid_usage_key(self, mock_usage_key):
+    def test_non_existant_configuration_for_given_id(self):
         """
-        Check invalid methods yield HTTP code 404.
+        Check that 404 is returned when there is no configuration for a given id
         """
-        response = self.client.post(self.url)
-        self.assertEqual(response.status_code, 404)
-
-    def test_non_existant_configuration_for_given_location(self):
-        """
-        Check that 404 is returned when there is no configuration for a given location
-        """
-        response = self.client.post(self.url)
+        url = reverse('lti_consumer:lti_consumer.access_token', args=[9999])
+        response = self.client.post(url)
         self.assertEqual(response.status_code, 404)
 
     def test_verify_lti_version_is_1p3(self):
@@ -188,8 +171,9 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         config = LtiConfiguration(version=LtiConfiguration.LTI_1P1, location=self.location)
         config.save()
 
-        response = self.client.post(self.url)
-        self.assertEqual(response.status_code, 400)
+        url = reverse('lti_consumer:lti_consumer.access_token', args=[config.id])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {'error': 'invalid_lti_version'})
 
         config.delete()
@@ -202,7 +186,8 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         config.save()
         self.mock_client.access_token = Mock(side_effect=MissingRequiredClaim())
 
-        response = self.client.post(self.url)
+        url = reverse('lti_consumer:lti_consumer.access_token', args=[config.id])
+        response = self.client.post(url)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_request'})
@@ -215,14 +200,15 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         """
         config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=self.location)
         config.save()
+        url = reverse('lti_consumer:lti_consumer.access_token', args=[config.id])
 
         self.mock_client.access_token = Mock(side_effect=MalformedJwtToken())
-        response = self.client.post(self.url)
+        response = self.client.post(url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_grant'})
 
         self.mock_client.access_token = Mock(side_effect=TokenSignatureExpired())
-        response = self.client.post(self.url)
+        response = self.client.post(url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_grant'})
 
@@ -234,14 +220,15 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         """
         config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=self.location)
         config.save()
+        url = reverse('lti_consumer:lti_consumer.access_token', args=[config.id])
 
         self.mock_client.access_token = Mock(side_effect=NoSuitableKeys())
-        response = self.client.post(self.url)
+        response = self.client.post(url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_client'})
 
         self.mock_client.access_token = Mock(side_effect=UnknownClientId())
-        response = self.client.post(self.url)
+        response = self.client.post(url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_client'})
 
@@ -253,9 +240,10 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         """
         config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=self.location)
         config.save()
+        url = reverse('lti_consumer:lti_consumer.access_token', args=[config.id])
 
         self.mock_client.access_token = Mock(side_effect=UnsupportedGrantType())
-        response = self.client.post(self.url)
+        response = self.client.post(url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'unsupported_grant_type'})
 

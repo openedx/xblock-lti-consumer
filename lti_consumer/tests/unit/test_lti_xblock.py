@@ -7,6 +7,7 @@ import logging
 from datetime import timedelta
 from itertools import product
 from unittest.mock import Mock, PropertyMock, patch
+from urllib.parse import quote
 
 import ddt
 from Cryptodome.PublicKey import RSA
@@ -1381,6 +1382,15 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.mock_filter_enabled = self.mock_filter_enabled_patcher.start()
         self.mock_database_config_enabled = self.mock_database_config_enabled_patcher.start()
 
+        self.compat_patcher = patch("lti_consumer.plugin.views.compat")
+        self.compat = self.compat_patcher.start()
+        course = Mock(name="course")
+        course.display_name_with_default = "course_display_name"
+        course.display_org_with_default = "course_display_org"
+        self.compat.get_course_by_id.return_value = course
+        self.compat.get_user_role.return_value = "student"
+        self.compat.get_external_id_for_user.return_value = "12345"
+
     def tearDown(self) -> None:
         self.mock_filter_enabled_patcher.stop()
         self.mock_database_config_enabled_patcher.stop()
@@ -1390,14 +1400,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         """
         Test the LTI 1.3 callback endpoint.
         """
-        self.xblock.runtime.get_user_role.return_value = 'student'
-        mock_user_service = Mock()
-        mock_user_service.get_external_user_id.return_value = 2
-        self.xblock.runtime.service.return_value = mock_user_service
-
-        self.xblock.course.display_name_with_default = 'course_display_name'
-        self.xblock.course.display_org_with_default = 'course_display_org'
-
         # Get LTI client_id
         client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
 
@@ -1408,14 +1410,14 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "redirect_uri=http://tool.example/launch&" +
             "state=state_test_123&" +
             "nonce=nonce&" +
-            "login_hint=oidchint"
+            f"login_hint={quote(self.xblock.location)}"
         )
         response = self.xblock.lti_1p3_launch_callback(request)
 
         # Check response and assert that state was inserted
         self.assertEqual(response.status_code, 200)
 
-        response_body = response.body.decode('utf-8')
+        response_body = response.content.decode('utf-8')
         self.assertIn("state", response_body)
         self.assertIn("state_test_123", response_body)
 
@@ -1423,14 +1425,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         """
         Test that the LTI 1.3 callback endpoint correctly display an error message.
         """
-        self.xblock.runtime.get_user_role.return_value = 'student'
-        mock_user_service = Mock()
-        mock_user_service.get_external_user_id.return_value = 2
-        self.xblock.runtime.service.return_value = mock_user_service
-
-        self.xblock.course.display_name_with_default = 'course_display_name'
-        self.xblock.course.display_org_with_default = 'course_display_org'
-
         # Make a fake invalid preflight request, with empty parameters
         request = make_request('', 'GET')
         response = self.xblock.lti_1p3_launch_callback(request)
@@ -1438,7 +1432,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Check response and assert that state was inserted
         self.assertEqual(response.status_code, 400)
 
-        response_body = response.body.decode('utf-8')
+        response_body = response.content.decode('utf-8')
         self.assertIn("There was an error while launching the LTI 1.3 tool.", response_body)
         self.assertNotIn("% trans", response_body)
 
@@ -1493,6 +1487,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.xblock.course.display_name_with_default = 'course_display_name'
         self.xblock.course.display_org_with_default = 'course_display_org'
 
+        self.compat.get_user_role.return_value = 'staff'
         # Enable deep linking
         self.xblock.lti_advantage_deep_linking_enabled = True
 
@@ -1512,7 +1507,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "redirect_uri=http://tool.example/launch&" +
             "state=state_test_123&" +
             "nonce=nonce&" +
-            "login_hint=oidchint&" +
+            f"login_hint={quote(self.xblock.location)}&" +
             "lti_message_hint=deep_linking_launch"
         )
         response = self.xblock.lti_1p3_launch_callback(request)
@@ -1571,6 +1566,8 @@ class TestLtiConsumer1p3XBlock(TestCase):
         Test that the callback endpoint errors out if students try to do a deep link launch.
         """
         self._setup_deep_linking(user_role='student')
+        # Enable deep linking
+        self.xblock.lti_advantage_deep_linking_enabled = True
 
         # Get LTI client_id
         client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
@@ -1582,7 +1579,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "redirect_uri=http://tool.example/launch&" +
             "state=state_test_123&" +
             "nonce=nonce&" +
-            "login_hint=oidchint&" +
+            f"login_hint={quote(self.xblock.location)}&" +
             "lti_message_hint=deep_linking_launch"
         )
 
@@ -1590,12 +1587,12 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         # Check response
         self.assertEqual(response.status_code, 403)
-        response_body = response.body.decode('utf-8')
+        response_body = response.content.decode('utf-8')
         self.assertIn("Students don't have permissions to perform", response_body)
         self.assertNotIn("% trans", response_body)
 
-    @patch('lti_consumer.api.get_deep_linking_data')
-    def test_callback_endpoint_dl_content_launch(self, mock_dl_data):
+    @patch('lti_consumer.plugin.views.LtiConfiguration.ltidlcontentitem_set')
+    def test_callback_endpoint_dl_content_launch(self, mock_contentitem_set):
         """
         Test that the callback endpoint return the correct information when
         doing a `ltiResourceLink` deep linking launch.
@@ -1603,7 +1600,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self._setup_deep_linking(user_role='student')
 
         # Set deep linking mock data
-        mock_dl_data.return_value = {
+        mock_contentitem_set.get.return_value.attributes = {
             "url": "https://deep-link-content/",
             "custom": {
                 "parameter": "custom",
@@ -1620,12 +1617,12 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "redirect_uri=http://tool.example/launch&" +
             "state=state_test_123&" +
             "nonce=nonce&" +
-            "login_hint=oidchint&" +
+            f"login_hint={quote(self.xblock.location)}&" +
             "lti_message_hint=deep_linking_content_launch:1"
         )
 
         response = self.xblock.lti_1p3_launch_callback(request)
-        content = response.body.decode('utf-8')
+        content = response.content.decode('utf-8')
 
         # Check response
         self.assertEqual(response.status_code, 200)

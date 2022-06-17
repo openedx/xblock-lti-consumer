@@ -131,7 +131,7 @@ def public_keyset_endpoint(request, usage_id=None):
 
 
 @require_http_methods(["GET", "POST"])
-def launch_gate_endpoint(request, suffix=None):
+def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argument
     """
     Gate endpoint that triggers LTI launch endpoint XBlock handler
 
@@ -142,19 +142,23 @@ def launch_gate_endpoint(request, suffix=None):
     # Get the login_hint from the request
     usage_id = request.GET.get('login_hint')
     if not usage_id:
-        return JsonResponse({"error": "invalid_login_hint"}, status=HTTP_400_BAD_REQUEST)
+        return render(request, 'html/lti_1p3_launch_error.html', status=400)
 
-    usage_key = UsageKey.from_string(usage_id)
+    try:
+        usage_key = UsageKey.from_string(usage_id)
+    except InvalidKeyError:
+        return render(request, 'html/lti_1p3_launch_error.html', status=400)
+
     try:
         lti_config = LtiConfiguration.objects.get(
             location=usage_key
         )
-    except LtiConfiguration.DoesNotExist:
+    except LtiConfiguration.DoesNotExist as exc:
         log.error("Invalid usage_id '%s' for LTI 1.3 Launch callback", usage_id)
-        raise Http404("LTI Configuration not found.")
+        raise Http404 from exc
 
     if lti_config.version != LtiConfiguration.LTI_1P3:
-        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "invalid_lti_version"}, status=404)
 
     context = {}
 
@@ -216,6 +220,9 @@ def launch_gate_endpoint(request, suffix=None):
             # Retrieve Deep Linking parameters using lti_message_hint parameter.
             deep_linking_id = lti_message_hint.split(':')[1]
             content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_id)
+            # Only filter DL content item from content item set in the same LTI configuration.
+            # This avoids a malicious user to input a random LTI id and perform LTI DL
+            # content launches outside the scope of its configuration.
             dl_params = content_item.attributes
 
             # Modify LTI launch and set ltiResourceLink parameters
@@ -240,7 +247,7 @@ def launch_gate_endpoint(request, suffix=None):
             usage_id,
             exc,
         )
-        return render('html/lti_1p3_launch_error.html', context, status=400)
+        return render(request, 'html/lti_1p3_launch_error.html', context, status=400)
     except AssertionError as exc:
         log.warning(
             "Permission on LTI block %r denied for user %r: %s",
@@ -248,7 +255,7 @@ def launch_gate_endpoint(request, suffix=None):
             external_user_id,
             exc,
         )
-        return render('html/lti_1p3_permission_error.html', context, status=403)
+        return render(request, 'html/lti_1p3_permission_error.html', context, status=403)
 
 
 @csrf_exempt
