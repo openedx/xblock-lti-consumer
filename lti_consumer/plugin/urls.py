@@ -22,6 +22,11 @@ router.register(r'memberships', LtiNrpsContextMembershipViewSet, basename='lti-n
 app_name = 'lti_consumer'
 urlpatterns = [
     re_path(
+        r'lti_consumer/v1/public_keysets/(?P<lti_config_id>[-\w]+)$',
+        public_keyset_endpoint,
+        name='lti_consumer.public_keyset_endpoint'
+    ),
+    re_path(
         f'lti_consumer/v1/public_keysets/{settings.USAGE_ID_PATTERN}$',
         public_keyset_endpoint,
         name='lti_consumer.public_keyset_endpoint'

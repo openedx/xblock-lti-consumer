@@ -30,15 +30,15 @@ def get_lms_base():
     return settings.LMS_ROOT_URL
 
 
-def get_lms_lti_keyset_link(location):
+def get_lms_lti_keyset_link(config_id):
     """
     Returns an LMS link to LTI public keyset endpoint
 
-    :param location: the location of the block
+    :param config_id: the ID of the LTI config object
     """
     return "{lms_base}/api/lti_consumer/v1/public_keysets/{location}".format(
         lms_base=get_lms_base(),
-        location=str(location),
+        location=str(config_id),
     )
 
 

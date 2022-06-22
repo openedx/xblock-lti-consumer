@@ -291,7 +291,7 @@ class TestGetLti1p3LaunchInfo(TestCase):
             {
                 'client_id': lti_config.lti_1p3_client_id,
                 'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
-                    lti_config.location
+                    lti_config.id
                 ),
                 'deployment_id': '1',
                 'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',

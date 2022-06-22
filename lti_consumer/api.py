@@ -132,7 +132,7 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     # Return LTI launch information for end user configuration
     return {
         'client_id': lti_config.lti_1p3_client_id,
-        'keyset_url': get_lms_lti_keyset_link(lti_config.location),
+        'keyset_url': get_lms_lti_keyset_link(lti_config.id),
         'deployment_id': '1',
         'oidc_callback': get_lms_lti_launch_link(),
         'token_url': get_lms_lti_access_token_link(lti_config.id),

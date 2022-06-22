@@ -42,8 +42,8 @@ class TestLti1p3KeysetEndpoint(TestCase):
 
     def test_public_keyset_endpoint(self):
         """
-        Check that the keyset endpoint maps correctly to the
-        `public_keyset_endpoint` XBlock handler endpoint.
+        Check that the keyset endpoint correctly returns the public jwk stored in db
+        as a JSON file attachment.
         """
         response = self.client.get(self.url)
 
@@ -76,6 +76,24 @@ class TestLti1p3KeysetEndpoint(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 404)
 
+    def test_public_keyset_endpoint_using_lti_config_id_in_url(self):
+        """
+        Check that the endpoing is accessible using the ID of the LTI Config object
+        """
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{self.lti_config.id}')
+        response = self.client.get(self.url)
+
+        # Check response
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-type'], 'application/json')
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename=keyset.json')
+
+        # Check public keyset
+        self.lti_config.refresh_from_db()
+        self.assertEqual(
+            self.lti_config.lti_1p3_public_jwk,
+            json.loads(response.content.decode('utf-8'))
+        )
 
 class TestLti1p3LaunchGateEndpoint(TestCase):
     """

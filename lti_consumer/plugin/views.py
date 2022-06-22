@@ -101,7 +101,7 @@ def has_block_access(user, block, course_key):
 
 
 @require_http_methods(["GET"])
-def public_keyset_endpoint(request, usage_id=None):
+def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
     """
     Gate endpoint to fetch public keysets from a problem
 
@@ -110,9 +110,10 @@ def public_keyset_endpoint(request, usage_id=None):
     and run the proper handler.
     """
     try:
-        lti_config = LtiConfiguration.objects.get(
-            location=UsageKey.from_string(usage_id)
-        )
+        if usage_id:
+            lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
+        elif lti_config_id:
+            lti_config = LtiConfiguration.objects.get(pk=lti_config_id)
 
         if lti_config.version != lti_config.LTI_1P3:
             raise LtiError(
@@ -125,7 +126,7 @@ def public_keyset_endpoint(request, usage_id=None):
         response = JsonResponse(lti_config.lti_1p3_public_jwk)
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
-    except (LtiError, InvalidKeyError, ObjectDoesNotExist) as exc:
+    except (LtiError, InvalidKeyError, ObjectDoesNotExist, ValueError) as exc:
         log.info("Error while retrieving keyset for usage_id %r: %s", usage_id, exc)
         raise Http404 from exc
 
