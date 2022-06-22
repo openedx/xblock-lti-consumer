@@ -10,7 +10,7 @@ asgiref==3.5.2
     # via django
 bleach==5.0.0
     # via -r requirements/base.in
-certifi==2022.5.18.1
+certifi==2022.6.15
     # via requests
 cffi==1.15.0
     # via pynacl
@@ -33,7 +33,7 @@ django-config-models==2.3.0
     # via -r requirements/base.in
 django-crum==0.7.9
     # via edx-django-utils
-django-filter==21.1
+django-filter==22.1
     # via -r requirements/base.in
 django-waffle==2.5.0
     # via edx-django-utils
@@ -65,7 +65,7 @@ markupsafe==2.1.1
     # via
     #   mako
     #   xblock
-newrelic==7.10.0.175
+newrelic==7.12.0.176
     # via edx-django-utils
 oauthlib==3.2.0
     # via -r requirements/base.in
