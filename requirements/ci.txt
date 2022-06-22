@@ -33,7 +33,7 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.24.14
+boto3==1.24.13
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
