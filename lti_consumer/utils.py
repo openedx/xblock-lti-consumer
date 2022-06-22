@@ -53,15 +53,15 @@ def get_lms_lti_launch_link():
     )
 
 
-def get_lms_lti_access_token_link(location):
+def get_lms_lti_access_token_link(config_id):
     """
     Returns an LMS link to LTI Launch endpoint
 
-    :param location: the location of the block
+    :param config_id: the id of the config object
     """
     return "{lms_base}/api/lti_consumer/v1/token/{location}".format(
         lms_base=get_lms_base(),
-        location=str(location),
+        location=str(config_id),
     )
 
 

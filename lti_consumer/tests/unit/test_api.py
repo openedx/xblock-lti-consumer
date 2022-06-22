@@ -296,7 +296,7 @@ class TestGetLti1p3LaunchInfo(TestCase):
                 'deployment_id': '1',
                 'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',
                 'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
-                    lti_config.location
+                    lti_config.id
                 ),
                 'deep_linking_launch_url': 'http://example.com',
 
