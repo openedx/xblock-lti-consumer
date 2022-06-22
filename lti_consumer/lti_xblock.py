@@ -1093,6 +1093,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return fragment
 
     @XBlock.handler
+    def submit_studio_edits(self, data, suffix=''):
+        response = super().submit_studio_edits(data, suffix)
+        # Everytime the LTI 1.3 configuration is changed, update the lti_config
+        # with latest config from the XBlock
+        if self.lti_version == "lti_1p3":
+            self._save_lti_1p3_config_to_db()
+        return response
+
+    @XBlock.handler
     def lti_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for launching LTI 1.1 tools.

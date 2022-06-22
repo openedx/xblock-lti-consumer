@@ -16,6 +16,7 @@ from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
 from jwkest.jwk import RSAKey, KEYS
+from opaque_keys.edx.keys import UsageKey
 
 from lti_consumer.api import get_lti_1p3_launch_info
 from lti_consumer.exceptions import LtiError
@@ -1932,3 +1933,51 @@ class TestLti1p3AccessTokenJWK(TestCase):
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
         self.assertJSONEqual(response.content, {'error': 'invalid_client'})
+
+
+class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
+    """
+    Unit tests for LtiConsumerXBlock.submit_studio_edits()
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.xblock.location = UsageKey.from_string('block-v1:course+test+2020+type@problem+block@test')
+        self.xblock.lti_version = "lti_1p3"
+
+    @patch("lti_consumer.lti_xblock.external_config_filter_enabled")
+    def test_submitting_lti1p3_config_automatically_creates_the_lti_config_object(self, mock_flag):
+        """
+        Test when a LTI 1.3 XBlock config is saved, it creates a new LtiCofiguration
+        object if a corresponding one doesn't exist.
+        """
+        mock_flag.return_value = False
+        self.assertEqual(LtiConfiguration.objects.count(), 0)
+
+        request = make_request('{"values": [], "defaults": []}', "POST")
+        request.headers["Content-Type"] = "application/json"
+        response = self.xblock.submit_studio_edits(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(LtiConfiguration.objects.count(), 1)
+
+    @patch("lti_consumer.lti_xblock.external_config_filter_enabled")
+    def test_submitting_to_block_with_existing_config(self, mock_flag):
+        """
+        Test when a LTI 1.3 XBlock config is saved which already has a LTIConfiguration
+        the lti_config values are updated.
+        """
+        mock_flag.return_value = False
+        config = LtiConfiguration.objects.create(location=self.xblock.location)
+        config.save()
+        self.assertEqual(LtiConfiguration.objects.count(), 1)
+        self.assertEqual(len(config.lti_config.keys()), 0)
+
+        request = make_request('{"values": [], "defaults": []}', "POST")
+        request.headers["Content-Type"] = "application/json"
+        response = self.xblock.submit_studio_edits(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "lti_1p3_launch_url",
+            LtiConfiguration.objects.get(location=self.xblock.location).lti_config.keys()
+        )

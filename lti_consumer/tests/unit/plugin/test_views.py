@@ -95,6 +95,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
             json.loads(response.content.decode('utf-8'))
         )
 
+
 class TestLti1p3LaunchGateEndpoint(TestCase):
     """
     Test `launch_gate_endpoint` method.
