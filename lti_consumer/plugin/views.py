@@ -308,6 +308,33 @@ def access_token_endpoint(request, lti_config_id):
         return JsonResponse({"error": "unsupported_grant_type"}, status=HTTP_400_BAD_REQUEST)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def access_token_endpoint_via_location(request, usage_id=None):
+    """
+    Access token endpoint that provides backwards compatibility to the LTI tools
+    that were configured using the the older version of the URL with usage_id in it
+    instead of the config id.
+
+    We maintain this extra view instead of fetching LTI Config using the usage_id is
+    to make sure that the config from XBlock gets transferred to the model, ie., the
+    config_store value changes from CONFIG_ON_XBLOCK to CONFIG_ON_DB, and the lti_config
+    is populated with the values from the XBlock.
+    """
+    try:
+        usage_key = UsageKey.from_string(usage_id)
+
+        return compat.run_xblock_handler_noauth(
+            request=request,
+            course_id=str(usage_key.course_key),
+            usage_id=str(usage_key),
+            handler='lti_1p3_access_token'
+        )
+    except Exception as exc:
+        log.warning("Error retrieving an access token for usage_id %r: %s", usage_id, exc)
+        raise Http404 from exc
+
+
 # Post from external tool that doesn't
 # have access to CSRF tokens
 @csrf_exempt

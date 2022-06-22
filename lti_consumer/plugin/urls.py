@@ -9,6 +9,7 @@ from rest_framework import routers
 
 from lti_consumer.plugin.views import (LtiAgsLineItemViewset,  # LTI Advantage URLs; LTI NRPS URLs
                                        LtiNrpsContextMembershipViewSet, access_token_endpoint,
+                                       access_token_endpoint_via_location,
                                        deep_linking_content_endpoint, deep_linking_response_endpoint,
                                        launch_gate_endpoint, public_keyset_endpoint)
 
@@ -34,6 +35,11 @@ urlpatterns = [
         r'lti_consumer/v1/token/(?P<lti_config_id>[-\w]+)$',
         access_token_endpoint,
         name='lti_consumer.access_token'
+    ),
+    re_path(
+        f'lti_consumer/v1/token/{settings.USAGE_ID_PATTERN}$',
+        access_token_endpoint_via_location,
+        name='lti_consumer.access_token_via_location'
     ),
     re_path(
         r'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/lti-dl/response',
