@@ -82,7 +82,7 @@ from .lti_1p3.exceptions import (
 )
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
-from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled
+from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled, track_event
 
 
 log = logging.getLogger(__name__)
@@ -1094,6 +1094,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 log.exception('Error in XBlock LTI parameter processor "%s"', processor)
 
         lti_parameters = lti_consumer.generate_launch_request(self.resource_link_id)
+
+        # emit tracking event
+        event = {
+            'lti_version': lti_parameters.get('lti_version'),
+            'user_roles': lti_parameters.get('roles'),
+            'launch_url': lti_consumer.lti_launch_url,
+        }
+        track_event('xblock.launch_request', event)
+
         loader = ResourceLoader(__name__)
         context = self._get_context_for_template()
         context.update({'lti_parameters': lti_parameters})

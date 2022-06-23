@@ -28,6 +28,15 @@ class TestLtiEmbed(TestCase):
         self.context_label = 'context_label'
         self.result_sourcedid = 'result_sourcedid'
 
+        # Patch calls to LMS event tracking
+        self._mock_emit_track_event = Mock()
+        track_event_patcher = patch(
+            'lti_consumer.utils.get_event_tracker',
+            return_value=Mock(emit=self._mock_emit_track_event),
+        )
+        self.addCleanup(track_event_patcher.stop)
+        track_event_patcher.start()
+
     def test_non_keyword_arguments_raise_type_error(self):
         with self.assertRaises(TypeError):
             lti_embed(  # pylint: disable=too-many-function-args,missing-kwoa
@@ -134,3 +143,33 @@ class TestLtiEmbed(TestCase):
         }
         mock_render_django_template.assert_called_with(ANY, expected_context)
         self.assertEqual(rendered_template, fake_template)
+
+    @patch('lti_consumer.lti_1p1.contrib.django.LtiConsumer1p1.generate_launch_request')
+    @patch('lti_consumer.lti_1p1.contrib.django.ResourceLoader.render_django_template', Mock())
+    def test_emits_tracking_event(self, mock_launch_request):
+        mock_launch_request.return_value = {
+            'lti_version': 'LTI_1p1',
+            'roles': self.roles,
+        }
+        lti_embed(
+            html_element_id=self.html_element_id,
+            lti_launch_url=self.lti_launch_url,
+            oauth_key=self.oauth_key,
+            oauth_secret=self.oauth_secret,
+            resource_link_id=self.resource_link_id,
+            user_id=self.user_id,
+            roles=self.roles,
+            context_id=self.context_id,
+            context_title=self.context_title,
+            context_label=self.context_label,
+            result_sourcedid=self.result_sourcedid
+        )
+
+        self._mock_emit_track_event.assert_called_with(
+            'edx.lti.embed.launch_request',
+            {
+                'lti_version': 'LTI_1p1',
+                'user_roles': self.roles,
+                'launch_url': self.lti_launch_url,
+            }
+        )

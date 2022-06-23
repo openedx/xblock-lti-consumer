@@ -6,7 +6,7 @@ from importlib import import_module
 
 from django.conf import settings
 
-from lti_consumer.plugin.compat import get_external_config_waffle_flag
+from lti_consumer.plugin.compat import get_event_tracker, get_external_config_waffle_flag
 
 log = logging.getLogger(__name__)
 
@@ -164,3 +164,13 @@ def external_config_filter_enabled(course_key):
         course_key (opaque_keys.edx.locator.CourseLocator): Course Key
     """
     return get_external_config_waffle_flag().is_enabled(course_key)
+
+
+def track_event(event_name, data):
+    """
+    Track analytics event. Fail silently if no tracking module present
+    """
+    tracker = get_event_tracker()
+    if tracker:
+        event_name = '.'.join(['edx', 'lti', event_name])
+        tracker.emit(event_name, data)
