@@ -136,11 +136,10 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     """
     Gate endpoint that triggers LTI launch endpoint XBlock handler
 
-    This is basically a passthrough function that uses the
-    OIDC response parameter `login_hint` to locate the block
-    and run the proper handler.
+    This uses the location key from the "login_hint" query parameter
+    to identify the LtiConfiguration and its consumer to generate the
+    LTI 1.3 Launch Form.
     """
-    # Get the login_hint from the request
     usage_id = request.GET.get('login_hint')
     if not usage_id:
         return render(request, 'html/lti_1p3_launch_error.html', status=400)
@@ -148,7 +147,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     try:
         usage_key = UsageKey.from_string(usage_id)
     except InvalidKeyError:
-        return render(request, 'html/lti_1p3_launch_error.html', status=400)
+        return render(request, 'html/lti_1p3_launch_error.html', status=404)
 
     try:
         lti_config = LtiConfiguration.objects.get(

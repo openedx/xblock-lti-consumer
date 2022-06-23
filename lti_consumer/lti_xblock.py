@@ -1178,7 +1178,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     @XBlock.handler
     def lti_1p3_launch_callback(self, request, suffix=''):
         """
-        THIS HAS BEEN MOVED TO plugins.views.launch_gate_endpoint
+        XBlock handler for launching the LTI 1.3 tool.
+        This endpoint is only valid when a LTI 1.3 tool is being used.
+
+        Calls the plugin's launch_gate_endpoint and returns the response.
         """
         #    # emit tracking event
         #    event = {

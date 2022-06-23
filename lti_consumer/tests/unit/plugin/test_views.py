@@ -99,28 +99,45 @@ class TestLti1p3KeysetEndpoint(TestCase):
 class TestLti1p3LaunchGateEndpoint(TestCase):
     """
     Test `launch_gate_endpoint` method.
+
+    Majority of the functionality is tested in the test_lti_xblock.TestLtiConsumer1p3XBlock
+    as the functionality was originally moved from there. It also acts as a verification
+    for backward compatibility of the XBlock functionality.
     """
     def setUp(self):
         super().setUp()
 
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
         self.url = '/lti_consumer/v1/launch/'
-        self.request = {'login_hint': self.location}
-
-        # Patch settings calls to LMS method
-        xblock_handler_patcher = patch(
-            'lti_consumer.plugin.views.compat.run_xblock_handler',
-            return_value=HttpResponse()
-        )
-        self.addCleanup(xblock_handler_patcher.stop)
-        self._mock_xblock_handler = xblock_handler_patcher.start()
+        self.config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=self.location)
+        self.config.save()
 
     def test_invalid_usage_key(self):
         """
         Check that passing a invalid login_hint yields HTTP code 404.
         """
-        self._mock_xblock_handler.side_effect = Exception()
-        response = self.client.get(self.url, self.request)
+        response = self.client.get(self.url, {"login_hint": "useless-location"})
+        self.assertEqual(response.status_code, 404)
+
+    def test_invalid_lti_version(self):
+        """
+        Check that a LTI 1.1 tool accessing this endpoint is returned a 404.
+        """
+        self.config.version = LtiConfiguration.LTI_1P1
+        self.config.save()
+
+        response = self.client.get(self.url, {"login_hint": self.location})
+        self.assertEqual(response.status_code, 404)
+
+        # Rollback
+        self.config.version = LtiConfiguration.LTI_1P3
+        self.config.save()
+
+    def test_non_existant_lti_config(self):
+        """
+        Check that a 404 is returned when LtiConfiguration for a location doesn't exist
+        """
+        response = self.client.get(self.url, {"login_hint": self.location + "extra"})
         self.assertEqual(response.status_code, 404)
 
 

@@ -20,7 +20,11 @@ from opaque_keys.edx.keys import UsageKey
 
 from lti_consumer.api import get_lti_1p3_launch_info
 from lti_consumer.exceptions import LtiError
+
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
+from lti_consumer.lti_1p3.exceptions import PreflightRequestValidationFailure
+from lti_consumer.lti_1p3.tests.utils import create_jwt
+from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix
 from lti_consumer.models import LtiConfiguration
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.tests.unit import test_utils
@@ -1436,6 +1440,24 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response_body = response.content.decode('utf-8')
         self.assertIn("There was an error while launching the LTI 1.3 tool.", response_body)
         self.assertNotIn("% trans", response_body)
+
+        with patch(
+            "lti_consumer.models.LtiAdvantageConsumer.generate_launch_request",
+            side_effect=PreflightRequestValidationFailure()
+        ):
+            client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
+            request = make_request('', 'GET')
+            request.query_string = (
+                f"client_id={client_id}&" +
+                "redirect_uri=http://tool.example/launch&" +
+                "state=state_test_123&" +
+                "nonce=nonce&" +
+                f"login_hint={quote(self.xblock.location)}"
+            )
+
+            response = self.xblock.lti_1p3_launch_callback(request)
+
+            self.assertEqual(response.status_code, 400)
 
     def test_launch_callback_endpoint_when_using_lti_1p1(self):
         """
