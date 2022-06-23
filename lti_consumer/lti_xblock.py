@@ -82,7 +82,8 @@ from .lti_1p3.exceptions import (
 )
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
-from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled, track_event
+from .track import track_event
+from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled
 
 
 log = logging.getLogger(__name__)

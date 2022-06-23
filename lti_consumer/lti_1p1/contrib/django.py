@@ -5,7 +5,7 @@ This module provides functionality for rendering an LTI embed without an XBlock.
 # See comment in docstring for explanation of the usage of ResourceLoader
 from xblockutils.resources import ResourceLoader
 
-from lti_consumer.utils import track_event
+from lti_consumer.track import track_event
 
 from ..consumer import LtiConsumer1p1
 

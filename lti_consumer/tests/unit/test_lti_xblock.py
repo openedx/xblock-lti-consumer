@@ -45,7 +45,7 @@ class TestLtiConsumerXBlock(TestCase):
         # Patch calls to LMS event tracking
         self._mock_emit_track_event = Mock()
         track_event_patcher = patch(
-            'lti_consumer.utils.get_event_tracker',
+            'lti_consumer.track.get_event_tracker',
             return_value=Mock(emit=self._mock_emit_track_event),
         )
         self.addCleanup(track_event_patcher.stop)
