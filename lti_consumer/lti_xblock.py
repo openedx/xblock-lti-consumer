@@ -1199,6 +1199,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 )
             })
 
+            # emit tracking event
+            event = {
+                'lti_version': self.lti_version,
+                'user_roles': user_role,
+                'launch_url': self.lti_1p3_launch_url,
+            }
+            track_event('xblock.launch_request', event)
+
             template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
             return Response(template, content_type='text/html')
         except Lti1p3Exception as exc:
