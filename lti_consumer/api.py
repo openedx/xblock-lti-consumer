@@ -20,32 +20,28 @@ from .utils import (
 from .filters import get_external_config_from_filter
 
 
-def _get_or_create_local_lti_config(lti_version, block_location, external_id=None):
+def _get_or_create_local_lti_config(lti_version, block_location,
+                                    config_store=LtiConfiguration.CONFIG_ON_XBLOCK, external_id=None):
     """
-    Retrieves the id of the LTI Configuration for the
-    block and location, or creates one if it doesn't exist.
+    Retrieve the LtiConfiguration for the block described by block_location, if one exists. If one does not exist,
+    create an LtiConfiguration with the LtiConfiguration.CONFIG_ON_DB config_store.
 
-    Doesn't take into account the LTI version of the cofiguration,
-    and updates it accordingly.
-    Internal method only since it handles
-
-    Returns LTI configuration.
+    Treat the lti_version argument as the source of truth for LtiConfiguration.version and override the
+    LtiConfiguration.version with lti_version. This allows, for example, for
+    the XBlock to be the source of truth for the LTI version, which is a user-centric perspective we've adopted.
+    This allows XBlock users to update the LTI version without needing to update the database.
     """
     # The create operation is only performed when there is no existing configuration for the block
     lti_config, _ = LtiConfiguration.objects.get_or_create(location=block_location)
 
+    lti_config.config_store = config_store
+    lti_config.external_id = external_id
+
     if lti_config.version != lti_version:
         lti_config.version = lti_version
 
-    if external_id:
-        lti_config.config_store = LtiConfiguration.CONFIG_EXTERNAL
-        lti_config.external_id = external_id
-    else:
-        lti_config.config_store = LtiConfiguration.CONFIG_ON_XBLOCK
-        lti_config.external_id = None
-
     lti_config.save()
-    # Return configuration ID
+
     return lti_config
 
 
@@ -59,7 +55,13 @@ def _get_lti_config(config_id=None, block=None):
     if config_id:
         lti_config = LtiConfiguration.objects.get(pk=config_id)
     elif block:
-        if block.config_type == 'external':
+        if block.config_type == 'database':
+            lti_config = _get_or_create_local_lti_config(
+                block.lti_version,
+                block.location,
+                LtiConfiguration.CONFIG_ON_DB,
+            )
+        elif block.config_type == 'external':
             config = get_external_config_from_filter(
                 {"course_key": block.location.course_key},
                 block.external_config
@@ -67,13 +69,16 @@ def _get_lti_config(config_id=None, block=None):
             lti_config = _get_or_create_local_lti_config(
                 config.get("version"),
                 block.location,
-                block.external_config
+                LtiConfiguration.CONFIG_EXTERNAL,
+                external_id=block.external_config,
             )
         else:
             lti_config = _get_or_create_local_lti_config(
                 block.lti_version,
                 block.location,
+                LtiConfiguration.CONFIG_ON_XBLOCK,
             )
+
         # Since the block was passed, preload it to avoid
         # having to instance the modulestore and fetch it again.
         lti_config.block = block
@@ -108,7 +113,9 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     deep_linking_launch_url = None
     deep_linking_content_items = []
 
-    if lti_consumer.dl is not None:
+    deep_linking_enabled = lti_consumer.lti_dl_enabled()
+
+    if deep_linking_enabled:
         deep_linking_launch_url = lti_consumer.prepare_preflight_url(
             hint=lti_config.location,
             lti_hint="deep_linking_launch"

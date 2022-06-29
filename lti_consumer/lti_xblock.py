@@ -83,7 +83,7 @@ from .lti_1p3.exceptions import (
 from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
 from .track import track_event
-from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled
+from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled, database_config_enabled
 
 
 log = logging.getLogger(__name__)
@@ -129,6 +129,26 @@ def parse_handler_suffix(suffix):
     msg = _("No valid user id found in endpoint URL")
     log.info("[LTI]: %s", msg)
     raise LtiError(msg)
+
+
+def valid_config_type_values(block):
+    """
+    Return a list of valid values for the config_type XBlock field.
+
+    Always return "new" as a config_type value. Determine whether the "database" and "external" config_type values are
+    valid value options, depending on the state of the appropriate toggle.
+    """
+    values = [
+        {"display_name": _("Configuration on block"), "value": "new"}
+    ]
+
+    if database_config_enabled(block.location.course_key):
+        values.append({"display_name": _("Database Configuration"), "value": "database"})
+
+    if external_config_filter_enabled(block.location.course_key):
+        values.append({"display_name": _("Reusable Configuration"), "value": "external"})
+
+    return values
 
 
 LaunchTargetOption = namedtuple('LaunchTargetOption', ['display_name', 'value'])
@@ -253,10 +273,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     config_type = String(
         display_name=_("Configuration Type"),
         scope=Scope.settings,
-        values=[
-            {"display_name": _("Configuration on block"), "value": "new"},
-            {"display_name": _("Reusable Configuration"), "value": "external"},
-        ],
+        values_provider=valid_config_type_values,
         default="new",
         help=_(
             "Select 'Configuration on block' to configure a new LTI Tool. "
@@ -661,19 +678,35 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     @property
     def editable_fields(self):
         """
-        Returns editable fields which may/may not contain 'ask_to_send_username' and
-        'ask_to_send_email' fields depending on the configuration service.
+        Return a list of editable fields that should be editable by the user. Any XBlock fields not included in the
+        returned list are not available or visible to the user to be edited.
+
+        Fields that are potentially filtered out include "config_type", "external_config", "ask_to_send_username", and
+        "ask_to_send_email".
         """
         editable_fields = self.editable_field_names
+        noneditable_fields = []
 
-        # If the support for external configuration is not enabled for the course
-        # then let's remove the external config related fields from edit form
-        if not external_config_filter_enabled(self.location.course_key):  # pylint: disable=no-member
-            editable_fields = tuple(
-                field
-                for field in editable_fields
-                if field not in ['config_type', 'external_config']
+        is_database_config_enabled = database_config_enabled(self.location.course_key)  # pylint: disable=no-member
+        is_external_config_filter_enabled = external_config_filter_enabled(self.location.course_key)  # pylint: disable=no-member
+
+        # If neither additional config_types are enabled, do not display the "config_type" field to users, as "new" is
+        # the only option and does not make sense without other options.
+        if not is_database_config_enabled and not is_external_config_filter_enabled:
+            noneditable_fields.append('config_type')
+
+        # If the enable_external_config_filter is not enabled, do not display the "external_config" field to users.
+        if not is_external_config_filter_enabled:
+            noneditable_fields.append('external_config')
+
+        if self.lti_version == 'lti_1p3' and is_database_config_enabled and self.config_type == 'database':
+            noneditable_fields.extend(
+                ['lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_key_mode',
+                 'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key', 'lti_1p3_enable_nrps',
+                 'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
+                 'lti_advantage_ags_mode']
             )
+
         # update the editable fields if this XBlock is configured to not to allow the
         # editing of 'ask_to_send_username' and 'ask_to_send_email'.
         config_service = self.runtime.service(self, 'lti-configuration')
@@ -683,11 +716,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     self.course_id,
                     is_already_sharing_learner_info,
             ):
-                editable_fields = tuple(
-                    field
-                    for field in editable_fields
-                    if field not in ('ask_to_send_username', 'ask_to_send_email')
-                )
+                noneditable_fields.extend(['ask_to_send_username', 'ask_to_send_email'])
+
+        editable_fields = tuple(
+            field
+            for field in editable_fields
+            if field not in noneditable_fields
+        )
 
         return editable_fields
 
@@ -1162,23 +1197,27 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             lti_message_hint = preflight_response.get('lti_message_hint', '')
 
             # Set LTI Launch URL
-            context.update({'launch_url': self.lti_1p3_launch_url})
+            launch_url = self.lti_1p3_launch_url
+            if self.config_type == 'database':
+                launch_url = lti_consumer.launch_url
+            context.update({'launch_url': launch_url})
 
             # Modify LTI Launch URL dependind on launch type
             # Deep Linking Launch - Configuration flow launched by
             # course creators to set up content.
-            if self.lti_advantage_deep_linking_enabled and lti_message_hint == 'deep_linking_launch':
+            lti_advantage_deep_linking_enabled = lti_consumer.lti_dl_enabled()
+            if lti_advantage_deep_linking_enabled and lti_message_hint == 'deep_linking_launch':
                 # Check if the user is staff before LTI doing deep linking launch.
                 # If not, raise exception and display error page
                 if user_role not in ['instructor', 'staff']:
                     raise AssertionError('Deep Linking can only be performed by instructors and staff.')
                 # Set deep linking launch
-                context.update({'launch_url': self.lti_advantage_deep_linking_launch_url})
+                context.update({'launch_url': lti_consumer.lti_dl.deep_linking_launch_url})
 
             # Deep Linking ltiResourceLink content presentation
             # When content type is `ltiResourceLink`, the tool will be launched with
             # different parameters, set by instructors when running the DL configuration flow.
-            elif self.lti_advantage_deep_linking_enabled and 'deep_linking_content_launch' in lti_message_hint:
+            elif lti_advantage_deep_linking_enabled and 'deep_linking_content_launch' in lti_message_hint:
                 # Retrieve Deep Linking parameters using lti_message_hint parameter.
                 deep_linking_id = lti_message_hint.split(':')[1]
                 from lti_consumer.api import get_deep_linking_data  # pylint: disable=import-outside-toplevel
@@ -1209,7 +1248,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
             template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
             return Response(template, content_type='text/html')
-        except Lti1p3Exception as exc:
+        except (Lti1p3Exception, NotImplementedError) as exc:
             log.warning(
                 "Error preparing LTI 1.3 launch for block %r: %s",
                 str(self.location),  # pylint: disable=no-member
@@ -1496,6 +1535,54 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         self.module_score = scaled_score
         self.score_comment = comment
 
+    def _get_lti_launch_url(self, consumer):
+        """
+        Return the LTI launch URL.
+        """
+        launch_url = self.launch_url
+
+        # The lti_launch_url property only exists on the LtiConsumer1p1. The LtiConsumer1p3 does not have an
+        # attribute with this name, so ensure that we're accessing it on the appropriate consumer class.
+        if consumer and self.config_type in ("database", "external") and self.lti_version == "lti_1p1":
+            launch_url = consumer.lti_launch_url
+
+        return launch_url
+
+    def _get_lti_block_launch_handler(self):
+        """
+        Return the LTI block launch handler.
+        """
+        # The "external" config_type is not supported for LTI 1.3, only LTI 1.1. Therefore, ensure that we define
+        # the lti_block_launch_handler using LTI 1.1 logic for "external" config_types.
+        # TODO: This needs to change when the LTI 1.3 support is added to the external config_type in the future.
+        if self.lti_version == 'lti_1p1' or self.config_type == "external":
+            lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
+        else:
+            # Runtime import since this will only run in the Open edX LMS/Studio environments.
+            from lti_consumer.api import get_lti_1p3_content_url  # pylint: disable=import-outside-toplevel
+
+            # Retrieve and set LTI 1.3 Launch start URL
+            lti_block_launch_handler = get_lti_1p3_content_url(
+                block=self,
+                hint=str(self.location)  # pylint: disable=no-member
+            )
+
+        return lti_block_launch_handler
+
+    def _get_lti_1p3_launch_url(self, consumer):
+        """
+        Return the LTI launch URL for LTI 1.3 integrations.
+        """
+        lti_1p3_launch_url = self.lti_1p3_launch_url.strip()
+
+        # The "external" config_type is not supported for LTI 1.3, only LTI 1.1. Therefore, ensure that we define
+        # the lti_1p3_launch_url using the LTI 1.3 consumer only for config_types that support LTI 1.3.
+        # TODO: This needs to change when the LTI 1.3 support is added to the external config_type in the future.
+        if consumer and self.lti_version == "lti_1p3" and self.config_type == "database":
+            lti_1p3_launch_url = consumer.launch_url
+
+        return lti_1p3_launch_url
+
     def _get_context_for_template(self):
         """
         Returns the context dict for LTI templates.
@@ -1506,38 +1593,26 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             dict: Context variables for templates
         """
-
         # For more context on ALLOWED_TAGS and ALLOWED_ATTRIBUTES
         # Look into this documentation URL see https://bleach.readthedocs.io/en/latest/clean.html#allowed-tags-tags
         # This lets all plaintext through.
         allowed_tags = bleach.sanitizer.ALLOWED_TAGS + ['img']
         allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
         sanitized_comment = bleach.clean(self.score_comment, tags=allowed_tags, attributes=allowed_attributes)
-        launch_url = self.launch_url
 
-        if self.config_type == "external":
-            launch_url = self._get_lti_consumer().lti_launch_url
+        lti_consumer = None
+        # Don't pull from the Django database unless the config_type is one that stores the LTI configuration in the
+        # database.
+        if self.config_type in ("database", "external"):
+            lti_consumer = self._get_lti_consumer()
 
-        # As we currently support only LTI 1.1 for external configuration, let's simply
-        # use the same logic as the LTI 1.1 for getting the launch handler.
-        # NOTE: This needs to change when the LTI 1.3 support is added in the future.
-        if self.lti_version == 'lti_1p1' or self.config_type == 'external':
-            # Set launch handler depending on LTI version
-            lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
-        else:
-            # Runtime import since this will only run in the
-            # Open edX LMS/Studio environments.
-            from lti_consumer.api import get_lti_1p3_content_url  # pylint: disable=import-outside-toplevel
-
-            # Retrieve and set LTI 1.3 Launch start URL
-            lti_block_launch_handler = get_lti_1p3_content_url(
-                block=self,
-                hint=str(self.location)  # pylint: disable=no-member
-            )
+        launch_url = self._get_lti_launch_url(lti_consumer)
+        lti_block_launch_handler = self._get_lti_block_launch_handler()
+        lti_1p3_launch_url = self._get_lti_1p3_launch_url(lti_consumer)
 
         return {
             'launch_url': launch_url.strip(),
-            'lti_1p3_launch_url': self.lti_1p3_launch_url.strip(),
+            'lti_1p3_launch_url': lti_1p3_launch_url,
             'element_id': self.location.html_id(),  # pylint: disable=no-member
             'element_class': self.category,
             'launch_target': self.launch_target,

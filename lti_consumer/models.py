@@ -1,6 +1,7 @@
 """
 LTI configuration and linking models.
 """
+import logging
 import uuid
 import json
 from django.db import models
@@ -27,7 +28,10 @@ from lti_consumer.utils import (
     get_lti_ags_lineitems_url,
     get_lti_deeplinking_response_url,
     get_lti_nrps_context_membership_url,
+    database_config_enabled,
 )
+
+log = logging.getLogger(__name__)
 
 
 def generate_client_id():
@@ -150,6 +154,78 @@ class LtiConfiguration(models.Model):
         help_text=_("Client ID used by LTI tool"),
     )
 
+    lti_1p3_oidc_url = models.CharField(
+        'LTI 1.3 OpenID Connect (OIDC) Login URL',
+        max_length=255,
+        blank=True,
+        help_text='This is the OIDC third-party initiated login endpoint URL in the LTI 1.3 flow, '
+                  'which should be provided by the LTI Tool.'
+    )
+
+    lti_1p3_launch_url = models.CharField(
+        'LTI 1.3 Launch URL',
+        max_length=255,
+        blank=True,
+        help_text='This is the LTI launch URL, otherwise known as the target_link_uri. '
+                  'It represents the LTI resource to launch to or load in the second leg of the launch flow, '
+                  'when the resource is actually launched or loaded.'
+    )
+
+    lti_1p3_tool_public_key = models.TextField(
+        "LTI 1.3 Tool Public Key",
+        blank=True,
+        help_text='This is the LTI Tool\'s public key. This should be provided by the LTI Tool. '
+                  'One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
+    )
+
+    lti_1p3_tool_keyset_url = models.CharField(
+        "LTI 1.3 Tool Keyset URL",
+        max_length=255,
+        blank=True,
+        help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
+                  'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
+    )
+
+    # LTI 1.3 Advantage Related Variables
+    lti_advantage_enable_nrps = models.BooleanField(
+        "Enable LTI Advantage Names and Role Provisioning Services",
+        default=False,
+        help_text='Enable LTI Advantage Names and Role Provisioning Services.',
+    )
+
+    lti_advantage_deep_linking_enabled = models.BooleanField(
+        "Enable LTI Advantage Deep Linking",
+        default=False,
+        help_text='Enable LTI Advantage Deep Linking.',
+    )
+
+    lti_advantage_deep_linking_launch_url = models.CharField(
+        "LTI Advantage Deep Linking launch URL",
+        max_length=225,
+        blank=True,
+        help_text='This is the LTI Advantage Deep Linking launch URL. If the LTI Tool does not provide one, '
+                  'use the same value as lti_1p3_launch_url.'
+    )
+
+    LTI_ADVANTAGE_AGS_DISABLED = 'disabled'
+    LTI_ADVANTAGE_AGS_DECLARATIVE = 'declarative'
+    LTI_ADVANTAGE_AGS_PROGRAMMATIC = 'programmatic'
+    LTI_ADVANTAGE_AGS_CHOICES = [
+        (LTI_ADVANTAGE_AGS_DISABLED, 'Disabled'),
+        (LTI_ADVANTAGE_AGS_DECLARATIVE, 'Allow tools to submit grades only (declarative)'),
+        (LTI_ADVANTAGE_AGS_PROGRAMMATIC, 'Allow tools to manage and submit grade (programmatic)')
+    ]
+    lti_advantage_ags_mode = models.CharField(
+        "LTI Advantage Assignment and Grade Services Mode",
+        max_length=20,
+        choices=LTI_ADVANTAGE_AGS_CHOICES,
+        default=LTI_ADVANTAGE_AGS_DECLARATIVE,
+        help_text='Enable LTI Advantage Assignment and Grade Services and select the functionality enabled for LTI '
+                  'tools. The "declarative" mode (default) will provide a tool with a LineItem created from the '
+                  'XBlock settings, while the "programmatic" one will allow tools to manage, create and link the '
+                  'grades.'
+    )
+
     # Empty variable that'll hold the block once it's retrieved
     # from the modulestore or preloaded
     _block = None
@@ -159,6 +235,18 @@ class LtiConfiguration(models.Model):
             raise ValidationError({
                 "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
             })
+        if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
+            if not database_config_enabled(self.block.location.course_key):
+                raise ValidationError({
+                    "config_store": _("LTI Configuration stores on database is not enabled."),
+                })
+            if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
+                raise ValidationError({
+                    "config_store": _(
+                        "LTI Configuration stored on the model for LTI 1.3 must have a value for one of "
+                        "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
+                    ),
+                })
         try:
             consumer = self.get_lti_consumer()
         except NotImplementedError:
@@ -261,6 +349,121 @@ class LtiConfiguration(models.Model):
 
         return LtiConsumer1p1(launch_url, key, secret)
 
+    def get_lti_advantage_ags_mode(self):
+        """
+        Return LTI 1.3 Advantage Assignment and Grade Services mode.
+        """
+        if self.config_store == self.CONFIG_EXTERNAL:
+            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
+            raise NotImplementedError
+        if self.config_store == self.CONFIG_ON_DB:
+            return self.lti_advantage_ags_mode
+        else:
+            return self.block.lti_advantage_ags_mode
+
+    def get_lti_advantage_deep_linking_enabled(self):
+        """
+        Return whether LTI 1.3 Advantage Deep Linking is enabled.
+        """
+        if self.config_store == self.CONFIG_EXTERNAL:
+            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
+            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
+        if self.config_store == self.CONFIG_ON_DB:
+            return self.lti_advantage_deep_linking_enabled
+        else:
+            return self.block.lti_advantage_deep_linking_enabled
+
+    def get_lti_advantage_deep_linking_launch_url(self):
+        """
+        Return the LTI 1.3 Advantage Deep Linking launch URL.
+        """
+        if self.config_store == self.CONFIG_EXTERNAL:
+            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
+            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
+        if self.config_store == self.CONFIG_ON_DB:
+            return self.lti_advantage_deep_linking_launch_url
+        else:
+            return self.block.lti_advantage_deep_linking_launch_url
+
+    def get_lti_advantage_nrps_enabled(self):
+        """
+        Return whether LTI 1.3 Advantage Names and Role Provisioning Services is enabled.
+        """
+        if self.config_store == self.CONFIG_EXTERNAL:
+            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
+            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
+        if self.config_store == self.CONFIG_ON_DB:
+            return self.lti_advantage_enable_nrps
+        else:
+            return self.block.lti_1p3_enable_nrps
+
+    def _setup_lti_1p3_ags(self, consumer):
+        """
+        Set up LTI 1.3 Advantage Assigment and Grades Services.
+        """
+        try:
+            lti_advantage_ags_mode = self.get_lti_advantage_ags_mode()
+        except NotImplementedError as exc:
+            log.exception("Error setting up LTI 1.3 Advantage Assignment and Grade Services: %s", exc)
+            return
+
+        if lti_advantage_ags_mode != self.LTI_ADVANTAGE_AGS_DISABLED:
+            lineitem = None
+            # If using the declarative approach, we should create a LineItem if it
+            # doesn't exist. This is because on this mode the tool is not able to create
+            # and manage lineitems using the AGS endpoints.
+            if lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
+                # Set grade attributes
+                default_values = {
+                    'resource_id': self.block.location,
+                    'score_maximum': self.block.weight,
+                    'label': self.block.display_name,
+                }
+
+                if hasattr(self.block, 'start'):
+                    default_values['start_date_time'] = self.block.start
+
+                if hasattr(self.block, 'due'):
+                    default_values['end_date_time'] = self.block.due
+
+                # create LineItem if there is none for current lti configuration
+                lineitem, _ = LtiAgsLineItem.objects.get_or_create(
+                    lti_configuration=self,
+                    resource_link_id=self.block.location,
+                    defaults=default_values
+                )
+
+            consumer.enable_ags(
+                lineitems_url=get_lti_ags_lineitems_url(self.id),
+                lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
+                allow_programmatic_grade_interaction=(
+                    lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_PROGRAMMATIC
+                )
+            )
+
+    def _setup_lti_1p3_deep_linking(self, consumer):
+        """
+        Set up LTI 1.3 Advantage Deep Linking.
+        """
+        try:
+            if self.get_lti_advantage_deep_linking_enabled():
+                consumer.enable_deep_linking(
+                    self.get_lti_advantage_deep_linking_launch_url(),
+                    get_lti_deeplinking_response_url(self.id),
+                )
+        except NotImplementedError as exc:
+            log.exception("Error setting up LTI 1.3 Advantage Deep Linking: %s", exc)
+
+    def _setup_lti_1p3_nrps(self, consumer):
+        """
+        Set up LTI 1.3 Advantage Names and Role Provisioning Services.
+        """
+        try:
+            if self.get_lti_advantage_nrps_enabled():
+                consumer.enable_nrps(get_lti_nrps_context_membership_url(self.id))
+        except NotImplementedError as exc:
+            log.exception("Error setting up LTI 1.3 Advantage Names and Role Provisioning Services: %s", exc)
+
     def _get_lti_1p3_consumer(self):
         """
         Return a class of LTI 1.3 consumer.
@@ -285,58 +488,31 @@ class LtiConfiguration(models.Model):
                 tool_key=self.block.lti_1p3_tool_public_key,
                 tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
             )
+        elif self.config_store == self.CONFIG_ON_DB:
+            consumer = LtiAdvantageConsumer(
+                iss=get_lms_base(),
+                lti_oidc_url=self.lti_1p3_oidc_url,
+                lti_launch_url=self.lti_1p3_launch_url,
+                client_id=self.lti_1p3_client_id,
+                # Deployment ID hardcoded to 1 since
+                # we're not using multi-tenancy.
+                deployment_id="1",
+                # XBlock Private RSA Key
+                rsa_key=self.lti_1p3_private_key,
+                rsa_key_id=self.lti_1p3_private_key_id,
+                # LTI 1.3 Tool key/keyset url
+                tool_key=self.lti_1p3_tool_public_key,
+                tool_keyset_url=self.lti_1p3_tool_keyset_url,
+            )
+        else:
+            # This should not occur, but raise an error if self.config_store is not CONFIG_ON_XBLOCK or CONFIG_ON_DB.
+            raise NotImplementedError
 
-            # Check if enabled and setup LTI-AGS
-            if self.block.lti_advantage_ags_mode != 'disabled':
-                lineitem = None
-                # If using the declarative approach, we should create a LineItem if it
-                # doesn't exist. This is because on this mode the tool is not able to create
-                # and manage lineitems using the AGS endpoints.
-                if self.block.lti_advantage_ags_mode == 'declarative':
-                    # Set grade attributes
-                    default_values = {
-                        'resource_id': self.block.location,
-                        'score_maximum': self.block.weight,
-                        'label': self.block.display_name,
-                    }
+        self._setup_lti_1p3_ags(consumer)
+        self._setup_lti_1p3_deep_linking(consumer)
+        self._setup_lti_1p3_nrps(consumer)
 
-                    if hasattr(self.block, 'start'):
-                        default_values['start_date_time'] = self.block.start
-
-                    if hasattr(self.block, 'due'):
-                        default_values['end_date_time'] = self.block.due
-
-                    # create LineItem if there is none for current lti configuration
-                    lineitem, _ = LtiAgsLineItem.objects.get_or_create(
-                        lti_configuration=self,
-                        resource_link_id=self.block.location,
-                        defaults=default_values
-                    )
-
-                consumer.enable_ags(
-                    lineitems_url=get_lti_ags_lineitems_url(self.id),
-                    lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
-                    allow_programmatic_grade_interaction=(
-                        self.block.lti_advantage_ags_mode == 'programmatic'
-                    )
-                )
-
-            # Check if enabled and setup LTI-DL
-            if self.block.lti_advantage_deep_linking_enabled:
-                consumer.enable_deep_linking(
-                    self.block.lti_advantage_deep_linking_launch_url,
-                    get_lti_deeplinking_response_url(self.id),
-                )
-
-            # Check if enabled and setup LTI-NRPS
-            if self.block.lti_1p3_enable_nrps:
-                consumer.enable_nrps(get_lti_nrps_context_membership_url(self.id))
-
-            return consumer
-
-        # There's no configuration stored locally, so throw
-        # NotImplemented.
-        raise NotImplementedError
+        return consumer
 
     def get_lti_consumer(self):
         """

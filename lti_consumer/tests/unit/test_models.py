@@ -3,7 +3,7 @@ Unit tests for LTI models.
 """
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import patch, Mock, PropertyMock
 
 import ddt
 from Cryptodome.PublicKey import RSA
@@ -14,7 +14,6 @@ from edx_django_utils.cache import RequestCache
 from jwkest.jwk import RSAKey
 from opaque_keys.edx.locator import CourseLocator
 
-from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import (
     CourseAllowPIISharingInLTIFlag,
@@ -26,6 +25,7 @@ from lti_consumer.models import (
 from lti_consumer.tests.unit.test_utils import make_xblock
 
 
+@ddt.ddt
 class TestLtiConfigurationModel(TestCase):
     """
     Unit tests for LtiConfiguration model methods.
@@ -62,17 +62,23 @@ class TestLtiConfigurationModel(TestCase):
             location=str(self.xblock.location),
             version=LtiConfiguration.LTI_1P1
         )
-        self.lti_1p1_config_db = LtiConfiguration.objects.create(
-            version=LtiConfiguration.LTI_1P1,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
-            lti_1p1_launch_url='http://tool.example/lti1.1launch',
-            lti_1p1_client_key='test_1p1p_key',
-            lti_1p1_client_secret='test_1p1p_secret',
-        )
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
             location=str(self.xblock.location),
             version=LtiConfiguration.LTI_1P3
+        )
+
+        self.lti_1p3_config_db = LtiConfiguration.objects.create(
+            location=str(self.xblock.location),
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_advantage_ags_mode='programmatic',
+            lti_advantage_deep_linking_enabled=True,
+        )
+
+        self.lti_1p3_config_external = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_EXTERNAL,
         )
 
         self.lti_1p1_external = LtiConfiguration.objects.create(
@@ -80,6 +86,17 @@ class TestLtiConfigurationModel(TestCase):
             config_store=LtiConfiguration.CONFIG_EXTERNAL,
             external_id="test-external-id"
         )
+
+    def _get_1p3_config_for_config_store(self, config_store):
+        """
+        Return the instance of LtiConfiguration that uses the provided config_store for LTI 1.3 configurations.
+        """
+        if config_store == LtiConfiguration.CONFIG_ON_XBLOCK:
+            return self.lti_1p3_config
+        elif config_store == LtiConfiguration.CONFIG_EXTERNAL:
+            return self.lti_1p3_config_external
+        else:
+            return self.lti_1p3_config_db
 
     @patch("lti_consumer.models.LtiConfiguration._get_lti_1p3_consumer")
     @patch("lti_consumer.models.LtiConfiguration._get_lti_1p1_consumer")
@@ -92,6 +109,15 @@ class TestLtiConfigurationModel(TestCase):
 
         self.lti_1p3_config.get_lti_consumer()
         lti_1p3_mock.assert_called()
+
+    def test_get_lti_1p3_consumer_invalid_config_store(self):
+        """
+        Check that NotImplementedError is raised when config_store is not a valid value.
+        """
+        self.lti_1p3_config.config_store = 'edX'
+
+        with self.assertRaises(NotImplementedError):
+            self.lti_1p3_config.get_lti_consumer()
 
     @patch("lti_consumer.models.LtiConsumer1p1")
     @patch("lti_consumer.models.get_external_config_from_filter")
@@ -110,21 +136,6 @@ class TestLtiConfigurationModel(TestCase):
         self.assertEqual(self.lti_1p1_external.get_lti_consumer(), "consumer")
         mock_consumer.assert_called_once_with("https://example.com", "client_key", "secret")
 
-    def test_xblock_store_lti1p1(self):
-        """
-        Check if the correct LTI consumer is returned.
-        """
-        lti_consumer = self.lti_1p1_config_db.get_lti_consumer()
-
-        self.assertIsInstance(lti_consumer, LtiConsumer1p1)
-
-        lti_1p3_config = LtiConfiguration.objects.create(
-            version=LtiConfiguration.LTI_1P3,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
-        )
-        with self.assertRaises(NotImplementedError):
-            lti_1p3_config.get_lti_consumer()
-
     def test_repr(self):
         """
         Test String representation of model.
@@ -140,14 +151,16 @@ class TestLtiConfigurationModel(TestCase):
             f"[CONFIG_ON_XBLOCK] lti_1p3 - {dummy_location}"
         )
 
-    def test_lti_consumer_ags_enabled(self):
+    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB)
+    def test_lti_consumer_ags_enabled(self, config_store):
         """
         Check if LTI AGS is properly included when block is graded.
         """
-        self.lti_1p3_config.block = self.xblock
+        config = self._get_1p3_config_for_config_store(config_store)
+        config.block = self.xblock
 
         # Get LTI 1.3 consumer
-        consumer = self.lti_1p3_config.get_lti_consumer()
+        consumer = config.get_lti_consumer()
 
         # Check that LTI claim was included in extra claims
         self.assertEqual(
@@ -160,12 +173,36 @@ class TestLtiConfigurationModel(TestCase):
                         'https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly',
                         'https://purl.imsglobal.org/spec/lti-ags/scope/score',
                     ],
-                    'lineitems': 'https://example.com/api/lti_consumer/v1/lti/3/lti-ags',
+                    'lineitems': f'https://example.com/api/lti_consumer/v1/lti/{config.id}/lti-ags',
                 }
             }
         )
 
-    def test_lti_consumer_ags_declarative(self):
+    @ddt.data(
+        {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': 'XBlock'},
+        {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': 'database'},
+        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
+    )
+    @ddt.unpack
+    def test_get_lti_advantage_ags_mode(self, config_store, expected_value):
+        """
+        Check if LTI AGS is properly returned.
+        """
+        config = self._get_1p3_config_for_config_store(config_store)
+        config.block = self.xblock
+
+        self.xblock.lti_advantage_ags_mode = 'XBlock'
+        config.lti_advantage_ags_mode = 'database'
+        config.save()
+
+        if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
+            self.assertEqual(config.get_lti_advantage_ags_mode(), expected_value)
+        else:
+            with self.assertRaises(NotImplementedError):
+                config.get_lti_advantage_ags_mode()
+
+    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB)
+    def test_lti_consumer_ags_declarative(self, config_store):
         """
         Check that a LineItem is created if AGS is set to the declarative mode.
         """
@@ -176,8 +213,12 @@ class TestLtiConfigurationModel(TestCase):
         self.xblock.due = datetime.now(timezone.utc) + timedelta(days=2)
 
         # Get LTI 1.3 consumer
-        self.lti_1p3_config.block = self.xblock
-        consumer = self.lti_1p3_config.get_lti_consumer()
+        config = self._get_1p3_config_for_config_store(config_store)
+        config.block = self.xblock
+        config.lti_advantage_ags_mode = 'declarative'
+        config.save()
+
+        consumer = config.get_lti_consumer()
 
         # Check if lineitem was created
         self.assertEqual(LtiAgsLineItem.objects.count(), 1)
@@ -196,17 +237,88 @@ class TestLtiConfigurationModel(TestCase):
             ags_claim.get('scope')
         )
 
-    def test_lti_consumer_deep_linking_enabled(self):
+    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB)
+    def test_lti_consumer_deep_linking_enabled(self, config_store):
         """
         Check if LTI DL is properly instanced when configured.
         """
-        self.lti_1p3_config.block = self.xblock
+        config = self._get_1p3_config_for_config_store(config_store)
+        config.block = self.xblock
 
         # Get LTI 1.3 consumer
-        consumer = self.lti_1p3_config.get_lti_consumer()
+        consumer = config.get_lti_consumer()
 
         # Check that LTI DL class is instanced.
         self.assertTrue(consumer.dl)
+
+    @ddt.data(
+        {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': False},
+        {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': True},
+        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
+    )
+    @ddt.unpack
+    def test_get_lti_advantage_deep_linking_enabled(self, config_store, expected_value):
+        """
+        Check if LTI Deep Linking enabled is properly returned.
+        """
+        config = self._get_1p3_config_for_config_store(config_store)
+        config.block = self.xblock
+
+        self.xblock.lti_advantage_deep_linking_enabled = False
+        config.lti_advantage_deep_linking_enabled = True
+        config.save()
+
+        if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
+            self.assertEqual(config.get_lti_advantage_deep_linking_enabled(), expected_value)
+        else:
+            with self.assertRaises(NotImplementedError):
+                config.get_lti_advantage_deep_linking_enabled()
+
+    @ddt.data(
+        {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': 'XBlock'},
+        {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': 'database'},
+        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
+    )
+    @ddt.unpack
+    def test_get_lti_advantage_deep_linking_launch_url(self, config_store, expected_value):
+        """
+        Check if LTI Deep Linking launch URL is properly returned.
+        """
+        config = self._get_1p3_config_for_config_store(config_store)
+        config.block = self.xblock
+
+        self.xblock.lti_advantage_deep_linking_launch_url = 'XBlock'
+        config.lti_advantage_deep_linking_launch_url = 'database'
+        config.save()
+
+        if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
+            self.assertEqual(config.get_lti_advantage_deep_linking_launch_url(), expected_value)
+        else:
+            with self.assertRaises(NotImplementedError):
+                config.get_lti_advantage_deep_linking_launch_url()
+
+    @ddt.data(
+        {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': False},
+        {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': True},
+        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
+    )
+    @ddt.unpack
+    def test_get_lti_advantage_nrps_enabled(self, config_store, expected_value):
+        """
+        Check if LTI Deep Linking launch URL is properly returned.
+        """
+        config = self._get_1p3_config_for_config_store(config_store)
+        config.block = self.xblock
+
+        self.xblock.lti_advantage_enable_nrps = False
+        config.lti_advantage_enable_nrps = True
+        config.save()
+
+        if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
+            self.assertEqual(config.get_lti_advantage_nrps_enabled(), expected_value)
+        else:
+            with self.assertRaises(NotImplementedError):
+                config.get_lti_advantage_nrps_enabled()
 
     @patch("lti_consumer.models.compat")
     def test_block_property(self, compat_mock):
@@ -267,6 +379,33 @@ class TestLtiConfigurationModel(TestCase):
         regenerated_public_key = lti_config.lti_1p3_public_jwk
         lti_config.refresh_from_db()
         self.assertEqual(regenerated_public_key, public_key)
+
+    def test_clean(self):
+        self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_XBLOCK
+        self.lti_1p3_config.location = None
+
+        with self.assertRaises(ValidationError):
+            self.lti_1p3_config.clean()
+
+        self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
+        self.lti_1p3_config.block = self.xblock
+
+        self.xblock.location = Mock()
+        course_key_mock = PropertyMock(return_value='course-v1:edX+DemoX+Demo_Course')
+        type(self.xblock.location).course_key = course_key_mock
+
+        self.lti_1p3_config_db.block = self.xblock
+
+        with patch("lti_consumer.models.database_config_enabled", return_value=False),\
+             self.assertRaises(ValidationError):
+            self.lti_1p3_config_db.clean()
+
+        self.lti_1p3_config_db.lti_1p3_tool_keyset_url = ''
+        self.lti_1p3_config_db.lti_1p3_tool_public_key = ''
+
+        with patch("lti_consumer.models.database_config_enabled", return_value=True),\
+             self.assertRaises(ValidationError):
+            self.lti_1p3_config_db.clean()
 
 
 class TestLtiAgsLineItemModel(TestCase):

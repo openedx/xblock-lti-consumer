@@ -98,14 +98,15 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
      * Toggle visibility of LTI configuration fields based on the config type
      *
      *  new - Show all the LTI 1.1/1.3 config fields
+     *  database - Do not show the LTI 1.1/1.3 config fields
      *  external - Show only the External Config ID field
      */
     function toggleLtiConfigType() {
         const configType = $(element).find('#xb-field-edit-config_type').val();
         const configFields = lti1P1FieldList.concat(lti1P3FieldList, ['lti_version']);
 
-        if (configType === "external") {
-            // hide the lti_verison and all the LTI 1.1 and LTI 1.3 fields
+        if ((configType === "external") || (configType === "database")) {
+            // hide the lti_version and all the LTI 1.1 and LTI 1.3 fields
             configFields.forEach(function (field) {
                 toggleFieldVisibility(field, false);
             })
