@@ -42,6 +42,15 @@ class TestLtiConsumerXBlock(TestCase):
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
+        # Patch calls to LMS event tracking
+        self._mock_emit_track_event = Mock()
+        track_event_patcher = patch(
+            'lti_consumer.track.get_event_tracker',
+            return_value=Mock(emit=self._mock_emit_track_event),
+        )
+        self.addCleanup(track_event_patcher.stop)
+        track_event_patcher.start()
+
 
 class TestIndexibility(TestCase):
     """
@@ -662,7 +671,14 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
 
     def setUp(self):
         super().setUp()
-        self.mock_lti_consumer = Mock(generate_launch_request=Mock(return_value={}))
+        self.mock_lti_consumer = Mock(
+            lti_launch_url='https://test.co',
+            generate_launch_request=Mock(return_value={
+                'lti_message_type': 'basic-lti-launch-request',
+                'lti_version': 'LTI_1p3',
+                'roles': 'Student',
+            })
+        )
         self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
         self.xblock.due = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
@@ -694,6 +710,28 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.mock_lti_consumer.generate_launch_request.assert_called_with(self.xblock.resource_link_id)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content_type, 'text/html')
+
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    def test_publish_tracking_event(self, mock_course):
+        """
+        Test a tracking event is emitted when generating a launch request
+        """
+        provider = 'lti_provider'
+        key = 'test'
+        secret = 'secret'
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
+
+        request = make_request('', 'GET')
+        self.xblock.lti_launch_handler(request)
+        self._mock_emit_track_event.assert_called_with(
+            'edx.lti.xblock.launch_request',
+            {
+                'lti_version': 'LTI_1p3',
+                'user_roles': 'Student',
+                'launch_url': 'https://test.co',
+            }
+        )
 
 
 class TestOutcomeServiceHandler(TestLtiConsumerXBlock):

@@ -14,7 +14,7 @@ asgiref==3.5.2
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.11.5
+astroid==2.11.6
     # via
     #   pylint
     #   pylint-celery
@@ -24,13 +24,13 @@ bleach==5.0.0
     # via -r requirements/base.txt
 boto==2.49.0
     # via xblock-sdk
-boto3==1.24.5
+boto3==1.24.13
     # via fs-s3fs
-botocore==1.27.5
+botocore==1.27.14
     # via
     #   boto3
     #   s3transfer
-certifi==2022.5.18.1
+certifi==2022.6.15
     # via
     #   -r requirements/base.txt
     #   requests
@@ -81,7 +81,7 @@ django-crum==0.7.9
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-django-filter==21.1
+django-filter==22.1
     # via -r requirements/base.txt
 django-pyfs==3.2.0
     # via xblock-sdk
@@ -97,7 +97,7 @@ edx-django-utils==5.0.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-lint==5.2.3
+edx-lint==5.2.4
     # via -r requirements/quality.in
 edx-opaque-keys[django]==2.3.0
     # via -r requirements/base.txt
@@ -128,7 +128,7 @@ jinja2==3.1.2
     #   jinja2-time
 jinja2-time==0.2.0
     # via cookiecutter
-jmespath==1.0.0
+jmespath==1.0.1
     # via
     #   boto3
     #   botocore
@@ -157,7 +157,7 @@ markupsafe==2.1.1
     #   xblock
 mccabe==0.7.0
     # via pylint
-newrelic==7.10.0.175
+newrelic==7.12.0.176
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -187,7 +187,7 @@ pycryptodomex==3.14.1
     #   pyjwkest
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.14.1
+pylint==2.14.3
     # via
     #   -r requirements/quality.in
     #   edx-lint

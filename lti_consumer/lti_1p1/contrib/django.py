@@ -5,6 +5,8 @@ This module provides functionality for rendering an LTI embed without an XBlock.
 # See comment in docstring for explanation of the usage of ResourceLoader
 from xblockutils.resources import ResourceLoader
 
+from lti_consumer.track import track_event
+
 from ..consumer import LtiConsumer1p1
 
 
@@ -122,6 +124,14 @@ def lti_embed(
         'element_id': html_element_id
     }
     context.update({'lti_parameters': lti_parameters})
+
+    # emit tracking event
+    event = {
+        'lti_version': lti_parameters.get('lti_version'),
+        'user_roles': lti_parameters.get('roles'),
+        'launch_url': lti_consumer.lti_launch_url,
+    }
+    track_event('embed.launch_request', event)
 
     # Render the form template and return the template
     loader = ResourceLoader(__name__)

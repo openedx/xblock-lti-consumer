@@ -227,3 +227,15 @@ def clean_course_id(model_form: ModelForm) -> CourseKey:
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.lib.courses import clean_course_id as lms_clean_course_id
     return lms_clean_course_id(model_form)
+
+
+def get_event_tracker():
+    """
+    Import and return LMS event tracking function
+    """
+    try:
+        # pylint: disable=import-outside-toplevel
+        from eventtracking import tracker
+        return tracker
+    except ModuleNotFoundError:
+        return None
