@@ -3,6 +3,7 @@ Django REST Framework extensions for LTI 1.3 & LTI Advantage implementation.
 
 Implements a custom authentication class to be used by LTI Advantage extensions.
 """
+from django.contrib.auth.models import AnonymousUser
 from django.utils.translation import gettext as _
 from rest_framework import authentication
 from rest_framework import exceptions
@@ -74,6 +75,8 @@ class Lti1p3ApiAuthentication(authentication.BaseAuthentication):
         request.lti_configuration = lti_configuration
         request.lti_consumer = lti_consumer
 
-        # Return (None, None) since this isn't tied to any authentication
-        # backend on Django, and it's just used for LTI endpoints.
-        return (None, None)
+        # This isn't tied to any authentication backend on Django (it's just
+        # used for LTI endpoints), but we need to return some kind of User
+        # object or it will break edx-platform middleware that assumes it can
+        # introspect a user object on the request (e.g. DarkLangMiddleware).
+        return (AnonymousUser(), None)

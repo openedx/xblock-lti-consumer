@@ -369,6 +369,11 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+3.4.7 - 2022-07-08
+------------------
+* Fix server 500 error when using names/roles and grades services, due to not returning a user during auth.
+  This is a bugfix backport of 4.2.2 for the Nutmeg release.
+
 3.4.6 - 2022-03-31
 ------------------
 
