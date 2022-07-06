@@ -88,6 +88,63 @@ def _get_lti_config(config_id=None, block=None):
     return lti_config
 
 
+def _lti_1p3_config_as_dict(block):
+    """
+    Utility function that returns a dict of all the LTI 1.3 configuration values
+
+    Arguments:
+        block (XBlock): The XBlock from which the LTI 1.3 config values are to be
+            extracted
+
+    Returns:
+        a dict of the LTI 1.3 config values
+    """
+    lti_1p3_values = [
+        "lti_1p3_launch_url",
+        "lti_1p3_oidc_url",
+        "lti_1p3_tool_key_mode",
+        "lti_1p3_tool_keyset_url",
+        "lti_1p3_tool_public_key",
+        "lti_1p3_enable_nrps",
+        "lti_1p3_block_key",
+        "lti_advantage_deep_linking_enabled",
+        "lti_advantage_deep_linking_launch_url",
+        "lti_advantage_ags_mode",
+        "weight",
+        "display_name",
+    ]
+    return {k: getattr(block, k, "") for k in lti_1p3_values}
+
+
+def get_or_update_lti_config(block):
+    """
+    Gathers all the LTI 1.3 related values from the passed block and stores
+    it in the corresponding LtiConfiguration.
+
+    Arguments:
+        block (XBlock): the block whos configuration should be updated in the db
+
+    Returns:
+        the updated LtiConfiguration object
+    """
+    conf = _get_lti_config(block=block)
+    if block.lti_version == "lti_1p3":
+        # Transfer the config to DB so that the django view can initialize the
+        # LTI1P3Consumer without having to load the XBlock
+        block_config = _lti_1p3_config_as_dict(block)
+        config_changed = any(
+            conf.lti_config.get(k, '') != block_config[k] for k in block_config
+        )
+
+        # Optimization - Update the DB only if values are different or config is still
+        # set to CONFIG_ON_XBLOCK
+        if config_changed or conf.config_store == conf.CONFIG_ON_XBLOCK:
+            conf.lti_config.update(block_config)
+            conf.config_store = conf.CONFIG_ON_DB
+            conf.save()
+    return conf
+
+
 def get_lti_consumer(config_id=None, block=None):
     """
     Retrieves an LTI Consumer instance for a given configuration.
@@ -132,10 +189,10 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     # Return LTI launch information for end user configuration
     return {
         'client_id': lti_config.lti_1p3_client_id,
-        'keyset_url': get_lms_lti_keyset_link(lti_config.id),
+        'keyset_url': get_lms_lti_keyset_link(lti_config.config_id),
         'deployment_id': '1',
         'oidc_callback': get_lms_lti_launch_link(),
-        'token_url': get_lms_lti_access_token_link(lti_config.id),
+        'token_url': get_lms_lti_access_token_link(lti_config.config_id),
         'deep_linking_launch_url': deep_linking_launch_url,
         'deep_linking_content_items':
             json.dumps(deep_linking_content_items, indent=4) if deep_linking_content_items else None,

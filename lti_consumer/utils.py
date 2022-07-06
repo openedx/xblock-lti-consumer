@@ -3,6 +3,7 @@ Utility functions for LTI Consumer block
 """
 import logging
 from importlib import import_module
+from uuid import UUID
 
 from django.conf import settings
 
@@ -30,11 +31,11 @@ def get_lms_base():
     return settings.LMS_ROOT_URL
 
 
-def get_lms_lti_keyset_link(config_id):
+def get_lms_lti_keyset_link(config_id: UUID):
     """
     Returns an LMS link to LTI public keyset endpoint
 
-    :param config_id: the ID of the LTI config object
+    :param config_id: the config_id of the LtiConfiguration object
     """
     return "{lms_base}/api/lti_consumer/v1/public_keysets/{location}".format(
         lms_base=get_lms_base(),
@@ -53,11 +54,11 @@ def get_lms_lti_launch_link():
     )
 
 
-def get_lms_lti_access_token_link(config_id):
+def get_lms_lti_access_token_link(config_id: UUID):
     """
     Returns an LMS link to LTI Launch endpoint
 
-    :param config_id: the id of the config object
+    :param config_id: the config_id of the LtiConfiguration object
     """
     return "{lms_base}/api/lti_consumer/v1/token/{location}".format(
         lms_base=get_lms_base(),

@@ -24,3 +24,6 @@ venv/
 .python-version
 
 .tox
+
+# VS Code
+.vscode

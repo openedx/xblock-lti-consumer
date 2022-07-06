@@ -78,10 +78,9 @@ class TestLti1p3KeysetEndpoint(TestCase):
 
     def test_public_keyset_endpoint_using_lti_config_id_in_url(self):
         """
-        Check that the endpoing is accessible using the ID of the LTI Config object
+        Check that the endpoint is accessible using the ID of the LTI Config object
         """
-        response = self.client.get(f'/lti_consumer/v1/public_keysets/{self.lti_config.id}')
-        response = self.client.get(self.url)
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{self.lti_config.config_id}')
 
         # Check response
         self.assertEqual(response.status_code, 200)
@@ -151,7 +150,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         location = 'block-v1:course+test+2020+type@problem+block@test'
         self.config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=location)
         self.config.save()
-        self.url = reverse('lti_consumer:lti_consumer.access_token', args=[self.config.id])
+        self.url = reverse('lti_consumer:lti_consumer.access_token', args=[str(self.config.config_id)])
         # Patch settings calls to LMS method
         self.mock_client = Mock()
         get_lti_consumer_patcher = patch(
@@ -193,7 +192,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         """
         Check that 404 is returned when there is no configuration for a given id
         """
-        url = reverse('lti_consumer:lti_consumer.access_token', args=[9999])
+        url = reverse('lti_consumer:lti_consumer.access_token', args=['075194d3-6885-417e-a8a8-6c931e272f00'])
         response = self.client.post(url)
         self.assertEqual(response.status_code, 404)
 

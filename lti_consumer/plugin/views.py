@@ -18,7 +18,7 @@ from opaque_keys.edx.keys import UsageKey
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course
 from lti_consumer.exceptions import LtiError
@@ -113,7 +113,7 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
         elif lti_config_id:
-            lti_config = LtiConfiguration.objects.get(pk=lti_config_id)
+            lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
 
         if lti_config.version != lti_config.LTI_1P3:
             raise LtiError(
@@ -126,8 +126,13 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
         response = JsonResponse(lti_config.lti_1p3_public_jwk)
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
-    except (LtiError, InvalidKeyError, ObjectDoesNotExist, ValueError) as exc:
-        log.info("Error while retrieving keyset for usage_id %r: %s", usage_id, exc)
+    except (LtiError, InvalidKeyError, ObjectDoesNotExist) as exc:
+        log.info(
+            "Error while retrieving keyset for usage_id (%r) or lit_config_id (%s): %s",
+            usage_id,
+            lti_config_id,
+            exc
+        )
         raise Http404 from exc
 
 
@@ -142,12 +147,12 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     """
     usage_id = request.GET.get('login_hint')
     if not usage_id:
-        return render(request, 'html/lti_1p3_launch_error.html', status=400)
+        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_400_BAD_REQUEST)
 
     try:
         usage_key = UsageKey.from_string(usage_id)
     except InvalidKeyError:
-        return render(request, 'html/lti_1p3_launch_error.html', status=404)
+        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_404_NOT_FOUND)
 
     try:
         lti_config = LtiConfiguration.objects.get(
@@ -158,7 +163,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         raise Http404 from exc
 
     if lti_config.version != LtiConfiguration.LTI_1P3:
-        return JsonResponse({"error": "invalid_lti_version"}, status=404)
+        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
 
     context = {}
 
@@ -247,7 +252,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             usage_id,
             exc,
         )
-        return render(request, 'html/lti_1p3_launch_error.html', context, status=400)
+        return render(request, 'html/lti_1p3_launch_error.html', context, status=HTTP_400_BAD_REQUEST)
     except AssertionError as exc:
         log.warning(
             "Permission on LTI block %r denied for user %r: %s",
@@ -255,7 +260,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             external_user_id,
             exc,
         )
-        return render(request, 'html/lti_1p3_permission_error.html', context, status=403)
+        return render(request, 'html/lti_1p3_permission_error.html', context, status=HTTP_403_FORBIDDEN)
 
 
 @csrf_exempt
@@ -266,6 +271,9 @@ def access_token_endpoint(request, lti_config_id):
 
     This endpoint is only valid when a LTI 1.3 tool is being used.
 
+    Arguments:
+        lti_config_id (UUID): config_id of the LtiConfiguration
+
     Returns:
         JsonResponse or Http404
 
@@ -275,13 +283,13 @@ def access_token_endpoint(request, lti_config_id):
     """
 
     try:
-        lti_config = LtiConfiguration.objects.get(pk=lti_config_id)
+        lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
     except LtiConfiguration.DoesNotExist as exc:
         log.warning("Error getting the LTI configuration with id %r: %s", lti_config_id, exc)
         raise Http404 from exc
 
     if lti_config.version != lti_config.LTI_1P3:
-        return JsonResponse({"error": "invalid_lti_version"}, status=404)
+        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
 
     lti_consumer = lti_config.get_lti_consumer()
     try:
