@@ -388,6 +388,11 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
   `org.openedx.xblock.lti_consumer.configuration.listed.v1`. This can be enabled by setting a Course Waffle Flag
   `lti_consumer.enable_external_config_filter` for specific courses.
 
+3.4.7 - 2022-07-08
+------------------
+* Fix server 500 error when using names/roles and grades services, due to not returning a user during auth.
+  This is a bugfix backport of 4.2.2 for the Nutmeg release.
+
 3.4.6 - 2022-03-31
 ------------------
 
