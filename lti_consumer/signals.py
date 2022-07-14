@@ -3,10 +3,10 @@ LTI Consumer related Signal handlers
 """
 import logging
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-from lti_consumer.models import LtiAgsScore
+from lti_consumer.models import LtiAgsScore, LtiConfiguration
 from lti_consumer.plugin import compat
 
 
@@ -62,3 +62,42 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                 exc,
             )
             raise exc
+
+
+@receiver(pre_save, sender=LtiConfiguration, dispatch_uid='update_xblock_lti_configuration')
+def update_xblock_lti_configuration(sender, instance, **kwargs):  # pylint: disable=unused-argument
+    """
+    Update the XBlock settings with the changes from the corresponding LtiConfiguration object.
+
+    This provides a way to synchronise the changes done to the LtiConfiguration via admin
+    interface reflect on the XBlock settings in Studio. A complementary hook is implemented in
+    the XBlock to update the LtiConfiguration whenever the XBlock settings are updated.
+    """
+    lti_1p3_values = [
+        "lti_1p3_launch_url",
+        "lti_1p3_oidc_url",
+        "lti_1p3_tool_key_mode",
+        "lti_1p3_tool_keyset_url",
+        "lti_1p3_tool_public_key",
+        "lti_1p3_enable_nrps",
+        "lti_1p3_block_key",
+        "lti_advantage_deep_linking_enabled",
+        "lti_advantage_deep_linking_launch_url",
+        "lti_advantage_ags_mode",
+        "weight",
+        "display_name",
+    ]
+    if not instance.id:
+        # New entry is being created. Do Nothing
+        return
+
+    # We are concerned only with updating the LTI 1.3 values stored in lti_config (for now)
+    # TODO: Should we expand this criteria to include other attributes like version?
+    #
+    previous = LtiConfiguration.objects.get(pk=instance.id)
+    if previous.lti_config != instance.lti_config:
+        block = instance.block
+        for key in lti_1p3_values:
+            value = instance.lti_config.get(key, "")
+            setattr(block, key, value)
+        block.save()

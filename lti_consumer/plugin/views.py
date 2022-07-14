@@ -324,7 +324,7 @@ def access_token_endpoint_via_location(request, usage_id=None):
     that were configured using the the older version of the URL with usage_id in it
     instead of the config id.
 
-    We maintain this extra view instead of fetching LTI Config using the usage_id is
+    We maintain this extra view instead of fetching LTI Config using the usage_id
     to make sure that the config from XBlock gets transferred to the model, ie., the
     config_store value changes from CONFIG_ON_XBLOCK to CONFIG_ON_DB, and the lti_config
     is populated with the values from the XBlock.
