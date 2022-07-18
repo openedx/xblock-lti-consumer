@@ -2,6 +2,7 @@
 Tests for LTI API.
 """
 from unittest.mock import Mock, patch
+import ddt
 
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
@@ -59,6 +60,7 @@ class Lti1P3TestCase(TestCase):
         )
 
 
+@ddt.ddt
 class TestGetOrCreateLocalLtiConfiguration(TestCase):
     """
     Unit tests for _get_or_create_local_lti_config API method.
@@ -126,23 +128,21 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         lti_config.refresh_from_db()
         self.assertEqual(lti_config.version, LtiConfiguration.LTI_1P3)
 
-    def test_create_model_instance_with_external_id(self):
+    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_EXTERNAL, LtiConfiguration.CONFIG_ON_DB)
+    def test_create_lti_config_config_store(self, config_store):
         """
-        Check if the API creates a model with an external ID.
+        Check if the config_store parameter to _get_or_create_local_lti_config is used to change
+        the config_store field of the LtiConfiguration model appropriately.
         """
         location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_version = LtiConfiguration.LTI_1P3
-
         lti_config = _get_or_create_local_lti_config(
             lti_version=lti_version,
             block_location=location,
-            external_id="test_plugin:test-id"
+            config_store=config_store,
         )
 
-        self.assertEqual(lti_config.version, lti_version)
-        self.assertEqual(str(lti_config.location), location)
-        self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_EXTERNAL)
-        self.assertEqual(lti_config.external_id, "test_plugin:test-id")
+        self.assertEqual(lti_config.config_store, config_store)
 
     def test_external_config_values_are_cleared(self):
         """

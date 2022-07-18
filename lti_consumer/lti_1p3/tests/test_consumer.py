@@ -14,6 +14,7 @@ from jwkest.jws import JWS
 
 from lti_consumer.lti_1p3 import exceptions
 from lti_consumer.lti_1p3.ags import LtiAgs
+from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
 from lti_consumer.lti_1p3.nprs import LtiNrps
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3
@@ -586,13 +587,6 @@ class TestLtiAdvantageConsumer(TestCase):
         }
         self.lti_consumer.set_user_data("1", "student")
 
-    def test_no_ags_returns_failure(self):
-        """
-        Test that when LTI-AGS isn't configured, the class yields an error.
-        """
-        with self.assertRaises(exceptions.LtiAdvantageServiceNotSetUp):
-            self.lti_consumer.lti_ags  # pylint: disable=pointless-statement
-
     def test_enable_ags(self):
         """
         Test enabling LTI AGS and checking that required parameters are set.
@@ -621,6 +615,19 @@ class TestLtiAdvantageConsumer(TestCase):
                 }
             }
         )
+
+    def test_enable_deep_linking(self):
+        """
+        Test enabling LTI Deep Linking.
+        """
+        self._setup_deep_linking()
+
+        # Check that the Deep Linking class was properly instanced and set
+        self.assertEqual(type(self.lti_consumer.dl), LtiDeepLinking)
+
+        # Check retrieving class works
+        lti_deep_linking_class = self.lti_consumer.lti_dl
+        self.assertEqual(self.lti_consumer.dl, lti_deep_linking_class)
 
     def test_deep_linking_enabled_launch_request(self):
         """
@@ -726,13 +733,6 @@ class TestLtiAdvantageConsumer(TestCase):
             {"test": "test"}
         )
         self.assertEqual(self.lti_consumer.launch_url, "example.com")
-
-    def test_no_nrps_returns_failure(self):
-        """
-        Test that when LTI NRPS isn't configured, the class yields an error.
-        """
-        with self.assertRaises(exceptions.LtiNrpsServiceNotSetUp):
-            self.lti_consumer.lti_nrps  # pylint: disable=pointless-statement
 
     def test_enable_nrps(self):
         """

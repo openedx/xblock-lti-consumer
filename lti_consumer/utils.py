@@ -6,7 +6,7 @@ from importlib import import_module
 
 from django.conf import settings
 
-from lti_consumer.plugin.compat import get_external_config_waffle_flag
+from lti_consumer.plugin.compat import get_external_config_waffle_flag, get_database_config_waffle_flag
 
 log = logging.getLogger(__name__)
 
@@ -164,3 +164,11 @@ def external_config_filter_enabled(course_key):
         course_key (opaque_keys.edx.locator.CourseLocator): Course Key
     """
     return get_external_config_waffle_flag().is_enabled(course_key)
+
+
+def database_config_enabled(course_key):
+    """
+    Return whether the lti_consumer.enable_database_config WaffleFlag is enabled. Return True if it is enabled;
+    return False if it is not enabled.
+    """
+    return get_database_config_waffle_flag().is_enabled(course_key)

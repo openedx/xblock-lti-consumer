@@ -482,26 +482,34 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
     @property
     def lti_ags(self):
         """
-        Returns LTI AGS class or throw exception if not set up.
+        Returns LTI AGS class.
         """
-        if not self.ags:
-            raise exceptions.LtiAdvantageServiceNotSetUp(
-                "The LTI AGS service was not set up for this consumer."
-            )
-
         return self.ags
 
     @property
     def lti_nrps(self):
         """
-        Returns LTI NRPS class or throw exception if not set up.
+        Returns LTI NRPS class.
         """
-        if not self.nrps:
-            raise exceptions.LtiNrpsServiceNotSetUp(
-                "The LTI NRPS service was not set up for this consumer."
-            )
-
         return self.nrps
+
+    @property
+    def lti_dl(self):
+        """
+        Returns LTI Deep Linking class.
+        """
+        return self.dl
+
+    def lti_dl_enabled(self):
+        """
+        Return whether LTI Deep Linking is enabled.
+        """
+        lti_dl = self.lti_dl
+
+        if lti_dl:
+            return lti_dl
+        else:
+            return False
 
     def enable_ags(
         self,
