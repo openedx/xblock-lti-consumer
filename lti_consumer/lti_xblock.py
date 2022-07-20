@@ -573,6 +573,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
 
+    config_sync_params = (
+        # LTI 1.3 variables
+        'lti_1p3_launch_url', 'lti_1p3_oidc_url',
+        # 'lti_1p3_tool_key_mode',
+        'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key',
+        'lti_1p3_enable_nrps',
+        # LTI Advantage variables
+        'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
+        'lti_advantage_ags_mode',
+    )
+
     # Possible editable fields
     editable_field_names = (
         'display_name', 'description', 'config_type', 'lti_version', 'external_config',

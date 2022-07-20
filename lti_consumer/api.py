@@ -88,34 +88,6 @@ def _get_lti_config(config_id=None, block=None):
     return lti_config
 
 
-def _lti_1p3_config_as_dict(block):
-    """
-    Utility function that returns a dict of all the LTI 1.3 configuration values
-
-    Arguments:
-        block (XBlock): The XBlock from which the LTI 1.3 config values are to be
-            extracted
-
-    Returns:
-        a dict of the LTI 1.3 config values
-    """
-    lti_1p3_values = [
-        "lti_1p3_launch_url",
-        "lti_1p3_oidc_url",
-        "lti_1p3_tool_key_mode",
-        "lti_1p3_tool_keyset_url",
-        "lti_1p3_tool_public_key",
-        "lti_1p3_enable_nrps",
-        "lti_1p3_block_key",
-        "lti_advantage_deep_linking_enabled",
-        "lti_advantage_deep_linking_launch_url",
-        "lti_advantage_ags_mode",
-        "weight",
-        "display_name",
-    ]
-    return {k: getattr(block, k, "") for k in lti_1p3_values}
-
-
 def get_or_update_lti_config(block):
     """
     Gathers all the LTI 1.3 related values from the passed block and stores
@@ -131,15 +103,23 @@ def get_or_update_lti_config(block):
     if block.lti_version == "lti_1p3":
         # Transfer the config to DB so that the django view can initialize the
         # LTI1P3Consumer without having to load the XBlock
-        block_config = _lti_1p3_config_as_dict(block)
-        config_changed = any(
-            conf.lti_config.get(k, '') != block_config[k] for k in block_config
+        config_changed = (
+            any(
+                getattr(conf, key, '') != getattr(block, key, '')
+                for key in block.config_sync_params
+            )
+            # as the NRPS attr is different in XBlock and model, check it separately
+            or block.lti_1p3_enable_nrps != conf.lti_advantage_enable_nrps
         )
 
         # Optimization - Update the DB only if values are different or config is still
         # set to CONFIG_ON_XBLOCK
         if config_changed or conf.config_store == conf.CONFIG_ON_XBLOCK:
-            conf.lti_config.update(block_config)
+            for key in block.config_sync_params:
+                if key == "lti_1p3_enable_nrps":
+                    conf.lti_advantage_enable_nrps = block.lti_1p3_enable_nrps
+                else:
+                    setattr(conf, key, getattr(block, key))
             conf.config_store = conf.CONFIG_ON_DB
             conf.save()
     return conf

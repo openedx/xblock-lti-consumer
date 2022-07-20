@@ -402,45 +402,58 @@ class LtiConfiguration(models.Model):
         """
         Set up LTI 1.3 Advantage Assigment and Grades Services.
         """
+
         try:
             lti_advantage_ags_mode = self.get_lti_advantage_ags_mode()
         except NotImplementedError as exc:
             log.exception("Error setting up LTI 1.3 Advantage Assignment and Grade Services: %s", exc)
             return
 
-        if lti_advantage_ags_mode != self.LTI_ADVANTAGE_AGS_DISABLED:
-            lineitem = None
-            # If using the declarative approach, we should create a LineItem if it
-            # doesn't exist. This is because on this mode the tool is not able to create
-            # and manage lineitems using the AGS endpoints.
-            if lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
+        if lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DISABLED:
+            log.info('LTI Advantage AGS is disabled for %s', self)
+            return
+
+        lineitem = None
+        # If using the declarative approach, we should create a LineItem if it
+        # doesn't exist. This is because on this mode the tool is not able to create
+        # and manage lineitems using the AGS endpoints.
+        if lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
+            if self.config_store == self.CONFIG_ON_XBLOCK:
                 # Set grade attributes
                 default_values = {
-                    'resource_id': self.block.location,
+                    'resource_id': self.location,
                     'score_maximum': self.block.weight,
                     'label': self.block.display_name,
                 }
-
                 if hasattr(self.block, 'start'):
                     default_values['start_date_time'] = self.block.start
 
                 if hasattr(self.block, 'due'):
                     default_values['end_date_time'] = self.block.due
+            elif self.config_store == self.CONFIG_ON_DB:
+                # TODO find a way to make these defaults more sensible
+                default_values = {
+                    'resource_id': self.location,
+                    'score_maximum': 100,
+                    'label': 'LTI Consumer at ' + str(self.location)
+                }
+            else:
+                raise NotImplementedError("Currently AGS Supported is enabled only for config stored on XBlock & DB")
 
-                # create LineItem if there is none for current lti configuration
-                lineitem, _ = LtiAgsLineItem.objects.get_or_create(
-                    lti_configuration=self,
-                    resource_link_id=self.block.location,
-                    defaults=default_values
-                )
-
-            consumer.enable_ags(
-                lineitems_url=get_lti_ags_lineitems_url(self.id),
-                lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
-                allow_programmatic_grade_interaction=(
-                    lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_PROGRAMMATIC
-                )
+            # create LineItem if there is none for current lti configuration
+            lineitem, _ = LtiAgsLineItem.objects.get_or_create(
+                lti_configuration=self,
+                resource_link_id=self.location,
+                defaults=default_values
             )
+
+        consumer.enable_ags(
+            lineitems_url=get_lti_ags_lineitems_url(self.id),
+            lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
+            allow_programmatic_grade_interaction=(
+                lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_PROGRAMMATIC
+            )
+        )
 
     def _setup_lti_1p3_deep_linking(self, consumer):
         """
@@ -472,67 +485,21 @@ class LtiConfiguration(models.Model):
         Uses the `config_store` variable to determine where to
         look for the configuration and instance the class.
         """
-        # If LTI configuration is stored in the XBlock.
         if self.config_store == self.CONFIG_ON_XBLOCK:
-            getconf = partial(getattr, self.block)
-
-        # NOTE This is a flaky way to determine if the LTI configuration is stored in the DB.
-        elif self.config_store == self.CONFIG_ON_DB and "lti_1p3_launch_url" in self.lti_config:
-            getconf = partial(self.lti_config.get)  # pylint: disable=no-member
-        else:
-            # There's no configuration stored locally, so throw
-            # NotImplemented.
-            raise NotImplementedError
-
-        consumer = LtiAdvantageConsumer(
-            iss=get_lms_base(),
-            lti_oidc_url=getconf('lti_1p3_oidc_url'),
-            lti_launch_url=getconf('lti_1p3_launch_url'),
-            client_id=self.lti_1p3_client_id,
-            # Deployment ID hardcoded to 1 since
-            # we're not using multi-tenancy.
-            deployment_id="1",
-            # XBlock Private RSA Key
-            rsa_key=self.lti_1p3_private_key,
-            rsa_key_id=self.lti_1p3_private_key_id,
-            # LTI 1.3 Tool key/keyset url
-            tool_key=getconf('lti_1p3_tool_public_key'),
-            tool_keyset_url=getconf('lti_1p3_tool_keyset_url'),
-        )
-
-        # Check if enabled and setup LTI-AGS
-        if getconf('lti_advantage_ags_mode') != 'disabled':
-            lineitem = None
-            # If using the declarative approach, we should create a LineItem if it
-            # doesn't exist. This is because on this mode the tool is not able to create
-            # and manage lineitems using the AGS endpoints.
-            if getconf('lti_advantage_ags_mode') == 'declarative':
-                # Set grade attributes
-                default_values = {
-                    'resource_id': self.location,
-                    'score_maximum': getconf('weight'),
-                    'label': getconf('display_name'),
-                }
-
-                if getconf('start', None):
-                    default_values['start_date_time'] = getconf('start')
-
-                if getconf('due', None):
-                    default_values['end_date_time'] = getconf('due')
-
-                # create LineItem if there is none for current lti configuration
-                lineitem, _ = LtiAgsLineItem.objects.get_or_create(
-                    lti_configuration=self,
-                    resource_link_id=self.location,
-                    defaults=default_values
-                )
-
-            consumer.enable_ags(
-                lineitems_url=get_lti_ags_lineitems_url(self.id),
-                lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
-                allow_programmatic_grade_interaction=(
-                    getconf('lti_advantage_ags_mode') == 'programmatic'
-                )
+            consumer = LtiAdvantageConsumer(
+                iss=get_lms_base(),
+                lti_oidc_url=self.block.lti_1p3_oidc_url,
+                lti_launch_url=self.block.lti_1p3_launch_url,
+                client_id=self.lti_1p3_client_id,
+                # Deployment ID hardcoded to 1 since
+                # we're not using multi-tenancy.
+                deployment_id="1",
+                # XBlock Private RSA Key
+                rsa_key=self.lti_1p3_private_key,
+                rsa_key_id=self.lti_1p3_private_key_id,
+                # LTI 1.3 Tool key/keyset url
+                tool_key=self.block.lti_1p3_tool_public_key,
+                tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_ON_DB:
             consumer = LtiAdvantageConsumer(
@@ -551,7 +518,8 @@ class LtiConfiguration(models.Model):
                 tool_keyset_url=self.lti_1p3_tool_keyset_url,
             )
         else:
-            # This should not occur, but raise an error if self.config_store is not CONFIG_ON_XBLOCK or CONFIG_ON_DB.
+            # This should not occur, but raise an error if self.config_store is not CONFIG_ON_XBLOCK
+            # or CONFIG_ON_DB.
             raise NotImplementedError
 
         self._setup_lti_1p3_ags(consumer)

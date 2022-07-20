@@ -1967,13 +1967,20 @@ class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
         self.xblock.location = UsageKey.from_string('block-v1:course+test+2020+type@problem+block@test')
         self.xblock.lti_version = "lti_1p3"
 
-    @patch("lti_consumer.lti_xblock.external_config_filter_enabled")
-    def test_submitting_lti1p3_config_automatically_creates_the_lti_config_object(self, mock_flag):
+        db_config_waffle_patcher = patch('lti_consumer.lti_xblock.database_config_enabled', return_value=True)
+        mock_db_flag = db_config_waffle_patcher.start()
+        self.addCleanup(db_config_waffle_patcher.stop)
+
+        external_config_flag_patcher = patch('lti_consumer.lti_xblock.external_config_filter_enabled', return_value=False)
+        external_config_flag_patcher.start()
+        self.addCleanup(external_config_flag_patcher.stop)
+
+
+    def test_submitting_lti1p3_config_automatically_creates_the_lti_config_object(self):
         """
         Test when a LTI 1.3 XBlock config is saved, it creates a new LtiCofiguration
         object if a corresponding one doesn't exist.
         """
-        mock_flag.return_value = False
         self.assertEqual(LtiConfiguration.objects.count(), 0)
 
         request = make_request('{"values": [], "defaults": []}', "POST")
@@ -1983,13 +1990,11 @@ class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(LtiConfiguration.objects.count(), 1)
 
-    @patch("lti_consumer.lti_xblock.external_config_filter_enabled")
-    def test_submitting_to_block_with_existing_config(self, mock_flag):
+    def test_submitting_to_block_with_existing_config(self):
         """
         Test when a LTI 1.3 XBlock config is saved which already has a LTIConfiguration
         the lti_config values are updated.
         """
-        mock_flag.return_value = False
         config = LtiConfiguration.objects.create(location=self.xblock.location)
         config.save()
         self.assertEqual(LtiConfiguration.objects.count(), 1)

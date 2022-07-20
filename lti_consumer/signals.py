@@ -76,16 +76,12 @@ def update_xblock_lti_configuration(sender, instance, **kwargs):  # pylint: disa
     lti_1p3_values = [
         "lti_1p3_launch_url",
         "lti_1p3_oidc_url",
-        "lti_1p3_tool_key_mode",
         "lti_1p3_tool_keyset_url",
         "lti_1p3_tool_public_key",
-        "lti_1p3_enable_nrps",
-        "lti_1p3_block_key",
+        "lti_advantage_enable_nrps",
         "lti_advantage_deep_linking_enabled",
         "lti_advantage_deep_linking_launch_url",
         "lti_advantage_ags_mode",
-        "weight",
-        "display_name",
     ]
     if not instance.id:
         # New entry is being created. Do Nothing
@@ -95,9 +91,15 @@ def update_xblock_lti_configuration(sender, instance, **kwargs):  # pylint: disa
     # TODO: Should we expand this criteria to include other attributes like version?
     #
     previous = LtiConfiguration.objects.get(pk=instance.id)
-    if previous.lti_config != instance.lti_config:
+    changed = any(
+        getattr(previous, k, '') != getattr(instance, k, '')
+        for k in lti_1p3_values
+    )
+    if changed:
         block = instance.block
         for key in lti_1p3_values:
-            value = instance.lti_config.get(key, "")
-            setattr(block, key, value)
+            if key == "lti_advantage_enable_nrps":
+                block.lti_1p3_nrps_enabled = instance.lti_advantage_enable_nrps
+            else:
+                setattr(block, key, getattr(instance, key))
         block.save()
