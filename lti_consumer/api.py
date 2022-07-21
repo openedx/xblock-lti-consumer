@@ -107,9 +107,9 @@ def get_or_update_lti_config(block):
             any(
                 getattr(conf, key, '') != getattr(block, key, '')
                 for key in block.config_sync_params
-            )
+            ) or
             # as the NRPS attr is different in XBlock and model, check it separately
-            or block.lti_1p3_enable_nrps != conf.lti_advantage_enable_nrps
+            block.lti_1p3_enable_nrps != conf.lti_advantage_enable_nrps
         )
 
         # Optimization - Update the DB only if values are different or config is still

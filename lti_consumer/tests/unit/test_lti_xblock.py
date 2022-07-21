@@ -24,9 +24,7 @@ from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
 from lti_consumer.lti_1p3.exceptions import PreflightRequestValidationFailure
 from lti_consumer.lti_1p3.tests.utils import create_jwt
-from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix
-from lti_consumer.models import LtiConfiguration
-from lti_consumer.lti_1p3.tests.utils import create_jwt
+from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.tests.unit import test_utils
 from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_jwt_request, make_request, make_xblock
 from lti_consumer.utils import resolve_custom_parameter_template
@@ -1510,7 +1508,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.xblock.course.display_name_with_default = 'course_display_name'
         self.xblock.course.display_org_with_default = 'course_display_org'
 
-        self.compat.get_user_role.return_value = 'staff'
+        self.compat.get_user_role.return_value = user_role
         # Enable deep linking
         self.xblock.lti_advantage_deep_linking_enabled = True
 
@@ -1538,9 +1536,8 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Check response
         self.assertEqual(response.status_code, 200)
 
-    @ddt.data(Mock(), None)
-    @patch('lti_consumer.lti_1p3.consumer.LtiAdvantageConsumer.lti_dl', new_callable=PropertyMock)
-    def test_launch_callback_endpoint_deep_linking_database_config(self, dl_value, lti_dl_mock):
+    @ddt.data(True, False)
+    def test_launch_callback_endpoint_deep_linking_database_config(self, dl_enabled):
         """
         Test that Deep Linking is enabled and that the context is updated appropriately when using the 'database'
         config_type.
@@ -1549,13 +1546,14 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         self.xblock.config_type = 'database'
 
-        type(lti_dl_mock).deep_linking_launch_url = PropertyMock(return_value="deep_linking_launch_url")
-        lti_dl_mock.return_value = dl_value
-
         LtiConfiguration.objects.create(
             location=self.xblock.location,
             version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_advantage_deep_linking_enabled=dl_enabled
         )
+        if dl_enabled:
+            self.xblock.lti_advantage_deep_linking_launch_url = "http://tool.example/deep_linking_launch"
 
         # Get LTI client_id
         client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
@@ -1567,7 +1565,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "redirect_uri=http://tool.example/launch&" +
             "state=state_test_123&" +
             "nonce=nonce&" +
-            "login_hint=oidchint&" +
+            f"login_hint={quote(self.xblock.location)}&" +
             "lti_message_hint=deep_linking_launch"
         )
         response = self.xblock.lti_1p3_launch_callback(request)
@@ -1575,14 +1573,14 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Check response
         self.assertEqual(response.status_code, 200)
 
-        response_body = response.body.decode('utf-8')
+        response_body = response.content.decode('utf-8')
 
         # If Deep Linking is enabled, test that deep linking launch URL is in the rendered template. Otherwise, test
         # that it is not.
-        if dl_value:
-            self.assertIn("deep_linking_launch_url", response_body)
+        if dl_enabled:
+            self.assertIn("http://tool.example/deep_linking_launch", response_body)
         else:
-            self.assertNotIn("deep_linking_launch_url", response_body)
+            self.assertNotIn("http://tool.example/deep_linking_launch", response_body)
 
     def test_launch_callback_endpoint_deep_linking_by_student(self):
         """
@@ -1653,27 +1651,22 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
     @ddt.data(Mock(), None)
     @patch('lti_consumer.api.get_deep_linking_data')
-    @patch('lti_consumer.lti_1p3.consumer.LtiAdvantageConsumer.lti_dl', new_callable=PropertyMock)
-    def test_callback_endpoint_dl_content_launch_database_config(self, dl_value, mock_lti_dl, mock_dl_data):
+    def test_callback_endpoint_dl_content_launch_database_config(self, dl_value, mock_lti_dl):
         self._setup_deep_linking(user_role="staff")
         self.xblock.config_type = 'database'
         mock_lti_dl.return_value = dl_value
 
-        LtiConfiguration.objects.create(
+        lti_config = LtiConfiguration.objects.create(
             location=self.xblock.location,
             version=LtiConfiguration.LTI_1P3,
             lti_1p3_launch_url='http://tool.example/launch',
             lti_1p3_oidc_url='http://tool.example/oidc',
         )
-
-        # Set deep linking mock data
-        mock_dl_data.return_value = {
-            "url": "https://deep-link-content/",
-            "custom": {
-                "parameter": "custom",
-            },
-        }
-
+        dl_item = LtiDlContentItem.objects.create(
+            lti_configuration=lti_config,
+            content_type="link",
+            attributes={"parameter": "custom"}
+        )
         # Get LTI client_id
         client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
 
@@ -1685,7 +1678,8 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "state=state_test_123&" +
             "nonce=nonce&" +
             "login_hint=oidchint&" +
-            "lti_message_hint=deep_linking_content_launch:1"
+            f"login_hint={quote(self.xblock.location)}&" +
+            f"lti_message_hint=deep_linking_content_launch:{dl_item.id}"
         )
 
         response = self.xblock.lti_1p3_launch_callback(request)
@@ -1722,6 +1716,12 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
+        patcher = patch(
+            'lti_consumer.models.compat',
+            **{'load_block_as_anonymous_user.return_value': self.xblock}
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_access_token_endpoint_when_using_lti_1p1(self):
         """
@@ -1893,6 +1893,12 @@ class TestLti1p3AccessTokenJWK(TestCase):
 
         jwt = create_jwt(self.key, {})
         self.request = make_jwt_request(jwt)
+        patcher = patch(
+            'lti_consumer.models.compat',
+            **{'load_block_as_anonymous_user.return_value': self.xblock}
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def make_keyset(self, keys):
         """
@@ -1968,13 +1974,15 @@ class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
         self.xblock.lti_version = "lti_1p3"
 
         db_config_waffle_patcher = patch('lti_consumer.lti_xblock.database_config_enabled', return_value=True)
-        mock_db_flag = db_config_waffle_patcher.start()
+        db_config_waffle_patcher.start()
         self.addCleanup(db_config_waffle_patcher.stop)
 
-        external_config_flag_patcher = patch('lti_consumer.lti_xblock.external_config_filter_enabled', return_value=False)
+        external_config_flag_patcher = patch(
+            'lti_consumer.lti_xblock.external_config_filter_enabled',
+            return_value=False
+        )
         external_config_flag_patcher.start()
         self.addCleanup(external_config_flag_patcher.stop)
-
 
     def test_submitting_lti1p3_config_automatically_creates_the_lti_config_object(self):
         """
@@ -2000,11 +2008,14 @@ class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
         self.assertEqual(LtiConfiguration.objects.count(), 1)
         self.assertEqual(len(config.lti_config.keys()), 0)
 
-        request = make_request('{"values": [], "defaults": []}', "POST")
+        request = make_request(
+            '{"values": {"lti_1p3_launch_url": "https://example.tool.com/"}, "defaults": []}',
+            "POST"
+        )
         request.headers["Content-Type"] = "application/json"
         response = self.xblock.submit_studio_edits(request)
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            "lti_1p3_launch_url",
-            LtiConfiguration.objects.get(location=self.xblock.location).lti_config.keys()
+            "https://example.tool.com/",
+            LtiConfiguration.objects.get(location=self.xblock.location).lti_1p3_launch_url
         )

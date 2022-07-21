@@ -4,7 +4,7 @@ LTI configuration and linking models.
 import logging
 import uuid
 import json
-from functools import partial
+
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
@@ -413,13 +413,17 @@ class LtiConfiguration(models.Model):
             log.info('LTI Advantage AGS is disabled for %s', self)
             return
 
-        lineitem = None
+        lineitem = self.ltiagslineitem_set.first()
         # If using the declarative approach, we should create a LineItem if it
         # doesn't exist. This is because on this mode the tool is not able to create
         # and manage lineitems using the AGS endpoints.
-        if lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
-            if self.config_store == self.CONFIG_ON_XBLOCK:
-                # Set grade attributes
+        if not lineitem and lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
+            try:
+                block = self.block
+            except ValueError:  # There is no location to load the block
+                block = None
+
+            if block:
                 default_values = {
                     'resource_id': self.location,
                     'score_maximum': self.block.weight,
@@ -430,21 +434,19 @@ class LtiConfiguration(models.Model):
 
                 if hasattr(self.block, 'due'):
                     default_values['end_date_time'] = self.block.due
-            elif self.config_store == self.CONFIG_ON_DB:
+            else:
                 # TODO find a way to make these defaults more sensible
                 default_values = {
                     'resource_id': self.location,
                     'score_maximum': 100,
                     'label': 'LTI Consumer at ' + str(self.location)
                 }
-            else:
-                raise NotImplementedError("Currently AGS Supported is enabled only for config stored on XBlock & DB")
 
             # create LineItem if there is none for current lti configuration
-            lineitem, _ = LtiAgsLineItem.objects.get_or_create(
+            lineitem = LtiAgsLineItem.objects.create(
                 lti_configuration=self,
                 resource_link_id=self.location,
-                defaults=default_values
+                **default_values
             )
 
         consumer.enable_ags(

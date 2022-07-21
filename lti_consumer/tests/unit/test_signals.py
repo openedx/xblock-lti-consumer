@@ -38,7 +38,7 @@ class UpdateXBlockLtiConfigurationTestCase(TestCase):
         )
         config.save()
 
-        config.lti_config = {"display_name": "My Test Block"}
+        config.lti_1p3_launch_url = "http://lti-1p3.launch.url"
         config.save()
 
-        self.assertEqual(self.xblock.display_name, "My Test Block")
+        self.assertEqual(self.xblock.lti_1p3_launch_url, "http://lti-1p3.launch.url")
