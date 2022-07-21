@@ -95,11 +95,18 @@ def update_xblock_lti_configuration(sender, instance, **kwargs):  # pylint: disa
         getattr(previous, k, '') != getattr(instance, k, '')
         for k in lti_1p3_values
     )
-    if changed:
+    if not changed:
+        return
+
+    try:
         block = instance.block
-        for key in lti_1p3_values:
-            if key == "lti_advantage_enable_nrps":
-                block.lti_1p3_nrps_enabled = instance.lti_advantage_enable_nrps
-            else:
-                setattr(block, key, getattr(instance, key))
-        block.save()
+    except ValueError as e:
+        log.error("The Block of %s couldn't be loaded. Error: %s", instance, e)
+        return
+
+    for key in lti_1p3_values:
+        if key == "lti_advantage_enable_nrps":
+            block.lti_1p3_nrps_enabled = instance.lti_advantage_enable_nrps
+        else:
+            setattr(block, key, getattr(instance, key))
+    block.save()

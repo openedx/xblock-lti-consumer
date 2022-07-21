@@ -42,3 +42,14 @@ class UpdateXBlockLtiConfigurationTestCase(TestCase):
         config.save()
 
         self.assertEqual(self.xblock.lti_1p3_launch_url, "http://lti-1p3.launch.url")
+
+    def test_instance_where_the_block_is_not_present_are_handled_gracefully(self):
+        """
+        When the LtiConfiguration Model cannot load a Block, the signal should exit
+        gracefully
+        """
+        config = LtiConfiguration.objects.create()
+
+        config.lti_1p3_launch_url = "https://lti-1p3.launch.url"
+        config.save()
+        # Nothing to assert. This will fail when an unhandled exception is raised.
