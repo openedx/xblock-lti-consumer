@@ -532,15 +532,6 @@ class TestEditableFields(TestLtiConsumerXBlock):
 
         assert_fn(self.are_fields_editable(fields=['config_type']))
 
-    def test_database_editable_config_1p3_fields(self):
-        self.xblock.lti_version = 'lti_1p3'
-        self.xblock.config_type = 'database'
-
-        self.assertFalse(self.are_fields_editable(
-            fields=['lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_key_mode',
-                    'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key'])
-        )
-
     @ddt.idata(product([True, False], [True, False]))
     @ddt.unpack
     def test_config_type_values(self, filter_enabled, db_enabled):

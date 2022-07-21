@@ -681,6 +681,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Return a list of editable fields that should be editable by the user. Any XBlock fields not included in the
         returned list are not available or visible to the user to be edited.
 
+        Note that the Javascript in xblock_studio_view.js shows and hides various fields depending on the option
+        currently selected for these fields. Because editable_fields defines a list of fields when that's used rendering
+        the Studio edit view, it cannot support the dynamic experience we want the user to have when editing the XBlock.
+        This property should return the set of all properties the user should be able to modify based on the current
+        environment. For example, if the external_config_filter_enabled flag is not enabled, the external_config field
+        should not be a part of editable_fields, because no user can edit this field in this case. On the other hand, if
+        the currently selected config_type is 'database', the fields that are otherwise stored in the database should
+        still be a part of editable_fields, because a user may select a different config_type from the menu, and we want
+        those fields to become editable at that time. The Javascript will determine when to show or to hide a given
+        field.
+
         Fields that are potentially filtered out include "config_type", "external_config", "ask_to_send_username", and
         "ask_to_send_email".
         """
@@ -698,14 +709,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # If the enable_external_config_filter is not enabled, do not display the "external_config" field to users.
         if not is_external_config_filter_enabled:
             noneditable_fields.append('external_config')
-
-        if self.lti_version == 'lti_1p3' and is_database_config_enabled and self.config_type == 'database':
-            noneditable_fields.extend(
-                ['lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_key_mode',
-                 'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key', 'lti_1p3_enable_nrps',
-                 'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
-                 'lti_advantage_ags_mode']
-            )
 
         # update the editable fields if this XBlock is configured to not to allow the
         # editing of 'ask_to_send_username' and 'ask_to_send_email'.
