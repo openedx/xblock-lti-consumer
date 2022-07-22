@@ -801,7 +801,27 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'edx-platform.anonymous_user_id', None)
 
         if user_id is None:
-            raise LtiError(self.ugettext("Could not get user id for current request"))
+            # TODO: Remove the supplemental log messaging. The logs were amended to help diagnose the bug in MST-1540:
+            # https://2u-internal.atlassian.net/browse/MST-1540. The bug is not easily reproducible in production or
+            # development, so these logs were added to determine whether the currently requesting user is an
+            # AnonymousUser or a currently authenticated user.
+            # pylint: disable=import-outside-toplevel
+            from crum import get_current_request
+            request = get_current_request()
+
+            # A test (lti_consumer.tests.unit.test_lti_xblock.TestProperties.test_user_id_none) calls this function
+            # directly, outside the scope of a request, causing it to fail if we assume this function runs within the
+            # context of a request. It's easier to modify the code here to handle the case when there is no request
+            # object to appease the test than to modify the test, because these changes to the log are temporary and
+            # will be removed shortly.
+            request_user_id = None
+            request_user_authenticated = None
+            if request:
+                request_user_id = request.user.id
+                request_user_authenticated = request.user.is_authenticated
+            raise LtiError(self.ugettext(f"Could not get user id for current request"
+                                         f" and currently requesting user id is: {request_user_id}"
+                                         f" and is_authenticated is: {request_user_authenticated}"))
         return str(user_id)
 
     def get_icon_class(self):
