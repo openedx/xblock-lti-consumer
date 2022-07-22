@@ -3,7 +3,6 @@ Utility functions for LTI Consumer block
 """
 import logging
 from importlib import import_module
-from uuid import UUID
 
 from django.conf import settings
 

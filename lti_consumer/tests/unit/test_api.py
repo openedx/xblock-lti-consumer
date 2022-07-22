@@ -337,7 +337,6 @@ class TestGetLti1p3LaunchInfo(TestCase):
         )
 
 
-
 class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
     """
     Unit tests for get_lti_1p3_launch_start_url API method.
