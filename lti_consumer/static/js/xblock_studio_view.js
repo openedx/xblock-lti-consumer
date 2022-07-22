@@ -42,87 +42,121 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
     }
 
     /**
-     * Show or hide LTI fields depending on which version is selected in
-     * the lti_version field.
+     * Return fields that should be hidden based on the selected lti version.
      */
-    function toggleLtiFields() {
+    function getFieldsToHideForLtiVersion() {
         const ltiVersionField = $(element).find('#xb-field-edit-lti_version');
         const selectedVersion = ltiVersionField.children("option:selected").val();
+        const fieldsToHide = [];
 
-        // If LTI version field isn't present, then LTI 1.3 support is disabled
-        // so show all LTI 1.1 fields.
-        if (selectedVersion === undefined) {
-            lti1P1FieldList.forEach(function (field) {
-                toggleFieldVisibility(field, true);
+        if (selectedVersion === undefined || selectedVersion === "lti_1p1") {
+            // If LTI version field isn't present, then LTI 1.3 support is disabled
+            // so hide all LTI 1.3 fields. If the LTI version is LTI 1.1, also hide all LTI
+            // 1.3 fields.
+            lti1P3FieldList.forEach(function (field) {
+                fieldsToHide.push(field);
             });
+        } else if (selectedVersion === "lti_1p3") {
+            lti1P1FieldList.forEach(function (field) {
+                fieldsToHide.push(field);
+            });
+        } else {}
 
-            return false;
-        }
-
-        lti1P1FieldList.forEach(function (field) {
-            toggleFieldVisibility(
-                field,
-                selectedVersion === "lti_1p1"
-            );
-        });
-
-        lti1P3FieldList.forEach(function (field) {
-            toggleFieldVisibility(
-                field,
-                selectedVersion === "lti_1p3"
-            );
-        });
+        return fieldsToHide;
     }
 
-    /**
-     * Only display the field appropriate for the selected key mode.
-     */
-    function toggleLtiToolKeyMode() {
-        const ltiKeyModeField = $(element).find('#xb-field-edit-lti_1p3_tool_key_mode');
-
-        // find the field containers
-        const ltiKeysetUrlField = $(element).find('[data-field-name=lti_1p3_tool_keyset_url]');
-        const ltiPublicKeyField = $(element).find('[data-field-name=lti_1p3_tool_public_key]');
-
-        const selectedKeyMode = ltiKeyModeField.children("option:selected").val();
-        if (selectedKeyMode === 'public_key') {
-            ltiKeysetUrlField.hide();
-            ltiPublicKeyField.show();
-        } else if (selectedKeyMode === 'keyset_url') {
-            ltiPublicKeyField.hide();
-            ltiKeysetUrlField.show();
-        }
-    }
 
     /**
-     * Toggle visibility of LTI configuration fields based on the config type
+     * Return fields that should be hidden based on the selected config type. 
      *
      *  new - Show all the LTI 1.1/1.3 config fields
      *  database - Do not show the LTI 1.1/1.3 config fields
      *  external - Show only the External Config ID field
      */
-    function toggleLtiConfigType() {
+    function getFieldsToHideForLtiConfigType() {
         const configType = $(element).find('#xb-field-edit-config_type').val();
-        const configFields = lti1P1FieldList.concat(lti1P3FieldList, ['lti_version']);
+        const configFields = lti1P1FieldList.concat(lti1P3FieldList);
+        const fieldsToHide = [];
 
-        if ((configType === "external") || (configType === "database")) {
-            // hide the lti_version and all the LTI 1.1 and LTI 1.3 fields
+        if (configType === "external") {
+            // Hide the lti_version field and all the LTI 1.1 and LTI 1.3 fields.
             configFields.forEach(function (field) {
-                toggleFieldVisibility(field, false);
+                fieldsToHide.push(field);
+            })
+            fieldsToHide.push("lti_version");
+        } else if (configType === "database") {
+            // Hide the LTI 1.1 and LTI 1.3 fields. The XBlock will remain the source of truth for the lti_version,
+            // so do not hide it and continue to allow editing it from the XBlock edit menu in Studio.
+            configFields.forEach(function (field) {
+                fieldsToHide.push(field);
             })
         } else {
-            // show the lti_version and toggleLtiFields to auto decide which fields are shown
-            toggleFieldVisibility("lti_version", true);
-            toggleLtiFields();
+            // No fields should be hidden based on a config_type of 'new'.
         }
 
-        toggleFieldVisibility("external_config", configType === "external");
+        if (configType === "external") {
+            fieldsToHide.push("external_config");
+        }
+
+        return fieldsToHide;
+    }
+
+    /**
+     * Return fields that should be hidden based on the selected key mode. This returns a list of of fields related to
+     * lti tool key mode that should be hidden.
+     */
+    function getFieldsToHideForLtiToolKeyMode() {
+        const ltiKeyModeField = $(element).find('#xb-field-edit-lti_1p3_tool_key_mode');
+        const selectedKeyMode = ltiKeyModeField.children("option:selected").val();
+        const fieldsToHide = [];
+
+        if (selectedKeyMode === 'public_key') {
+            fieldsToHide.push("lti_1p3_tool_keyset_url");
+        } else if (selectedKeyMode === 'keyset_url') {
+            fieldsToHide.push("lti_1p3_tool_public_key");
+        }
+
+        return fieldsToHide;
+    }
+
+    /**
+     * Show or hide fields depending on the selected lti_version, config_type, and lti_1p3_tool_key_mode.
+     */
+    function toggleLtiFields() {
+        const configFields = lti1P1FieldList.concat(lti1P3FieldList);
+        const hiddenFields = new Set();
+
+        // Start with the assumption that all configFields should be visible. After that, we whittle down the
+        // list of visible fields based on the values of those fields.
+        configFields.forEach(function (field) {
+            toggleFieldVisibility(
+                field,
+                true
+            );
+        });
+
+        let fieldsToHide;
+        const hiddenFieldsFilters = [
+            getFieldsToHideForLtiVersion,
+            getFieldsToHideForLtiConfigType,
+            getFieldsToHideForLtiToolKeyMode
+        ];
+
+        hiddenFieldsFilters.forEach(function (filter) {
+            fieldsToHide = filter();
+
+            fieldsToHide.forEach(function (field) {
+                hiddenFields.add(field);
+            })
+        })
+
+        for (const field of hiddenFields) {
+            toggleFieldVisibility(field, false);
+          }
     }
 
     // Call once component is instanced to hide fields
     toggleLtiFields();
-    toggleLtiToolKeyMode();
-    toggleLtiConfigType();
 
     // Bind to onChange method of lti_version selector
     $(element).find('#xb-field-edit-lti_version').bind('change', function () {
@@ -131,10 +165,10 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
 
     // Bind to onChange method of lti_1p3_tool_key_mode selector
     $(element).find('#xb-field-edit-lti_1p3_tool_key_mode').bind('change', function () {
-        toggleLtiToolKeyMode();
+        toggleLtiFields();
     });
 
     $(element).find('#xb-field-edit-config_type').bind('change', function () {
-        toggleLtiConfigType();
+        toggleLtiFields();
     });
 }
