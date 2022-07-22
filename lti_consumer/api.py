@@ -100,6 +100,10 @@ def get_or_update_lti_config(block):
         the updated LtiConfiguration object
     """
     conf = _get_lti_config(block=block)
+
+    if block.config_type == "external":
+        return conf
+
     if block.lti_version == "lti_1p3":
         # Transfer the config to DB so that the django view can initialize the
         # LTI1P3Consumer without having to load the XBlock

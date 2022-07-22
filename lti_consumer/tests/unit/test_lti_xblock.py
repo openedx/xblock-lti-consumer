@@ -2004,9 +2004,8 @@ class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
         the lti_config values are updated.
         """
         config = LtiConfiguration.objects.create(location=self.xblock.location)
-        config.save()
         self.assertEqual(LtiConfiguration.objects.count(), 1)
-        self.assertEqual(len(config.lti_config.keys()), 0)
+        self.assertEqual(config.lti_1p3_launch_url, "")
 
         request = make_request(
             '{"values": {"lti_1p3_launch_url": "https://example.tool.com/"}, "defaults": []}',
