@@ -291,6 +291,37 @@ class TestGetLti1p3LaunchInfo(TestCase):
             {
                 'client_id': lti_config.lti_1p3_client_id,
                 'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
+                    lti_config.location
+                ),
+                'deployment_id': '1',
+                'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',
+                'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
+                    lti_config.location
+                ),
+                'deep_linking_launch_url': 'http://example.com',
+
+                'deep_linking_content_items':
+                    '[\n    {\n        "test": "this is a test attribute"\n    }\n]',
+            }
+        )
+
+    def test_launch_info_for_lti_config_without_location(self):
+        """
+        Check if the API can return launch info for LtiConfiguration objects without
+        specified block location.
+        """
+        lti_config = LtiConfiguration.objects.create(version=LtiConfiguration.LTI_1P3)
+        LtiDlContentItem.objects.create(
+            lti_configuration=lti_config,
+            content_type=LtiDlContentItem.IMAGE,
+            attributes={"test": "this is a test attribute"}
+        )
+        launch_info = get_lti_1p3_launch_info(config_id=lti_config.id)
+        self.assertEqual(
+            launch_info,
+            {
+                'client_id': lti_config.lti_1p3_client_id,
+                'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
                     lti_config.config_id
                 ),
                 'deployment_id': '1',
@@ -304,6 +335,7 @@ class TestGetLti1p3LaunchInfo(TestCase):
                     '[\n    {\n        "test": "this is a test attribute"\n    }\n]',
             }
         )
+
 
 
 class TestGetLti1p3LaunchUrl(Lti1P3TestCase):

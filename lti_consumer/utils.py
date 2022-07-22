@@ -31,15 +31,15 @@ def get_lms_base():
     return settings.LMS_ROOT_URL
 
 
-def get_lms_lti_keyset_link(config_id: UUID):
+def get_lms_lti_keyset_link(location):
     """
     Returns an LMS link to LTI public keyset endpoint
 
-    :param config_id: the config_id of the LtiConfiguration object
+    :param location: the location or config_id of the LtiConfiguration object
     """
     return "{lms_base}/api/lti_consumer/v1/public_keysets/{location}".format(
         lms_base=get_lms_base(),
-        location=str(config_id),
+        location=str(location),
     )
 
 
@@ -54,15 +54,15 @@ def get_lms_lti_launch_link():
     )
 
 
-def get_lms_lti_access_token_link(config_id: UUID):
+def get_lms_lti_access_token_link(location):
     """
     Returns an LMS link to LTI Launch endpoint
 
-    :param config_id: the config_id of the LtiConfiguration object
+    :param location: the location or config_id of the LtiConfiguration object
     """
     return "{lms_base}/api/lti_consumer/v1/token/{location}".format(
         lms_base=get_lms_base(),
-        location=str(config_id),
+        location=str(location),
     )
 
 
