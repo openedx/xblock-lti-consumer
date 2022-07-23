@@ -108,8 +108,26 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
 
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
         self.url = '/lti_consumer/v1/launch/'
-        self.config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=self.location)
+        self.config = LtiConfiguration(
+            version=LtiConfiguration.LTI_1P3,
+            location=self.location,
+            config_store=LtiConfiguration.CONFIG_ON_DB
+        )
         self.config.save()
+
+        self.compat_patcher = patch("lti_consumer.plugin.views.compat")
+        self.compat = self.compat_patcher.start()
+        self.addCleanup(self.compat.stop)
+        course = Mock(name="course")
+        course.display_name_with_default = "course_display_name"
+        course.display_org_with_default = "course_display_org"
+        self.compat.get_course_by_id.return_value = course
+        self.compat.get_user_role.return_value = "student"
+        self.compat.get_external_id_for_user.return_value = "12345"
+        model_compat_patcher = patch("lti_consumer.models.compat")
+        model_compat = model_compat_patcher.start()
+        model_compat.load_block_as_anonymous_user.return_value = None
+        self.addCleanup(model_compat_patcher.stop)
 
     def test_invalid_usage_key(self):
         """
@@ -138,6 +156,20 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         """
         response = self.client.get(self.url, {"login_hint": self.location + "extra"})
         self.assertEqual(response.status_code, 404)
+
+    def test_lti_launch_response(self):
+        """
+        Check that the right launch response is generated
+        """
+        params = {
+            "login_hint": self.location,
+            "nonce": "nonce-value",
+            "state": "hello-world",
+            "redirect_uri": "https://tool.example",
+            "client_id": self.config.lti_1p3_client_id
+        }
+        response = self.client.get(self.url, params)
+        self.assertEqual(response.status_code, 200)
 
 
 class TestLti1p3AccessTokenEndpoint(TestCase):

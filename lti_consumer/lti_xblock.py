@@ -1224,6 +1224,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Backward compatibility for existing XBlocks which have the config on the block
         self._get_or_update_lti_config_on_db()
 
+        # Patch the Webob request object for Django request methods
+        request.GET.dict = lambda: dict(request.GET)
+
         # Runtime import because this can only be run in the LMS/Studio Django
         # environments. Importing the views on the top level will cause RuntimeErorr
         from lti_consumer.plugin.views import launch_gate_endpoint  # pylint: disable=import-outside-toplevel

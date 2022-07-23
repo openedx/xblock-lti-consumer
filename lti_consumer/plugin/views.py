@@ -201,7 +201,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         )
 
         # Retrieve preflight response
-        preflight_response = dict(request.GET)
+        preflight_response = request.GET.dict()
         lti_message_hint = preflight_response.get('lti_message_hint', '')
 
         # Set LTI Launch URL

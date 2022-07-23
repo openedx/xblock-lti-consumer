@@ -275,4 +275,5 @@ def get_external_id_for_user(user) -> str:
     """
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.external_user_ids.models import ExternalId
-    return ExternalId.add_new_user_id(user, 'lti')
+    ext_user, _ = ExternalId.add_new_user_id(user, 'lti')
+    return str(ext_user.external_user_id)
