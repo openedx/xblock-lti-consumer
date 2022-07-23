@@ -135,7 +135,10 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
         )
         raise Http404 from exc
 
-
+# Post request from other site (Tool) without the CSRF Token
+@csrf_exempt
+# This URL should work inside an iframe
+@xframe_options_sameorigin
 @require_http_methods(["GET", "POST"])
 def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argument
     """
@@ -265,7 +268,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def access_token_endpoint(request, lti_config_id):
+def access_token_endpoint(request, lti_config_id=None, usage_id=None):
     """
     Gate endpoint to enable tools to retrieve access tokens for the LTI 1.3 tool.
 
@@ -273,6 +276,7 @@ def access_token_endpoint(request, lti_config_id):
 
     Arguments:
         lti_config_id (UUID): config_id of the LtiConfiguration
+        usage_id (UsageKey): location of the Block
 
     Returns:
         JsonResponse or Http404
@@ -283,7 +287,11 @@ def access_token_endpoint(request, lti_config_id):
     """
 
     try:
-        lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
+        if lti_config_id:
+            lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
+        else:
+            usage_key = UsageKey.from_string(usage_id)
+            lti_config = LtiConfiguration.objects.get(location=usage_key)
     except LtiConfiguration.DoesNotExist as exc:
         log.warning("Error getting the LTI configuration with id %r: %s", lti_config_id, exc)
         raise Http404 from exc
@@ -314,33 +322,6 @@ def access_token_endpoint(request, lti_config_id):
         return JsonResponse({"error": "invalid_client"}, status=HTTP_400_BAD_REQUEST)
     except UnsupportedGrantType:
         return JsonResponse({"error": "unsupported_grant_type"}, status=HTTP_400_BAD_REQUEST)
-
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def access_token_endpoint_via_location(request, usage_id=None):
-    """
-    Access token endpoint that provides backwards compatibility to the LTI tools
-    that were configured using the the older version of the URL with usage_id in it
-    instead of the config id.
-
-    We maintain this extra view instead of fetching LTI Config using the usage_id
-    to make sure that the config from XBlock gets transferred to the model, ie., the
-    config_store value changes from CONFIG_ON_XBLOCK to CONFIG_ON_DB, and the lti_config
-    is populated with the values from the XBlock.
-    """
-    try:
-        usage_key = UsageKey.from_string(usage_id)
-
-        return compat.run_xblock_handler_noauth(
-            request=request,
-            course_id=str(usage_key.course_key),
-            usage_id=str(usage_key),
-            handler='lti_1p3_access_token'
-        )
-    except Exception as exc:
-        log.warning("Error retrieving an access token for usage_id %r: %s", usage_id, exc)
-        raise Http404 from exc
 
 
 # Post from external tool that doesn't
