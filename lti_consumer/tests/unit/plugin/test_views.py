@@ -4,7 +4,6 @@ Tests for LTI 1.3 endpoint views.
 import json
 from unittest.mock import patch, Mock
 
-from django.http import HttpResponse
 from django.test.testcases import TestCase
 from django.urls import reverse
 

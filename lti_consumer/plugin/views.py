@@ -135,10 +135,7 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
         )
         raise Http404 from exc
 
-# Post request from other site (Tool) without the CSRF Token
-@csrf_exempt
-# This URL should work inside an iframe
-@xframe_options_sameorigin
+
 @require_http_methods(["GET", "POST"])
 def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argument
     """
