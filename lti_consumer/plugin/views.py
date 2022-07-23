@@ -66,6 +66,7 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
 from lti_consumer.plugin import compat
 from lti_consumer.utils import _
+from lti_consumer.track import track_event
 
 
 log = logging.getLogger(__name__)
@@ -244,6 +245,12 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
                 preflight_response=preflight_response
             )
         })
+        event = {
+            'lti_version': lti_config.version,
+            'user_roles': user_role,
+            'launch_url': context['launch_url']
+        }
+        track_event('xblock.launch_request', event)
 
         return render(request, 'html/lti_1p3_launch.html', context)
     except Lti1p3Exception as exc:

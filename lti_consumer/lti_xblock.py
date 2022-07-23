@@ -1211,13 +1211,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         Calls the plugin's launch_gate_endpoint and returns the response.
         """
-        #    # emit tracking event
-        #    event = {
-        #        'lti_version': self.lti_version,
-        #        'user_roles': user_role,
-        #        'launch_url': self.lti_1p3_launch_url,
-        #    }
-        #    track_event('xblock.launch_request', event)
         if self.lti_version != "lti_1p3":
             return Response(status=404)
 
