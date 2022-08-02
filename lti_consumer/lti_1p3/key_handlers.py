@@ -122,9 +122,7 @@ class ToolKeyHandler:
 
         except NoSuitableSigningKeys as err:
             raise exceptions.NoSuitableKeys() from err
-        except BadSyntax as err:
-            raise exceptions.MalformedJwtToken() from err
-        except WrongNumberOfParts as err:
+        except (BadSyntax, WrongNumberOfParts) as err:
             raise exceptions.MalformedJwtToken() from err
 
 
@@ -208,12 +206,13 @@ class PlatformKeyHandler:
             # Validate issuer claim (if present)
             if iss:
                 if 'iss' not in message or message['iss'] != iss:
-                    raise exceptions.InvalidClaimValue()
+                    raise exceptions.InvalidClaimValue('The required iss claim is either missing or does '
+                                                       'not match the expected iss value.')
 
             # Validate audience claim (if present)
             if aud:
                 if 'aud' not in message or aud not in message['aud']:
-                    raise exceptions.InvalidClaimValue()
+                    raise exceptions.InvalidClaimValue('The required aud claim is missing.')
 
             # Else return token contents
             return message

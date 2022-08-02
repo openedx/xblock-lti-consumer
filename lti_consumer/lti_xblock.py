@@ -1271,11 +1271,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
             template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
             return Response(template, content_type='text/html')
-        except (Lti1p3Exception, NotImplementedError) as exc:
+        except (Lti1p3Exception, LtiError, NotImplementedError, TypeError, ValueError) as exc:
             log.warning(
                 "Error preparing LTI 1.3 launch for block %r: %s",
                 str(self.location),  # pylint: disable=no-member
                 exc,
+                exc_info=True,
             )
             template = loader.render_django_template('/templates/html/lti_1p3_launch_error.html', context)
             return Response(template, status=400, content_type='text/html')
@@ -1285,6 +1286,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 str(self.location),  # pylint: disable=no-member
                 self.external_user_id,
                 exc,
+                exc_info=True
             )
             template = loader.render_django_template('/templates/html/lti_1p3_permission_error.html', context)
             return Response(template, status=403, content_type='text/html')
