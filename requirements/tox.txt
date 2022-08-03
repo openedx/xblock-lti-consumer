@@ -4,7 +4,7 @@
 #
 #    make upgrade
 #
-distlib==0.3.4
+distlib==0.3.5
     # via virtualenv
 filelock==3.7.1
     # via
@@ -21,12 +21,10 @@ py==1.11.0
 pyparsing==3.0.9
     # via packaging
 six==1.16.0
-    # via
-    #   tox
-    #   virtualenv
+    # via tox
 toml==0.10.2
     # via tox
-tox==3.25.0
+tox==3.25.1
     # via -r requirements/tox.in
-virtualenv==20.14.1
+virtualenv==20.16.2
     # via tox
