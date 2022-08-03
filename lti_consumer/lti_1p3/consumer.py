@@ -363,7 +363,7 @@ class LtiConsumer1p3:
         # Check if all required claims are present
         for required_claim in LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS:
             if required_claim not in token_request_data.keys():
-                raise exceptions.MissingRequiredClaim()
+                raise exceptions.MissingRequiredClaim(f'The required claim {required_claim} is missing from the JWT.')
 
         # Check that grant type is `client_credentials`
         if token_request_data['grant_type'] != 'client_credentials':
