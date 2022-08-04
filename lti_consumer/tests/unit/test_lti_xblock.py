@@ -1393,6 +1393,13 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.compat.get_course_by_id.return_value = course
         self.compat.get_user_role.return_value = "student"
         self.compat.get_external_id_for_user.return_value = "12345"
+        # Patching compat calls triggered by Django Views
+        patcher = patch(
+            'lti_consumer.models.compat',
+            **{'load_block_as_anonymous_user.return_value': self.xblock}
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self) -> None:
         self.mock_filter_enabled_patcher.stop()
@@ -1542,6 +1549,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         Test that Deep Linking is enabled and that the context is updated appropriately when using the 'database'
         config_type.
         """
+        url = "http://tool.example/deep_linking_launch"
         self._setup_deep_linking(user_role='staff')
 
         self.xblock.config_type = 'database'
@@ -1550,10 +1558,11 @@ class TestLtiConsumer1p3XBlock(TestCase):
             location=self.xblock.location,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
-            lti_advantage_deep_linking_enabled=dl_enabled
+            lti_advantage_deep_linking_enabled=dl_enabled,
+            lti_advantage_deep_linking_launch_url=url,
         )
         if dl_enabled:
-            self.xblock.lti_advantage_deep_linking_launch_url = "http://tool.example/deep_linking_launch"
+            self.xblock.lti_advantage_deep_linking_launch_url = url
 
         # Get LTI client_id
         client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
@@ -1578,9 +1587,9 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # If Deep Linking is enabled, test that deep linking launch URL is in the rendered template. Otherwise, test
         # that it is not.
         if dl_enabled:
-            self.assertIn("http://tool.example/deep_linking_launch", response_body)
+            self.assertIn(url, response_body)
         else:
-            self.assertNotIn("http://tool.example/deep_linking_launch", response_body)
+            self.assertNotIn(url, response_body)
 
     def test_launch_callback_endpoint_deep_linking_by_student(self):
         """
@@ -1983,38 +1992,3 @@ class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
         )
         external_config_flag_patcher.start()
         self.addCleanup(external_config_flag_patcher.stop)
-
-    def test_submitting_lti1p3_config_automatically_creates_the_lti_config_object(self):
-        """
-        Test when a LTI 1.3 XBlock config is saved, it creates a new LtiCofiguration
-        object if a corresponding one doesn't exist.
-        """
-        self.assertEqual(LtiConfiguration.objects.count(), 0)
-
-        request = make_request('{"values": [], "defaults": []}', "POST")
-        request.headers["Content-Type"] = "application/json"
-        response = self.xblock.submit_studio_edits(request)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(LtiConfiguration.objects.count(), 1)
-
-    def test_submitting_to_block_with_existing_config(self):
-        """
-        Test when a LTI 1.3 XBlock config is saved which already has a LTIConfiguration
-        the lti_config values are updated.
-        """
-        config = LtiConfiguration.objects.create(location=self.xblock.location)
-        self.assertEqual(LtiConfiguration.objects.count(), 1)
-        self.assertEqual(config.lti_1p3_launch_url, "")
-
-        request = make_request(
-            '{"values": {"lti_1p3_launch_url": "https://example.tool.com/"}, "defaults": []}',
-            "POST"
-        )
-        request.headers["Content-Type"] = "application/json"
-        response = self.xblock.submit_studio_edits(request)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(
-            "https://example.tool.com/",
-            LtiConfiguration.objects.get(location=self.xblock.location).lti_1p3_launch_url
-        )

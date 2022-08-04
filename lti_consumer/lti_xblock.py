@@ -573,17 +573,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
 
-    config_sync_params = (
-        # LTI 1.3 variables
-        'lti_1p3_launch_url', 'lti_1p3_oidc_url',
-        # 'lti_1p3_tool_key_mode',
-        'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key',
-        'lti_1p3_enable_nrps',
-        # LTI Advantage variables
-        'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
-        'lti_advantage_ags_mode',
-    )
-
     # Possible editable fields
     editable_field_names = (
         'display_name', 'description', 'config_type', 'lti_version', 'external_config',
@@ -989,21 +978,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             close_date = due_date
         return close_date is not None and timezone.now() > close_date
 
-    def _get_or_update_lti_config_on_db(self):
-        """
-        Returns the latest LtiConfiguration object that corresponds to the XBlock.
-
-        If the XBlock is configured with LTI 1.1, it simply returns the LtiConfiguration
-        object without changing anything.
-
-        If the XBlock is configured with LTI 1.3 information, it is copied to the
-        model's lti_config property so that the plugin views can use them.
-        """
-        # Runtime import because this can only be run in the LMS/Studio Django
-        # environments
-        from lti_consumer.api import get_or_update_lti_config  # pylint: disable=import-outside-toplevel
-        return get_or_update_lti_config(self)
-
     def _get_lti_consumer(self):
         """
         Returns a preconfigured LTI consumer depending on the value.
@@ -1119,17 +1093,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return fragment
 
     @XBlock.handler
-    def submit_studio_edits(self, data, suffix=''):
-        """
-        Overriding the handler defined in the EditableMixin in order to add the extra
-        functionality of syncing the LTI 1.3 configuration (if used in the XBlock) to
-        the corresponding object in the plugin's LtiConfiguration model.
-        """
-        response = super().submit_studio_edits(data, suffix)
-        self._get_or_update_lti_config_on_db()
-        return response
-
-    @XBlock.handler
     def lti_launch_handler(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for launching LTI 1.1 tools.
@@ -1214,9 +1177,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if self.lti_version != "lti_1p3":
             return Response(status=404)
 
-        # Backward compatibility for existing XBlocks which have the config on the block
-        self._get_or_update_lti_config_on_db()
-
+        # Asserting that the consumer can be created. This makes sure that the LtiConfiguration
+        # object exists before calling the Django View
+        assert self._get_lti_consumer()
         # Patch the Webob request object for Django request methods
         request.GET.dict = lambda: dict(request.GET)
 
@@ -1239,15 +1202,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
             Failure: https://tools.ietf.org/html/rfc6749#section-5.2
         """
-        # The XBlock's conf is synced to the DB to provide backward compatibility to
-        # existing XBlocks that store the config in the XBlock and also, we need the
-        # config id to call the view.
-        conf = self._get_or_update_lti_config_on_db()
+        if self.lti_version != "lti_1p3":
+            return Response(status=404)
 
+        # Asserting that the consumer can be created. This makes sure that the LtiConfiguration
+        # object exists before calling the Django View
+        assert self._get_lti_consumer()
         # Runtime import because this can only be run in the LMS/Studio Django
         # environments. Importing the views on the top level will cause RuntimeErorr
         from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
-        return access_token_endpoint(request, conf.config_id)
+        return access_token_endpoint(request, usage_id=str(self.location))
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument

@@ -88,47 +88,6 @@ def _get_lti_config(config_id=None, block=None):
     return lti_config
 
 
-def get_or_update_lti_config(block):
-    """
-    Gathers all the LTI 1.3 related values from the passed block and stores
-    it in the corresponding LtiConfiguration.
-
-    Arguments:
-        block (XBlock): the block whos configuration should be updated in the db
-
-    Returns:
-        the updated LtiConfiguration object
-    """
-    conf = _get_lti_config(block=block)
-
-    if block.config_type == "external":
-        return conf
-
-    if block.lti_version == "lti_1p3":
-        # Transfer the config to DB so that the django view can initialize the
-        # LTI1P3Consumer without having to load the XBlock
-        config_changed = (
-            any(
-                getattr(conf, key, '') != getattr(block, key, '')
-                for key in block.config_sync_params
-            ) or
-            # as the NRPS attr is different in XBlock and model, check it separately
-            block.lti_1p3_enable_nrps != conf.lti_advantage_enable_nrps
-        )
-
-        # Optimization - Update the DB only if values are different or config is still
-        # set to CONFIG_ON_XBLOCK
-        if config_changed or conf.config_store == conf.CONFIG_ON_XBLOCK:
-            for key in block.config_sync_params:
-                if key == "lti_1p3_enable_nrps":
-                    conf.lti_advantage_enable_nrps = block.lti_1p3_enable_nrps
-                else:
-                    setattr(conf, key, getattr(block, key))
-            conf.config_store = conf.CONFIG_ON_DB
-            conf.save()
-    return conf
-
-
 def get_lti_consumer(config_id=None, block=None):
     """
     Retrieves an LTI Consumer instance for a given configuration.
