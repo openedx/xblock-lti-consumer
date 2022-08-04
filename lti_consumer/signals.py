@@ -3,10 +3,10 @@ LTI Consumer related Signal handlers
 """
 import logging
 
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from lti_consumer.models import LtiAgsScore, LtiConfiguration
+from lti_consumer.models import LtiAgsScore
 from lti_consumer.plugin import compat
 
 

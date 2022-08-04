@@ -1211,7 +1211,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Runtime import because this can only be run in the LMS/Studio Django
         # environments. Importing the views on the top level will cause RuntimeErorr
         from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
-        return access_token_endpoint(request, usage_id=str(self.location))
+        return access_token_endpoint(request, usage_id=str(self.location))  # pylint: disable=no-member
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument

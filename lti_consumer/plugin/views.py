@@ -132,7 +132,8 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
             "Error while retrieving keyset for usage_id (%r) or lit_config_id (%s): %s",
             usage_id,
             lti_config_id,
-            exc
+            exc,
+            exc_info=True
         )
         raise Http404 from exc
 
@@ -148,11 +149,18 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     """
     usage_id = request.GET.get('login_hint')
     if not usage_id:
+        log.info('The `login_hint` query param in the request is missing or empty.')
         return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_400_BAD_REQUEST)
 
     try:
         usage_key = UsageKey.from_string(usage_id)
-    except InvalidKeyError:
+    except InvalidKeyError as exc:
+        log.error(
+            "The login_hint: %s is not a valid block location. Error: %s",
+            usage_id,
+            exc,
+            exc_info=True
+        )
         return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_404_NOT_FOUND)
 
     try:
@@ -164,7 +172,8 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         raise Http404 from exc
 
     if lti_config.version != LtiConfiguration.LTI_1P3:
-        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
+        log.error("The LTI Version of configuraiont %s is not LTI 1.3", lti_config)
+        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_404_NOT_FOUND)
 
     context = {}
 
@@ -258,6 +267,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             "Error preparing LTI 1.3 launch for block %r: %s",
             usage_id,
             exc,
+            exc_info=True
         )
         return render(request, 'html/lti_1p3_launch_error.html', context, status=HTTP_400_BAD_REQUEST)
     except AssertionError as exc:
@@ -266,6 +276,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             usage_id,
             external_user_id,
             exc,
+            exc_info=True
         )
         return render(request, 'html/lti_1p3_permission_error.html', context, status=HTTP_403_FORBIDDEN)
 
