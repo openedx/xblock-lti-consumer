@@ -227,6 +227,14 @@ class LtiConfiguration(models.Model):
                   'grades.'
     )
 
+    # LTI Proctoring Service Related Variables
+    # TODO: handle invalid config if not LTI 1.3
+    lti_1p3_proctoring_enabled = models.BooleanField(
+        "Enable LTI Proctoring Services",
+        default=False,
+        help_text='Enable LTI Proctoring Services',
+    )
+
     # Empty variable that'll hold the block once it's retrieved
     # from the modulestore or preloaded
     _block = None
