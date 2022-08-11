@@ -4,22 +4,27 @@ Tests for LTI 1.3 endpoint views.
 import json
 from unittest.mock import patch, Mock
 
+import ddt
+
 from django.test.testcases import TestCase
 from django.urls import reverse
 
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
 from opaque_keys.edx.keys import UsageKey
-from lti_consumer.models import LtiConfiguration
+from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.lti_1p3.exceptions import (
     MissingRequiredClaim,
     MalformedJwtToken,
     TokenSignatureExpired,
     NoSuitableKeys,
     UnknownClientId,
-    UnsupportedGrantType
+    UnsupportedGrantType,
+    PreflightRequestValidationFailure,
 )
+from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.lti_1p3.tests.utils import create_jwt
+from lti_consumer.tests.unit.test_utils import make_xblock
 
 
 class TestLti1p3KeysetEndpoint(TestCase):
@@ -94,13 +99,10 @@ class TestLti1p3KeysetEndpoint(TestCase):
         )
 
 
+@ddt.ddt
 class TestLti1p3LaunchGateEndpoint(TestCase):
     """
-    Test `launch_gate_endpoint` method.
-
-    Majority of the functionality is tested in the test_lti_xblock.TestLtiConsumer1p3XBlock
-    as the functionality was originally moved from there. It also acts as a verification
-    for backward compatibility of the XBlock functionality.
+    Tests for the `launch_gate_endpoint` method.
     """
     def setUp(self):
         super().setUp()
@@ -114,6 +116,15 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         )
         self.config.save()
 
+        self.xblock_attributes = {
+            'lti_version': 'lti_1p3',
+            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_oidc_url': 'http://tool.example/oidc',
+        }
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        # Set dummy location so that UsageKey lookup is valid
+        self.xblock.location = self.location
+
         self.compat_patcher = patch("lti_consumer.plugin.views.compat")
         self.compat = self.compat_patcher.start()
         self.addCleanup(self.compat.stop)
@@ -125,7 +136,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.compat.get_external_id_for_user.return_value = "12345"
         model_compat_patcher = patch("lti_consumer.models.compat")
         model_compat = model_compat_patcher.start()
-        model_compat.load_block_as_anonymous_user.return_value = None
+        model_compat.load_block_as_anonymous_user.return_value = self.xblock
         self.addCleanup(model_compat_patcher.stop)
 
     def test_invalid_usage_key(self):
@@ -168,6 +179,200 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
             "client_id": self.config.lti_1p3_client_id
         }
         response = self.client.get(self.url, params)
+        self.assertEqual(response.status_code, 200)
+
+        content = response.content.decode('utf-8')
+        self.assertIn("state", content)
+        self.assertIn("hello-world", content)
+
+    def test_launch_callback_endpoint_fails(self):
+        """
+        Test that the LTI 1.3 callback endpoint correctly display an error message.
+        """
+        # Make a fake invalid preflight request, with empty parameters
+        response = self.client.get(self.url)
+
+        # Check response and assert that state was inserted
+        self.assertEqual(response.status_code, 400)
+
+        response_body = response.content.decode('utf-8')
+        self.assertIn("There was an error while launching the LTI 1.3 tool.", response_body)
+        self.assertNotIn("% trans", response_body)
+
+        with patch(
+            "lti_consumer.models.LtiAdvantageConsumer.generate_launch_request",
+            side_effect=PreflightRequestValidationFailure()
+        ):
+            params = {
+                "client_id": self.config.lti_1p3_client_id,
+                "redirect_ur": "http://tool.example/launch",
+                "state": "state_test_123",
+                "nonce": "nonce",
+                "login_hint": self.location
+            }
+            response = self.client.get(self.url, params)
+            self.assertEqual(response.status_code, 400)
+
+    def _setup_deep_linking(self, user_role='staff'):
+        """
+        Set up deep linking for data and mocking for testing.
+        """
+        self.config.config_store = LtiConfiguration.CONFIG_ON_XBLOCK
+        self.config.save()
+
+        self.compat.get_user_role.return_value = user_role
+        mock_user_service = Mock()
+        mock_user_service.get_external_user_id.return_value = 2
+        self.xblock.runtime.service.return_value = mock_user_service
+
+        self.xblock.course.display_name_with_default = 'course_display_name'
+        self.xblock.course.display_org_with_default = 'course_display_org'
+
+        # Enable deep linking
+        self.xblock.lti_advantage_deep_linking_enabled = True
+
+    def test_launch_callback_endpoint_deep_linking(self):
+        """
+        Test the LTI 1.3 callback endpoint for deep linking requests.
+        """
+        self._setup_deep_linking(user_role='staff')
+
+        params = {
+            "client_id": self.config.lti_1p3_client_id,
+            "redirect_uri": "http://tool.example/launch",
+            "state": "state_test_123",
+            "nonce": "nonce",
+            "login_hint": self.location,
+            "lti_message_hint": "deep_linking_launch"
+        }
+        response = self.client.get(self.url, params)
+
+        # Check response
+        self.assertEqual(response.status_code, 200)
+
+    @ddt.data(True, False)
+    def test_launch_callback_endpoint_deep_linking_database_config(self, dl_enabled):
+        """
+        Test that Deep Linking is enabled and that the context is updated appropriately when using the 'database'
+        config_type.
+        """
+        url = "http://tool.example/deep_linking_launch"
+        self._setup_deep_linking(user_role='staff')
+
+        self.xblock.config_type = 'database'
+
+        LtiConfiguration.objects.filter(id=self.config.id).update(
+            location=self.xblock.location,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_advantage_deep_linking_enabled=dl_enabled,
+            lti_advantage_deep_linking_launch_url=url,
+        )
+        if dl_enabled:
+            self.xblock.lti_advantage_deep_linking_launch_url = url
+
+        params = {
+            "client_id": self.config.lti_1p3_client_id,
+            "redirect_uri": "http://tool.example/launch",
+            "state": "state_test_123",
+            "nonce": "nonce",
+            "login_hint": self.location,
+            "lti_message_hint": "deep_linking_launch"
+        }
+        response = self.client.get(self.url, params)
+
+        # Check response
+        self.assertEqual(response.status_code, 200)
+        response_body = response.content.decode('utf-8')
+
+        # If Deep Linking is enabled, test that deep linking launch URL is in the rendered template. Otherwise, test
+        # that it is not.
+        if dl_enabled:
+            self.assertIn(url, response_body)
+        else:
+            self.assertNotIn(url, response_body)
+
+    def test_launch_callback_endpoint_deep_linking_by_student(self):
+        """
+        Test that the callback endpoint errors out if students try to do a deep link launch.
+        """
+        self._setup_deep_linking(user_role='student')
+        # Enable deep linking
+        self.xblock.lti_advantage_deep_linking_enabled = True
+
+        params = {
+            "client_id": self.config.lti_1p3_client_id,
+            "redirect_uri": "http://tool.example/launch",
+            "state": "state_test_123",
+            "nonce": "nonce",
+            "login_hint": self.location,
+            "lti_message_hint": "deep_linking_launch"
+        }
+        response = self.client.get(self.url, params)
+
+        # Check response
+        self.assertEqual(response.status_code, 403)
+        response_body = response.content.decode('utf-8')
+        self.assertIn("Students don't have permissions to perform", response_body)
+        self.assertNotIn("% trans", response_body)
+
+    @patch('lti_consumer.plugin.views.LtiConfiguration.ltidlcontentitem_set')
+    def test_callback_endpoint_dl_content_launch(self, mock_contentitem_set):
+        """
+        Test that the callback endpoint return the correct information when
+        doing a `ltiResourceLink` deep linking launch.
+        """
+        self._setup_deep_linking(user_role='student')
+
+        # Set deep linking mock data
+        mock_contentitem_set.get.return_value.attributes = {
+            "url": "https://deep-link-content/",
+            "custom": {
+                "parameter": "custom",
+            },
+        }
+
+        params = {
+            "client_id": self.config.lti_1p3_client_id,
+            "redirect_uri": "http://tool.example/launch",
+            "state": "state_test_123",
+            "nonce": "nonce",
+            "login_hint": self.location,
+            "lti_message_hint": "deep_linking_content_launch:1"
+        }
+        response = self.client.get(self.url, params)
+        content = response.content.decode('utf-8')
+
+        # Check response
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("http://tool.example/launch", content)
+
+    @ddt.data(Mock(), None)
+    @patch('lti_consumer.api.get_deep_linking_data')
+    def test_callback_endpoint_dl_content_launch_database_config(self, dl_value, mock_lti_dl):
+        self._setup_deep_linking(user_role="staff")
+        self.xblock.config_type = 'database'
+        mock_lti_dl.return_value = dl_value
+
+        LtiConfiguration.objects.filter(id=self.config.id).update(
+            lti_1p3_launch_url='http://tool.example/launch',
+            lti_1p3_oidc_url='http://tool.example/oidc',
+        )
+        dl_item = LtiDlContentItem.objects.create(
+            lti_configuration=self.config,
+            content_type="link",
+            attributes={"parameter": "custom"}
+        )
+        params = {
+            "client_id": self.config.lti_1p3_client_id,
+            "redirect_uri": "http://tool.example/launch",
+            "state": "state_test_123",
+            "nonce": "nonce",
+            "login_hint": self.location,
+            "lti_message_hint": f"deep_linking_content_launch:{dl_item.id}"
+        }
+        response = self.client.get(self.url, params)
+        # Check response
         self.assertEqual(response.status_code, 200)
 
 

@@ -700,14 +700,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if not is_external_config_filter_enabled:
             noneditable_fields.append('external_config')
 
-        if self.lti_version == 'lti_1p3' and is_database_config_enabled and self.config_type == 'database':
-            noneditable_fields.extend(
-                ['lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_tool_key_mode',
-                 'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key', 'lti_1p3_enable_nrps',
-                 'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
-                 'lti_advantage_ags_mode']
-            )
-
         # update the editable fields if this XBlock is configured to not to allow the
         # editing of 'ask_to_send_username' and 'ask_to_send_email'.
         config_service = self.runtime.service(self, 'lti-configuration')
@@ -1165,29 +1157,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context.update({'lti_parameters': lti_parameters})
         template = loader.render_django_template('/templates/html/lti_launch.html', context)
         return Response(template, content_type='text/html')
-
-    @XBlock.handler
-    def lti_1p3_launch_callback(self, request, suffix=''):
-        """
-        XBlock handler for launching the LTI 1.3 tool.
-        This endpoint is only valid when a LTI 1.3 tool is being used.
-
-        Calls the plugin's launch_gate_endpoint and returns the response.
-        """
-        if self.lti_version != "lti_1p3":
-            return Response(status=404)
-
-        # Asserting that the consumer can be created. This makes sure that the LtiConfiguration
-        # object exists before calling the Django View
-        assert self._get_lti_consumer()
-        # Patch the Webob request object for Django request methods
-        request.GET.dict = lambda: dict(request.GET)
-
-        # Runtime import because this can only be run in the LMS/Studio Django
-        # environments. Importing the views on the top level will cause RuntimeErorr
-        from lti_consumer.plugin.views import launch_gate_endpoint  # pylint: disable=import-outside-toplevel
-        request.user = self.runtime.service(self, 'user').get_current_user()
-        return launch_gate_endpoint(request, suffix)
 
     @XBlock.handler
     def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument

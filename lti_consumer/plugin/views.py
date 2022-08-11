@@ -133,7 +133,7 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
             usage_id,
             lti_config_id,
             exc,
-            exc_info=True
+            exc_info=True,
         )
         raise Http404 from exc
 
@@ -172,7 +172,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         raise Http404 from exc
 
     if lti_config.version != LtiConfiguration.LTI_1P3:
-        log.error("The LTI Version of configuraiont %s is not LTI 1.3", lti_config)
+        log.error("The LTI Version of configuration %s is not LTI 1.3", lti_config)
         return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_404_NOT_FOUND)
 
     context = {}
@@ -308,7 +308,7 @@ def access_token_endpoint(request, lti_config_id=None, usage_id=None):
             usage_key = UsageKey.from_string(usage_id)
             lti_config = LtiConfiguration.objects.get(location=usage_key)
     except LtiConfiguration.DoesNotExist as exc:
-        log.warning("Error getting the LTI configuration with id %r: %s", lti_config_id, exc)
+        log.warning("Error getting the LTI configuration with id %r: %s", lti_config_id, exc, exc_info=True)
         raise Http404 from exc
 
     if lti_config.version != lti_config.LTI_1P3:
