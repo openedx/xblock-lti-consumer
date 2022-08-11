@@ -30,6 +30,10 @@ class NoSuitableKeys(Lti1p3Exception):
     message = "JWKS could not be loaded from the URL."
 
 
+class BadJwtSignature(Lti1p3Exception):
+    message = "The JWT signature is invalid."
+
+
 class UnknownClientId(Lti1p3Exception):
     pass
 
