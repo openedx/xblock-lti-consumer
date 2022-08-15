@@ -20,7 +20,7 @@ from lti_consumer.filters import get_external_config_from_filter
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 # LTI 1.3
-from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
+from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiProctoringConsumer
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
 from lti_consumer.plugin.compat import request_cached
@@ -495,8 +495,13 @@ class LtiConfiguration(models.Model):
         Uses the `config_store` variable to determine where to
         look for the configuration and instance the class.
         """
+        consumer_class = LtiAdvantageConsumer
+        # LTI Proctoring Services is not currently supported for CONFIG_ON_XBLOCK or CONFIG_EXTERNAL.
+        if self.lti_1p3_proctoring_enabled and self.config_store == self.CONFIG_ON_DB:
+            consumer_class = LtiProctoringConsumer
+
         if self.config_store == self.CONFIG_ON_XBLOCK:
-            consumer = LtiAdvantageConsumer(
+            consumer = consumer_class(
                 iss=get_lms_base(),
                 lti_oidc_url=self.block.lti_1p3_oidc_url,
                 lti_launch_url=self.block.lti_1p3_launch_url,
@@ -512,7 +517,7 @@ class LtiConfiguration(models.Model):
                 tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_ON_DB:
-            consumer = LtiAdvantageConsumer(
+            consumer = consumer_class(
                 iss=get_lms_base(),
                 lti_oidc_url=self.lti_1p3_oidc_url,
                 lti_launch_url=self.lti_1p3_launch_url,
