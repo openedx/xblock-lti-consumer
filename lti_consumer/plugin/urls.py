@@ -7,10 +7,19 @@ from django.conf import settings
 from django.urls import include, re_path, path
 from rest_framework import routers
 
-from lti_consumer.plugin.views import (LtiAgsLineItemViewset,  # LTI Advantage URLs; LTI NRPS URLs
-                                       LtiNrpsContextMembershipViewSet, access_token_endpoint,
-                                       deep_linking_content_endpoint, deep_linking_response_endpoint,
-                                       launch_gate_endpoint, public_keyset_endpoint)
+from lti_consumer.plugin.views import (
+    LtiAgsLineItemViewset,
+    LtiNrpsContextMembershipViewSet,
+    access_token_endpoint,
+    end_assessment,
+    deep_linking_content_endpoint,
+    deep_linking_response_endpoint,
+    launch_gate_endpoint,
+    launch_gate_endpoint_proctoring,
+    start_assessment,
+    start_proctoring,
+    public_keyset_endpoint
+)
 
 # LTI 1.3 APIs router
 router = routers.SimpleRouter(trailing_slash=False)
@@ -58,5 +67,25 @@ urlpatterns = [
     re_path(
         r'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/',
         include(router.urls)
+    ),
+    path(
+        'lti_consumer/v1/start_proctoring/<uuid:lti_config_id>',
+        start_proctoring,
+        name='lti_consumer.start_proctoring',
+    ),
+    path(
+        'lti_consumer/v1/end_assessment/<uuid:lti_config_id>',
+        end_assessment,
+        name='lti_consumer.end_assessment',
+    ),
+    path(
+        'lti_consumer/v1/start_assessment/',
+        start_assessment,
+        name='lti_consumer.start_assessment',
+    ),
+    re_path(
+        'lti_consumer/v1/proctoring_launch/(?:/(?P<suffix>.*))?$',
+        launch_gate_endpoint_proctoring,
+        name='lti_consumer.proctoring_launch_gate'
     ),
 ]
