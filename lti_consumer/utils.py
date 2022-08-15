@@ -3,9 +3,12 @@ Utility functions for LTI Consumer block
 """
 import logging
 from importlib import import_module
+from urllib.parse import urljoin
 
 from django.conf import settings
+from django.urls import reverse
 
+from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
 from lti_consumer.plugin.compat import get_external_config_waffle_flag, get_database_config_waffle_flag
 
 log = logging.getLogger(__name__)
@@ -120,6 +123,26 @@ def get_lti_nrps_context_membership_url(lti_config_id):
         lms_base=get_lms_base(),
         lti_config_id=str(lti_config_id),
     )
+
+
+def get_lti_proctoring_start_assessment_url():
+    """
+    Return the LTI Proctoring Services start assessment URL.
+    """
+    urljoin(get_lms_base(), reverse('lti:start-assessment'))
+
+
+def check_token_claim(token, claim_key, expected_value, invalid_claim_error_msg):
+    """
+    Check that the claim in the token with the key claim_key matches the expected value. If not,
+    raise an InvalidClaimValue exception with the invalid_claim_error_msg.
+    """
+    claim_value = token.get(claim_key)
+
+    if claim_value is None:
+        raise MissingRequiredClaim(f"Token is missing required {claim_key} claim.")
+    if claim_value != expected_value:
+        raise InvalidClaimValue(invalid_claim_error_msg)
 
 
 def resolve_custom_parameter_template(xblock, template):
