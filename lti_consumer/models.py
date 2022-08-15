@@ -243,8 +243,10 @@ class LtiConfiguration(models.Model):
             raise ValidationError({
                 "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
             })
+        # If we're in an XBlock context, then check whether the database_config_enabled flag is enabled. Otherwise,
+        # don't restrict saving LtiConfiguration.
         if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
-            if not database_config_enabled(self.block.location.course_key):
+            if self.location and not database_config_enabled(self.block.location.course_key):
                 raise ValidationError({
                     "config_store": _("LTI Configuration stores on database is not enabled."),
                 })
