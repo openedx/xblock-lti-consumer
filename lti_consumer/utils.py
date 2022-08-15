@@ -125,13 +125,6 @@ def get_lti_nrps_context_membership_url(lti_config_id):
     )
 
 
-def get_lti_proctoring_start_assessment_url():
-    """
-    Return the LTI Proctoring Services start assessment URL.
-    """
-    urljoin(get_lms_base(), reverse('lti:start-assessment'))
-
-
 def check_token_claim(token, claim_key, expected_value, invalid_claim_error_msg):
     """
     Check that the claim in the token with the key claim_key matches the expected value. If not,
