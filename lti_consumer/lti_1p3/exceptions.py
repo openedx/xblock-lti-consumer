@@ -67,7 +67,7 @@ class LtiAdvantageServiceNotSetUp(Lti1p3Exception):
 
 
 class LtiNrpsServiceNotSetUp(Lti1p3Exception):
-    message = "LTI Names and Role Provisioning Services is not set up."
+    message = "The LTI Names and Role Provisioning Service is not set up."
 
 
 class LtiDeepLinkingContentTypeNotSupported(Lti1p3Exception):
