@@ -3,6 +3,7 @@ LTI 1.3 Consumer implementation
 """
 from urllib.parse import urlencode
 
+from lti_consumer.utils import check_token_claim
 from . import constants, exceptions
 from .constants import (
     LTI_1P3_ROLE_MAP,
@@ -10,6 +11,7 @@ from .constants import (
     LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS,
     LTI_1P3_ACCESS_TOKEN_SCOPES,
     LTI_1P3_CONTEXT_TYPE,
+    LTI_PROCTORING_DATA_KEYS,
 )
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 from .ags import LtiAgs
@@ -659,3 +661,228 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
         # Include LTI NRPS claim inside the LTI Launch message
         self.set_extra_claim(self.nrps.get_lti_nrps_launch_claim())
+
+
+class LtiProctoringConsumer(LtiConsumer1p3):
+    """
+    This class is an LTI Proctoring Services LTI consumer implementation.
+
+    It builds on top of the LtiConsumer1p3r and adds support for the LTI Proctoring Services specification. The
+    specification can be found here: http://www.imsglobal.org/spec/proctoring/v1p0.
+
+    This consumer currently only supports the "Assessment Proctoring Messages" and the proctoring assessmen flow.
+    It does not currently support the Assessment Control Service.
+
+    The LtiProctoringConsumer requires necessary context to work properly, including data like attempt_number,
+    resource_link, etc. This information is provided to the consumer through the set_proctoring_data method, which
+    is called from the consuming context to pass in necessary data.
+    """
+    def __init__(
+        self,
+        iss,
+        lti_oidc_url,
+        lti_launch_url,
+        client_id,
+        deployment_id,
+        rsa_key,
+        rsa_key_id,
+        tool_key=None,
+        tool_keyset_url=None,
+    ):
+        """
+        Initialize the LtiProctoringConsumer by delegating to LtiConsumer1p3's __init__ method.
+        """
+        super().__init__(
+            iss,
+            lti_oidc_url,
+            lti_launch_url,
+            client_id,
+            deployment_id,
+            rsa_key,
+            rsa_key_id,
+            tool_key,
+            tool_keyset_url
+        )
+        self.proctoring_data = {}
+
+    def set_proctoring_data(self, **kwargs):
+        """
+        Set the self.proctoring_data dictionary with the provided kwargs, so long as a given key is in
+        LTI_PROCTORING_DATA_KEYS.
+        """
+        for key, value in kwargs.items():
+            if key in LTI_PROCTORING_DATA_KEYS:
+                self.proctoring_data[key] = value
+
+    def _get_base_claims(self):
+        """
+        Return claims common to all LTI Proctoring Services LTI launch messages, to be used when creating LTI launch
+        messages.
+        """
+        proctoring_claims = {
+            "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number": self.proctoring_data.get("attempt_number"),
+            "https://purl.imsglobal.org/spec/lti-ap/claim/session_data": self.proctoring_data.get("session_data"),
+        }
+
+        return proctoring_claims
+
+    def get_start_proctoring_claims(self):
+        """
+        Return claims specific to LTI Proctoring Services LtiStartProctoring LTI launch message,
+        to be injected into the LTI launch message.
+        """
+        proctoring_claims = self._get_base_claims()
+        proctoring_claims.update({
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiStartProctoring",
+            "https://purl.imsglobal.org/spec/lti-ap/claim/start_assessment_url":
+                self.proctoring_data.get("start_assessment_url"),
+        })
+
+        return proctoring_claims
+
+    def get_end_assessment_claims(self):
+        """
+        Return claims specific to LTI Proctoring Services LtiEndAssessment LTI launch message,
+        to be injected into the LTI launch message.
+        """
+        proctoring_claims = self._get_base_claims()
+        proctoring_claims.update({
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiEndAssessment",
+        })
+
+        return proctoring_claims
+
+    def generate_launch_request(
+        self,
+        preflight_response,
+        resource_link
+    ):
+        """
+        Build and return LTI launch message for proctoring.
+
+        This method overrides LtiConsumer1p3's method to include proctoring specific launch claims. It leverages
+        the set_extra_claim method to include these additional claims in the LTI launch message.
+        """
+        lti_message_hint = preflight_response.get("lti_message_hint")
+        proctoring_claims = None
+        if lti_message_hint == "LtiStartProctoring":
+            proctoring_claims = self.get_start_proctoring_claims()
+        elif lti_message_hint == "LtiEndAssessment":
+            proctoring_claims = self.get_end_assessment_claims()
+        else:
+            raise ValueError('lti_message_hint must be one of [LtiStartProctoring, LtiStartAssessment].')
+
+        self.set_extra_claim(proctoring_claims)
+
+        return super().generate_launch_request(preflight_response, resource_link)
+
+    def check_and_decode_token(self, token):
+        """
+        Once the Proctoring Tool is satisfied that the user has completed the necessary proctoring set up and that the
+        assessment will be proctored securely, it redirects the user to the Assessment Platform, directing the browser
+        to make a POST request containing a JWT and the session_data. This is the "Start Assessment" message.
+
+        This method validates the JWT signature and decodes the JWT. It also validates the claims in the JWT according
+        to the Proctoring Services specification.
+
+        It either returns a dictionary containing information required by the start_assessment, or it raises an
+        exception if any claims is missing or invalid.
+        """
+        # Decode token and check expiration.
+        proctoring_response = self.tool_jwt.validate_and_decode(token)
+
+        # TODO: We MUST perform other forms of validation here.
+        # TODO: We MUST validate the verified_user claim if it is provided, although it is optional to provide it.
+        #       An Assessment Platform MAY reject the Start Assessment message if a required identity claim is missing
+        #       (indicating that it has not been verified by the Proctoring Tool).  Which identity claims a
+        #       Proctoring Tool will verify is subject to agreement outside of the scope of this specification but, at a
+        #       minimum, it is recommended that Proctoring Tools performing identity verification are able to verify the
+        #       given_name, family_name and name claims.
+        #       See 3.3 Transferring the Candidate Back to the Assessment Platform.
+
+        # -------------------------
+        # Check Required LTI Claims
+        # -------------------------
+
+        # Check that the response message_type claim is "LtiStartAssessment".
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/message_type"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            "LtiStartAssessment",
+            f"Token's {claim_key} claim should be LtiStartAssessment."
+        )
+
+        # # Check that the response version claim is "1.3.0".
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/version"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            "1.3.0",
+            f"Token's {claim_key} claim should be 1.3.0."
+        )
+
+        # Check that the response session_data claim is the correct anti-CSRF token.
+        claim_key = "https://purl.imsglobal.org/spec/lti-ap/claim/session_data"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            self.proctoring_data.get("session_data"),
+            f"Token's {claim_key} claim is not correct."
+        )
+
+        # TODO: Right now, the library doesn't support additional claims within the resource_link claim.
+        #       Once it does, we should check the entire claim instead of just the id.
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/resource_link"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            {"id": self.proctoring_data.get("resource_link")},
+            f"Token's {claim_key} claim is not correct."
+        )
+
+        claim_key = "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            self.proctoring_data.get("attempt_number"),
+            f"Token's {claim_key} claim is not correct."
+        )
+
+        # -------------------------
+        # Check Optional LTI Claims
+        # -------------------------
+
+        verified_user = proctoring_response.get("https://purl.imsglobal.org/spec/lti-ap/claim/verified_user", {})
+        # See 4.3.2.1 Verified user claim.
+        # The iss and sub attributes SHOULD NOT be included as they are opaque to the Proctoring Tool and cannot be
+        # independently verified.
+        iss = verified_user.get('iss')
+        if iss is not None:
+            raise exceptions.InvalidClaimValue('Token verified_user claim should not contain the iss claim.')
+        sub = verified_user.get('sub')
+        if sub is not None:
+            raise exceptions.InvalidClaimValue('Token verified_user claim should not contain the sub claim.')
+
+        # See 4.3.2.1 Verified user claim.
+        # If the picture attribute is provided it MUST point to a picture taken by the Proctoring Tool.
+        # It MUST NOT be the same picture provided by the Assessment Platform in the Start Proctoring message.
+        picture = verified_user.get('picture')
+        if picture and picture == self.lti_claim_user_data.get('picture'):
+            raise exceptions.InvalidClaimValue(
+                'If the verified_claim is provided and contains the picture claim,'
+                ' the picture claim should not be the same picture provided by the Assessment Platform to the Tool.'
+            )
+        # TODO: We can leverage these verified user claims. For example, we could use
+        #       these claims for Name Affirmation.
+
+        end_assessment_return = proctoring_response.get(
+            "https://purl.imsglobal.org/spec/lti-ap/claim/end_assessment_return"
+        )
+
+        response = {
+            'end_assessment_return': end_assessment_return,
+            'verified_user': verified_user,
+        }
+
+        return response
