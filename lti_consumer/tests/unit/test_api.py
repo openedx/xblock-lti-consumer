@@ -360,7 +360,7 @@ class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
         self.assertIn('lti_message_hint=', launch_url)
 
         # Call API for deep link launch
-        launch_url = get_lti_1p3_launch_start_url(block=self.xblock, deep_link_launch=True)
+        launch_url = get_lti_1p3_launch_start_url(block=self.xblock, lti_hint="deep_linking")
         self.assertIn('lti_message_hint=deep_linking_launch', launch_url)
 
 

@@ -144,24 +144,13 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     }
 
 
-def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=False, dl_content_id=None, hint=""):
+def get_lti_1p3_launch_start_url(config_id=None, block=None, lti_hint="", hint=""):
     """
     Computes and retrieves the LTI URL that starts the OIDC flow.
     """
     # Retrieve LTI consumer
     lti_config = _get_lti_config(config_id, block)
     lti_consumer = lti_config.get_lti_consumer()
-
-    # Change LTI hint depending on LTI launch type
-    lti_hint = ""
-    # Case 1: Performs Deep Linking configuration flow. Triggered by staff users to
-    # configure tool options and select content to be presented.
-    if deep_link_launch:
-        lti_hint = "deep_linking_launch"
-    # Case 2: Perform a LTI Launch for `ltiResourceLink` content types, since they
-    # need to use the launch mechanism from the callback view.
-    elif dl_content_id:
-        lti_hint = f"deep_linking_content_launch:{dl_content_id}"
 
     # Prepare and return OIDC flow start url
     return lti_consumer.prepare_preflight_url(
@@ -189,7 +178,7 @@ def get_lti_1p3_content_url(config_id=None, block=None, hint=""):
 
     # If there's no content items, return normal LTI launch URL
     if not content_items.count():
-        return get_lti_1p3_launch_start_url(config_id, block, hint=hint)
+        return get_lti_1p3_launch_start_url(config_id, block, lti_hint="deep_linking", hint=hint)
 
     # If there's a single `ltiResourceLink` content, return the launch
     # url for that specif deep link
@@ -197,7 +186,7 @@ def get_lti_1p3_content_url(config_id=None, block=None, hint=""):
         return get_lti_1p3_launch_start_url(
             config_id,
             block,
-            dl_content_id=content_items.get().id,
+            lti_hint=f"deep_linking_content_launch:{content_items.get().id}",
             hint=hint,
         )
 

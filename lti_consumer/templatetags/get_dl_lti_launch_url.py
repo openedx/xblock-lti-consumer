@@ -21,6 +21,6 @@ def get_dl_lti_launch_url(content_item):
     """
     return get_lti_1p3_launch_start_url(
         config_id=content_item.lti_configuration.id,
-        dl_content_id=content_item.id,
+        lti_hint=f"deep_linking_content_launch:{content_item.id}",
         hint=str(content_item.lti_configuration.location),
     )
