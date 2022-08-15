@@ -228,7 +228,6 @@ class LtiConfiguration(models.Model):
     )
 
     # LTI Proctoring Service Related Variables
-    # TODO: handle invalid config if not LTI 1.3
     lti_1p3_proctoring_enabled = models.BooleanField(
         "Enable LTI Proctoring Services",
         default=False,
@@ -256,6 +255,11 @@ class LtiConfiguration(models.Model):
                         "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
                     ),
                 })
+        if self.version == self.LTI_1P3 and self.config_store in [self.CONFIG_ON_XBLOCK, self.CONFIG_EXTERNAL]:
+            raise ValidationError({
+                "config_store": _("CONFIG_ON_XBLOCK and CONFIG_EXTERNAL are not supported for "
+                                  "LTI 1.3 Proctoring Services."),
+            })
         try:
             consumer = self.get_lti_consumer()
         except NotImplementedError:
