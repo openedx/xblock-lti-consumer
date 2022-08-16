@@ -3,10 +3,8 @@ Utility functions for LTI Consumer block
 """
 import logging
 from importlib import import_module
-from urllib.parse import urljoin
 
 from django.conf import settings
-from django.urls import reverse
 
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
 from lti_consumer.plugin.compat import get_external_config_waffle_flag, get_database_config_waffle_flag
