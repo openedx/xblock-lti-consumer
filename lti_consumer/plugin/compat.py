@@ -4,8 +4,6 @@ Compatibility layer to isolate core-platform method calls from implementation.
 import logging
 from typing import Callable
 
-# from edx_toggles.toggles import WaffleFlag
-# from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
 from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from opaque_keys.edx.keys import CourseKey
