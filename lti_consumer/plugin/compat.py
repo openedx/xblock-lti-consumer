@@ -9,15 +9,12 @@ from django.forms import ModelForm
 from opaque_keys.edx.keys import CourseKey
 
 from lti_consumer.exceptions import LtiError
-
+from lti_consumer.constants import WAFFLE_NAMESPACE
 
 log = logging.getLogger(__name__)
 
 
 # Waffle flags configuration
-
-# Namespace
-WAFFLE_NAMESPACE = 'lti_consumer'
 
 # Course Waffle Flags
 # .. toggle_name: lti_consumer.enable_external_config_filter
@@ -31,19 +28,6 @@ WAFFLE_NAMESPACE = 'lti_consumer'
 # .. toggle_warning: None.
 ENABLE_EXTERNAL_CONFIG_FILTER = 'enable_external_config_filter'
 
-# Waffle Flags
-# .. toggle_name: lti_consumer.enable_database_config
-# .. toggle_implementation: CourseWaffleFlag
-# .. toggle_default: False
-# .. toggle_description: Enables storing and fetching LTI configuration from the database. This should only be enabled
-#                        staff members. We do not want to expose the difference between "CONFIG_ON_DB" and
-#                        CONFIG_ON_XBLOCK to non-staff Studio users. This flag is provided to allow staff Studio users
-#                        to test and setup LTI configurations stored in the database.
-# .. toggle_use_cases: open_edx
-# .. toggle_creation_date: 2022-06-29
-# .. toggle_warning: None.
-ENABLE_DATABASE_CONFIG = 'enable_database_config'
-
 
 def get_external_config_waffle_flag():
     """
@@ -52,12 +36,6 @@ def get_external_config_waffle_flag():
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
     return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_EXTERNAL_CONFIG_FILTER}', __name__)
-
-
-def get_database_config_waffle_flag():
-    # pylint: disable=import-error,import-outside-toplevel
-    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
-    return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_DATABASE_CONFIG}', __name__)
 
 
 def run_xblock_handler(*args, **kwargs):

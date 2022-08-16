@@ -142,7 +142,7 @@ def valid_config_type_values(block):
         {"display_name": _("Configuration on block"), "value": "new"}
     ]
 
-    if database_config_enabled(block.location.course_key):
+    if database_config_enabled():
         values.append({"display_name": _("Database Configuration"), "value": "database"})
 
     if external_config_filter_enabled(block.location.course_key):
@@ -698,7 +698,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         editable_fields = self.editable_field_names
         noneditable_fields = []
 
-        is_database_config_enabled = database_config_enabled(self.location.course_key)  # pylint: disable=no-member
+        is_database_config_enabled = database_config_enabled()
         is_external_config_filter_enabled = external_config_filter_enabled(self.location.course_key)  # pylint: disable=no-member
 
         # If neither additional config_types are enabled, do not display the "config_type" field to users, as "new" is
