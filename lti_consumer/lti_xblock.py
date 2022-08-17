@@ -71,16 +71,6 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 from .exceptions import LtiError
 from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
 from .lti_1p1.oauth import log_authorization_header
-from .lti_1p3.exceptions import (
-    Lti1p3Exception,
-    UnsupportedGrantType,
-    MalformedJwtToken,
-    MissingRequiredClaim,
-    NoSuitableKeys,
-    TokenSignatureExpired,
-    UnknownClientId,
-)
-from .lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from .outcomes import OutcomeService
 from .track import track_event
 from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled, database_config_enabled
@@ -1169,186 +1159,28 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return Response(template, content_type='text/html')
 
     @XBlock.handler
-    def lti_1p3_launch_callback(self, request, suffix=''):  # pylint: disable=unused-argument
-        """
-        XBlock handler for launching the LTI 1.3 tool.
-
-        This endpoint is only valid when a LTI 1.3 tool is being used.
-
-        Returns:
-            webob.response: HTML LTI launch form or error page if misconfigured
-        """
-        if self.lti_version != "lti_1p3":
-            return Response(status=404)
-
-        loader = ResourceLoader(__name__)
-        context = {}
-
-        user_role = self.runtime.get_user_role()
-        lti_consumer = self._get_lti_consumer()
-
-        try:
-            # Pass user data
-            lti_consumer.set_user_data(
-                user_id=self.external_user_id,
-                # Pass django user role to library
-                role=user_role
-            )
-
-            # Set launch context
-            # Hardcoded for now, but we need to translate from
-            # self.launch_target to one of the LTI compliant names,
-            # either `iframe`, `frame` or `window`
-            # This is optional though
-            lti_consumer.set_launch_presentation_claim('iframe')
-
-            # Set context claim
-            # This is optional
-            context_title = " - ".join([
-                self.course.display_name_with_default,
-                self.course.display_org_with_default
-            ])
-            lti_consumer.set_context_claim(
-                self.context_id,
-                context_types=[LTI_1P3_CONTEXT_TYPE.course_offering],
-                context_title=context_title,
-                context_label=self.context_id
-            )
-
-            # Retrieve preflight response
-            preflight_response = dict(request.GET)
-            lti_message_hint = preflight_response.get('lti_message_hint', '')
-
-            # Set LTI Launch URL
-            launch_url = self.lti_1p3_launch_url
-            if self.config_type == 'database':
-                launch_url = lti_consumer.launch_url
-            context.update({'launch_url': launch_url})
-
-            # Modify LTI Launch URL dependind on launch type
-            # Deep Linking Launch - Configuration flow launched by
-            # course creators to set up content.
-            lti_advantage_deep_linking_enabled = lti_consumer.lti_dl_enabled()
-            if lti_advantage_deep_linking_enabled and lti_message_hint == 'deep_linking_launch':
-                # Check if the user is staff before LTI doing deep linking launch.
-                # If not, raise exception and display error page
-                if user_role not in ['instructor', 'staff']:
-                    raise AssertionError('Deep Linking can only be performed by instructors and staff.')
-                # Set deep linking launch
-                context.update({'launch_url': lti_consumer.lti_dl.deep_linking_launch_url})
-
-            # Deep Linking ltiResourceLink content presentation
-            # When content type is `ltiResourceLink`, the tool will be launched with
-            # different parameters, set by instructors when running the DL configuration flow.
-            elif lti_advantage_deep_linking_enabled and 'deep_linking_content_launch' in lti_message_hint:
-                # Retrieve Deep Linking parameters using lti_message_hint parameter.
-                deep_linking_id = lti_message_hint.split(':')[1]
-                from lti_consumer.api import get_deep_linking_data  # pylint: disable=import-outside-toplevel
-                dl_params = get_deep_linking_data(deep_linking_id, block=self)
-
-                # Modify LTI launch and set ltiResourceLink parameters
-                lti_consumer.set_dl_content_launch_parameters(
-                    url=dl_params.get('url'),
-                    custom=dl_params.get('custom')
-                )
-
-            # Update context with LTI launch parameters
-            context.update({
-                "preflight_response": preflight_response,
-                "launch_request": lti_consumer.generate_launch_request(
-                    resource_link=str(self.location),  # pylint: disable=no-member
-                    preflight_response=preflight_response
-                )
-            })
-
-            # emit tracking event
-            event = {
-                'lti_version': self.lti_version,
-                'user_roles': user_role,
-                'launch_url': self.lti_1p3_launch_url,
-            }
-            track_event('xblock.launch_request', event)
-
-            template = loader.render_mako_template('/templates/html/lti_1p3_launch.html', context)
-            return Response(template, content_type='text/html')
-        except (Lti1p3Exception, LtiError, NotImplementedError, TypeError, ValueError) as exc:
-            log.warning(
-                "Error preparing LTI 1.3 launch for block %r: %s",
-                str(self.location),  # pylint: disable=no-member
-                exc,
-                exc_info=True,
-            )
-            template = loader.render_django_template('/templates/html/lti_1p3_launch_error.html', context)
-            return Response(template, status=400, content_type='text/html')
-        except AssertionError as exc:
-            log.warning(
-                "Permission on LTI block %r denied for user %r: %s",
-                str(self.location),  # pylint: disable=no-member
-                self.external_user_id,
-                exc,
-                exc_info=True
-            )
-            template = loader.render_django_template('/templates/html/lti_1p3_permission_error.html', context)
-            return Response(template, status=403, content_type='text/html')
-
-    @XBlock.handler
     def lti_1p3_access_token(self, request, suffix=''):  # pylint: disable=unused-argument
         """
         XBlock handler for creating access tokens for the LTI 1.3 tool.
-
         This endpoint is only valid when a LTI 1.3 tool is being used.
-
         Returns:
-            webob.response:
+            django.http.HttpResponse:
                 Either an access token or error message detailing the failure.
                 All responses are RFC 6749 compliant.
-
         References:
             Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
             Failure: https://tools.ietf.org/html/rfc6749#section-5.2
         """
         if self.lti_version != "lti_1p3":
             return Response(status=404)
-        if request.method != "POST":
-            return Response(status=405)
 
-        lti_consumer = self._get_lti_consumer()
-        try:
-            token = lti_consumer.access_token(
-                dict(urllib.parse.parse_qsl(
-                    request.body.decode('utf-8'),
-                    keep_blank_values=True
-                ))
-            )
-            # The returned `token` is compliant with RFC 6749 so we just
-            # need to return a 200 OK response with the token as Json body
-            return Response(json_body=token, content_type="application/json")
-
-        # Handle errors and return a proper response
-        except MissingRequiredClaim:
-            # Missing request attibutes
-            return Response(
-                json_body={"error": "invalid_request"},
-                status=400
-            )
-        except (MalformedJwtToken, TokenSignatureExpired):
-            # Triggered when a invalid grant token is used
-            return Response(
-                json_body={"error": "invalid_grant"},
-                status=400,
-            )
-        except (NoSuitableKeys, UnknownClientId):
-            # Client ID is not registered in the block or
-            # isn't possible to validate token using available keys.
-            return Response(
-                json_body={"error": "invalid_client"},
-                status=400,
-            )
-        except UnsupportedGrantType:
-            return Response(
-                json_body={"error": "unsupported_grant_type"},
-                status=400,
-            )
+        # Asserting that the consumer can be created. This makes sure that the LtiConfiguration
+        # object exists before calling the Django View
+        assert self._get_lti_consumer()
+        # Runtime import because this can only be run in the LMS/Studio Django
+        # environments. Importing the views on the top level will cause RuntimeErorr
+        from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
+        return access_token_endpoint(request, usage_id=str(self.location))  # pylint: disable=no-member
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument

@@ -4,6 +4,7 @@ LTI configuration and linking models.
 import logging
 import uuid
 import json
+
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
@@ -401,45 +402,60 @@ class LtiConfiguration(models.Model):
         """
         Set up LTI 1.3 Advantage Assigment and Grades Services.
         """
+
         try:
             lti_advantage_ags_mode = self.get_lti_advantage_ags_mode()
         except NotImplementedError as exc:
             log.exception("Error setting up LTI 1.3 Advantage Assignment and Grade Services: %s", exc)
             return
 
-        if lti_advantage_ags_mode != self.LTI_ADVANTAGE_AGS_DISABLED:
-            lineitem = None
-            # If using the declarative approach, we should create a LineItem if it
-            # doesn't exist. This is because on this mode the tool is not able to create
-            # and manage lineitems using the AGS endpoints.
-            if lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
-                # Set grade attributes
+        if lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DISABLED:
+            log.info('LTI Advantage AGS is disabled for %s', self)
+            return
+
+        lineitem = self.ltiagslineitem_set.first()
+        # If using the declarative approach, we should create a LineItem if it
+        # doesn't exist. This is because on this mode the tool is not able to create
+        # and manage lineitems using the AGS endpoints.
+        if not lineitem and lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
+            try:
+                block = self.block
+            except ValueError:  # There is no location to load the block
+                block = None
+
+            if block:
                 default_values = {
-                    'resource_id': self.block.location,
+                    'resource_id': self.location,
                     'score_maximum': self.block.weight,
                     'label': self.block.display_name,
                 }
-
                 if hasattr(self.block, 'start'):
                     default_values['start_date_time'] = self.block.start
 
                 if hasattr(self.block, 'due'):
                     default_values['end_date_time'] = self.block.due
+            else:
+                # TODO find a way to make these defaults more sensible
+                default_values = {
+                    'resource_id': self.location,
+                    'score_maximum': 100,
+                    'label': 'LTI Consumer at ' + str(self.location)
+                }
 
-                # create LineItem if there is none for current lti configuration
-                lineitem, _ = LtiAgsLineItem.objects.get_or_create(
-                    lti_configuration=self,
-                    resource_link_id=self.block.location,
-                    defaults=default_values
-                )
-
-            consumer.enable_ags(
-                lineitems_url=get_lti_ags_lineitems_url(self.id),
-                lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
-                allow_programmatic_grade_interaction=(
-                    lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_PROGRAMMATIC
-                )
+            # create LineItem if there is none for current lti configuration
+            lineitem = LtiAgsLineItem.objects.create(
+                lti_configuration=self,
+                resource_link_id=self.location,
+                **default_values
             )
+
+        consumer.enable_ags(
+            lineitems_url=get_lti_ags_lineitems_url(self.id),
+            lineitem_url=get_lti_ags_lineitems_url(self.id, lineitem.id) if lineitem else None,
+            allow_programmatic_grade_interaction=(
+                lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_PROGRAMMATIC
+            )
+        )
 
     def _setup_lti_1p3_deep_linking(self, consumer):
         """
@@ -471,7 +487,6 @@ class LtiConfiguration(models.Model):
         Uses the `config_store` variable to determine where to
         look for the configuration and instance the class.
         """
-        # If LTI configuration is stored in the XBlock.
         if self.config_store == self.CONFIG_ON_XBLOCK:
             consumer = LtiAdvantageConsumer(
                 iss=get_lms_base(),
@@ -505,13 +520,13 @@ class LtiConfiguration(models.Model):
                 tool_keyset_url=self.lti_1p3_tool_keyset_url,
             )
         else:
-            # This should not occur, but raise an error if self.config_store is not CONFIG_ON_XBLOCK or CONFIG_ON_DB.
+            # This should not occur, but raise an error if self.config_store is not CONFIG_ON_XBLOCK
+            # or CONFIG_ON_DB.
             raise NotImplementedError
 
         self._setup_lti_1p3_ags(consumer)
         self._setup_lti_1p3_deep_linking(consumer)
         self._setup_lti_1p3_nrps(consumer)
-
         return consumer
 
     def get_lti_consumer(self):

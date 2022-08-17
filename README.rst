@@ -369,6 +369,11 @@ Changelog
 
 Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
+4.4.0 - 2022-08-17
+------------------
+* Move the LTI 1.3 Access Token and Launch Callback endpoint logic from the XBlock to the Django views
+* Adds support for accessing LTI 1.3 URLs using both location and the lti_config_id
+
 4.2.2 - 2022-06-30
 ------------------
 * Fix server 500 error when using names/roles and grades services, due to not returning a user during auth.

@@ -4,7 +4,7 @@ URL mappings for LTI Consumer plugin.
 
 
 from django.conf import settings
-from django.urls import include, re_path
+from django.urls import include, re_path, path
 from rest_framework import routers
 
 from lti_consumer.plugin.views import (LtiAgsLineItemViewset,  # LTI Advantage URLs; LTI NRPS URLs
@@ -20,20 +20,30 @@ router.register(r'memberships', LtiNrpsContextMembershipViewSet, basename='lti-n
 
 app_name = 'lti_consumer'
 urlpatterns = [
+    path(
+        'lti_consumer/v1/public_keysets/<uuid:lti_config_id>',
+        public_keyset_endpoint,
+        name='lti_consumer.public_keyset_endpoint'
+    ),
     re_path(
         f'lti_consumer/v1/public_keysets/{settings.USAGE_ID_PATTERN}$',
         public_keyset_endpoint,
-        name='lti_consumer.public_keyset_endpoint'
+        name='lti_consumer.public_keyset_endpoint_via_location'
     ),
     re_path(
         'lti_consumer/v1/launch/(?:/(?P<suffix>.*))?$',
         launch_gate_endpoint,
         name='lti_consumer.launch_gate'
     ),
+    path(
+        'lti_consumer/v1/token/<uuid:lti_config_id>',
+        access_token_endpoint,
+        name='lti_consumer.access_token'
+    ),
     re_path(
         f'lti_consumer/v1/token/{settings.USAGE_ID_PATTERN}$',
         access_token_endpoint,
-        name='lti_consumer.access_token'
+        name='lti_consumer.access_token_via_location'
     ),
     re_path(
         r'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/lti-dl/response',

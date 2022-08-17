@@ -15,12 +15,12 @@ from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
 from jwkest.jwk import RSAKey, KEYS
+from opaque_keys.edx.keys import UsageKey
 
-from lti_consumer.api import get_lti_1p3_launch_info
 from lti_consumer.exceptions import LtiError
-from lti_consumer.lti_1p3.tests.utils import create_jwt
+
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
-from lti_consumer.models import LtiConfiguration
+from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.tests.unit import test_utils
 from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_jwt_request, make_request, make_xblock
 from lti_consumer.utils import resolve_custom_parameter_template
@@ -1359,7 +1359,6 @@ class TestGetModalPositionOffset(TestLtiConsumerXBlock):
         self.assertEqual(offset, 10)
 
 
-@ddt.ddt
 class TestLtiConsumer1p3XBlock(TestCase):
     """
     Unit tests for LtiConsumerXBlock when using an LTI 1.3 tool.
@@ -1380,76 +1379,8 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.mock_database_config_enabled_patcher = patch("lti_consumer.lti_xblock.database_config_enabled")
         self.mock_filter_enabled = self.mock_filter_enabled_patcher.start()
         self.mock_database_config_enabled = self.mock_database_config_enabled_patcher.start()
-
-    def tearDown(self) -> None:
-        self.mock_filter_enabled_patcher.stop()
-        self.mock_database_config_enabled_patcher.stop()
-        super().tearDown()
-
-    def test_launch_callback_endpoint(self):
-        """
-        Test the LTI 1.3 callback endpoint.
-        """
-        self.xblock.runtime.get_user_role.return_value = 'student'
-        mock_user_service = Mock()
-        mock_user_service.get_external_user_id.return_value = 2
-        self.xblock.runtime.service.return_value = mock_user_service
-
-        self.xblock.course.display_name_with_default = 'course_display_name'
-        self.xblock.course.display_org_with_default = 'course_display_org'
-
-        # Get LTI client_id
-        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
-
-        # Craft request sent back by LTI tool
-        request = make_request('', 'GET')
-        request.query_string = (
-            f"client_id={client_id}&" +
-            "redirect_uri=http://tool.example/launch&" +
-            "state=state_test_123&" +
-            "nonce=nonce&" +
-            "login_hint=oidchint"
-        )
-        response = self.xblock.lti_1p3_launch_callback(request)
-
-        # Check response and assert that state was inserted
-        self.assertEqual(response.status_code, 200)
-
-        response_body = response.body.decode('utf-8')
-        self.assertIn("state", response_body)
-        self.assertIn("state_test_123", response_body)
-
-    def test_launch_callback_endpoint_fails(self):
-        """
-        Test that the LTI 1.3 callback endpoint correctly display an error message.
-        """
-        self.xblock.runtime.get_user_role.return_value = 'student'
-        mock_user_service = Mock()
-        mock_user_service.get_external_user_id.return_value = 2
-        self.xblock.runtime.service.return_value = mock_user_service
-
-        self.xblock.course.display_name_with_default = 'course_display_name'
-        self.xblock.course.display_org_with_default = 'course_display_org'
-
-        # Make a fake invalid preflight request, with empty parameters
-        request = make_request('', 'GET')
-        response = self.xblock.lti_1p3_launch_callback(request)
-
-        # Check response and assert that state was inserted
-        self.assertEqual(response.status_code, 400)
-
-        response_body = response.body.decode('utf-8')
-        self.assertIn("There was an error while launching the LTI 1.3 tool.", response_body)
-        self.assertNotIn("% trans", response_body)
-
-    def test_launch_callback_endpoint_when_using_lti_1p1(self):
-        """
-        Test that the LTI 1.3 callback endpoind is unavailable when using 1.1.
-        """
-        self.xblock.lti_version = 'lti_1p1'
-        self.xblock.save()
-        response = self.xblock.lti_1p3_launch_callback(make_request('', 'GET'))
-        self.assertEqual(response.status_code, 404)
+        self.addCleanup(self.mock_filter_enabled_patcher.stop)
+        self.addCleanup(self.mock_database_config_enabled_patcher.stop)
 
     def test_studio_view(self):
         """
@@ -1481,198 +1412,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.assertIn("mock-keyset_url", response.content)
         self.assertIn("mock-token_url", response.content)
 
-    def _setup_deep_linking(self, user_role='staff'):
-        """
-        Set up deep linking for data and mocking for testing.
-        """
-        self.xblock.runtime.get_user_role.return_value = user_role
-        mock_user_service = Mock()
-        mock_user_service.get_external_user_id.return_value = 2
-        self.xblock.runtime.service.return_value = mock_user_service
-
-        self.xblock.course.display_name_with_default = 'course_display_name'
-        self.xblock.course.display_org_with_default = 'course_display_org'
-
-        # Enable deep linking
-        self.xblock.lti_advantage_deep_linking_enabled = True
-
-    def test_launch_callback_endpoint_deep_linking(self):
-        """
-        Test the LTI 1.3 callback endpoint for deep linking requests.
-        """
-        self._setup_deep_linking(user_role='staff')
-
-        # Get LTI client_id
-        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
-
-        # Craft request sent back by LTI tool
-        request = make_request('', 'GET')
-        request.query_string = (
-            "client_id={}&".format(client_id) +
-            "redirect_uri=http://tool.example/launch&" +
-            "state=state_test_123&" +
-            "nonce=nonce&" +
-            "login_hint=oidchint&" +
-            "lti_message_hint=deep_linking_launch"
-        )
-        response = self.xblock.lti_1p3_launch_callback(request)
-
-        # Check response
-        self.assertEqual(response.status_code, 200)
-
-    @ddt.data(Mock(), None)
-    @patch('lti_consumer.lti_1p3.consumer.LtiAdvantageConsumer.lti_dl', new_callable=PropertyMock)
-    def test_launch_callback_endpoint_deep_linking_database_config(self, dl_value, lti_dl_mock):
-        """
-        Test that Deep Linking is enabled and that the context is updated appropriately when using the 'database'
-        config_type.
-        """
-        self._setup_deep_linking(user_role='staff')
-
-        self.xblock.config_type = 'database'
-
-        type(lti_dl_mock).deep_linking_launch_url = PropertyMock(return_value="deep_linking_launch_url")
-        lti_dl_mock.return_value = dl_value
-
-        LtiConfiguration.objects.create(
-            location=self.xblock.location,
-            version=LtiConfiguration.LTI_1P3,
-        )
-
-        # Get LTI client_id
-        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
-
-        # Craft request sent back by LTI tool
-        request = make_request('', 'GET')
-        request.query_string = (
-            "client_id={}&".format(client_id) +
-            "redirect_uri=http://tool.example/launch&" +
-            "state=state_test_123&" +
-            "nonce=nonce&" +
-            "login_hint=oidchint&" +
-            "lti_message_hint=deep_linking_launch"
-        )
-        response = self.xblock.lti_1p3_launch_callback(request)
-
-        # Check response
-        self.assertEqual(response.status_code, 200)
-
-        response_body = response.body.decode('utf-8')
-
-        # If Deep Linking is enabled, test that deep linking launch URL is in the rendered template. Otherwise, test
-        # that it is not.
-        if dl_value:
-            self.assertIn("deep_linking_launch_url", response_body)
-        else:
-            self.assertNotIn("deep_linking_launch_url", response_body)
-
-    def test_launch_callback_endpoint_deep_linking_by_student(self):
-        """
-        Test that the callback endpoint errors out if students try to do a deep link launch.
-        """
-        self._setup_deep_linking(user_role='student')
-
-        # Get LTI client_id
-        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
-
-        # Craft request sent back by LTI tool
-        request = make_request('', 'GET')
-        request.query_string = (
-            "client_id={}&".format(client_id) +
-            "redirect_uri=http://tool.example/launch&" +
-            "state=state_test_123&" +
-            "nonce=nonce&" +
-            "login_hint=oidchint&" +
-            "lti_message_hint=deep_linking_launch"
-        )
-
-        response = self.xblock.lti_1p3_launch_callback(request)
-
-        # Check response
-        self.assertEqual(response.status_code, 403)
-        response_body = response.body.decode('utf-8')
-        self.assertIn("Students don't have permissions to perform", response_body)
-        self.assertNotIn("% trans", response_body)
-
-    @patch('lti_consumer.api.get_deep_linking_data')
-    def test_callback_endpoint_dl_content_launch(self, mock_dl_data):
-        """
-        Test that the callback endpoint return the correct information when
-        doing a `ltiResourceLink` deep linking launch.
-        """
-        self._setup_deep_linking(user_role='student')
-
-        # Set deep linking mock data
-        mock_dl_data.return_value = {
-            "url": "https://deep-link-content/",
-            "custom": {
-                "parameter": "custom",
-            },
-        }
-
-        # Get LTI client_id
-        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
-
-        # Craft request sent back by LTI tool
-        request = make_request('', 'GET')
-        request.query_string = (
-            "client_id={}&".format(client_id) +
-            "redirect_uri=http://tool.example/launch&" +
-            "state=state_test_123&" +
-            "nonce=nonce&" +
-            "login_hint=oidchint&" +
-            "lti_message_hint=deep_linking_content_launch:1"
-        )
-
-        response = self.xblock.lti_1p3_launch_callback(request)
-        content = response.body.decode('utf-8')
-
-        # Check response
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("http://tool.example/launch", content)
-
-    @ddt.data(Mock(), None)
-    @patch('lti_consumer.api.get_deep_linking_data')
-    @patch('lti_consumer.lti_1p3.consumer.LtiAdvantageConsumer.lti_dl', new_callable=PropertyMock)
-    def test_callback_endpoint_dl_content_launch_database_config(self, dl_value, mock_lti_dl, mock_dl_data):
-        self._setup_deep_linking(user_role="staff")
-        self.xblock.config_type = 'database'
-        mock_lti_dl.return_value = dl_value
-
-        LtiConfiguration.objects.create(
-            location=self.xblock.location,
-            version=LtiConfiguration.LTI_1P3,
-            lti_1p3_launch_url='http://tool.example/launch',
-            lti_1p3_oidc_url='http://tool.example/oidc',
-        )
-
-        # Set deep linking mock data
-        mock_dl_data.return_value = {
-            "url": "https://deep-link-content/",
-            "custom": {
-                "parameter": "custom",
-            },
-        }
-
-        # Get LTI client_id
-        client_id = get_lti_1p3_launch_info(block=self.xblock)['client_id']
-
-        # Craft request sent back by LTI tool
-        request = make_request('', 'GET')
-        request.query_string = (
-            "client_id={}&".format(client_id) +
-            "redirect_uri=http://tool.example/launch&" +
-            "state=state_test_123&" +
-            "nonce=nonce&" +
-            "login_hint=oidchint&" +
-            "lti_message_hint=deep_linking_content_launch:1"
-        )
-
-        response = self.xblock.lti_1p3_launch_callback(request)
-
-        # Check response
-        self.assertEqual(response.status_code, 200)
-
 
 class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
     """
@@ -1702,6 +1441,12 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
         # Set dummy location so that UsageKey lookup is valid
         self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
+        patcher = patch(
+            'lti_consumer.models.compat',
+            **{'load_block_as_anonymous_user.return_value': self.xblock}
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_access_token_endpoint_when_using_lti_1p1(self):
         """
@@ -1734,7 +1479,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
 
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_request'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_request'})
 
     def test_access_token_malformed(self):
         """
@@ -1743,7 +1488,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         request = make_jwt_request("invalid-jwt")
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_grant'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_grant'})
 
     def test_access_token_invalid_grant(self):
         """
@@ -1754,7 +1499,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
 
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'unsupported_grant_type'})
+        self.assertJSONEqual(response.content, {'error': 'unsupported_grant_type'})
 
     def test_access_token_invalid_client(self):
         """
@@ -1767,7 +1512,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         request = make_jwt_request(jwt)
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_client'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_client'})
 
     def test_access_token(self):
         """
@@ -1873,6 +1618,12 @@ class TestLti1p3AccessTokenJWK(TestCase):
 
         jwt = create_jwt(self.key, {})
         self.request = make_jwt_request(jwt)
+        patcher = patch(
+            'lti_consumer.models.compat',
+            **{'load_block_as_anonymous_user.return_value': self.xblock}
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def make_keyset(self, keys):
         """
@@ -1900,7 +1651,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         load_jwks_from_url.return_value = self.make_keyset([])
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {"error": "invalid_client"})
+        self.assertJSONEqual(response.content, {"error": "invalid_client"})
 
     @patch("lti_consumer.lti_1p3.key_handlers.load_jwks_from_url")
     def test_access_token_using_keyset_url_with_wrong_keys(self, load_jwks_from_url):
@@ -1911,7 +1662,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         load_jwks_from_url.return_value = self.make_keyset([key])
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {"error": "invalid_client"})
+        self.assertJSONEqual(response.content, {"error": "invalid_client"})
 
     @patch("jwkest.jwk.request")
     def test_access_token_using_keyset_url_that_fails(self, request):
@@ -1921,7 +1672,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         request.side_effect = Exception("request fails")
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_client'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_client'})
 
     @patch("jwkest.jwk.request")
     def test_access_token_using_keyset_url_with_invalid_contents(self, request):
@@ -1934,4 +1685,26 @@ class TestLti1p3AccessTokenJWK(TestCase):
         request.return_value = response_mock
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json_body, {'error': 'invalid_client'})
+        self.assertJSONEqual(response.content, {'error': 'invalid_client'})
+
+
+class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
+    """
+    Unit tests for LtiConsumerXBlock.submit_studio_edits()
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.xblock.location = UsageKey.from_string('block-v1:course+test+2020+type@problem+block@test')
+        self.xblock.lti_version = "lti_1p3"
+
+        db_config_waffle_patcher = patch('lti_consumer.lti_xblock.database_config_enabled', return_value=True)
+        db_config_waffle_patcher.start()
+        self.addCleanup(db_config_waffle_patcher.stop)
+
+        external_config_flag_patcher = patch(
+            'lti_consumer.lti_xblock.external_config_filter_enabled',
+            return_value=False
+        )
+        external_config_flag_patcher.start()
+        self.addCleanup(external_config_flag_patcher.stop)

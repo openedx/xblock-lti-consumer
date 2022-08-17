@@ -2,6 +2,7 @@
 LTI consumer plugin passthrough views
 """
 import logging
+import urllib
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
@@ -17,7 +18,7 @@ from opaque_keys.edx.keys import UsageKey
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.status import HTTP_403_FORBIDDEN
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course
 from lti_consumer.exceptions import LtiError
@@ -27,9 +28,16 @@ from lti_consumer.models import (
     LtiDlContentItem,
 )
 
+from lti_consumer.lti_1p3.consumer import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.exceptions import (
     Lti1p3Exception,
     LtiDeepLinkingContentTypeNotSupported,
+    UnsupportedGrantType,
+    MalformedJwtToken,
+    MissingRequiredClaim,
+    NoSuitableKeys,
+    TokenSignatureExpired,
+    UnknownClientId,
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
 from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
@@ -58,6 +66,7 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
 from lti_consumer.plugin import compat
 from lti_consumer.utils import _
+from lti_consumer.track import track_event
 
 
 log = logging.getLogger(__name__)
@@ -93,7 +102,7 @@ def has_block_access(user, block, course_key):
 
 
 @require_http_methods(["GET"])
-def public_keyset_endpoint(request, usage_id=None):
+def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
     """
     Gate endpoint to fetch public keysets from a problem
 
@@ -102,9 +111,10 @@ def public_keyset_endpoint(request, usage_id=None):
     and run the proper handler.
     """
     try:
-        lti_config = LtiConfiguration.objects.get(
-            location=UsageKey.from_string(usage_id)
-        )
+        if usage_id:
+            lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
+        elif lti_config_id:
+            lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
 
         if lti_config.version != lti_config.LTI_1P3:
             raise LtiError(
@@ -118,53 +128,215 @@ def public_keyset_endpoint(request, usage_id=None):
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
     except (LtiError, InvalidKeyError, ObjectDoesNotExist) as exc:
-        log.info("Error while retrieving keyset for usage_id %r: %s", usage_id, exc)
+        log.info(
+            "Error while retrieving keyset for usage_id (%r) or lit_config_id (%s): %s",
+            usage_id,
+            lti_config_id,
+            exc,
+            exc_info=True,
+        )
         raise Http404 from exc
 
 
 @require_http_methods(["GET", "POST"])
-def launch_gate_endpoint(request, suffix=None):
+def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argument
     """
     Gate endpoint that triggers LTI launch endpoint XBlock handler
 
-    This is basically a passthrough function that uses the
-    OIDC response parameter `login_hint` to locate the block
-    and run the proper handler.
+    This uses the location key from the "login_hint" query parameter
+    to identify the LtiConfiguration and its consumer to generate the
+    LTI 1.3 Launch Form.
     """
-    try:
-        usage_key_str = request.GET.get('login_hint')
-        usage_key = UsageKey.from_string(usage_key_str)
+    usage_id = request.GET.get('login_hint')
+    if not usage_id:
+        log.info('The `login_hint` query param in the request is missing or empty.')
+        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_400_BAD_REQUEST)
 
-        return compat.run_xblock_handler(
-            request=request,
-            course_id=str(usage_key.course_key),
-            usage_id=str(usage_key),
-            handler='lti_1p3_launch_callback',
-            suffix=suffix
+    try:
+        usage_key = UsageKey.from_string(usage_id)
+    except InvalidKeyError as exc:
+        log.error(
+            "The login_hint: %s is not a valid block location. Error: %s",
+            usage_id,
+            exc,
+            exc_info=True
         )
-    except Exception as exc:
-        log.warning("Error preparing LTI 1.3 launch for hint %r: %s", usage_key_str, exc)
+        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_404_NOT_FOUND)
+
+    try:
+        lti_config = LtiConfiguration.objects.get(
+            location=usage_key
+        )
+    except LtiConfiguration.DoesNotExist as exc:
+        log.error("Invalid usage_id '%s' for LTI 1.3 Launch callback", usage_id)
         raise Http404 from exc
+
+    if lti_config.version != LtiConfiguration.LTI_1P3:
+        log.error("The LTI Version of configuration %s is not LTI 1.3", lti_config)
+        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_404_NOT_FOUND)
+
+    context = {}
+
+    course_key = usage_key.course_key
+    course = compat.get_course_by_id(course_key)
+    user_role = compat.get_user_role(request.user, course_key)
+    external_user_id = compat.get_external_id_for_user(request.user)
+    lti_consumer = lti_config.get_lti_consumer()
+
+    try:
+        # Pass user data
+        # Pass django user role to library
+        lti_consumer.set_user_data(user_id=external_user_id, role=user_role)
+
+        # Set launch context
+        # Hardcoded for now, but we need to translate from
+        # self.launch_target to one of the LTI compliant names,
+        # either `iframe`, `frame` or `window`
+        # This is optional though
+        lti_consumer.set_launch_presentation_claim('iframe')
+
+        # Set context claim
+        # This is optional
+        context_title = " - ".join([
+            course.display_name_with_default,
+            course.display_org_with_default
+        ])
+        # Course ID is the context ID for the LTI for now. This can be changed to be
+        # more specific in the future for supporting other tools like discussions, etc.
+        lti_consumer.set_context_claim(
+            str(course_key),
+            context_types=[LTI_1P3_CONTEXT_TYPE.course_offering],
+            context_title=context_title,
+            context_label=str(course_key)
+        )
+
+        # Retrieve preflight response
+        preflight_response = request.GET.dict()
+        lti_message_hint = preflight_response.get('lti_message_hint', '')
+
+        # Set LTI Launch URL
+        context.update({'launch_url': lti_consumer.launch_url})
+
+        # Modify LTI Launch URL dependind on launch type
+        # Deep Linking Launch - Configuration flow launched by
+        # course creators to set up content.
+        if lti_consumer.dl and lti_message_hint == 'deep_linking_launch':
+            # Check if the user is staff before LTI doing deep linking launch.
+            # If not, raise exception and display error page
+            if user_role not in ['instructor', 'staff']:
+                raise AssertionError('Deep Linking can only be performed by instructors and staff.')
+            # Set deep linking launch
+            context.update({'launch_url': lti_consumer.dl.deep_linking_launch_url})
+
+        # Deep Linking ltiResourceLink content presentation
+        # When content type is `ltiResourceLink`, the tool will be launched with
+        # different parameters, set by instructors when running the DL configuration flow.
+        elif lti_consumer.dl and 'deep_linking_content_launch' in lti_message_hint:
+            # Retrieve Deep Linking parameters using lti_message_hint parameter.
+            deep_linking_id = lti_message_hint.split(':')[1]
+            content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_id)
+            # Only filter DL content item from content item set in the same LTI configuration.
+            # This avoids a malicious user to input a random LTI id and perform LTI DL
+            # content launches outside the scope of its configuration.
+            dl_params = content_item.attributes
+
+            # Modify LTI launch and set ltiResourceLink parameters
+            lti_consumer.set_dl_content_launch_parameters(
+                url=dl_params.get('url'),
+                custom=dl_params.get('custom')
+            )
+
+        # Update context with LTI launch parameters
+        context.update({
+            "preflight_response": preflight_response,
+            "launch_request": lti_consumer.generate_launch_request(
+                resource_link=usage_id,
+                preflight_response=preflight_response
+            )
+        })
+        event = {
+            'lti_version': lti_config.version,
+            'user_roles': user_role,
+            'launch_url': context['launch_url']
+        }
+        track_event('xblock.launch_request', event)
+
+        return render(request, 'html/lti_1p3_launch.html', context)
+    except Lti1p3Exception as exc:
+        log.warning(
+            "Error preparing LTI 1.3 launch for block %r: %s",
+            usage_id,
+            exc,
+            exc_info=True
+        )
+        return render(request, 'html/lti_1p3_launch_error.html', context, status=HTTP_400_BAD_REQUEST)
+    except AssertionError as exc:
+        log.warning(
+            "Permission on LTI block %r denied for user %r: %s",
+            usage_id,
+            external_user_id,
+            exc,
+            exc_info=True
+        )
+        return render(request, 'html/lti_1p3_permission_error.html', context, status=HTTP_403_FORBIDDEN)
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def access_token_endpoint(request, usage_id=None):
+def access_token_endpoint(request, lti_config_id=None, usage_id=None):
     """
-    Gate endpoint to enable tools to retrieve access tokens
-    """
-    try:
-        usage_key = UsageKey.from_string(usage_id)
+    Gate endpoint to enable tools to retrieve access tokens for the LTI 1.3 tool.
 
-        return compat.run_xblock_handler_noauth(
-            request=request,
-            course_id=str(usage_key.course_key),
-            usage_id=str(usage_key),
-            handler='lti_1p3_access_token'
-        )
-    except Exception as exc:
-        log.warning("Error retrieving an access token for usage_id %r: %s", usage_id, exc)
+    This endpoint is only valid when a LTI 1.3 tool is being used.
+
+    Arguments:
+        lti_config_id (UUID): config_id of the LtiConfiguration
+        usage_id (UsageKey): location of the Block
+
+    Returns:
+        JsonResponse or Http404
+
+    References:
+        Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
+        Failure: https://tools.ietf.org/html/rfc6749#section-5.2
+    """
+
+    try:
+        if lti_config_id:
+            lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
+        else:
+            usage_key = UsageKey.from_string(usage_id)
+            lti_config = LtiConfiguration.objects.get(location=usage_key)
+    except LtiConfiguration.DoesNotExist as exc:
+        log.warning("Error getting the LTI configuration with id %r: %s", lti_config_id, exc, exc_info=True)
         raise Http404 from exc
+
+    if lti_config.version != lti_config.LTI_1P3:
+        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
+
+    lti_consumer = lti_config.get_lti_consumer()
+    try:
+        token = lti_consumer.access_token(
+            dict(urllib.parse.parse_qsl(
+                request.body.decode('utf-8'),
+                keep_blank_values=True
+            ))
+        )
+        return JsonResponse(token)
+
+    # Handle errors and return a proper response
+    except MissingRequiredClaim:
+        # Missing request attibutes
+        return JsonResponse({"error": "invalid_request"}, status=HTTP_400_BAD_REQUEST)
+    except (MalformedJwtToken, TokenSignatureExpired):
+        # Triggered when a invalid grant token is used
+        return JsonResponse({"error": "invalid_grant"}, status=HTTP_400_BAD_REQUEST)
+    except (NoSuitableKeys, UnknownClientId):
+        # Client ID is not registered in the block or
+        # isn't possible to validate token using available keys.
+        return JsonResponse({"error": "invalid_client"}, status=HTTP_400_BAD_REQUEST)
+    except UnsupportedGrantType:
+        return JsonResponse({"error": "unsupported_grant_type"}, status=HTTP_400_BAD_REQUEST)
 
 
 # Post from external tool that doesn't

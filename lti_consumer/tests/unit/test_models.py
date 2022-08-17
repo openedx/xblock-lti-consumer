@@ -87,16 +87,15 @@ class TestLtiConfigurationModel(TestCase):
             external_id="test-external-id"
         )
 
-    def _get_1p3_config_for_config_store(self, config_store):
+    def _get_1p3_config(self, **kwargs):
         """
-        Return the instance of LtiConfiguration that uses the provided config_store for LTI 1.3 configurations.
+        Helper function to create a LtiConfiguration object with specific attributes
         """
-        if config_store == LtiConfiguration.CONFIG_ON_XBLOCK:
-            return self.lti_1p3_config
-        elif config_store == LtiConfiguration.CONFIG_EXTERNAL:
-            return self.lti_1p3_config_external
-        else:
-            return self.lti_1p3_config_db
+        return LtiConfiguration.objects.create(
+            location=str(self.xblock.location),
+            version=LtiConfiguration.LTI_1P3,
+            **kwargs
+        )
 
     @patch("lti_consumer.models.LtiConfiguration._get_lti_1p3_consumer")
     @patch("lti_consumer.models.LtiConfiguration._get_lti_1p1_consumer")
@@ -156,7 +155,10 @@ class TestLtiConfigurationModel(TestCase):
         """
         Check if LTI AGS is properly included when block is graded.
         """
-        config = self._get_1p3_config_for_config_store(config_store)
+        config = self._get_1p3_config(
+            config_store=config_store,
+            lti_advantage_ags_mode='programmatic'
+        )
         config.block = self.xblock
 
         # Get LTI 1.3 consumer
@@ -180,7 +182,7 @@ class TestLtiConfigurationModel(TestCase):
 
     @ddt.data(
         {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': 'XBlock'},
-        {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': 'database'},
+        {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': 'disabled'},
         {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
     )
     @ddt.unpack
@@ -188,12 +190,10 @@ class TestLtiConfigurationModel(TestCase):
         """
         Check if LTI AGS is properly returned.
         """
-        config = self._get_1p3_config_for_config_store(config_store)
+        config = self._get_1p3_config(config_store=config_store, lti_advantage_ags_mode='disabled')
         config.block = self.xblock
 
         self.xblock.lti_advantage_ags_mode = 'XBlock'
-        config.lti_advantage_ags_mode = 'database'
-        config.save()
 
         if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
             self.assertEqual(config.get_lti_advantage_ags_mode(), expected_value)
@@ -213,10 +213,8 @@ class TestLtiConfigurationModel(TestCase):
         self.xblock.due = datetime.now(timezone.utc) + timedelta(days=2)
 
         # Get LTI 1.3 consumer
-        config = self._get_1p3_config_for_config_store(config_store)
+        config = self._get_1p3_config(config_store=config_store, lti_advantage_ags_mode='declarative')
         config.block = self.xblock
-        config.lti_advantage_ags_mode = 'declarative'
-        config.save()
 
         consumer = config.get_lti_consumer()
 
@@ -242,7 +240,10 @@ class TestLtiConfigurationModel(TestCase):
         """
         Check if LTI DL is properly instanced when configured.
         """
-        config = self._get_1p3_config_for_config_store(config_store)
+        config = self._get_1p3_config(
+            config_store=config_store,
+            lti_advantage_deep_linking_enabled=True
+        )
         config.block = self.xblock
 
         # Get LTI 1.3 consumer
@@ -261,12 +262,10 @@ class TestLtiConfigurationModel(TestCase):
         """
         Check if LTI Deep Linking enabled is properly returned.
         """
-        config = self._get_1p3_config_for_config_store(config_store)
+        config = self._get_1p3_config(config_store=config_store, lti_advantage_deep_linking_enabled=True)
         config.block = self.xblock
 
         self.xblock.lti_advantage_deep_linking_enabled = False
-        config.lti_advantage_deep_linking_enabled = True
-        config.save()
 
         if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
             self.assertEqual(config.get_lti_advantage_deep_linking_enabled(), expected_value)
@@ -284,12 +283,10 @@ class TestLtiConfigurationModel(TestCase):
         """
         Check if LTI Deep Linking launch URL is properly returned.
         """
-        config = self._get_1p3_config_for_config_store(config_store)
+        config = self._get_1p3_config(config_store=config_store, lti_advantage_deep_linking_launch_url='database')
         config.block = self.xblock
 
         self.xblock.lti_advantage_deep_linking_launch_url = 'XBlock'
-        config.lti_advantage_deep_linking_launch_url = 'database'
-        config.save()
 
         if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
             self.assertEqual(config.get_lti_advantage_deep_linking_launch_url(), expected_value)
@@ -307,12 +304,10 @@ class TestLtiConfigurationModel(TestCase):
         """
         Check if LTI Deep Linking launch URL is properly returned.
         """
-        config = self._get_1p3_config_for_config_store(config_store)
+        config = self._get_1p3_config(config_store=config_store, lti_advantage_enable_nrps=True)
         config.block = self.xblock
 
         self.xblock.lti_advantage_enable_nrps = False
-        config.lti_advantage_enable_nrps = True
-        config.save()
 
         if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
             self.assertEqual(config.get_lti_advantage_nrps_enabled(), expected_value)
