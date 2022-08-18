@@ -745,7 +745,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Get system user role and convert it to LTI role.
         """
-        role = self.runtime.service(self, 'user').get_current_user().opt_attrs.get('edx-platform.user_role', 'student')
+        user = self.runtime.service(self, 'user').get_current_user()
+        if not user.opt_attrs["edx-platform.is_authenticated"]:
+            raise LtiError(self.ugettext("Could not get user data for current request"))
+
+        role = user.opt_attrs.get('edx-platform.user_role', 'student')
         return ROLE_MAP.get(role, 'Student,Learner')
 
     @property
@@ -978,6 +982,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Extract and return real user data from the runtime
         """
         user = self.runtime.service(self, 'user').get_current_user()
+
+        if not user.opt_attrs["edx-platform.is_authenticated"]:
+            raise LtiError(self.ugettext("Could not get user data for current request"))
+
         user_data = {
             'user_email': None,
             'user_username': None,
@@ -1080,9 +1088,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response: HTML LTI launch form
         """
-        real_user_data = self.extract_real_user_data()
-
         lti_consumer = self._get_lti_consumer()
+
+        # Occassionally, users try to do an LTI launch while they are unauthenticated. It is not known why this occurs.
+        # Sometimes, it is due to a web crawlers; other times, it is due to actual users of the platform. Regardless,
+        # return a 400 response with an appropriate error template.
+        try:
+            real_user_data = self.extract_real_user_data()
+            user_id = self.user_id
+            role = self.role
+            result_sourcedid = self.lis_result_sourcedid
+        except LtiError:
+            loader = ResourceLoader(__name__)
+            template = loader.render_django_template('/templates/html/lti_launch_error.html')
+            return Response(template, status=400, content_type='text/html')
 
         username = None
         email = None
@@ -1092,12 +1111,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             email = real_user_data['user_email']
 
         lti_consumer.set_user_data(
-            self.user_id,
-            self.role,
-            result_sourcedid=self.lis_result_sourcedid,
+            user_id,
+            role,
+            result_sourcedid=result_sourcedid,
             person_sourcedid=username,
             person_contact_email_primary=email
         )
+
         lti_consumer.set_context_data(
             self.context_id,
             self.course.display_name_with_default,

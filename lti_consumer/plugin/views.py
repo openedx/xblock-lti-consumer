@@ -150,7 +150,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     usage_id = request.GET.get('login_hint')
     if not usage_id:
         log.info('The `login_hint` query param in the request is missing or empty.')
-        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_400_BAD_REQUEST)
+        return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
 
     try:
         usage_key = UsageKey.from_string(usage_id)
@@ -161,7 +161,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             exc,
             exc_info=True
         )
-        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_404_NOT_FOUND)
+        return render(request, 'html/lti_launch_error.html', status=HTTP_404_NOT_FOUND)
 
     try:
         lti_config = LtiConfiguration.objects.get(
@@ -173,7 +173,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
     if lti_config.version != LtiConfiguration.LTI_1P3:
         log.error("The LTI Version of configuration %s is not LTI 1.3", lti_config)
-        return render(request, 'html/lti_1p3_launch_error.html', status=HTTP_404_NOT_FOUND)
+        return render(request, 'html/lti_launch_error.html', status=HTTP_404_NOT_FOUND)
 
     context = {}
 
@@ -269,7 +269,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             exc,
             exc_info=True
         )
-        return render(request, 'html/lti_1p3_launch_error.html', context, status=HTTP_400_BAD_REQUEST)
+        return render(request, 'html/lti_launch_error.html', context, status=HTTP_400_BAD_REQUEST)
     except AssertionError as exc:
         log.warning(
             "Permission on LTI block %r denied for user %r: %s",

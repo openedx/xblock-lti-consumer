@@ -146,28 +146,39 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         fake_user = Mock()
         fake_user.opt_attrs = {
-            'edx-platform.user_role': 'student'
+            'edx-platform.user_role': 'student',
+            'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertEqual(self.xblock.role, 'Student,Learner')
 
         fake_user.opt_attrs = {
-            'edx-platform.user_role': 'guest'
+            'edx-platform.user_role': 'guest',
+            'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertEqual(self.xblock.role, 'Student,Learner')
 
         fake_user.opt_attrs = {
-            'edx-platform.user_role': 'staff'
+            'edx-platform.user_role': 'staff',
+            'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertEqual(self.xblock.role, 'Administrator')
 
         fake_user.opt_attrs = {
-            'edx-platform.user_role': 'instructor'
+            'edx-platform.user_role': 'instructor',
+            'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertEqual(self.xblock.role, 'Instructor')
+
+        fake_user.opt_attrs = {
+            'edx-platform.user_role': 'student',
+            'edx-platform.is_authenticated': False,
+        }
+        with self.assertRaises(LtiError):
+            _ = self.xblock.role
 
     def test_course(self):
         """
@@ -593,7 +604,8 @@ class TestExtractRealUserData(TestLtiConsumerXBlock):
         fake_user.emails = [fake_user_email]
         fake_username = 'fake'
         fake_user.opt_attrs = {
-            "edx-platform.username": fake_username
+            "edx-platform.username": fake_username,
+            "edx-platform.is_authenticated": True,
         }
 
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
@@ -616,13 +628,28 @@ class TestExtractRealUserData(TestLtiConsumerXBlock):
         fake_user.opt_attrs = {
             "edx-platform.user_preferences": {
                 "pref-lang": "en"
-            }
+            },
+            "edx-platform.is_authenticated": True,
         }
 
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
 
         real_user_data = self.xblock.extract_real_user_data()
         self.assertEqual(real_user_data['user_language'], pref_language)
+
+    def test_unauthenticated_user(self):
+        """
+        Test that an LtiError is raised when the user is unauthenticated.
+        """
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            "edx-platform.is_authenticated": False,
+        }
+
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+
+        with self.assertRaises(LtiError):
+            self.xblock.extract_real_user_data()
 
 
 class TestStudentView(TestLtiConsumerXBlock):
@@ -734,7 +761,8 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         fake_user.emails = [fake_user_email]
         fake_username = 'fake'
         fake_user.opt_attrs = {
-            "edx-platform.username": fake_username
+            "edx-platform.username": fake_username,
+            "edx-platform.is_authenticated": True,
         }
 
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
@@ -756,6 +784,36 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.mock_lti_consumer.generate_launch_request.assert_called_with(self.xblock.resource_link_id)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content_type, 'text/html')
+
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
+    def test_lti_launch_handler_unauthenticated(self, mock_course):
+        """
+        Test that a 400 response an an appropriate template is rendered when a user is unauthenticated
+        during an LTI launch according to the LMS's user service.
+        """
+        provider = 'lti_provider'
+        key = 'test'
+        secret = 'secret'
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
+
+        fake_user = Mock()
+        fake_user_email = 'abc@example.com'
+        fake_user.emails = [fake_user_email]
+        fake_username = 'fake'
+        fake_user.opt_attrs = {
+            "edx-platform.username": fake_username,
+            "edx-platform.is_authenticated": True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+
+        request = make_request('', 'GET')
+        response = self.xblock.lti_launch_handler(request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content_type, 'text/html')
+
+        response_body = response.body.decode('utf-8')
+        self.assertIn("There was an error while launching the LTI tool.", response_body)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))

@@ -196,7 +196,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.assertEqual(response.status_code, 400)
 
         response_body = response.content.decode('utf-8')
-        self.assertIn("There was an error while launching the LTI 1.3 tool.", response_body)
+        self.assertIn("There was an error while launching the LTI tool.", response_body)
         self.assertNotIn("% trans", response_body)
 
         with patch(
