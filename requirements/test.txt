@@ -14,7 +14,7 @@ asgiref==3.5.2
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.11.7
+astroid==2.12.5
     # via
     #   pylint
     #   pylint-celery
@@ -26,9 +26,9 @@ bleach==5.0.1
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.24.52
+boto3==1.24.65
     # via fs-s3fs
-botocore==1.27.52
+botocore==1.27.65
     # via
     #   boto3
     #   s3transfer
@@ -43,7 +43,7 @@ cffi==1.15.1
     #   pynacl
 chardet==5.0.0
     # via binaryornot
-charset-normalizer==2.1.0
+charset-normalizer==2.1.1
     # via
     #   -r requirements/base.txt
     #   requests
@@ -97,7 +97,7 @@ django-pyfs==3.2.0
     # via
     #   -r requirements/test.in
     #   xblock-sdk
-django-waffle==2.6.0
+django-waffle==3.0.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -142,6 +142,8 @@ importlib-metadata==4.12.0
     #   twine
 isort==5.10.1
     # via pylint
+jaraco-classes==3.2.2
+    # via keyring
 jeepney==0.8.0
     # via
     #   keyring
@@ -159,7 +161,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via -r requirements/base.txt
-keyring==23.8.2
+keyring==23.9.0
     # via twine
 lazy==1.4
     # via
@@ -172,7 +174,7 @@ lxml==4.9.1
     #   -r requirements/base.txt
     #   xblock
     #   xblock-sdk
-mako==1.2.1
+mako==1.2.2
     # via
     #   -r requirements/base.txt
     #   xblock-utils
@@ -186,13 +188,15 @@ mccabe==0.7.0
     # via pylint
 mock==4.0.3
     # via -r requirements/test.in
+more-itertools==8.14.0
+    # via jaraco-classes
 newrelic==8.0.0.179
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
 oauthlib==3.2.0
     # via -r requirements/base.txt
-openedx-filters==0.7.0
+openedx-filters==0.8.0
     # via -r requirements/base.txt
 pbr==5.10.0
     # via
@@ -222,7 +226,7 @@ pygments==2.13.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.14.5
+pylint==2.15.0
     # via
     #   edx-lint
     #   pylint-celery
@@ -268,7 +272,7 @@ pyyaml==6.0
     #   code-annotations
     #   cookiecutter
     #   xblock
-readme-renderer==36.0
+readme-renderer==37.0
     # via
     #   -r requirements/test.in
     #   twine
@@ -328,7 +332,7 @@ typing-extensions==4.3.0
     #   astroid
     #   pylint
     #   rich
-urllib3==1.26.11
+urllib3==1.26.12
     # via
     #   -r requirements/base.txt
     #   botocore
