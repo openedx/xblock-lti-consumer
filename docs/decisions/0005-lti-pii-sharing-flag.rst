@@ -14,15 +14,15 @@ about users, such as their username and email. Sharing such information allows
 for a smoother registration flow among other benefits.
 
 The `LTI XBlock has options
-<https://github.com/edx/xblock-lti-consumer/blob/edec2a68282a2a1fc2b2036e1989d60688fa6b19/lti_consumer/lti_xblock.py#L471-L487>`_
+<https://github.com/openedx/xblock-lti-consumer/blob/edec2a68282a2a1fc2b2036e1989d60688fa6b19/lti_consumer/lti_xblock.py#L471-L487>`_
 called ``ask_to_send_username`` and ``ask_to_send_email`` that enable sending
 such PII to the external tool. However, `by default these options are not
 visible
-<https://github.com/edx/xblock-lti-consumer/blob/edec2a68282a2a1fc2b2036e1989d60688fa6b19/lti_consumer/lti_xblock.py#L588-L599>`_
+<https://github.com/openedx/xblock-lti-consumer/blob/edec2a68282a2a1fc2b2036e1989d60688fa6b19/lti_consumer/lti_xblock.py#L588-L599>`_
 to course authors, and there is no way to send PII to LTI tools. In order to
 even enable these options to appear in the LTI XBlock configuration, you need
 to first set a `configuration flag
-<https://github.com/edx/edx-platform/blob/e19ba34f5a564285b3a20a7298c20ca640ca5aa0/cms/djangoapps/xblock_config/models.py#L38-L86>`_
+<https://github.com/openedx/edx-platform/blob/e19ba34f5a564285b3a20a7298c20ca640ca5aa0/cms/djangoapps/xblock_config/models.py#L38-L86>`_
 via Django admin in studio.
 
 This configuration flag unlocks the editing of the above fields after which

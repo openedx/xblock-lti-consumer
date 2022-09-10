@@ -106,7 +106,7 @@ The user data claims are identifiers passed through the LTI message to send user
    * - sub
      - external user id (with the `lti` type)
      - Using the id provided by the external_user_id from openedx core.
-       See https://github.com/edx/edx-platform/blob/master/openedx/core/djangoapps/external_user_ids/docs/decisions/0001-externalid.rst
+       See https://github.com/openedx/edx-platform/blob/master/openedx/core/djangoapps/external_user_ids/docs/decisions/0001-externalid.rst
    * - name
      - User full name
      - User full name as defined in the spec, gated by a feature flag to avoid leaking PII to external tools.

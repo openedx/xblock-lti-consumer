@@ -326,8 +326,8 @@ Reporting Security Issues
 
 Please do not report security issues in public. Please email security@tcril.org.
 
-.. |ci-badge| image:: https://github.com/edx/xblock-lti-consumer/workflows/Python%20CI/badge.svg?branch=master
-    :target: https://github.com/edx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
+.. |ci-badge| image:: https://github.com/openedx/xblock-lti-consumer/workflows/Python%20CI/badge.svg?branch=master
+    :target: https://github.com/openedx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
     :alt: Test suite status
 
 .. |codecov-badge| image:: https://codecov.io/github/edx/xblock-lti-consumer/coverage.svg?branch=master

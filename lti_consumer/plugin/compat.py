@@ -223,7 +223,7 @@ def get_course_by_id(course_key):  # pragma: nocover
     TODO: Once the LMS has fully switched over to this new path [1],
     we can remove the legacy (LMS) import support here.
 
-    - [1] https://github.com/edx/edx-platform/pull/27289
+    - [1] https://github.com/openedx/edx-platform/pull/27289
     """
     # pylint: disable=import-outside-toplevel
     try:

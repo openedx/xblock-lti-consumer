@@ -50,7 +50,7 @@ class LtiConfiguration(models.Model):
     configuration data fetching them from XBlock fields.
 
     With the implementation of
-    https://github.com/edx/xblock-lti-consumer/blob/master/docs/decisions/0001-lti-extensions-plugin.rst
+    https://github.com/openedx/xblock-lti-consumer/blob/master/docs/decisions/0001-lti-extensions-plugin.rst
     this model will store all LTI configuration values as a formatted JSON.
 
     .. no_pii:
