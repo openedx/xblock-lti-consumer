@@ -2,7 +2,7 @@
 LTI Consumer XBlock
 ###################
 
-| |Build Status| |Coveralls|
+| |status-badge| |license-badge| |CI| |Codecov| |pypi-badge|
 
 This XBlock implements the consumer side of the LTI specification enabling
 integration of third-party LTI provider tools.
@@ -578,8 +578,21 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 * LTI 1.3 support.
 
 
-.. |Build Status| image:: https://github.com/edx/xblock-lti-consumer/workflows/Python%20CI/badge.svg?branch=master
-  :target: https://github.com/edx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
+.. |CI| image:: https://github.com/edx/xblock-lti-consumer/workflows/Python%20CI/badge.svg?branch=master
+    :target: https://github.com/edx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
+    :alt: Test suite status
 
-.. |Coveralls| image:: https://coveralls.io/repos/edx/xblock-lti-consumer/badge.svg?branch=master&service=github
-  :target: https://coveralls.io/github/edx/xblock-lti-consumer?branch=master
+.. |Codecov| image:: https://codecov.io/github/edx/xblock-lti-consumer/coverage.svg?branch=master
+    :target: https://codecov.io/github/edx/xblock-lti-consumer?branch=master
+    :alt: Code coverage
+
+.. |status-badge| image:: https://img.shields.io/badge/Status-Maintained-brightgreen
+    :alt: Maintained
+
+.. |license-badge| image:: https://img.shields.io/github/license/openedx/xblock-lti-consumer.svg
+    :target: https://github.com/openedx/edx-rest-api-client/blob/master/LICENSE
+    :alt: License
+
+.. |pypi-badge| image:: https://img.shields.io/pypi/v/lti-consumer-xblock.svg
+    :target: https://pypi.python.org/pypi/lti-consumer-xblock/
+    :alt: PyPI
