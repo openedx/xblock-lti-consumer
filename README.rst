@@ -2,21 +2,23 @@
 LTI Consumer XBlock
 ###################
 
-| |Build Status| |Coveralls|
+| |status-badge| |license-badge| |ci-badge| |codecov-badge| |pypi-badge|
+
+Purpose
+*******
 
 This XBlock implements the consumer side of the LTI specification enabling
 integration of third-party LTI provider tools.
 
+Getting Started
+***************
+
 Installation
 ============
 
-Install the requirements into the Python virtual environment of your
-``edx-platform`` installation by running the following command from the
-root folder:
+For details regarding how to deploy this or any other XBlock in the lms instance, see the `installing-the-xblock`_ documentation.
 
-.. code:: bash
-
-    $ pip install -r requirements/base.txt
+.. _installing-the-xblock: https://edx.readthedocs.io/projects/xblock-tutorial/en/latest/edx_platform/devstack.html#installing-the-xblock
 
 Installing in Docker Devstack
 -----------------------------
@@ -54,6 +56,91 @@ advanced settings.
 2. Check for the ``advanced_modules`` policy key, and add
    ``"lti_consumer"`` to the policy value list.
 3. Click the "Save changes" button.
+
+Developing
+===========
+
+One Time Setup
+--------------
+.. code:: bash
+
+  # Clone the repository
+  git clone git@github.com:openedx/xblock-lti-consumer.git
+  cd xblock-lti-consumer
+
+  # Set up a virtualenv using virtualenvwrapper with the same name as the repo and activate it
+  mkvirtualenv -p python3.8 xblock-lti-consumer
+
+
+Every time you develop something in this repo
+---------------------------------------------
+.. code:: bash
+
+  # Activate the virtualenv
+  workon xblock-lti-consumer
+
+  # Grab the latest code
+  git checkout master
+  git pull
+
+  # Install/update the dev requirements
+  make install
+
+  # Run the tests (to verify the status before you make any changes)
+  make test
+
+  # Make a new branch for your changes
+  git checkout -b <your_github_username>/<short_description>
+
+  # Using your favorite editor, edit the code to make your change.
+  vim ...
+
+  # Changes to style rules should be made to the Sass files, compiled to CSS,
+  # and committed to the git repository.
+  make compile-sass
+
+  # Run your new tests
+  pytest ./path/to/new/tests
+
+  # Run quality checks
+  make quality
+
+  # Add a changelog entry to CHANGELOG.rst
+
+  # Commit all your changes
+  git commit ...
+  git push
+
+  # Open a PR and ask for review.
+
+Package Requirements
+--------------------
+
+setup.py contains a list of package dependencies which are required for this XBlock package.
+This list is what is used to resolve dependencies when an upstream project is consuming
+this XBlock package. requirements.txt is used to install the same dependencies when running
+the tests for this package.
+
+Downloading translations from Transifex
+---------------------------------------
+
+If you want to download translations from Transifex install
+`transifex client <https://docs.transifex.com/client/installing-the-client/>`_ and run this command while
+inside project root directory:
+
+.. code:: bash
+
+    $ tx pull -f --mode=reviewed -l en,ar,es_419,fr,he,hi,ko_KR,pt_BR,ru,zh_CN
+
+Further Development Info
+------------------------
+
+See the `developer guide`_ for implementation details and other developer concerns.
+
+.. _developer guide: ./docs/developing.rst
+
+Testing
+*******
 
 Testing Against an LTI Provider
 ===============================
@@ -145,126 +232,8 @@ Instructions:
     for locally accessed URLs in the devstack.
 
 
-Custom LTI Parameters
-=====================
-
-This XBlock sends a number of parameters to the provider including some optional parameters. To keep the XBlock
-somewhat minimal, some parameters were omitted like ``lis_person_name_full`` among others.
-At the same time the XBlock allows passing extra parameters to the LTI provider via parameter processor functions.
-
-Defining an LTI Parameter Processor
------------------------------------
-
-The parameter processor is a function that expects an XBlock instance, and returns a ``dict`` of
-additional parameters for the LTI.
-If a processor throws an exception, the exception is logged and suppressed.
-If a processor returns ``None`` or any falsy value, no parameters will be added.
-
-.. code:: python
-
-    def team_info(xblock):
-        course = get_team(xblock.user, lti_params.course.id)
-        if not course:
-            return
-
-        return {
-            'custom_course_id': unicode(course.id),
-            'custom_course_name': course.name,
-        }
-
-A processor can define a list of default parameters ``lti_xblock_default_params``,
-which is useful in case the processor had an exception.
-
-It is recommended to define default parameters anyway, because it can simplify the implementation of the processor
-function. Below is an example:
-
-.. code:: python
-
-    def dummy_processor(xblock):
-        course = get_team(xblock.user, lti_params.course.id)  # If something went wrong default params will be used
-        if not course:
-            return  # Will use the default params
-
-        return {
-            'custom_course_id': unicode(course.id),
-            'custom_course_name': course.name,
-        }
-
-    dummy_processor.lti_xblock_default_params = {
-        'custom_course_id': '',
-        'custom_course_name': '',
-    }
-
-If you're looking for a more realistic example, you can check the
-`Tahoe LTI <https://github.com/appsembler/tahoe-lti>`_ repository at the
-`Appsembler GitHub organization <https://github.com/appsembler/>`_.
-
-Configuring the Parameter Processors Settings
----------------------------------------------
-
-Using the standard XBlock settings interface the developer can provide a list of processor functions:
-Those parameters are not sent by default. The course author can enable that on per XBlock instance
-(aka module) by setting the **Send extra parameters** to ``true`` in Studio.
-
-To configure parameter processors add the following snippet to your Ansible variable files:
-
-.. code:: yaml
-
-    EDXAPP_XBLOCK_SETTINGS:
-      lti_consumer:
-        parameter_processors:
-          - 'customer_package.lti_processors:team_and_cohort'
-          - 'example_package.lti_processors:extra_lti_params'
-
-Dynamic LTI Custom Parameters
-=============================
-
-This XBlock gives us the capability to attach static and dynamic custom parameters in the custom parameters field,
-in the case we need to declare a dynamic custom parameter we must set the value of the parameter as a templated parameter
-wrapped with the tags '${' and '}' just like the following example:
-
-.. code:: python
-
-    ["static_param=static_value", "dynamic_custom_param=${templated_param_value}"]
-
-Defining a dynamic LTI Custom Parameter Processor
--------------------------------------------------
-
-The custom parameter processor is a function that expects an XBlock instance, and returns a ``string`` which should be the resolved value.
-Exceptions must be handled by the processor itself.
-
-.. code:: python
-
-    def get_course_name(xblock):
-        try:
-            course = CourseOverview.objects.get(id=xblock.course.id)
-        except CourseOverview.DoesNotExist:
-            log.error('Course does not exist.')
-            return ''
-
-        return course.display_name
-
-Note. The processor function must return a ``string`` object.
-
-Configuring the LTI Dynamic Custom Parameters Settings
-------------------------------------------------------
-
-The setting LTI_CUSTOM_PARAM_TEMPLATES must be set in order to map the template value for the dynamic custom parameter
-as the following example:
-
-.. code:: python
-
-    LTI_CUSTOM_PARAM_TEMPLATES = {
-        'templated_param_value': 'customer_package.module:func',
-    }
-
-* 'templated_param_value': custom parameter template name.
-* 'customer_package.module:func': custom parameter processor path and function name.
-
-
-
 LTI Advantage Features
-======================
+----------------------
 
 This XBlock supports LTI 1.3 and the following LTI Avantage services:
 
@@ -290,296 +259,85 @@ To enable LTI-DL and its capabilities, you need to set these settings in the blo
 
 To enable LTI-NRPS, you set **Enable LTI NRPS** to **True** in the block settings on Studio.
 
+Getting Help
+************
 
-Development
-===========
+If you're having trouble, we have discussion forums at
+https://discuss.openedx.org where you can connect with others in the
+community.
 
-Workbench installation and settings
------------------------------------
+Our real-time conversations are on Slack. You can request a `Slack
+invitation`_, then join our `community Slack workspace`_.
 
-Install to the workbench's virtualenv by running the following command
-from the xblock-lti-consumer repo root with the workbench's virtualenv activated:
+For anything non-trivial, the best path is to open an issue in this
+repository with as many details about the issue you are facing as you
+can provide.
 
-.. code:: bash
+https://github.com/openedx/xblock-lti-consumer/issues
 
-    $ make install
+For more information about these options, see the `Getting Help`_ page.
 
-Running tests
--------------
-
-From the xblock-lti-consumer repo root, run the tests with the following command:
-
-.. code:: bash
-
-    $ make test
-
-Running code quality check
---------------------------
-
-From the xblock-lti-consumer repo root, run the quality checks with the following command:
-
-.. code:: bash
-
-    $ make quality
-
-Compiling Sass
---------------
-
-This XBlock uses Sass for writing style rules. The Sass is compiled
-and committed to the git repo using:
-
-.. code:: bash
-
-    $ make compile-sass
-
-Changes to style rules should be made to the Sass files, compiled to CSS,
-and committed to the git repository.
-
-Package Requirements
---------------------
-
-setup.py contains a list of package dependencies which are required for this XBlock package.
-This list is what is used to resolve dependencies when an upstream project is consuming
-this XBlock package. requirements.txt is used to install the same dependencies when running
-the tests for this package.
-
-Downloading translations from Transifex
----------------------------------------
-
-If you want to download translations from Transifex install
-`transifex client <https://docs.transifex.com/client/installing-the-client/>`_ and run this command while
-inside project root directory:
-
-.. code:: bash
-
-    $ tx pull -f --mode=reviewed -l en,ar,es_419,fr,he,hi,ko_KR,pt_BR,ru,zh_CN
+.. _Slack invitation: https://openedx.org/slack
+.. _community Slack workspace: https://openedx.slack.com/
+.. _Getting Help: https://openedx.org/getting-help
 
 License
-=======
+*******
 
-The LTI Consumer XBlock is available under the AGPL v3 License.
+The code in this repository is licensed under the AGPL v3 License unless
+otherwise noted.
 
-Security
-========
+Please see `LICENSE.txt <LICENSE.txt>`_ for details.
 
-Please do not report security issues in public. Send security concerns via email to security@edx.org.
+Contributing
+************
 
-Changelog
-=========
+Contributions are very welcome.
+Please read `How To Contribute <https://openedx.org/r/how-to-contribute>`_ for details.
 
-Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
+This project is currently accepting all types of contributions, bug fixes,
+security fixes, maintenance work, or new features.  However, please make sure
+to have a discussion about your new feature idea with the maintainers prior to
+beginning development to maximize the chances of your change being accepted.
+You can start a conversation by creating a new issue on this repo summarizing
+your idea.
 
-4.4.0 - 2022-08-17
-------------------
-* Move the LTI 1.3 Access Token and Launch Callback endpoint logic from the XBlock to the Django views
-* Adds support for accessing LTI 1.3 URLs using both location and the lti_config_id
+The Open edX Code of Conduct
+****************************
 
-4.2.2 - 2022-06-30
-------------------
-* Fix server 500 error when using names/roles and grades services, due to not returning a user during auth.
+All community members are expected to follow the `Open edX Code of Conduct`_.
 
-4.2.1 - 2022-06-27
-------------------
-* Add event tracking to LTI launches
+.. _Open edX Code of Conduct: https://openedx.org/code-of-conduct/
 
-4.0.1 - 2022-05-09
-------------------
-* Add `Learner` to LTI launch roles in addition to the `Student` value
+People
+******
 
-4.0.0 - 2022-05-09
-------------------
+The assigned maintainers for this component and other project details may be
+found in `Backstage`_. Backstage pulls this data from the ``catalog-info.yaml``
+file in this repo.
 
-* Adds support for loading external LTI configurations from Open edX plugins implementing filters for the event
-  `org.openedx.xblock.lti_consumer.configuration.listed.v1`. This can be enabled by setting a Course Waffle Flag
-  `lti_consumer.enable_external_config_filter` for specific courses.
+.. _Backstage: https://backstage.openedx.org/catalog/default/component/xblock-lti-consumer
 
-3.4.7 - 2022-07-08
-------------------
-* Fix server 500 error when using names/roles and grades services, due to not returning a user during auth.
-  This is a bugfix backport of 4.2.2 for the Nutmeg release.
+Reporting Security Issues
+*************************
 
-3.4.6 - 2022-03-31
-------------------
+Please do not report security issues in public. Please email security@tcril.org.
 
-* Fix rendering of `lti_1p3_launch_error.html` and `lti_1p3_permission_error.html` templates
+.. |ci-badge| image:: https://github.com/edx/xblock-lti-consumer/workflows/Python%20CI/badge.svg?branch=master
+    :target: https://github.com/edx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
+    :alt: Test suite status
 
-3.4.5 - 2022-03-16
-------------------
+.. |codecov-badge| image:: https://codecov.io/github/edx/xblock-lti-consumer/coverage.svg?branch=master
+    :target: https://codecov.io/github/edx/xblock-lti-consumer?branch=master
+    :alt: Code coverage
 
-* Fix LTI Deep Linking return endpoint permission checking method by replacing the old one with the proper
-  Studio API call.
+.. |status-badge| image:: https://img.shields.io/badge/Status-Maintained-brightgreen
+    :alt: Maintained
 
-3.4.4 - 2022-03-03
-------------------
+.. |license-badge| image:: https://img.shields.io/github/license/openedx/xblock-lti-consumer.svg
+    :target: https://github.com/openedx/edx-rest-api-client/blob/master/LICENSE
+    :alt: License
 
-* Fix LTI 1.3 Deep Linking launch url - always perform launch on launch URL, but update `target_link_uri` when
-  loading deep linking content.
-  See LTI 1.3 spec at: https://www.imsglobal.org/spec/lti/v1p3#target-link-uri
-
-3.4.3 - 2022-02-01
-------------------
-
-* Fix LTI 1.1 template rendering when using embeds in the platform
-
-3.4.2 - 2022-02-01
-------------------
-
-* Fix LTI 1.1 form rendering so it properly renders quotes present in titles.
-* Migrate LTI 1.1 launch template from Mako to Django template.
-* Internationalize LTI 1.1 launch template.
-
-3.4.1 - 2022-02-01
-------------------
-
-* Fix the target_link_uri parameter on OIDC login preflight url parameter so it matches 
-  claim message definition of the field.
-  See docs at https://www.imsglobal.org/spec/lti/v1p3#target-link-uri
-
-3.4.0 - 2022-01-31
-------------------
-
-* Fix the version number by bumping it up to 3.4.0
-
-3.3.0 - 2022-01-20
--------------------
-
-* Added support for specifying LTI 1.3 JWK URLs.
-
-3.2.0 - 2022-01-18
--------------------
-
-* Dynamic custom parameters support with the help of template parameter processors.
-
-3.1.2 - 2021-11-12
--------------------
-
-* The modal to confirm information transfer on open of lti in new tab/window has been updated
-  because of a change in how browsers handle iframe permissions.
-
-3.1.0 - 2021-10-?
--------------------
-
-* The changes which led to this version change were not adequetly documented.
-
-3.0.1 - 2021-07-09
--------------------
-
-* Added multi device support on student_view for mobile.
-
-
-3.0.0 - 2021-06-16
--------------------
-
-* Rename `CourseEditLTIFieldsEnabledFlag` to `CourseAllowPIISharingInLTIFlag`
-  to highlight its increased scope.
-* Use `CourseAllowPIISharingInLTIFlag` for LTI1.3 in lieu of the current
-  `CourseWaffleFlag`.
-
-
-2.11.0 - 2021-06-10
--------------------
-
-* NOTE: This release requires a corresponding change in edx-platform that was
-  implemented in https://github.com/edx/edx-platform/pull/27529
-  As such, this release cannot be installed in releases before Maple.
-* Move ``CourseEditLTIFieldsEnabledFlag`` from ``edx-platform`` to this repo
-  while retaining data from existing model.
-
-
-2.10.1 - 2021-06-09
--------------------
-
-* LTI 1.3 and LTI Advantage features are now enabled by default.
-* LTI 1.3 settings were simplified to reduce confusion when setting up a LTI tool.
-* Code quality issues fixed
-
-
-2.9.1 - 2021-06-03
-------------------
-
-* LTI Advantage - NRP Service: this completes Advantage compliance.
-
-
-2.8.0 - 2021-04-13
-------------------
-
-* LTI Advantage - AGS Service: Added support for programmatic grade management by LTI tools.
-* Improved grade publishing to LMS when using LTI-AGS.
-* Increase LTI 1.3 token validity to 1h.
-
-
-2.7.0 - 2021-02-16
-------------------
-
-* Add support for presenting `ltiResourceLink` content from deep linking.
-
-
-2.6.0 - 2021-02-16
-------------------
-
-* Deep Linking content presentation implementation, for resource links, HTML,
-  HTML links, and images.
-
-* Fix bug with `config_id` migration where an entry was created _during_
-  the migration and did _not_ receive a valid UUID value.
-
-
-2.5.3 - 2021-01-26
-------------------
-
-* LTI Deep Linking Launch implementation, implementing DeepLinking Classes and request
-  request preparation.
-* LTI Deep Linking response endpoint implementation, along with model to store selected configuration and
-  content items.
-
-2.5.2 - 2021-01-20
-------------------
-
-* Fix issue with migration that causes migration failure due to duplicate `config_id` values.
-
-2.5.1 - 2021-01-19
-------------------
-
-* Simplify LTI 1.3 launches by removing OIDC launch start view.
-
-2.5.0 - 2021-01-15
-------------------
-
-* Add LTI 1.1 config on model.
-
-2.4.0 - 2020-12-02
-------------------
-
-* Partially implemented the Assignment and Grades Service to enable tools
-  reporting grades back.  Tools cannot create new LineItems.
-
-2.3 – 2020-08-27
-----------------
-
-* Move LTI configuration access to plugin model.
-
-2.2 – 2020-08-19
-----------------
-
-* Modals are sent to the parent window to work well with the courseware
-  micro-frontend.  A new message is sent to the parent window to request a
-  modal containing the contents ot the LTI launch iframe.
-
-2.1 – 2020-08-03
-----------------
-
-* The LTI consumer XBlock is now indexable.
-
-* Implement the LTI 1.3 context claim.
-
-2.0.0 – 2020-06-26
-------------------
-
-* LTI 1.3 support.
-
-
-.. |Build Status| image:: https://github.com/edx/xblock-lti-consumer/workflows/Python%20CI/badge.svg?branch=master
-  :target: https://github.com/edx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
-
-.. |Coveralls| image:: https://coveralls.io/repos/edx/xblock-lti-consumer/badge.svg?branch=master&service=github
-  :target: https://coveralls.io/github/edx/xblock-lti-consumer?branch=master
+.. |pypi-badge| image:: https://img.shields.io/pypi/v/lti-consumer-xblock.svg
+    :target: https://pypi.python.org/pypi/lti-consumer-xblock/
+    :alt: PyPI
