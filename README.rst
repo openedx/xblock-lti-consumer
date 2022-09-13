@@ -2,7 +2,7 @@
 LTI Consumer XBlock
 ###################
 
-| |status-badge| |license-badge| |CI| |Codecov| |pypi-badge|
+| |status-badge| |license-badge| |ci-badge| |codecov-badge| |pypi-badge|
 
 Purpose
 *******
@@ -77,7 +77,7 @@ Every time you develop something in this repo
 .. code:: bash
 
   # Activate the virtualenv
-  workon {{ cookiecutter.repo_name }}
+  workon xblock-lti-consumer
 
   # Grab the latest code
   git checkout master
@@ -104,6 +104,8 @@ Every time you develop something in this repo
 
   # Run quality checks
   make quality
+
+  # Add a changelog entry to CHANGELOG.rst
 
   # Commit all your changes
   git commit ...
@@ -314,7 +316,7 @@ The assigned maintainers for this component and other project details may be
 found in `Backstage`_. Backstage pulls this data from the ``catalog-info.yaml``
 file in this repo.
 
-.. _Backstage: https://open-edx-backstage.herokuapp.com/catalog/default/component/xblock-lti-consumer
+.. _Backstage: https://backstage.openedx.org/catalog/default/component/xblock-lti-consumer
 
 Reporting Security Issues
 *************************
