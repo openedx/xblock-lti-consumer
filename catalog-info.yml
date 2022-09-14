@@ -1,7 +1,7 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: XBlock LTI Consumer
+  name: xblock-lti-consumer
   description: "This XBlock implements the consumer side of the LTI specification enabling integration of third-party LTI provider tools."
   annotations:
     github.com/project-slug: openedx/xblock-lti-consumer
