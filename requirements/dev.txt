@@ -14,7 +14,7 @@ asgiref==3.5.2
     #   django
 bleach==5.0.1
     # via -r requirements/base.txt
-certifi==2022.6.15
+certifi==2022.9.14
     # via
     #   -r requirements/base.txt
     #   requests
@@ -57,7 +57,7 @@ djangorestframework==3.13.1
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-django-utils==5.0.0
+edx-django-utils==5.0.1
     # via
     #   -r requirements/base.txt
     #   django-config-models
@@ -73,7 +73,7 @@ future==0.18.2
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-idna==3.3
+idna==3.4
     # via
     #   -r requirements/base.txt
     #   requests
@@ -94,11 +94,11 @@ markupsafe==2.1.1
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==8.0.0.179
+newrelic==8.1.0.180
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-oauthlib==3.2.0
+oauthlib==3.2.1
     # via -r requirements/base.txt
 openedx-filters==0.8.0
     # via -r requirements/base.txt
@@ -110,7 +110,7 @@ pbr==5.10.0
     #   stevedore
 polib==1.1.1
     # via edx-i18n-tools
-psutil==5.9.1
+psutil==5.9.2
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
