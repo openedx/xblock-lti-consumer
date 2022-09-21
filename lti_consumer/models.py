@@ -227,9 +227,8 @@ class LtiConfiguration(models.Model):
                   'grades.'
     )
 
-    # Empty variable that'll hold the block once it's retrieved
-    # from the modulestore or preloaded
-    _block = None
+    # Empty variable that'll hold the block if we are fetching by block and using CONFIG_ON_XBLOCK
+    block = None
 
     def clean(self):
         if self.config_store == self.CONFIG_ON_XBLOCK and self.location is None:
@@ -255,24 +254,6 @@ class LtiConfiguration(models.Model):
         if consumer is None:
             raise ValidationError(_("Invalid LTI configuration."))
 
-    @property
-    def block(self):
-        """
-        Return instance of block (either preloaded or directly from the modulestore).
-        """
-        block = getattr(self, '_block', None)
-        if block is None:
-            if self.location is None:
-                raise ValueError(_("Block location not set, it's not possible to retrieve the block."))
-            block = self._block = compat.load_block_as_anonymous_user(self.location)
-        return block
-
-    @block.setter
-    def block(self, block):
-        """
-        Allows preloading the block instead of fetching it from the modulestore.
-        """
-        self._block = block
 
     def _generate_lti_1p3_keys_if_missing(self):
         """
