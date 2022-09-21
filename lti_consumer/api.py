@@ -78,10 +78,6 @@ def _get_lti_config(config_id=None, block=None):
                 block.location,
                 LtiConfiguration.CONFIG_ON_XBLOCK,
             )
-
-        # Since the block was passed, preload it to avoid
-        # having to instance the modulestore and fetch it again.
-        lti_config.block = block
     else:
         raise LtiError('Either a config_id or block is required to get or create an LTI Configuration.')
 
@@ -97,7 +93,7 @@ def get_lti_consumer(config_id=None, block=None):
     """
     # Return an instance of LTI 1.1 or 1.3 consumer, depending
     # on the configuration stored in the model.
-    return _get_lti_config(config_id, block).get_lti_consumer()
+    return _get_lti_config(config_id, block).get_lti_consumer(block=block)
 
 
 def get_lti_1p3_launch_info(config_id=None, block=None):
@@ -106,7 +102,7 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     """
     # Retrieve LTI Config and consumer
     lti_config = _get_lti_config(config_id, block)
-    lti_consumer = lti_config.get_lti_consumer()
+    lti_consumer = lti_config.get_lti_consumer(block=block)
 
     # Check if deep Linking is available, if so, add some extra context:
     # Deep linking launch URL, and if deep linking is already configured
@@ -150,7 +146,7 @@ def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=Fa
     """
     # Retrieve LTI consumer
     lti_config = _get_lti_config(config_id, block)
-    lti_consumer = lti_config.get_lti_consumer()
+    lti_consumer = lti_config.get_lti_consumer(block=block)
 
     # Change LTI hint depending on LTI launch type
     lti_hint = ""
