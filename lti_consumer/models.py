@@ -226,8 +226,6 @@ class LtiConfiguration(models.Model):
                   'grades.'
     )
 
-    # Empty variable that'll hold the block if we are fetching by block and using CONFIG_ON_XBLOCK
-    block = None
 
     def clean(self):
         if self.config_store == self.CONFIG_ON_XBLOCK and self.location is None:
@@ -235,10 +233,6 @@ class LtiConfiguration(models.Model):
                 "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
             })
         if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
-            if not database_config_enabled(self.block.location.course_key):
-                raise ValidationError({
-                    "config_store": _("LTI Configuration stores on database is not enabled."),
-                })
             if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
                 raise ValidationError({
                     "config_store": _(
@@ -310,14 +304,14 @@ class LtiConfiguration(models.Model):
         self._generate_lti_1p3_keys_if_missing()
         return json.loads(self.lti_1p3_internal_public_jwk)
 
-    def _get_lti_1p1_consumer(self):
+    def _get_lti_1p1_consumer(self, block=None):
         """
         Return a class of LTI 1.1 consumer.
         """
         # If LTI configuration is stored in the XBlock.
         if self.config_store == self.CONFIG_ON_XBLOCK:
-            key, secret = self.block.lti_provider_key_secret
-            launch_url = self.block.launch_url
+            key, secret = block.lti_provider_key_secret
+            launch_url = block.launch_url
         elif self.config_store == self.CONFIG_EXTERNAL:
             config = get_external_config_from_filter({}, self.external_id)
             key = config.get("lti_1p1_client_key")
@@ -330,7 +324,7 @@ class LtiConfiguration(models.Model):
 
         return LtiConsumer1p1(launch_url, key, secret)
 
-    def get_lti_advantage_ags_mode(self):
+    def get_lti_advantage_ags_mode(self, block):
         """
         Return LTI 1.3 Advantage Assignment and Grade Services mode.
         """
@@ -340,9 +334,9 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_ags_mode
         else:
-            return self.block.lti_advantage_ags_mode
+            return block.lti_advantage_ags_mode
 
-    def get_lti_advantage_deep_linking_enabled(self):
+    def get_lti_advantage_deep_linking_enabled(self, block):
         """
         Return whether LTI 1.3 Advantage Deep Linking is enabled.
         """
@@ -352,9 +346,9 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_enabled
         else:
-            return self.block.lti_advantage_deep_linking_enabled
+            return block.lti_advantage_deep_linking_enabled
 
-    def get_lti_advantage_deep_linking_launch_url(self):
+    def get_lti_advantage_deep_linking_launch_url(self, block):
         """
         Return the LTI 1.3 Advantage Deep Linking launch URL.
         """
@@ -364,9 +358,9 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_launch_url
         else:
-            return self.block.lti_advantage_deep_linking_launch_url
+            return block.lti_advantage_deep_linking_launch_url
 
-    def get_lti_advantage_nrps_enabled(self):
+    def get_lti_advantage_nrps_enabled(self, block):
         """
         Return whether LTI 1.3 Advantage Names and Role Provisioning Services is enabled.
         """
@@ -376,15 +370,15 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_enable_nrps
         else:
-            return self.block.lti_1p3_enable_nrps
+            return block.lti_1p3_enable_nrps
 
-    def _setup_lti_1p3_ags(self, consumer):
+    def _setup_lti_1p3_ags(self, consumer, block):
         """
         Set up LTI 1.3 Advantage Assigment and Grades Services.
         """
 
         try:
-            lti_advantage_ags_mode = self.get_lti_advantage_ags_mode()
+            lti_advantage_ags_mode = self.get_lti_advantage_ags_mode(block)
         except NotImplementedError as exc:
             log.exception("Error setting up LTI 1.3 Advantage Assignment and Grade Services: %s", exc)
             return
@@ -398,29 +392,16 @@ class LtiConfiguration(models.Model):
         # doesn't exist. This is because on this mode the tool is not able to create
         # and manage lineitems using the AGS endpoints.
         if not lineitem and lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
-            try:
-                block = self.block
-            except ValueError:  # There is no location to load the block
-                block = None
+            default_values = {
+                'resource_id': self.location,
+                'score_maximum': block.weight,
+                'label': block.display_name,
+            }
+            if hasattr(block, 'start'):
+                default_values['start_date_time'] = block.start
 
-            if block:
-                default_values = {
-                    'resource_id': self.location,
-                    'score_maximum': self.block.weight,
-                    'label': self.block.display_name,
-                }
-                if hasattr(self.block, 'start'):
-                    default_values['start_date_time'] = self.block.start
-
-                if hasattr(self.block, 'due'):
-                    default_values['end_date_time'] = self.block.due
-            else:
-                # TODO find a way to make these defaults more sensible
-                default_values = {
-                    'resource_id': self.location,
-                    'score_maximum': 100,
-                    'label': 'LTI Consumer at ' + str(self.location)
-                }
+            if hasattr(block, 'due'):
+                default_values['end_date_time'] = block.due
 
             # create LineItem if there is none for current lti configuration
             lineitem = LtiAgsLineItem.objects.create(
@@ -437,15 +418,15 @@ class LtiConfiguration(models.Model):
             )
         )
 
-    def _setup_lti_1p3_deep_linking(self, consumer):
+    def _setup_lti_1p3_deep_linking(self, consumer, block):
         """
         Set up LTI 1.3 Advantage Deep Linking.
         """
         try:
-            if self.get_lti_advantage_deep_linking_enabled():
+            if self.get_lti_advantage_deep_linking_enabled(block):
                 consumer.enable_deep_linking(
-                    self.get_lti_advantage_deep_linking_launch_url(),
-                    get_lti_deeplinking_response_url(self.id),
+                    self.get_lti_advantage_deep_linking_launch_url(block),
+                    get_lti_deeplinking_response_url(self.id, block),
                 )
         except NotImplementedError as exc:
             log.exception("Error setting up LTI 1.3 Advantage Deep Linking: %s", exc)
@@ -460,7 +441,7 @@ class LtiConfiguration(models.Model):
         except NotImplementedError as exc:
             log.exception("Error setting up LTI 1.3 Advantage Names and Role Provisioning Services: %s", exc)
 
-    def _get_lti_1p3_consumer(self):
+    def _get_lti_1p3_consumer(self, block=None):
         """
         Return a class of LTI 1.3 consumer.
 
@@ -470,8 +451,8 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_XBLOCK:
             consumer = LtiAdvantageConsumer(
                 iss=get_lms_base(),
-                lti_oidc_url=self.block.lti_1p3_oidc_url,
-                lti_launch_url=self.block.lti_1p3_launch_url,
+                lti_oidc_url=block.lti_1p3_oidc_url,
+                lti_launch_url=block.lti_1p3_launch_url,
                 client_id=self.lti_1p3_client_id,
                 # Deployment ID hardcoded to 1 since
                 # we're not using multi-tenancy.
@@ -480,8 +461,8 @@ class LtiConfiguration(models.Model):
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
                 # LTI 1.3 Tool key/keyset url
-                tool_key=self.block.lti_1p3_tool_public_key,
-                tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
+                tool_key=block.lti_1p3_tool_public_key,
+                tool_keyset_url=block.lti_1p3_tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_ON_DB:
             consumer = LtiAdvantageConsumer(
@@ -504,19 +485,21 @@ class LtiConfiguration(models.Model):
             # or CONFIG_ON_DB.
             raise NotImplementedError
 
-        self._setup_lti_1p3_ags(consumer)
-        self._setup_lti_1p3_deep_linking(consumer)
-        self._setup_lti_1p3_nrps(consumer)
+        #LTI advantage currently has to exist in a block
+        if block:
+            self._setup_lti_1p3_ags(consumer, block)
+            self._setup_lti_1p3_deep_linking(consumer, block)
+            self._setup_lti_1p3_nrps(consumer, block)
         return consumer
 
-    def get_lti_consumer(self):
+    def get_lti_consumer(self, block=None):
         """
         Returns an instanced class of LTI 1.1 or 1.3 consumer.
         """
         if self.version == self.LTI_1P3:
-            return self._get_lti_1p3_consumer()
+            return self._get_lti_1p3_consumer(block)
 
-        return self._get_lti_1p1_consumer()
+        return self._get_lti_1p1_consumer(block)
 
     @property
     def pii_share_username(self):
