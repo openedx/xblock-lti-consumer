@@ -22,7 +22,6 @@ from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 # LTI 1.3
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
-from lti_consumer.plugin import compat
 from lti_consumer.plugin.compat import request_cached
 from lti_consumer.utils import (
     get_lms_base,
