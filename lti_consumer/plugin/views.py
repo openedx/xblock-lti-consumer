@@ -449,8 +449,10 @@ def deep_linking_content_endpoint(request, lti_config_id=None):
         log.info("LtiConfiguration %r does not exist: %s", lti_config_id, exc)
         raise Http404 from exc
 
+    block = compat.load_block_as_anonymous_user(request.user, lti_config.location)
+
     # check if user has proper access
-    if not has_block_access(request.user, lti_config.block, lti_config.location.course_key):
+    if not has_block_access(request.user, block, lti_config.location.course_key):
         log.warning(
             "Permission on LTI Config %r denied for user %r.",
             lti_config_id,
@@ -469,7 +471,7 @@ def deep_linking_content_endpoint(request, lti_config_id=None):
     # Render LTI-DL contents
     return render(request, 'html/lti-dl/render_dl_content.html', {
         'content_items': content_items,
-        'block': lti_config.block,
+        'block': block,
     })
 
 
