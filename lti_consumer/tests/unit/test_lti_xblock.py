@@ -1576,7 +1576,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
 
         patcher = patch(
             'lti_consumer.models.compat',
-            **{'load_block_as_anonymous_user.return_value': self.xblock}
+            **{'load_block_as_user.return_value': self.xblock}
         )
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -1751,7 +1751,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         self.request = make_jwt_request(jwt)
         patcher = patch(
             'lti_consumer.models.compat',
-            **{'load_block_as_anonymous_user.return_value': self.xblock}
+            **{'load_block_as_user.return_value': self.xblock}
         )
         patcher.start()
         self.addCleanup(patcher.stop)

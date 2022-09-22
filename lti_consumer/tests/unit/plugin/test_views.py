@@ -144,7 +144,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.compat.get_external_id_for_user.return_value = "12345"
         model_compat_patcher = patch("lti_consumer.models.compat")
         model_compat = model_compat_patcher.start()
-        model_compat.load_block_as_anonymous_user.return_value = self.xblock
+        model_compat.load_block_as_user.return_value = self.xblock
         self.addCleanup(model_compat_patcher.stop)
 
     def test_invalid_lti_version(self):

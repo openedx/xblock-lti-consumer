@@ -78,9 +78,43 @@ def run_xblock_handler_noauth(*args, **kwargs):
     return handle_xblock_callback_noauth(*args, **kwargs)
 
 
-def load_block_as_anonymous_user(location):
+def load_block_as_user(location):
     """
-    Load a block as anonymous user.
+    Load a block as the current user, or load as the anonymous user if no user is available.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from crum import get_current_user, get_current_request
+    from xmodule.modulestore.django import modulestore
+    from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
+    from openedx.core.lib.xblock_utils import request_token
+
+    # Retrieve descriptor from modulestore
+    descriptor = modulestore().get_item(location)
+    user = get_current_user()
+    request = get_current_request()
+    if user and request:
+        # If we're in request scope, the descriptor may already be a block bound to a user
+        # and we don't need to do any more loading
+        if descriptor.scope_ids.user_id is not None and user.id == descriptor.scope_ids.user_id:
+            return descriptor
+
+        # If not load this block to bind it onto the user
+        get_module_for_descriptor_internal(
+            user=user,
+            descriptor=descriptor,
+            student_data=None,
+            course_id=location.course_key,
+            track_function=None,
+            request_token=request_token(request),
+        )
+        return descriptor
+    else:
+        return _load_block_as_anonymous_user(location, descriptor)
+
+
+def _load_block_as_anonymous_user(location, descriptor):
+    """
+    Load a block as the anonymous user because no user is available.
 
     This uses a few internal courseware methods to retrieve the descriptor
     and bind an AnonymousUser to it, in a similar fashion as a `noauth` XBlock
@@ -89,11 +123,7 @@ def load_block_as_anonymous_user(location):
     # pylint: disable=import-error,import-outside-toplevel
     from crum import impersonate
     from django.contrib.auth.models import AnonymousUser
-    from xmodule.modulestore.django import modulestore
     from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
-
-    # Retrieve descriptor from modulestore
-    descriptor = modulestore().get_item(location)
 
     # ensure `crum.get_current_user` returns AnonymousUser. It returns None when outside
     # of request scope which causes error during block loading.

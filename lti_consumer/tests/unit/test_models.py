@@ -318,7 +318,7 @@ class TestLtiConfigurationModel(TestCase):
         """
         Check if a block is properly loaded when calling the `block` property.
         """
-        compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        compat_mock.load_block_as_user.return_value = self.xblock
 
         block = self.lti_1p3_config.block
         self.assertEqual(block, self.xblock)
@@ -435,7 +435,7 @@ class TestLtiAgsScoreModel(TestCase):
         compat_mock = patch("lti_consumer.signals.compat")
         self.addCleanup(compat_mock.stop)
         self._compat_mock = compat_mock.start()
-        self._compat_mock.load_block_as_anonymous_user.return_value = make_xblock(
+        self._compat_mock.load_block_as_user.return_value = make_xblock(
             'lti_consumer', LtiConsumerXBlock, {
                 'due': datetime.now(timezone.utc),
                 'graceperiod': timedelta(days=2),
