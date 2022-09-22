@@ -4,6 +4,7 @@ Compatibility layer to isolate core-platform method calls from implementation.
 import logging
 from typing import Callable
 
+import crum
 from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from opaque_keys.edx.keys import CourseKey
@@ -97,7 +98,9 @@ def load_block_as_anonymous_user(location):
 
     # ensure `crum.get_current_user` returns AnonymousUser. It returns None when outside
     # of request scope which causes error during block loading.
-    user = AnonymousUser()
+    user = crum.get_current_user()
+    if not user:
+        user = AnonymousUser()
     with impersonate(user):
         # Load block, attaching it to AnonymousUser
         get_module_for_descriptor_internal(
