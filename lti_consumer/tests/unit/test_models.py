@@ -3,7 +3,7 @@ Unit tests for LTI models.
 """
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from unittest.mock import patch, Mock, PropertyMock
+from unittest.mock import patch
 
 import ddt
 from Cryptodome.PublicKey import RSA
@@ -22,7 +22,7 @@ from lti_consumer.models import (
     LtiConfiguration,
     LtiDlContentItem,
 )
-from lti_consumer.tests.unit.test_utils import make_xblock
+from lti_consumer.tests.test_utils import make_xblock
 
 
 @ddt.ddt
@@ -54,22 +54,20 @@ class TestLtiConfigurationModel(TestCase):
             'lti_advantage_deep_linking_enabled': True,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
         # Creates an LTI configuration objects for testing
         self.lti_1p1_config = LtiConfiguration.objects.create(
-            location=str(self.xblock.location),
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P1
         )
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
-            location=str(self.xblock.location),
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3
         )
 
         self.lti_1p3_config_db = LtiConfiguration.objects.create(
-            location=str(self.xblock.location),
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
             lti_advantage_ags_mode='programmatic',
@@ -92,7 +90,7 @@ class TestLtiConfigurationModel(TestCase):
         Helper function to create a LtiConfiguration object with specific attributes
         """
         return LtiConfiguration.objects.create(
-            location=str(self.xblock.location),
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3,
             **kwargs
         )
@@ -385,10 +383,6 @@ class TestLtiConfigurationModel(TestCase):
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
         self.lti_1p3_config.block = self.xblock
 
-        self.xblock.location = Mock()
-        course_key_mock = PropertyMock(return_value='course-v1:edX+DemoX+Demo_Course')
-        type(self.xblock.location).course_key = course_key_mock
-
         self.lti_1p3_config_db.block = self.xblock
 
         with patch("lti_consumer.models.database_config_enabled", return_value=False),\
@@ -495,11 +489,9 @@ class TestLtiDlContentItemModel(TestCase):
 
         self.xblock_attributes = {'lti_version': 'lti_1p3'}
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
-            location=str(self.xblock.location),
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3
         )
 
@@ -507,6 +499,7 @@ class TestLtiDlContentItemModel(TestCase):
         """
         Test String representation of model.
         """
+
         content_item = LtiDlContentItem.objects.create(
             lti_configuration=self.lti_1p3_config,
             content_type=LtiDlContentItem.IMAGE,
@@ -514,7 +507,8 @@ class TestLtiDlContentItemModel(TestCase):
         )
         self.assertEqual(
             str(content_item),
-            "[CONFIG_ON_XBLOCK] lti_1p3 - block-v1:course+test+2020+type@problem+block@test: image"
+            "[CONFIG_ON_XBLOCK] lti_1p3 - "
+            "block-v1:edX+DemoX+Demo_Course+type@problem+block@466f474fa4d045a8b7bde1b911e095ca: image"
         )
 
 

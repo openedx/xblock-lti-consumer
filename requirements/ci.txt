@@ -21,6 +21,8 @@ astroid==2.12.10
     #   -r requirements/test.txt
     #   pylint
     #   pylint-celery
+attrs==22.1.0
+    # via -r requirements/test.txt
 binaryornot==0.4.4
     # via
     #   -r requirements/test.txt
@@ -49,7 +51,6 @@ certifi==2022.9.24
 cffi==1.15.1
     # via
     #   -r requirements/test.txt
-    #   cryptography
     #   pynacl
 chardet==5.0.0
     # via
@@ -189,11 +190,6 @@ jaraco-classes==3.2.3
     # via
     #   -r requirements/test.txt
     #   keyring
-jeepney==0.8.0
-    # via
-    #   -r requirements/test.txt
-    #   keyring
-    #   secretstorage
 jinja2==3.1.2
     # via
     #   -r requirements/test.txt
@@ -391,10 +387,6 @@ s3transfer==0.6.0
     # via
     #   -r requirements/test.txt
     #   boto3
-secretstorage==3.3.3
-    # via
-    #   -r requirements/test.txt
-    #   keyring
 simplejson==3.17.6
     # via
     #   -r requirements/test.txt

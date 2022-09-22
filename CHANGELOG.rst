@@ -16,6 +16,27 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 Unreleased
 ~~~~~~~~~~
 
+5.0.0 - 2022-10-12
+------------------
+BREAKING CHANGE:
+
+Please note that additional breaking changes will be forthcoming in future versions of this library.
+
+* Modified Python API methods to take Lti1p3LaunchData as a required argument
+** get_lti_1p3_launch_info
+** get_lti_1p3_launch_start_url
+** get_lti_1p3_content_url
+
+* Added an Lti1p3LaunchData data class
+* Added caching for Lti1p3LaunchData to limit data sent in request query or form parameters
+* Replaced references to LtiConsumerXBlock.location with Lti1p3LaunchData.config_id
+* Removed definition of key LTI 1.3 claims from the launch_gate_endpoint and instantiated Lti1p3LaunchData from within
+  the LtiConsumerXBlock instead
+* Added a required launch_data_key request query parameter to the deep_linking_content_endpoint and refactored
+  associated templates and template tags to pass this parameter in the request to the view
+* Changed the access token URL and Keyset URL to use the LtiConfiguration.config_id in the URL instead of the
+  LtiConfiguration.location
+
 4.4.0 - 2022-08-17
 ------------------
 * Move the LTI 1.3 Access Token and Launch Callback endpoint logic from the XBlock to the Django views

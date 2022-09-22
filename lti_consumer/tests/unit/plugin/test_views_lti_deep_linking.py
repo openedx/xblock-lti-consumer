@@ -3,6 +3,7 @@ Tests for LTI Advantage Assignments and Grades Service views.
 """
 from unittest.mock import patch, PropertyMock, Mock
 
+import re
 import ddt
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
@@ -10,9 +11,11 @@ from rest_framework.test import APITransactionTestCase
 from rest_framework.exceptions import ValidationError
 
 
+from lti_consumer.data import Lti1p3LaunchData
+from lti_consumer.utils import cache_lti_1p3_launch_data
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
-from lti_consumer.tests.unit.test_utils import make_xblock
+from lti_consumer.tests.test_utils import make_xblock
 
 
 class LtiDeepLinkingTestCase(APITransactionTestCase):
@@ -22,11 +25,13 @@ class LtiDeepLinkingTestCase(APITransactionTestCase):
     def setUp(self):
         super().setUp()
 
-        self.location = 'block-v1:course+test+2020+type@problem+block@test'
+        # We define the XBlock first in order to create an LtiConfiguration instance, which is used to generate
+        # LTI 1.3 keys. Later, we set the necessary XBlock attributes.
+        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, {})
 
         # Create configuration
         self.lti_config = LtiConfiguration.objects.create(
-            location=self.location,
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3,
         )
 
@@ -35,7 +40,7 @@ class LtiDeepLinkingTestCase(APITransactionTestCase):
         self.key = RSAKey(
             # Using the same key ID as client id
             # This way we can easily serve multiple public
-            # keys on teh same endpoint and keep all
+            # keys on the same endpoint and keep all
             # LTI 1.3 blocks working
             kid=self.lti_config.lti_1p3_private_key_id,
             key=rsa_key
@@ -54,10 +59,9 @@ class LtiDeepLinkingTestCase(APITransactionTestCase):
             'lti_advantage_deep_linking_enabled': True,
             'lti_advantage_deep_linking_launch_url': 'http://tool.example/deep_link_launch',
         }
-        self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = self.location
+        for key, value in self.xblock_attributes.items():
+            setattr(self.xblock, key, value)
 
         # Preload XBlock to avoid calls to modulestore
         self.lti_config.block = self.xblock
@@ -406,7 +410,18 @@ class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
 
     def setUp(self):
         super().setUp()
-        self.url = '/lti_consumer/v1/lti/{}/lti-dl/content'.format(self.lti_config.id)
+
+        self.launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id=self.lti_config.config_id,
+            resource_link_id="resource_link_id",
+        )
+        self.launch_data_key = cache_lti_1p3_launch_data(self.launch_data)
+
+        self.url = '/lti_consumer/v1/lti/{}/lti-dl/content?launch_data_key={}'.format(
+            self.lti_config.id, self.launch_data_key
+        )
 
     @patch('lti_consumer.plugin.views.has_block_access', return_value=False)
     def test_forbidden_access(self, has_block_access_patcher):  # pylint: disable=unused-argument
@@ -420,8 +435,34 @@ class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
         """
         Test if throws 404 when lti configuration not found.
         """
-        resp = self.client.get('/lti_consumer/v1/lti/200/lti-dl/content')
+        resp = self.client.get(
+            '/lti_consumer/v1/lti/200/lti-dl/content?launch_data_key={}'.format(self.launch_data_key)
+        )
         self.assertEqual(resp.status_code, 404)
+
+    def test_missing_required_launch_data_key_param(self):
+        """
+        Check that a 400 error is returned when required launch_data_key query parameter is not provided.
+        """
+        # Use a new URL instead of self.url so that we do not include a launch_data_key.
+        url = '/lti_consumer/v1/lti/{}/lti-dl/content'.format(
+            self.lti_config.id
+        )
+        response = self.client.get(url, {})
+        self.assertEqual(response.status_code, 400)
+
+    def test_missing_launch_data(self):
+        """
+        Check that a 400 error is returned when required launch_data_key query parameter is not associated with
+        launch_data in the cache.
+        """
+        # Use a new URL instead of self.url so that we include a launch_data_key that is not associated with any
+        # launch_data in the cache.
+        url = '/lti_consumer/v1/lti/{}/lti-dl/content'.format(
+            self.lti_config.id
+        )
+        response = self.client.get(url, {"launch_data_key": "launch_data_key"})
+        self.assertEqual(response.status_code, 400)
 
     @patch('lti_consumer.plugin.views.has_block_access', return_value=True)
     def test_no_dl_contents(self, has_block_access_patcher):  # pylint: disable=unused-argument
@@ -630,9 +671,12 @@ class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, 200)
 
-        # Check that there's three LTI Resource links presented
-        for item in content_items:
+        # Check that there's three LTI Resource links presented with the correct launch_data_key query parameter and the
+        # correct deep_linking_content_item_id parameter in the launch_data.
+        lti_message_hints = re.findall('lti_message_hint=(\\w*)', str(resp.content))
+
+        for lti_message_hint in lti_message_hints:
             self.assertContains(
                 resp,
-                f"lti_message_hint=deep_linking_content_launch%3A{item.id}"
+                f"lti_message_hint={lti_message_hint}"
             )

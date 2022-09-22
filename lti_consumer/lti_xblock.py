@@ -68,13 +68,14 @@ from xblock.validation import ValidationMessage
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
+from .data import Lti1p3LaunchData
 from .exceptions import LtiError
 from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
 from .lti_1p1.oauth import log_authorization_header
 from .outcomes import OutcomeService
+from .plugin import compat
 from .track import track_event
 from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled, database_config_enabled
-
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ DOCS_ANCHOR_TAG_OPEN = (
     "'>"
 )
 RESULT_SERVICE_SUFFIX_PARSER = re.compile(r"^user/(?P<anon_id>\w+)", re.UNICODE)
-ROLE_MAP = {
+LTI_1P1_ROLE_MAP = {
     'student': 'Student,Learner',
     'staff': 'Administrator',
     'instructor': 'Instructor',
@@ -743,14 +744,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     @property
     def role(self):
         """
-        Get system user role and convert it to LTI role.
+        Get system user role.
         """
         user = self.runtime.service(self, 'user').get_current_user()
         if not user.opt_attrs["edx-platform.is_authenticated"]:
             raise LtiError(self.ugettext("Could not get user data for current request"))
 
-        role = user.opt_attrs.get('edx-platform.user_role', 'student')
-        return ROLE_MAP.get(role, 'Student,Learner')
+        return user.opt_attrs.get('edx-platform.user_role', 'student')
 
     @property
     def course(self):
@@ -1031,7 +1031,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         from lti_consumer.api import get_lti_1p3_launch_info
 
         # Retrieve LTI 1.3 Launch information
-        context.update(get_lti_1p3_launch_info(block=self))
+        launch_data = self.get_lti_1p3_launch_data()
+        context.update(
+            get_lti_1p3_launch_info(
+                launch_data=launch_data,
+                block=self
+            )
+        )
 
         # Render template
         fragment = Fragment()
@@ -1097,6 +1103,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             real_user_data = self.extract_real_user_data()
             user_id = self.user_id
             role = self.role
+
+            # Convert the LMS role into an LTI 1.1 role.
+            role = LTI_1P1_ROLE_MAP.get(role, 'Student,Learner')
+
             result_sourcedid = self.lis_result_sourcedid
         except LtiError:
             loader = ResourceLoader(__name__)
@@ -1405,6 +1415,47 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         return launch_url
 
+    def get_lti_1p3_launch_data(self):
+        """
+        Return an instance of Lti1p3LaunchData, containing necessary data for an LTI 1.3 launch.
+        """
+        # Runtime import since this will only run in the
+        # Open edX LMS/Studio environments.
+        # TODO: Replace this with a more appropriate API function that is intended for public use.
+        # pylint: disable=import-outside-toplevel
+        from lti_consumer.api import _get_lti_config
+        lti_config = _get_lti_config(block=self)
+
+        location = self.location  # pylint: disable=no-member
+        course_key = str(location.course_key)
+
+        launch_data = Lti1p3LaunchData(
+            user_id=self.external_user_id,
+            user_role=self.role,
+            config_id=lti_config.config_id,
+            resource_link_id=str(location),
+            launch_presentation_document_target="iframe",
+            context_id=course_key,
+            context_type=["course_offering"],
+            context_title=self.get_context_title(),
+            context_label=course_key,
+        )
+
+        return launch_data
+
+    def get_context_title(self):
+        """
+        Return the title attribute of the context_claim for LTI 1.3 launches. This information is included in the
+        launch_data query or form parameter of the LTI 1.3 third-party login initiation request.
+        """
+        course_key = self.location.course_key  # pylint: disable=no-member
+        course = compat.get_course_by_id(course_key)
+
+        return " - ".join([
+            course.display_name_with_default,
+            course.display_org_with_default
+        ])
+
     def _get_lti_block_launch_handler(self):
         """
         Return the LTI block launch handler.
@@ -1415,13 +1466,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if self.lti_version == 'lti_1p1' or self.config_type == "external":
             lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
         else:
-            # Runtime import since this will only run in the Open edX LMS/Studio environments.
-            from lti_consumer.api import get_lti_1p3_content_url  # pylint: disable=import-outside-toplevel
+            launch_data = self.get_lti_1p3_launch_data()
 
             # Retrieve and set LTI 1.3 Launch start URL
+            # Runtime import since this will only run in the Open edX LMS/Studio environments.
+            from lti_consumer.api import get_lti_1p3_content_url  # pylint: disable=import-outside-toplevel
             lti_block_launch_handler = get_lti_1p3_content_url(
+                launch_data,
                 block=self,
-                hint=str(self.location)  # pylint: disable=no-member
             )
 
         return lti_block_launch_handler

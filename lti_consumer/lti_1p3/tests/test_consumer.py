@@ -9,9 +9,11 @@ from urllib.parse import parse_qs, urlparse
 import ddt
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
+from edx_django_utils.cache import get_cache_key, TieredCache
 from jwkest.jwk import load_jwks
 from jwkest.jws import JWS
 
+from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_1p3 import exceptions
 from lti_consumer.lti_1p3.ags import LtiAgs
 from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
@@ -54,23 +56,22 @@ class TestLti1p3Consumer(TestCase):
             tool_key=RSA_KEY
         )
 
-    def _setup_lti_user(self):
+    def _setup_lti_launch_data(self):
         """
         Set up a minimal LTI message with only required parameters.
 
-        Currently, the only required parameters are the user data,
-        but using a helper function to keep the usage consistent accross
-        all tests.
+        Currently, the only required parameters are the user data and resource_link_data.
         """
         self.lti_consumer.set_user_data(
             user_id="1",
             role="student",
         )
 
+        self.lti_consumer.set_resource_link_claim("resource_link_id")
+
     def _get_lti_message(
             self,
             preflight_response=None,
-            resource_link="link"
     ):
         """
         Retrieves a base LTI message with fixed test parameters.
@@ -88,7 +89,6 @@ class TestLti1p3Consumer(TestCase):
 
         return self.lti_consumer.generate_launch_request(
             preflight_response,
-            resource_link
         )
 
     def _decode_token(self, token):
@@ -149,10 +149,16 @@ class TestLti1p3Consumer(TestCase):
         """
         Check if preflight request is properly formed and has all required keys.
         """
-        preflight_request_data = self.lti_consumer.prepare_preflight_url(
-            hint="test-hint",
-            lti_hint="test-lti-hint"
+        user_id = "1"
+        resource_link_id = "resource_link_id"
+        launch_data = Lti1p3LaunchData(
+            user_id=user_id,
+            user_role="student",
+            config_id="1",
+            resource_link_id=resource_link_id,
         )
+
+        preflight_request_data = self.lti_consumer.prepare_preflight_url(launch_data)
 
         # Extract and check parameters from OIDC launch request url
         parameters = parse_qs(urlparse(preflight_request_data).query)
@@ -169,10 +175,17 @@ class TestLti1p3Consumer(TestCase):
         )
         self.assertEqual(parameters['iss'][0], ISS)
         self.assertEqual(parameters['client_id'][0], CLIENT_ID)
-        self.assertEqual(parameters['login_hint'][0], "test-hint")
-        self.assertEqual(parameters['lti_message_hint'][0], "test-lti-hint")
+        self.assertEqual(parameters['login_hint'][0], user_id)
         self.assertEqual(parameters['lti_deployment_id'][0], DEPLOYMENT_ID)
         self.assertEqual(parameters['target_link_uri'][0], LAUNCH_URL)
+
+        launch_data_key = get_cache_key(
+            app="lti",
+            key="launch_data",
+            user_id=user_id,
+            resource_link_id=resource_link_id
+        )
+        self.assertEqual(parameters['lti_message_hint'][0], launch_data_key)
 
     @ddt.data(
         # User with no roles
@@ -203,7 +216,6 @@ class TestLti1p3Consumer(TestCase):
                 "email": "jonh@example.com"
             }
         ),
-
     )
     @ddt.unpack
     def test_set_user_data(self, data, expected_output):
@@ -216,6 +228,15 @@ class TestLti1p3Consumer(TestCase):
             expected_output
         )
 
+    def test_check_no_user_data_error(self):
+        """
+        Check if the launch request fails if no user data is set.
+        """
+        with self.assertRaises(ValueError) as context_manager:
+            self._get_lti_message()
+
+        self.assertEqual(str(context_manager.exception), "Required user data isn't set.")
+
     @ddt.data(
         "iframe",
         "frame",
@@ -225,7 +246,7 @@ class TestLti1p3Consumer(TestCase):
         """
         Check if setting presentation claim data works
         """
-        self._setup_lti_user()
+        self._setup_lti_launch_data()
         self.lti_consumer.set_launch_presentation_claim(document_target=target)
         self.assertEqual(
             self.lti_consumer.lti_claim_launch_presentation,
@@ -266,7 +287,7 @@ class TestLti1p3Consumer(TestCase):
         """
         Check if setting context claim data works
         """
-        self._setup_lti_user()
+        self._setup_lti_launch_data()
         self.lti_consumer.set_context_claim(
             "context_id",
             context_types=[context_type],
@@ -306,7 +327,7 @@ class TestLti1p3Consumer(TestCase):
         """
         Check if setting invalid context claim type omits type attribute
         """
-        self._setup_lti_user()
+        self._setup_lti_launch_data()
         self.lti_consumer.set_context_claim(
             "context_id",
             context_types=["invalid"],
@@ -345,7 +366,7 @@ class TestLti1p3Consumer(TestCase):
         """
         Check if setting no context claim type works
         """
-        self._setup_lti_user()
+        self._setup_lti_launch_data()
         self.lti_consumer.set_context_claim(
             "context_id"
         )
@@ -375,19 +396,56 @@ class TestLti1p3Consumer(TestCase):
             expected_claim_data
         )
 
-    def test_check_no_user_data_error(self):
+    @ddt.data(
+        (
+            {"resource_link_id": "id"},
+            {
+                "https://purl.imsglobal.org/spec/lti/claim/resource_link": {
+                    "id": "id",
+                }
+            }
+        ),
+        (
+            {"resource_link_id": "id", "description": "description", "title": "title"},
+            {
+                "https://purl.imsglobal.org/spec/lti/claim/resource_link": {
+                    "id": "id",
+                    "description": "description",
+                    "title": "title",
+                }
+            }
+        ),
+    )
+    @ddt.unpack
+    def test_set_resource_link_claim(self, data, expected_output):
         """
-        Check if the launch request fails if no user data is set.
+        Test that setting the lti_consumer.lti_claim_resource_link attribute with
+        the lti_consumer.set_resource_link_claim method works correctly.
         """
-        with self.assertRaises(ValueError):
+        self.lti_consumer.set_resource_link_claim(**data)
+        self.assertEqual(
+            self.lti_consumer.lti_claim_resource_link,
+            expected_output
+        )
+
+    def test_check_no_resource_link_claim_error(self):
+        """
+        Check if the launch request fails if no resource_link data is set.
+        """
+        # In order to satisfy the user data check, set some user data.
+        self.lti_consumer.set_user_data("1", "student")
+
+        with self.assertRaises(ValueError) as context_manager:
             self._get_lti_message()
+
+        self.assertEqual(str(context_manager.exception), "Required resource_link data isn't set.")
 
     @patch('time.time', return_value=1000)
     def test_launch_request(self, mock_time):
         """
         Check if the launch request works if user data is set.
         """
-        self._setup_lti_user()
+        self._setup_lti_launch_data()
         launch_request = self._get_lti_message()
 
         self.assertEqual(mock_time.call_count, 2)
@@ -405,7 +463,7 @@ class TestLti1p3Consumer(TestCase):
             "custom": "parameter",
         }
 
-        self._setup_lti_user()
+        self._setup_lti_launch_data()
         self.lti_consumer.set_custom_parameters(custom_parameters)
 
         launch_request = self._get_lti_message()
@@ -522,7 +580,7 @@ class TestLti1p3Consumer(TestCase):
         """
         Check if extra claims are correctly added to the LTI message
         """
-        self._setup_lti_user()
+        self._setup_lti_launch_data()
         self.lti_consumer.set_extra_claim({"fake_claim": "test"})
 
         # Retrieve launch message
@@ -571,11 +629,39 @@ class TestLtiAdvantageConsumer(TestCase):
 
         self.preflight_response = {}
 
+    def _setup_lti_message_hint(self):
+        """
+        Instantiate Lti1p3LaunchData with the appropriate launch data and store it in the cache.
+
+        Return the cache key that was used to store the Lti1p3LaunchData.
+        """
+        user_id = "1"
+        resource_link_id = "resource_link_id"
+        launch_data = Lti1p3LaunchData(
+            user_id=user_id,
+            user_role="student",
+            config_id="1",
+            resource_link_id=resource_link_id,
+            message_type="LtiDeepLinkingRequest",
+        )
+
+        launch_data_key = get_cache_key(
+            app="lti",
+            key="launch_data",
+            user_id=user_id,
+            resource_link_id=resource_link_id,
+        )
+        TieredCache.set_all_tiers(launch_data_key, launch_data)
+
+        return launch_data_key
+
     def _setup_deep_linking(self):
         """
         Set's up deep linking class in LTI consumer.
         """
         self.lti_consumer.enable_deep_linking("launch-url", "return-url")
+
+        lti_message_hint = self._setup_lti_message_hint()
 
         # Set LTI Consumer parameters
         self.preflight_response = {
@@ -583,9 +669,10 @@ class TestLtiAdvantageConsumer(TestCase):
             "redirect_uri": LAUNCH_URL,
             "nonce": NONCE,
             "state": STATE,
-            "lti_message_hint": "deep_linking_launch",
+            "lti_message_hint": lti_message_hint,
         }
         self.lti_consumer.set_user_data("1", "student")
+        self.lti_consumer.set_resource_link_claim("resource_link_id")
 
     def test_enable_ags(self):
         """
@@ -639,7 +726,6 @@ class TestLtiAdvantageConsumer(TestCase):
         # Retrieve LTI Deep Link Launch Message
         token = self.lti_consumer.generate_launch_request(
             self.preflight_response,
-            "resourceLink"
         )['id_token']
 
         # Decode and check

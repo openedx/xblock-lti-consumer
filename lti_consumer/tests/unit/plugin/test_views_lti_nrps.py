@@ -10,7 +10,7 @@ from rest_framework.reverse import reverse
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
-from lti_consumer.tests.unit.test_utils import make_xblock
+from lti_consumer.tests.test_utils import make_xblock
 
 
 def generate_mock_members(num, role='student'):
@@ -135,12 +135,9 @@ class LtiNrpsTestCase(APITransactionTestCase):
 
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
-
         # Create configuration
         self.lti_config = LtiConfiguration.objects.create(
-            location=str(self.xblock.location),
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3,
         )
         # Preload XBlock to avoid calls to modulestore

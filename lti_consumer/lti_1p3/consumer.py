@@ -1,7 +1,10 @@
 """
 LTI 1.3 Consumer implementation
 """
+import logging
 from urllib.parse import urlencode
+
+from lti_consumer.utils import cache_lti_1p3_launch_data, get_data_from_cache
 
 from . import constants, exceptions
 from .constants import (
@@ -15,6 +18,8 @@ from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 from .ags import LtiAgs
 from .deep_linking import LtiDeepLinking
 from .nprs import LtiNrps
+
+log = logging.getLogger(__name__)
 
 
 class LtiConsumer1p3:
@@ -53,6 +58,7 @@ class LtiConsumer1p3:
 
         # IMS LTI Claim data
         self.lti_claim_user_data = None
+        self.lti_claim_resource_link = None
         self.lti_claim_launch_presentation = None
         self.lti_claim_context = None
         self.lti_claim_custom_parameters = None
@@ -90,20 +96,31 @@ class LtiConsumer1p3:
 
     def prepare_preflight_url(
             self,
-            hint="hint",
-            lti_hint="lti_hint"
+            launch_data,
     ):
         """
         Generates OIDC url with parameters
         """
+        user_id = launch_data.user_id
+
+        # Set the launch_data in the cache. An LTI 1.3 launch involves two "legs" - the third party initiated
+        # login request (the preflight request) and the actual launch -, and this information must be shared between
+        # the two requests. A simple example is the intended LTI launch message of the LTI launch. This value is
+        # known at the time that preflight request is made, but it is not accessible when the tool responds to the
+        # preflight request and the platform must craft a launch request. This library stores the launch_data in the
+        # cache and includes the cache key as the lti_message_hint query or form parameter to retrieve it later.
+        launch_data_key = cache_lti_1p3_launch_data(launch_data)
+
         oidc_url = self.oidc_url + "?"
+
+        login_hint = user_id
         parameters = {
             "iss": self.iss,
             "client_id": self.client_id,
             "lti_deployment_id": self.deployment_id,
             "target_link_uri": self.launch_url,
-            "login_hint": hint,
-            "lti_message_hint": lti_hint
+            "login_hint": login_hint,
+            "lti_message_hint": launch_data_key,
         }
 
         return oidc_url + urlencode(parameters)
@@ -142,6 +159,37 @@ class LtiConsumer1p3:
             self.lti_claim_user_data.update({
                 "email": email_address,
             })
+
+    def set_resource_link_claim(
+        self,
+        resource_link_id,
+        description=None,
+        title=None,
+    ):
+        """
+        Set resource_link claim. The resource link must be stable and unique to each deployment_id. This value MUST
+        change if the link is copied or exported from one system or context and imported into another system or context
+
+        https://www.imsglobal.org/spec/lti/v1p3#resource-link-claim
+
+        Arguments:
+        * id (string): opaque, unique value identifying the placement of an LTI resource link
+        * description (string): description for the placement of an LTI resource link
+        * title (string): title for the placement of an LTI resource link
+        """
+        resource_link_claim_data = {
+            "id": resource_link_id,
+        }
+
+        if description:
+            resource_link_claim_data["description"] = description
+
+        if title:
+            resource_link_claim_data["title"] = title
+
+        self.lti_claim_resource_link = {
+            "https://purl.imsglobal.org/spec/lti/claim/resource_link": resource_link_claim_data
+        }
 
     def set_launch_presentation_claim(
             self,
@@ -233,7 +281,6 @@ class LtiConsumer1p3:
 
     def get_lti_launch_message(
             self,
-            resource_link,
             include_extra_claims=True,
     ):
         """
@@ -263,17 +310,6 @@ class LtiConsumer1p3:
             # MUST be the same value as the target_link_uri passed by the platform in the OIDC login request
             # http://www.imsglobal.org/spec/lti/v1p3/#target-link-uri
             "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": self.launch_url,
-
-            # Resource link: stable and unique to each deployment_id
-            # This value MUST change if the link is copied or exported from one system or
-            # context and imported into another system or context
-            # http://www.imsglobal.org/spec/lti/v1p3/#resource-link-claim
-            "https://purl.imsglobal.org/spec/lti/claim/resource_link": {
-                "id": resource_link,
-                # Optional claims
-                # "title": "Introduction Assignment"
-                # "description": "Assignment to introduce who you are",
-            },
         })
 
         # Check if user data is set, then append it to lti message
@@ -282,6 +318,13 @@ class LtiConsumer1p3:
             lti_message.update(self.lti_claim_user_data)
         else:
             raise ValueError("Required user data isn't set.")
+
+        # Check if the resource_link claim has been set and append it to the LTI message if it has.
+        # The resource_link claim is required, so raise an exception if it has not been set.
+        if self.lti_claim_resource_link:
+            lti_message.update(self.lti_claim_resource_link)
+        else:
+            raise ValueError("Required resource_link data isn't set.")
 
         # Only used when doing normal LTI launches
         if include_extra_claims:
@@ -307,7 +350,6 @@ class LtiConsumer1p3:
     def generate_launch_request(
             self,
             preflight_response,
-            resource_link
     ):
         """
         Build LTI message from class parameters
@@ -319,7 +361,7 @@ class LtiConsumer1p3:
         self._validate_preflight_response(preflight_response)
 
         # Get LTI Launch Message
-        lti_launch_message = self.get_lti_launch_message(resource_link=resource_link)
+        lti_launch_message = self.get_lti_launch_message()
 
         # Nonce from OIDC preflight launch request
         lti_launch_message.update({
@@ -551,21 +593,25 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
     def generate_launch_request(
             self,
             preflight_response,
-            resource_link
     ):
         """
         Build LTI message for Deep linking launches.
 
         Overrides method from LtiConsumer1p3 to allow handling LTI Deep linking messages
         """
+        lti_message_hint = preflight_response.get('lti_message_hint')
+        launch_data = get_data_from_cache(lti_message_hint)
+
+        if not launch_data:
+            log.warning(f'There was a cache miss during an LTI 1.3 launch when using the cache_key {lti_message_hint}.')
+
         # Check if Deep Linking is enabled and that this is a Deep Link Launch
-        if self.dl and preflight_response.get("lti_message_hint") == "deep_linking_launch":
+        if self.dl and launch_data.message_type == "LtiDeepLinkingRequest":
             # Validate preflight response
             self._validate_preflight_response(preflight_response)
 
             # Get LTI Launch Message
             lti_launch_message = self.get_lti_launch_message(
-                resource_link=resource_link,
                 include_extra_claims=False,
             )
 
@@ -598,7 +644,6 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         # set up or this isn't a Deep Link Launch
         return super().generate_launch_request(
             preflight_response,
-            resource_link
         )
 
     def check_and_decode_deep_linking_token(self, token):

@@ -1,91 +1,115 @@
 """
-Utility functions used within unit tests
+Unit tests for lti_consumer.utils module
 """
+from unittest.mock import Mock, patch
 
-from unittest.mock import Mock
-import urllib
-from webob import Request
-from workbench.runtime import WorkbenchRuntime
-from xblock.fields import ScopeIds
-from xblock.runtime import DictKeyValueStore, KvsFieldData
+import ddt
+from django.test.testcases import TestCase
 
-FAKE_USER_ID = 'fake_user_id'
+from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
+from lti_consumer.utils import (
+    get_lti_1p3_context_types_claim,
+    get_lti_1p3_launch_data_cache_key,
+    cache_lti_1p3_launch_data,
+    get_data_from_cache,
+)
 
 
-def make_xblock(xblock_name, xblock_cls, attributes):
+@ddt.ddt
+class TestGetLti1p3ContextTypesClaim(TestCase):
     """
-    Helper to construct XBlock objects
+    Tests for the get_lti_1p3_context_types_claim function of the utils module.
     """
-    runtime = WorkbenchRuntime()
-    key_store = DictKeyValueStore()
-    db_model = KvsFieldData(key_store)
-    ids = generate_scope_ids(runtime, xblock_name)
-    xblock = xblock_cls(runtime, db_model, scope_ids=ids)
-    xblock.category = Mock()
-    xblock.location = Mock(
-        html_id=Mock(return_value='sample_element_id'),
+
+    @ddt.data(
+        (["course_offering"], [LTI_1P3_CONTEXT_TYPE.course_offering]),
+        (["course_offering", "group"], [LTI_1P3_CONTEXT_TYPE.course_offering, LTI_1P3_CONTEXT_TYPE.group]),
     )
-    xblock.runtime = Mock(
-        hostname='localhost',
+    @ddt.unpack
+    def test_get_lti_1p3_context_types_claim(self, argument, expected_output):
+        """
+        Test that get_lti_1p3_context_types_claim returns the correct context_types.
+        """
+        lti_context_types_claims = get_lti_1p3_context_types_claim(argument)
+
+        self.assertEqual(lti_context_types_claims, expected_output)
+
+    @ddt.data(
+        ["course_offering", "nonsense"],
+        ["nonsense"],
     )
-    xblock.course_id = 'course-v1:edX+DemoX+Demo_Course'
-    for key, value in attributes.items():
-        setattr(xblock, key, value)
-    return xblock
+    def test_get_lti_1p3_context_types_claim_invalid(self, argument):
+        """
+        Test that get_lti_1p3_context_types_claim if any of the context_types are invalid.
+        """
+        with self.assertRaises(ValueError):
+            get_lti_1p3_context_types_claim(argument)
 
 
-def generate_scope_ids(runtime, block_type):
+@ddt.ddt
+class TestCacheUtilities(TestCase):
     """
-    Helper to generate scope IDs for an XBlock
-    """
-    def_id = runtime.id_generator.create_definition(block_type)
-    usage_id = runtime.id_generator.create_usage(def_id)
-    return ScopeIds('user', block_type, def_id, usage_id)
-
-
-def make_request(body, method='POST'):
-    """
-    Helper to make a request
-    """
-    request = Request.blank('/')
-    request.method = 'POST'
-    request.body = body.encode('utf-8')
-    request.method = method
-    return request
-
-
-def make_jwt_request(token, **overrides):
-    """
-    Builds a Request with a JWT body.
-    """
-    body = {
-        "grant_type": "client_credentials",
-        "client_assertion_type": "something",
-        "client_assertion": token,
-        "scope": "",
-    }
-    request = make_request(urllib.parse.urlencode({**body, **overrides}), 'POST')
-    request.content_type = 'application/x-www-form-urlencoded'
-    return request
-
-
-def dummy_processor(_xblock):
-    """
-    A dummy LTI parameter processor.
-    """
-    return {
-        'custom_author_email': 'author@example.com',
-        'custom_author_country': '',
-    }
-
-
-def defaulting_processor(_xblock):
-    """
-    A dummy LTI parameter processor with default params.
+    Tests for the cache utilities in the utils module.
     """
 
+    @patch('lti_consumer.utils.get_cache_key')
+    @ddt.data(None, "1")
+    def test_get_lti_1p3_launch_data_cache_key(self, deep_linking_content_item_id, mock_get_cache_key):
+        """
+        Test that get_lti_1p3_launch_data_cache_key calls the get_cache_key function with the correct arguments.
+        """
+        mock_launch_data = Mock()
+        mock_launch_data.user_id = "1"
+        mock_launch_data.resource_link_id = "1"
+        mock_launch_data.deep_linking_content_item_id = deep_linking_content_item_id
 
-defaulting_processor.lti_xblock_default_params = {
-    'custom_name': 'Lex',
-    'custom_country': '',
-}
+        get_lti_1p3_launch_data_cache_key(mock_launch_data)
+
+        get_cache_key_kwargs = {
+            "app": "lti",
+            "key": "launch_data",
+            "user_id": "1",
+            "resource_link_id": "1"
+        }
+
+        if deep_linking_content_item_id:
+            get_cache_key_kwargs['deep_linking_content_item_id'] = deep_linking_content_item_id
+
+        mock_get_cache_key.assert_called_with(
+            **get_cache_key_kwargs
+        )
+
+    @patch('lti_consumer.utils.TieredCache.set_all_tiers')
+    @patch('lti_consumer.utils.get_lti_1p3_launch_data_cache_key')
+    def test_cache_lti_1p3_launch_data(self, mock_get_cache_key, mock_set_all_tiers):
+        """
+        Test that cache_lti_1p3_launch_data caches the launch_data and returns the cache key.
+        """
+        mock_launch_data = Mock()
+
+        mock_get_cache_key.return_value = "launch_data_cache_key"
+
+        cache_lti_1p3_launch_data(mock_launch_data)
+
+        mock_get_cache_key.assert_called_with(mock_launch_data)
+        mock_set_all_tiers.assert_called_with("launch_data_cache_key", mock_launch_data, django_cache_timeout=600)
+
+    @patch('lti_consumer.utils.TieredCache.get_cached_response')
+    @ddt.data(True, False)
+    def test_get_data_from_cache(self, is_found, mock_get_cached_response):
+        """
+        Test that get_data_from_cache returns the data from the cache correctly or returns None if the data
+        is not in the cache.
+        """
+        mock_cached_data = Mock()
+        mock_cached_data.value = "value"
+        mock_cached_data.is_found = is_found
+
+        mock_get_cached_response.return_value = mock_cached_data
+
+        value = get_data_from_cache("key")
+
+        if is_found:
+            self.assertEqual(value, "value")
+        else:
+            self.assertIsNone(value)

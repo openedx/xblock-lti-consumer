@@ -62,6 +62,10 @@ class PreflightRequestValidationFailure(Lti1p3Exception):
     message = "The preflight response is not valid."
 
 
+class LtiLaunchDataValidationFailure(Lti1p3Exception):
+    message = "The Lti1p3LaunchData is not valid."
+
+
 class LtiAdvantageServiceNotSetUp(Lti1p3Exception):
     message = "The LTI Advantage Service is not set up."
 

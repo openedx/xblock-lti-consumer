@@ -5,7 +5,7 @@ import logging
 import urllib
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.http import JsonResponse, Http404
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
@@ -20,7 +20,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
-from lti_consumer.api import get_lti_pii_sharing_state_for_course
+from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
 from lti_consumer.exceptions import LtiError
 from lti_consumer.models import (
     LtiConfiguration,
@@ -28,7 +28,6 @@ from lti_consumer.models import (
     LtiDlContentItem,
 )
 
-from lti_consumer.lti_1p3.consumer import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.exceptions import (
     Lti1p3Exception,
     LtiDeepLinkingContentTypeNotSupported,
@@ -65,7 +64,7 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
 from lti_consumer.plugin import compat
-from lti_consumer.utils import _
+from lti_consumer.utils import _, get_lti_1p3_context_types_claim, get_data_from_cache
 from lti_consumer.track import track_event
 
 
@@ -143,32 +142,44 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     """
     Gate endpoint that triggers LTI launch endpoint XBlock handler
 
-    This uses the location key from the "login_hint" query parameter
+    This uses the config_id key of the "lti_message_hint" query parameter
     to identify the LtiConfiguration and its consumer to generate the
     LTI 1.3 Launch Form.
     """
-    usage_id = request.GET.get('login_hint')
-    if not usage_id:
-        log.info('The `login_hint` query param in the request is missing or empty.')
+    # pylint: disable=too-many-statements
+    request_params = request.GET if request.method == 'GET' else request.POST
+
+    lti_message_hint = request_params.get('lti_message_hint')
+    if not lti_message_hint:
+        log.info('The lti_message_hint query param in the request is missing or empty.')
         return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
 
-    try:
-        usage_key = UsageKey.from_string(usage_id)
-    except InvalidKeyError as exc:
-        log.error(
-            "The login_hint: %s is not a valid block location. Error: %s",
-            usage_id,
-            exc,
-            exc_info=True
-        )
-        return render(request, 'html/lti_launch_error.html', status=HTTP_404_NOT_FOUND)
+    login_hint = request_params.get('login_hint')
+    if not login_hint:
+        log.info('The login_hint query param in the request is missing or empty.')
+        return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
 
+    launch_data = get_data_from_cache(lti_message_hint)
+    if not launch_data:
+        log.warning(f'There was a cache miss during an LTI 1.3 launch when using the cache_key {lti_message_hint}.')
+        return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
+
+    # Validate the Lti1p3LaunchData.
+    is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+    if not is_valid:
+        validation_message = " ".join(validation_messages)
+        log.error(
+            f"The Lti1p3LaunchData is not valid. {validation_message}"
+        )
+        return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
+
+    config_id = launch_data.config_id
     try:
         lti_config = LtiConfiguration.objects.get(
-            location=usage_key
+            config_id=config_id
         )
-    except LtiConfiguration.DoesNotExist as exc:
-        log.error("Invalid usage_id '%s' for LTI 1.3 Launch callback", usage_id)
+    except (LtiConfiguration.DoesNotExist, ValidationError) as exc:
+        log.error("Invalid config_id '%s' for LTI 1.3 Launch callback", config_id)
         raise Http404 from exc
 
     if lti_config.version != LtiConfiguration.LTI_1P3:
@@ -177,50 +188,58 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
     context = {}
 
-    course_key = usage_key.course_key
-    course = compat.get_course_by_id(course_key)
-    user_role = compat.get_user_role(request.user, course_key)
-    external_user_id = compat.get_external_id_for_user(request.user)
-    lti_consumer = lti_config.get_lti_consumer()
-
     try:
-        # Pass user data
-        # Pass django user role to library
-        lti_consumer.set_user_data(user_id=external_user_id, role=user_role)
+        lti_consumer = lti_config.get_lti_consumer()
 
-        # Set launch context
-        # Hardcoded for now, but we need to translate from
-        # self.launch_target to one of the LTI compliant names,
-        # either `iframe`, `frame` or `window`
-        # This is optional though
-        lti_consumer.set_launch_presentation_claim('iframe')
-
-        # Set context claim
-        # This is optional
-        context_title = " - ".join([
-            course.display_name_with_default,
-            course.display_org_with_default
-        ])
-        # Course ID is the context ID for the LTI for now. This can be changed to be
-        # more specific in the future for supporting other tools like discussions, etc.
-        lti_consumer.set_context_claim(
-            str(course_key),
-            context_types=[LTI_1P3_CONTEXT_TYPE.course_offering],
-            context_title=context_title,
-            context_label=str(course_key)
+        # Set sub and roles claims.
+        user_id = launch_data.user_id
+        user_role = launch_data.user_role
+        lti_consumer.set_user_data(
+            user_id=user_id,
+            role=user_role,
         )
 
-        # Retrieve preflight response
-        preflight_response = request.GET.dict()
-        lti_message_hint = preflight_response.get('lti_message_hint', '')
+        # Set resource_link claim.
+        lti_consumer.set_resource_link_claim(launch_data.resource_link_id)
 
-        # Set LTI Launch URL
+        # Set launch_presentation claim.
+        launch_presentation_target = launch_data.launch_presentation_document_target
+        if launch_presentation_target:
+            lti_consumer.set_launch_presentation_claim(launch_presentation_target)
+
+        # Set optional context claim, if supplied.
+        context_type = launch_data.context_type
+        context_types_claim = None
+
+        if context_type:
+            try:
+                context_types_claim = get_lti_1p3_context_types_claim(context_type)
+            except ValueError:
+                log.error(
+                    "The context_type key %s in the launch data does not represent a valid context_type.",
+                    context_type
+                )
+                return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
+
+        lti_consumer.set_context_claim(
+            launch_data.context_id,
+            context_types_claim,
+            launch_data.context_title,
+            launch_data.context_label,
+        )
+
+        # Retrieve preflight response.
+        preflight_response = request_params.dict()
+
+        # Set LTI Launch URL.
         context.update({'launch_url': lti_consumer.launch_url})
 
-        # Modify LTI Launch URL dependind on launch type
+        # Modify LTI Launch URL depending on launch type.
         # Deep Linking Launch - Configuration flow launched by
         # course creators to set up content.
-        if lti_consumer.dl and lti_message_hint == 'deep_linking_launch':
+        deep_linking_content_item_id = launch_data.deep_linking_content_item_id
+
+        if lti_consumer.dl and launch_data.message_type == 'LtiDeepLinkingRequest':
             # Check if the user is staff before LTI doing deep linking launch.
             # If not, raise exception and display error page
             if user_role not in ['instructor', 'staff']:
@@ -231,10 +250,9 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         # Deep Linking ltiResourceLink content presentation
         # When content type is `ltiResourceLink`, the tool will be launched with
         # different parameters, set by instructors when running the DL configuration flow.
-        elif lti_consumer.dl and 'deep_linking_content_launch' in lti_message_hint:
-            # Retrieve Deep Linking parameters using lti_message_hint parameter.
-            deep_linking_id = lti_message_hint.split(':')[1]
-            content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_id)
+        elif lti_consumer.dl and deep_linking_content_item_id:
+            # Retrieve Deep Linking parameters using the  parameter.
+            content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_content_item_id)
             # Only filter DL content item from content item set in the same LTI configuration.
             # This avoids a malicious user to input a random LTI id and perform LTI DL
             # content launches outside the scope of its configuration.
@@ -250,8 +268,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         context.update({
             "preflight_response": preflight_response,
             "launch_request": lti_consumer.generate_launch_request(
-                resource_link=usage_id,
-                preflight_response=preflight_response
+                preflight_response=preflight_response,
             )
         })
         event = {
@@ -263,18 +280,20 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
         return render(request, 'html/lti_1p3_launch.html', context)
     except Lti1p3Exception as exc:
+        resource_link_id = launch_data.resource_link_id
         log.warning(
-            "Error preparing LTI 1.3 launch for block %r: %s",
-            usage_id,
+            "Error preparing LTI 1.3 launch for resource with resource_link_id %r: %s",
+            resource_link_id,
             exc,
             exc_info=True
         )
         return render(request, 'html/lti_launch_error.html', context, status=HTTP_400_BAD_REQUEST)
     except AssertionError as exc:
+        resource_link_id = launch_data.resource_link_id
         log.warning(
-            "Permission on LTI block %r denied for user %r: %s",
-            usage_id,
-            external_user_id,
+            "Permission on resource with resource_link_id %r denied for user %r: %s",
+            resource_link_id,
+            user_id,
             exc,
             exc_info=True
         )
@@ -438,10 +457,20 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
 
 @require_http_methods(['GET'])
 @xframe_options_sameorigin
-def deep_linking_content_endpoint(request, lti_config_id=None):
+def deep_linking_content_endpoint(request, lti_config_id):
     """
     Deep Linking endpoint for rendering Deep Linking Content Items.
     """
+    launch_data_key = request.GET.get("launch_data_key")
+    if not launch_data_key:
+        log.info('The launch_data_key query param in the request is missing or empty.')
+        return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
+
+    launch_data = get_data_from_cache(launch_data_key)
+    if not launch_data:
+        log.warning(f'There was a cache miss during an LTI 1.3 launch when using the cache_key {launch_data_key}.')
+        return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
+
     try:
         # Get LTI Configuration
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
@@ -470,6 +499,7 @@ def deep_linking_content_endpoint(request, lti_config_id=None):
     return render(request, 'html/lti-dl/render_dl_content.html', {
         'content_items': content_items,
         'block': lti_config.block,
+        'launch_data': launch_data,
     })
 
 
