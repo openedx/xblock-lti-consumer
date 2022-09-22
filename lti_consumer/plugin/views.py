@@ -177,11 +177,13 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
     context = {}
 
+    block = compat.load_block_as_anonymous_user(usage_key)
+
     course_key = usage_key.course_key
     course = compat.get_course_by_id(course_key)
     user_role = compat.get_user_role(request.user, course_key)
     external_user_id = compat.get_external_id_for_user(request.user)
-    lti_consumer = lti_config.get_lti_consumer()
+    lti_consumer = lti_config.get_lti_consumer(block=block)
 
     try:
         # Pass user data
@@ -313,8 +315,10 @@ def access_token_endpoint(request, lti_config_id=None, usage_id=None):
 
     if lti_config.version != lti_config.LTI_1P3:
         return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
+    
+    block = compat.load_block_as_anonymous_user(usage_key)
 
-    lti_consumer = lti_config.get_lti_consumer()
+    lti_consumer = lti_config.get_lti_consumer(block=block)
     try:
         token = lti_consumer.access_token(
             dict(urllib.parse.parse_qsl(
@@ -360,6 +364,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
 
         # Get LTI consumer
+        #TODO this will now fail on xblock type because no block and no way to get it
         lti_consumer = lti_config.get_lti_consumer()
 
         # Validate Deep Linking return message and return decoded message
