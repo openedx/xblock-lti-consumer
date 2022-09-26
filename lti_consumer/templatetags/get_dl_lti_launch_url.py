@@ -19,6 +19,7 @@ def get_dl_lti_launch_url(content_item):
     TODO: Refactor `hint` to use generic ID once LTI launches out of XBlocks are
     supported.
     """
+    #TODO this may have a block dependent config, can it get the block?
     return get_lti_1p3_launch_start_url(
         config_id=content_item.lti_configuration.id,
         dl_content_id=content_item.id,
