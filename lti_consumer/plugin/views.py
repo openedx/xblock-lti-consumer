@@ -315,7 +315,7 @@ def access_token_endpoint(request, lti_config_id=None, usage_id=None):
 
     if lti_config.version != lti_config.LTI_1P3:
         return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
-    
+
     block = compat.load_block_as_anonymous_user(usage_key)
 
     lti_consumer = lti_config.get_lti_consumer(block=block)
@@ -364,8 +364,8 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
 
         # Get LTI consumer
-        #TODO this will now fail on xblock type because no block and no way to get it
-        lti_consumer = lti_config.get_lti_consumer()
+        block = compat.load_block_as_anonymous_user(request.user, lti_config.location)
+        lti_consumer = lti_config.get_lti_consumer(block=block)
 
         # Validate Deep Linking return message and return decoded message
         content_items = lti_consumer.check_and_decode_deep_linking_token(
