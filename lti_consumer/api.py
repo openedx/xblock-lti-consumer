@@ -7,10 +7,11 @@ return plaintext to allow easy testing/mocking.
 
 import json
 
+from django.core.exceptions import ObjectDoesNotExist
 from opaque_keys.edx.keys import CourseKey
 
 from .exceptions import LtiError
-from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
+from .models import CourseAllowPIISharingInLTIFlag, DBLtiConfiguration, ExternalLtiConfiguration, LtiConfiguration, LtiDlContentItem
 from .utils import (
     get_lti_deeplinking_content_url,
     get_lms_lti_keyset_link,
@@ -32,6 +33,7 @@ def _get_or_create_local_lti_config(lti_version, block_location,
     This allows XBlock users to update the LTI version without needing to update the database.
     """
     # The create operation is only performed when there is no existing configuration for the block
+    # TODO this would need to create multiple types, and note that they all get location and external id
     lti_config, _ = LtiConfiguration.objects.get_or_create(location=block_location)
 
     lti_config.config_store = config_store
@@ -44,6 +46,17 @@ def _get_or_create_local_lti_config(lti_version, block_location,
 
     return lti_config
 
+def _get_lti_config_by_id(config_id):
+    try:
+        return DBLtiConfiguration.objects.get(pk=config_id)
+    except ObjectDoesNotExist:
+        pass
+    try:
+        return LtiConfiguration.objects.get(pk=config_id)
+    except ObjectDoesNotExist:
+        pass
+    #for this final attempt we can just let does not exist escape to the caller
+    return ExternalLtiConfiguration.objects.get(pk=config_id)
 
 def _get_lti_config(config_id=None, block=None):
     """

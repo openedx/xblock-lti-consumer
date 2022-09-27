@@ -41,21 +41,11 @@ def generate_client_id():
     """
     return str(uuid.uuid4())
 
-
-class LtiConfiguration(models.Model):
+class BaseLtiConfiguration(models.Model):
     """
-    Model to store LTI Configuration for LTI 1.1 and 1.3.
-
-    This models stores references (Usage Keys) and returns LTI
-    configuration data fetching them from XBlock fields.
-
-    With the implementation of
-    https://github.com/edx/xblock-lti-consumer/blob/master/docs/decisions/0001-lti-extensions-plugin.rst
-    this model will store all LTI configuration values as a formatted JSON.
-
-    .. no_pii:
+    Cover all of the common elements of LTI configurations
     """
-    # LTI Version
+
     LTI_1P1 = 'lti_1p1'
     LTI_1P3 = 'lti_1p3'
     LTI_VERSION_CHOICES = [
@@ -68,43 +58,8 @@ class LtiConfiguration(models.Model):
         default=LTI_1P1,
     )
 
-    # Configuration storage
-    # Initally, this only supported the configuration
-    # stored on the block. Now it has been expanded to
-    # enable storing LTI configuration in the model itself or in an external
-    # configuration service fetchable using openedx-filters
-    CONFIG_ON_XBLOCK = 'CONFIG_ON_XBLOCK'
-    CONFIG_ON_DB = 'CONFIG_ON_DB'
-    CONFIG_EXTERNAL = 'CONFIG_EXTERNAL'
-    CONFIG_STORE_CHOICES = [
-        (CONFIG_ON_XBLOCK, _('Configuration Stored on XBlock fields')),
-        (CONFIG_ON_DB, _('Configuration Stored on this model')),
-        (CONFIG_EXTERNAL, _('Configuration Stored on external service')),
-    ]
-    config_store = models.CharField(
-        max_length=255,
-        choices=CONFIG_STORE_CHOICES,
-        default=CONFIG_ON_XBLOCK,
-    )
-
-    # ID of the configuration if the configuration is obtained from the
-    # external service using filters
-    external_id = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True
-    )
-
     # A secondary ID for this configuration that can be used in URLs without leaking primary id.
     config_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
-
-    # Block location where the configuration is stored.
-    location = UsageKeyField(
-        max_length=255,
-        db_index=True,
-        null=True,
-        blank=True,
-    )
 
     # This is where the configuration is stored in the model if stored on this model.
     lti_config = JSONField(
@@ -227,53 +182,6 @@ class LtiConfiguration(models.Model):
                   'grades.'
     )
 
-    # Empty variable that'll hold the block once it's retrieved
-    # from the modulestore or preloaded
-    _block = None
-
-    def clean(self):
-        if self.config_store == self.CONFIG_ON_XBLOCK and self.location is None:
-            raise ValidationError({
-                "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
-            })
-        if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
-            if not database_config_enabled(self.block.location.course_key):
-                raise ValidationError({
-                    "config_store": _("LTI Configuration stores on database is not enabled."),
-                })
-            if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
-                raise ValidationError({
-                    "config_store": _(
-                        "LTI Configuration stored on the model for LTI 1.3 must have a value for one of "
-                        "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
-                    ),
-                })
-        try:
-            consumer = self.get_lti_consumer()
-        except NotImplementedError:
-            consumer = None
-        if consumer is None:
-            raise ValidationError(_("Invalid LTI configuration."))
-
-    @property
-    def block(self):
-        """
-        Return instance of block (either preloaded or directly from the modulestore).
-        """
-        block = getattr(self, '_block', None)
-        if block is None:
-            if self.location is None:
-                raise ValueError(_("Block location not set, it's not possible to retrieve the block."))
-            block = self._block = compat.load_block_as_anonymous_user(self.location)
-        return block
-
-    @block.setter
-    def block(self, block):
-        """
-        Allows preloading the block instead of fetching it from the modulestore.
-        """
-        self._block = block
-
     def _generate_lti_1p3_keys_if_missing(self):
         """
         Generate LTI 1.3 RSA256 keys if missing.
@@ -330,73 +238,152 @@ class LtiConfiguration(models.Model):
         self._generate_lti_1p3_keys_if_missing()
         return json.loads(self.lti_1p3_internal_public_jwk)
 
+
+    def get_lti_advantage_ags_mode(self):
+        raise NotImplementedError
+
+    def get_lti_advantage_deep_linking_enabled(self):
+        raise NotImplementedError
+
+    def get_lti_advantage_deep_linking_launch_url(self):
+        raise NotImplementedError
+
+    def get_lti_advantage_nrps_enabled(self):
+        raise NotImplementedError
+
+    def _setup_lti_1p3_deep_linking(self, consumer):
+        """
+        Set up LTI 1.3 Advantage Deep Linking.
+        """
+        try:
+            if self.get_lti_advantage_deep_linking_enabled():
+                consumer.enable_deep_linking(
+                    self.get_lti_advantage_deep_linking_launch_url(),
+                    get_lti_deeplinking_response_url(self.id),
+                )
+        except NotImplementedError as exc:
+            log.exception("Error setting up LTI 1.3 Advantage Deep Linking: %s", exc)
+
+    def _setup_lti_1p3_nrps(self, consumer):
+        """
+        Set up LTI 1.3 Advantage Names and Role Provisioning Services.
+        """
+        try:
+            if self.get_lti_advantage_nrps_enabled():
+                consumer.enable_nrps(get_lti_nrps_context_membership_url(self.id))
+        except NotImplementedError as exc:
+            log.exception("Error setting up LTI 1.3 Advantage Names and Role Provisioning Services: %s", exc)
+
+    def _get_lti_1p1_consumer(self):
+        raise NotImplementedError
+
+    def _get_lti_1p3_consumer(self):
+        raise NotImplementedError
+
+    def get_lti_consumer(self):
+        """
+        Returns an instanced class of LTI 1.1 or 1.3 consumer.
+        """
+        if self.version == self.LTI_1P3:
+            return self._get_lti_1p3_consumer()
+
+        return self._get_lti_1p1_consumer()
+
+    class Meta:
+        abstract = True
+        app_label = 'lti_consumer'
+
+class LtiConfiguration(BaseLtiConfiguration):
+    """
+    Model to store LTI Configuration for LTI 1.1 and 1.3 on the block
+
+    This models stores references (Usage Keys) and returns LTI
+    configuration data fetching them from XBlock fields.
+
+    With the implementation of
+    https://github.com/edx/xblock-lti-consumer/blob/master/docs/decisions/0001-lti-extensions-plugin.rst
+    this model will store all LTI configuration values as a formatted JSON.
+
+    .. no_pii:
+    """
+
+    #TODO probably need a config store field here allowed to be none as we migrate out of this
+
+    # Block location where the configuration is stored.
+    location = UsageKeyField(
+        max_length=255,
+        db_index=True,
+        null=True,
+        blank=True,
+    )
+
+    # Empty variable that'll hold the block once it's retrieved
+    # from the modulestore or preloaded
+    _block = None
+
+    def clean(self):
+        if self.location is None:
+            raise ValidationError({
+                "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
+            })
+        try:
+            consumer = self.get_lti_consumer()
+        except NotImplementedError:
+            consumer = None
+        if consumer is None:
+            raise ValidationError(_("Invalid LTI configuration."))
+
+    @property
+    def block(self):
+        """
+        Return instance of block (either preloaded or directly from the modulestore).
+        """
+        block = getattr(self, '_block', None)
+        if block is None:
+            if self.location is None:
+                raise ValueError(_("Block location not set, it's not possible to retrieve the block."))
+            block = self._block = compat.load_block_as_anonymous_user(self.location)
+        return block
+
+    @block.setter
+    def block(self, block):
+        """
+        Allows preloading the block instead of fetching it from the modulestore.
+        """
+        self._block = block
+
     def _get_lti_1p1_consumer(self):
         """
         Return a class of LTI 1.1 consumer.
         """
         # If LTI configuration is stored in the XBlock.
-        if self.config_store == self.CONFIG_ON_XBLOCK:
-            key, secret = self.block.lti_provider_key_secret
-            launch_url = self.block.launch_url
-        elif self.config_store == self.CONFIG_EXTERNAL:
-            config = get_external_config_from_filter({}, self.external_id)
-            key = config.get("lti_1p1_client_key")
-            secret = config.get("lti_1p1_client_secret")
-            launch_url = config.get("lti_1p1_launch_url")
-        else:
-            key = self.lti_1p1_client_key
-            secret = self.lti_1p1_client_secret
-            launch_url = self.lti_1p1_launch_url
-
+        key, secret = self.block.lti_provider_key_secret
+        launch_url = self.block.launch_url
         return LtiConsumer1p1(launch_url, key, secret)
 
     def get_lti_advantage_ags_mode(self):
         """
         Return LTI 1.3 Advantage Assignment and Grade Services mode.
         """
-        if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError
-        if self.config_store == self.CONFIG_ON_DB:
-            return self.lti_advantage_ags_mode
-        else:
-            return self.block.lti_advantage_ags_mode
+        return self.block.lti_advantage_ags_mode
 
     def get_lti_advantage_deep_linking_enabled(self):
         """
         Return whether LTI 1.3 Advantage Deep Linking is enabled.
         """
-        if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
-        if self.config_store == self.CONFIG_ON_DB:
-            return self.lti_advantage_deep_linking_enabled
-        else:
-            return self.block.lti_advantage_deep_linking_enabled
+        return self.block.lti_advantage_deep_linking_enabled
 
     def get_lti_advantage_deep_linking_launch_url(self):
         """
         Return the LTI 1.3 Advantage Deep Linking launch URL.
         """
-        if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
-        if self.config_store == self.CONFIG_ON_DB:
-            return self.lti_advantage_deep_linking_launch_url
-        else:
-            return self.block.lti_advantage_deep_linking_launch_url
+        return self.block.lti_advantage_deep_linking_launch_url
 
     def get_lti_advantage_nrps_enabled(self):
         """
         Return whether LTI 1.3 Advantage Names and Role Provisioning Services is enabled.
         """
-        if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
-        if self.config_store == self.CONFIG_ON_DB:
-            return self.lti_advantage_enable_nrps
-        else:
-            return self.block.lti_1p3_enable_nrps
+        return self.block.lti_1p3_enable_nrps
 
     def _setup_lti_1p3_ags(self, consumer):
         """
@@ -457,6 +444,104 @@ class LtiConfiguration(models.Model):
             )
         )
 
+    def _get_lti_1p3_consumer(self):
+        """
+        Return a class of LTI 1.3 consumer.
+
+        Uses the `config_store` variable to determine where to
+        look for the configuration and instance the class.
+        """
+        consumer = LtiAdvantageConsumer(
+            iss=get_lms_base(),
+            lti_oidc_url=self.block.lti_1p3_oidc_url,
+            lti_launch_url=self.block.lti_1p3_launch_url,
+            client_id=self.lti_1p3_client_id,
+            # Deployment ID hardcoded to 1 since
+            # we're not using multi-tenancy.
+            deployment_id="1",
+            # XBlock Private RSA Key
+            rsa_key=self.lti_1p3_private_key,
+            rsa_key_id=self.lti_1p3_private_key_id,
+            # LTI 1.3 Tool key/keyset url
+            tool_key=self.block.lti_1p3_tool_public_key,
+            tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
+        )
+
+        self._setup_lti_1p3_ags(consumer)
+        self._setup_lti_1p3_deep_linking(consumer)
+        self._setup_lti_1p3_nrps(consumer)
+        return consumer
+
+    class Meta:
+        app_label = 'lti_consumer'
+
+
+class DBLtiConfiguration(BaseLtiConfiguration):
+    """
+    Model to store LTI Configuration for LTI 1.1 and 1.3.
+    This models stores references (Usage Keys) and returns LTI
+    configuration data fetching them from XBlock fields.
+    With the implementation of
+    https://github.com/edx/xblock-lti-consumer/blob/master/docs/decisions/0001-lti-extensions-plugin.rst
+    this model will store all LTI configuration values as a formatted JSON.
+    .. no_pii:
+    """
+
+    def clean(self):
+        if self.version == self.LTI_1P3:
+            if not database_config_enabled(self.block.location.course_key):
+                raise ValidationError({
+                    "config_store": _("LTI Configuration stores on database is not enabled."),
+                })
+            if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
+                raise ValidationError({
+                    "config_store": _(
+                        "LTI Configuration stored on the model for LTI 1.3 must have a value for one of "
+                        "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
+                    ),
+                })
+        try:
+            consumer = self.get_lti_consumer()
+        except NotImplementedError:
+            consumer = None
+        if consumer is None:
+            raise ValidationError(_("Invalid LTI configuration."))
+
+
+    def _get_lti_1p1_consumer(self):
+        """
+        Return a class of LTI 1.1 consumer.
+        """
+        # If LTI configuration is stored in the XBlock.
+        key = self.lti_1p1_client_key
+        secret = self.lti_1p1_client_secret
+        launch_url = self.lti_1p1_launch_url
+        return LtiConsumer1p1(launch_url, key, secret)
+
+    def get_lti_advantage_ags_mode(self):
+        """
+        Return LTI 1.3 Advantage Assignment and Grade Services mode.
+        """
+        return self.lti_advantage_ags_mode
+
+    def get_lti_advantage_deep_linking_enabled(self):
+        """
+        Return whether LTI 1.3 Advantage Deep Linking is enabled.
+        """
+        return self.lti_advantage_deep_linking_enabled
+
+    def get_lti_advantage_deep_linking_launch_url(self):
+        """
+        Return the LTI 1.3 Advantage Deep Linking launch URL.
+        """
+        return self.lti_advantage_deep_linking_launch_url
+
+    def get_lti_advantage_nrps_enabled(self):
+        """
+        Return whether LTI 1.3 Advantage Names and Role Provisioning Services is enabled.
+        """
+        return self.lti_advantage_enable_nrps
+
     def _setup_lti_1p3_deep_linking(self, consumer):
         """
         Set up LTI 1.3 Advantage Deep Linking.
@@ -483,58 +568,79 @@ class LtiConfiguration(models.Model):
     def _get_lti_1p3_consumer(self):
         """
         Return a class of LTI 1.3 consumer.
-
         Uses the `config_store` variable to determine where to
         look for the configuration and instance the class.
         """
-        if self.config_store == self.CONFIG_ON_XBLOCK:
-            consumer = LtiAdvantageConsumer(
-                iss=get_lms_base(),
-                lti_oidc_url=self.block.lti_1p3_oidc_url,
-                lti_launch_url=self.block.lti_1p3_launch_url,
-                client_id=self.lti_1p3_client_id,
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id="1",
-                # XBlock Private RSA Key
-                rsa_key=self.lti_1p3_private_key,
-                rsa_key_id=self.lti_1p3_private_key_id,
-                # LTI 1.3 Tool key/keyset url
-                tool_key=self.block.lti_1p3_tool_public_key,
-                tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
-            )
-        elif self.config_store == self.CONFIG_ON_DB:
-            consumer = LtiAdvantageConsumer(
-                iss=get_lms_base(),
-                lti_oidc_url=self.lti_1p3_oidc_url,
-                lti_launch_url=self.lti_1p3_launch_url,
-                client_id=self.lti_1p3_client_id,
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id="1",
-                # XBlock Private RSA Key
-                rsa_key=self.lti_1p3_private_key,
-                rsa_key_id=self.lti_1p3_private_key_id,
-                # LTI 1.3 Tool key/keyset url
-                tool_key=self.lti_1p3_tool_public_key,
-                tool_keyset_url=self.lti_1p3_tool_keyset_url,
-            )
-        else:
-            # This should not occur, but raise an error if self.config_store is not CONFIG_ON_XBLOCK
-            # or CONFIG_ON_DB.
-            raise NotImplementedError
+        consumer = LtiAdvantageConsumer(
+            iss=get_lms_base(),
+            lti_oidc_url=self.lti_1p3_oidc_url,
+            lti_launch_url=self.lti_1p3_launch_url,
+            client_id=self.lti_1p3_client_id,
+            # Deployment ID hardcoded to 1 since
+            # we're not using multi-tenancy.
+            deployment_id="1",
+            # XBlock Private RSA Key
+            rsa_key=self.lti_1p3_private_key,
+            rsa_key_id=self.lti_1p3_private_key_id,
+            # LTI 1.3 Tool key/keyset url
+            tool_key=self.lti_1p3_tool_public_key,
+            tool_keyset_url=self.lti_1p3_tool_keyset_url,
+        )
 
-        self._setup_lti_1p3_ags(consumer)
+        # TODO AGS requires a block as implemented, we don't have it here
+        # self._setup_lti_1p3_ags(consumer)
         self._setup_lti_1p3_deep_linking(consumer)
         self._setup_lti_1p3_nrps(consumer)
         return consumer
+
+    class Meta:
+        app_label = 'lti_consumer'
+
+
+class ExternalLtiConfiguration(BaseLtiConfiguration):
+    """
+    Model to store LTI Configuration for LTI 1.1 and 1.3.
+    This models stores references (Usage Keys) and returns LTI
+    configuration data fetching them from XBlock fields.
+    With the implementation of
+    https://github.com/edx/xblock-lti-consumer/blob/master/docs/decisions/0001-lti-extensions-plugin.rst
+    this model will store all LTI configuration values as a formatted JSON.
+    .. no_pii:
+    """
+
+    # ID of the configuration if the configuration is obtained from the
+    # external service using filters
+    external_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+
+    def clean(self):
+        try:
+            consumer = self.get_lti_consumer()
+        except NotImplementedError:
+            consumer = None
+        if consumer is None:
+            raise ValidationError(_("Invalid LTI configuration."))
+
+    def _get_lti_1p1_consumer(self):
+        """
+        Return a class of LTI 1.1 consumer.
+        """
+        config = get_external_config_from_filter({}, self.external_id)
+        key = config.get("lti_1p1_client_key")
+        secret = config.get("lti_1p1_client_secret")
+        launch_url = config.get("lti_1p1_launch_url")
+
+        return LtiConsumer1p1(launch_url, key, secret)
 
     def get_lti_consumer(self):
         """
         Returns an instanced class of LTI 1.1 or 1.3 consumer.
         """
         if self.version == self.LTI_1P3:
-            return self._get_lti_1p3_consumer()
+            raise NotImplementedError
 
         return self._get_lti_1p1_consumer()
 
