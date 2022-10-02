@@ -16,7 +16,7 @@ asgiref==3.5.2
     # via
     #   -r requirements/test.txt
     #   django
-astroid==2.12.9
+astroid==2.12.10
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -33,16 +33,16 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.24.74
+boto3==1.24.84
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.27.74
+botocore==1.27.84
     # via
     #   -r requirements/test.txt
     #   boto3
     #   s3transfer
-certifi==2022.9.14
+certifi==2022.9.24
     # via
     #   -r requirements/test.txt
     #   requests
@@ -83,7 +83,7 @@ cookiecutter==2.1.1
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-coverage==6.4.4
+coverage==6.5.0
     # via
     #   -r requirements/test.txt
     #   coveralls
@@ -132,7 +132,7 @@ django-waffle==3.0.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
-djangorestframework==3.13.1
+djangorestframework==3.14.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
@@ -144,7 +144,7 @@ docutils==0.19
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-edx-django-utils==5.0.1
+edx-django-utils==5.1.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
@@ -176,7 +176,7 @@ idna==3.4
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==4.12.0
+importlib-metadata==5.0.0
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -185,7 +185,7 @@ isort==5.10.1
     # via
     #   -r requirements/test.txt
     #   pylint
-jaraco-classes==3.2.2
+jaraco-classes==3.2.3
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -211,11 +211,11 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via -r requirements/test.txt
-keyring==23.9.1
+keyring==23.9.3
     # via
     #   -r requirements/test.txt
     #   twine
-lazy==1.4
+lazy==1.5
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
@@ -228,7 +228,7 @@ lxml==4.9.1
     #   -r requirements/test.txt
     #   xblock
     #   xblock-sdk
-mako==1.2.2
+mako==1.2.3
     # via
     #   -r requirements/test.txt
     #   xblock-utils
@@ -248,7 +248,7 @@ more-itertools==8.14.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
-newrelic==8.1.0.180
+newrelic==8.2.0.181
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -303,7 +303,7 @@ pygments==2.13.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.15.2
+pylint==2.15.3
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -350,7 +350,7 @@ python-slugify==6.1.2
     #   -r requirements/test.txt
     #   code-annotations
     #   cookiecutter
-pytz==2022.2.1
+pytz==2022.4
     # via
     #   -r requirements/test.txt
     #   django
@@ -362,7 +362,7 @@ pyyaml==6.0
     #   code-annotations
     #   cookiecutter
     #   xblock
-readme-renderer==37.1
+readme-renderer==37.2
     # via
     #   -r requirements/test.txt
     #   twine
@@ -411,7 +411,7 @@ six==1.16.0
     #   pyjwkest
     #   python-dateutil
     #   tox
-sqlparse==0.4.2
+sqlparse==0.4.3
     # via
     #   -r requirements/test.txt
     #   django
@@ -431,7 +431,7 @@ tomli==2.0.1
     #   -r requirements/tox.txt
     #   pylint
     #   tox
-tomlkit==0.11.4
+tomlkit==0.11.5
     # via
     #   -r requirements/test.txt
     #   pylint
