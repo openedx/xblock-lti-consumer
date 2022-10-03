@@ -390,7 +390,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
 
                 # Validate content item data
                 serializer = serializer_cls(data=content_item)
-                serializer.is_valid(True)
+                serializer.is_valid(raise_exception=True)
 
                 # Save content item
                 LtiDlContentItem.objects.create(
