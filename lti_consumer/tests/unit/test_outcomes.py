@@ -416,7 +416,11 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         Test user not found returns failure response
         """
         request = make_request('')
-        self.xblock.runtime.get_real_user.return_value = None
+        self.xblock.runtime.service = Mock(
+            return_value=Mock(
+                get_user_by_anonymous_id=Mock(return_value=None)
+            )
+        )
         response = self.outcome_servce.handle_request(request)
 
         self.assertIn('failure', response)
