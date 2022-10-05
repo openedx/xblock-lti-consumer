@@ -1293,7 +1293,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         except LtiError:
             return Response(status=401)  # Unauthorized in this case.  401 is right
 
-        user = self.runtime.get_real_user(anon_id)
+        user = self.runtime.service(self, 'user').get_user_by_anonymous_id(anon_id)
         if not user:  # that means we can't save to database, as we do not have real user id.
             msg = _("[LTI]: Real user not found against anon_id: {}").format(anon_id)
             log.info(msg)

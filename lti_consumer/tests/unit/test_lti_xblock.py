@@ -998,7 +998,11 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         Test 404 response returned when a user cannot be found
         """
         mock_parse_suffix.return_value = FAKE_USER_ID
-        self.xblock.runtime.get_real_user.return_value = None
+        self.xblock.runtime.service = Mock(
+            return_value=Mock(
+                get_user_by_anonymous_id=Mock(return_value=None)
+            )
+        )
         response = self.xblock.result_service_handler(make_request('', 'GET'))
 
         self.assertEqual(response.status_code, 404)
