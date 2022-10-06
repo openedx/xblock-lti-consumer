@@ -706,7 +706,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if config_service:
             is_already_sharing_learner_info = self.ask_to_send_email or self.ask_to_send_username
             if not config_service.configuration.lti_access_to_learners_editable(
-                    self.course_id,
+                    self.runtime.scope_ids.usage_id.context_key,
                     is_already_sharing_learner_info,
             ):
                 noneditable_fields.extend(['ask_to_send_username', 'ask_to_send_email'])
@@ -738,7 +738,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context_id is an opaque identifier that uniquely identifies the context (e.g., a course)
         that contains the link being launched.
         """
-        return str(self.course_id)
+        return str(self.runtime.scope_ids.usage_id.context_key)
 
     @property
     def role(self):
@@ -757,7 +757,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Return course by course id.
         """
-        return self.runtime.modulestore.get_course(self.runtime.course_id)
+        return self.runtime.modulestore.get_course(self.runtime.scope_ids.usage_id.context_key)
 
     @property
     def lti_provider_key_secret(self):

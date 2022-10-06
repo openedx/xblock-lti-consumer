@@ -130,7 +130,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `context_id` returns unicode course id
         """
-        self.assertEqual(self.xblock.context_id, str(self.xblock.course_id))
+        self.assertEqual(self.xblock.context_id, str(self.xblock.runtime.scope_ids.usage_id.context_key))
 
     def test_validate(self):
         """

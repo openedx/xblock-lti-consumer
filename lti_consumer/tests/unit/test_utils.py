@@ -28,7 +28,7 @@ def make_xblock(xblock_name, xblock_cls, attributes):
     xblock.runtime = Mock(
         hostname='localhost',
     )
-    xblock.course_id = 'course-v1:edX+DemoX+Demo_Course'
+    xblock.runtime.scope_ids.usage_id.context_key = 'course-v1:edX+DemoX+Demo_Course'
     for key, value in attributes.items():
         setattr(xblock, key, value)
     return xblock
