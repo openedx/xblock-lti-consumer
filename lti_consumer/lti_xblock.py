@@ -688,8 +688,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         editable_fields = self.editable_field_names
         noneditable_fields = []
 
-        is_database_config_enabled = database_config_enabled(self.location.course_key)  # pylint: disable=no-member
-        is_external_config_filter_enabled = external_config_filter_enabled(self.location.course_key)  # pylint: disable=no-member
+        is_database_config_enabled = database_config_enabled(self.location.course_key)
+        is_external_config_filter_enabled = external_config_filter_enabled(self.location.course_key)
 
         # If neither additional config_types are enabled, do not display the "config_type" field to users, as "new" is
         # the only option and does not make sense without other options.
@@ -847,7 +847,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         makes resource_link_id to be unique among courses inside same system.
         """
         return str(urllib.parse.quote(
-            f"{self.runtime.hostname}-{self.location.html_id()}"  # pylint: disable=no-member
+            f"{self.runtime.hostname}-{self.location.html_id()}"
         ))
 
     @property
@@ -932,13 +932,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         custom_parameters['custom_component_display_name'] = str(self.display_name)
 
-        if self.due:  # pylint: disable=no-member
+        if self.due:
             custom_parameters.update({
-                'custom_component_due_date': self.due.strftime('%Y-%m-%d %H:%M:%S')  # pylint: disable=no-member
+                'custom_component_due_date': self.due.strftime('%Y-%m-%d %H:%M:%S')
             })
-            if self.graceperiod:  # pylint: disable=no-member
+            if self.graceperiod:
                 custom_parameters.update({
-                    'custom_component_graceperiod': str(self.graceperiod.total_seconds())  # pylint: disable=no-member
+                    'custom_component_graceperiod': str(self.graceperiod.total_seconds())
                 })
 
         return custom_parameters
@@ -947,9 +947,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Is it now past this problem's due date, including grace period?
         """
-        due_date = self.due  # pylint: disable=no-member
-        if self.graceperiod is not None and due_date:  # pylint: disable=no-member
-            close_date = due_date + self.graceperiod  # pylint: disable=no-member
+        due_date = self.due
+        if self.graceperiod is not None and due_date:
+            close_date = due_date + self.graceperiod
         else:
             close_date = due_date
         return close_date is not None and timezone.now() > close_date
@@ -1178,9 +1178,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # object exists before calling the Django View
         assert self._get_lti_consumer()
         # Runtime import because this can only be run in the LMS/Studio Django
-        # environments. Importing the views on the top level will cause RuntimeErorr
+        # environments. Importing the views on the top level will cause RuntimeError
         from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
-        return access_token_endpoint(request, usage_id=str(self.location))  # pylint: disable=no-member
+        return access_token_endpoint(request, usage_id=str(self.location))
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument
@@ -1421,7 +1421,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             # Retrieve and set LTI 1.3 Launch start URL
             lti_block_launch_handler = get_lti_1p3_content_url(
                 block=self,
-                hint=str(self.location)  # pylint: disable=no-member
+                hint=str(self.location)
             )
 
         return lti_block_launch_handler
@@ -1470,7 +1470,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return {
             'launch_url': launch_url.strip(),
             'lti_1p3_launch_url': lti_1p3_launch_url,
-            'element_id': self.location.html_id(),  # pylint: disable=no-member
+            'element_id': self.location.html_id(),
             'element_class': self.category,
             'launch_target': self.launch_target,
             'display_name': self.display_name,
