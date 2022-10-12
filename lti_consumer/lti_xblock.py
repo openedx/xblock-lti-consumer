@@ -973,9 +973,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Runtime import since this will only run in the
         # Open edX LMS/Studio environments.
         # pylint: disable=import-outside-toplevel
-        from lti_consumer.api import get_lti_consumer
+        from lti_consumer.api import config_id_for_block, get_lti_consumer
 
-        return get_lti_consumer(block=self)
+        return get_lti_consumer(config_id_for_block(self))
 
     def extract_real_user_data(self):
         """
@@ -1034,8 +1034,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         launch_data = self.get_lti_1p3_launch_data()
         context.update(
             get_lti_1p3_launch_info(
-                launch_data=launch_data,
-                block=self
+                launch_data,
             )
         )
 
@@ -1423,8 +1422,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Open edX LMS/Studio environments.
         # TODO: Replace this with a more appropriate API function that is intended for public use.
         # pylint: disable=import-outside-toplevel
-        from lti_consumer.api import _get_lti_config
-        lti_config = _get_lti_config(block=self)
+        from lti_consumer.api import config_id_for_block
+        config_id = config_id_for_block(self)
 
         location = self.location  # pylint: disable=no-member
         course_key = str(location.course_key)
@@ -1432,7 +1431,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         launch_data = Lti1p3LaunchData(
             user_id=self.external_user_id,
             user_role=self.role,
-            config_id=lti_config.config_id,
+            config_id=config_id,
             resource_link_id=str(location),
             launch_presentation_document_target="iframe",
             context_id=course_key,
@@ -1473,7 +1472,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             from lti_consumer.api import get_lti_1p3_content_url  # pylint: disable=import-outside-toplevel
             lti_block_launch_handler = get_lti_1p3_content_url(
                 launch_data,
-                block=self,
             )
 
         return lti_block_launch_handler

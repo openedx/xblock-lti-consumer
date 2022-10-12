@@ -15,13 +15,25 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 
 Unreleased
 ~~~~~~~~~~
+6.0.0 - 2022-10-24
+------------------
+BREAKING CHANGE:
+
+Please note that additional breaking changes will be forthcoming in future versions of this library.
+
+* Modified Python API methods to use config_id (the UUID field) exclusively rather than config.id or block.
+
+  * For the functions changed in 5.0.0 the config_id is available in the launch_data.
+  * Other functions had config.id changed to config_id and block removed as an argument.
+  * The new function config_id_for_block gets that config ID if all you have is a block.
+
 5.0.1 - 2022-10-17
 ------------------
 * Fixed a bug that prevented LTI 1.3 launches from occurring in the browser due to Django's clickjacking protection.
 
   * Added the xframe_options_exempt view decorator to launch_gate_endpoint to allow loading response in an <iframe> tags
 * Fixed a bug in the URL used for an LTI 1.3 launch; the library now sends LTI 1.3 launches to the redirect_uri provided
-  by the Tool in the authentication request, instead of the preregistered target_link_uri. 
+  by the Tool in the authentication request, instead of the preregistered target_link_uri.
 
 5.0.0 - 2022-10-12
 ------------------
@@ -107,7 +119,7 @@ Please note that additional breaking changes will be forthcoming in future versi
 3.4.1 - 2022-02-01
 ------------------
 
-* Fix the target_link_uri parameter on OIDC login preflight url parameter so it matches 
+* Fix the target_link_uri parameter on OIDC login preflight url parameter so it matches
   claim message definition of the field.
   See docs at https://www.imsglobal.org/spec/lti/v1p3#target-link-uri
 

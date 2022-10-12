@@ -18,7 +18,7 @@ from jwkest.jwk import RSAKey, KEYS
 
 from lti_consumer.exceptions import LtiError
 
-from lti_consumer.api import _get_lti_config
+from lti_consumer.api import config_id_for_block
 from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
 from lti_consumer.lti_1p3.tests.utils import create_jwt
@@ -598,7 +598,7 @@ class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
         self.xblock.lti_id = provider
         type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
 
-        with patch('lti_consumer.models.LtiConfiguration.block', return_value=self.xblock):
+        with patch('lti_consumer.plugin.compat.load_block_as_user', return_value=self.xblock):
             self.xblock._get_lti_consumer()  # pylint: disable=protected-access
 
         mock_lti_consumer.assert_called_with(self.xblock.launch_url, key, secret)
@@ -1483,13 +1483,11 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         launch_data = self.xblock.get_lti_1p3_launch_data()
 
-        lti_config = _get_lti_config(block=self.xblock)
-
         course_key = str(self.xblock.location.course_key)  # pylint: disable=no-member
         expected_launch_data = Lti1p3LaunchData(
             user_id="external_user_id",
             user_role="instructor",
-            config_id=lti_config.config_id,
+            config_id=config_id_for_block(self.xblock),
             resource_link_id=str(self.xblock.location),  # pylint: disable=no-member
             launch_presentation_document_target="iframe",
             message_type="LtiResourceLinkRequest",
