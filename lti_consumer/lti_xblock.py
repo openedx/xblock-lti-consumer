@@ -932,13 +932,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         custom_parameters['custom_component_display_name'] = str(self.display_name)
 
-        if self.due:  # pylint: disable=no-member
+        if self.due:
             custom_parameters.update({
-                'custom_component_due_date': self.due.strftime('%Y-%m-%d %H:%M:%S')  # pylint: disable=no-member
+                'custom_component_due_date': self.due.strftime('%Y-%m-%d %H:%M:%S')
             })
-            if self.graceperiod:  # pylint: disable=no-member
+            if self.graceperiod:
                 custom_parameters.update({
-                    'custom_component_graceperiod': str(self.graceperiod.total_seconds())  # pylint: disable=no-member
+                    'custom_component_graceperiod': str(self.graceperiod.total_seconds())
                 })
 
         return custom_parameters
@@ -947,9 +947,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Is it now past this problem's due date, including grace period?
         """
-        due_date = self.due  # pylint: disable=no-member
-        if self.graceperiod is not None and due_date:  # pylint: disable=no-member
-            close_date = due_date + self.graceperiod  # pylint: disable=no-member
+        due_date = self.due
+        if self.graceperiod is not None and due_date:
+            close_date = due_date + self.graceperiod
         else:
             close_date = due_date
         return close_date is not None and timezone.now() > close_date
