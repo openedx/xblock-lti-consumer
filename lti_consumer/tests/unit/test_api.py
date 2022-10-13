@@ -2,10 +2,12 @@
 Tests for LTI API.
 """
 from unittest.mock import Mock, patch
+from urllib.parse import parse_qs, urlparse
 import ddt
 
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
+from edx_django_utils.cache import get_cache_key
 from opaque_keys.edx.locations import Location
 
 from lti_consumer.api import (
@@ -14,11 +16,14 @@ from lti_consumer.api import (
     get_deep_linking_data,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
-    get_lti_consumer
+    get_lti_consumer,
+    validate_lti_1p3_launch_data
 )
+from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
-from lti_consumer.tests.unit.test_utils import make_xblock
+from lti_consumer.tests.test_utils import make_xblock
+from lti_consumer.utils import get_data_from_cache
 
 
 class Lti1P3TestCase(TestCase):
@@ -52,11 +57,19 @@ class Lti1P3TestCase(TestCase):
             'lti_1p3_tool_public_key': public_key,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attributes)
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
+
         # Create lti configuration
         self.lti_config = LtiConfiguration.objects.create(
-            location=self.xblock.location
+            location=self.xblock.location  # pylint: disable=no-member
+        )
+
+    @staticmethod
+    def _get_lti_1p3_launch_data():
+        return Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id="1",
+            resource_link_id="resource_link_id",
         )
 
 
@@ -228,9 +241,124 @@ class TestGetLtiConsumer(TestCase):
         self.assertEqual(LtiConfiguration.objects.all().count(), 1)
 
 
+class TestValidateLti1p3LaunchData(TestCase):
+    """
+    Unit tests for validate_lti_1p3_launch_data API method.
+    """
+    def setUp(self):
+        # Patch internal method to avoid calls to modulestore
+        super().setUp()
+        patcher = patch(
+            'lti_consumer.models.LtiConfiguration.get_lti_consumer',
+        )
+        self.addCleanup(patcher.stop)
+
+    def _assert_required_context_id_message(self, validation_messages):
+        """
+        Assert that validation_messages is the correct list of validation_messages for the required context_id
+        attribute.
+
+        Arguments:
+            validation_messages (list): a list of strings representing validation messages
+        """
+        self.assertEqual(
+            validation_messages,
+            ["The context_id attribute is required in the launch data if any optional context properties are provided."]
+        )
+
+    def test_valid(self):
+        """
+        Ensure that valid instances of Lti1p3LaunchData are appropriately validated.
+        """
+        launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id="1",
+            resource_link_id="resource_link_id",
+            context_id="1",
+            context_type=["course_offering"],
+        )
+
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+
+        self.assertEqual(is_valid, True)
+        self.assertEqual(validation_messages, [])
+
+    def test_invalid_context_values_context_id_required(self):
+        """
+        Ensure that instances of Lti1p3LaunchData that are instantiated with optional context_* attributes also are
+        instantiated with the context_id attribute.
+        """
+        launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id="1",
+            resource_link_id="resource_link_id",
+        )
+
+        launch_data.context_type = ["course_offering"]
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+        self.assertEqual(is_valid, False)
+        self._assert_required_context_id_message(validation_messages)
+
+        launch_data.context_title = "context_title"
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+        self.assertEqual(is_valid, False)
+        self._assert_required_context_id_message(validation_messages)
+
+        launch_data.context_label = "context_label"
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+        self.assertEqual(is_valid, False)
+        self._assert_required_context_id_message(validation_messages)
+
+    def test_invalid_user_role(self):
+        """
+        Ensure that instances of Lti1p3LaunchData are instantiated with a user_role that is in the LTI_1P3_ROLE_MAP.
+        """
+        user_role = "cat"
+        launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role=user_role,
+            config_id="1",
+            resource_link_id="resource_link_id",
+        )
+
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+
+        self.assertEqual(is_valid, False)
+        self.assertEqual(
+            validation_messages,
+            [f"The user_role attribute {user_role} is not a valid user_role."]
+        )
+
+    def test_invalid_context_type(self):
+        """
+        Ensure that instances of Lti1p3LaunchData are instantiated with a context_type that is one of group,
+        course_offering, course_section, or course_template.
+        """
+        context_type = "invalid_context"
+
+        launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id="1",
+            resource_link_id="resource_link_id",
+            context_id="1",
+            context_type=context_type,
+        )
+
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+
+        self.assertEqual(is_valid, False)
+        self.assertEqual(
+            validation_messages,
+            [f"The context_type attribute {context_type} in the launch data is not a valid context_type."]
+        )
+
+
 class TestGetLti1p3LaunchInfo(TestCase):
     """
-    Unit tests for get_lti_consumer API method.
+    Unit tests for get_lti_1p3_launch_info API method.
     """
     def setUp(self):
         # Patch internal method to avoid calls to modulestore
@@ -245,12 +373,21 @@ class TestGetLti1p3LaunchInfo(TestCase):
 
         return super().setUp()
 
+    @staticmethod
+    def _get_lti_1p3_launch_data():
+        return Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id="1",
+            resource_link_id="resource_link_id",
+        )
+
     def test_no_parameters(self):
         """
         Check if the API creates a model if no object matching properties is found.
         """
         with self.assertRaises(Exception):
-            get_lti_1p3_launch_info()
+            get_lti_1p3_launch_info({})
 
     def test_retrieve_with_id(self):
         """
@@ -259,8 +396,10 @@ class TestGetLti1p3LaunchInfo(TestCase):
         location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_config = LtiConfiguration.objects.create(location=location)
 
+        launch_data = self._get_lti_1p3_launch_data()
+
         # Call and check returns
-        launch_info = get_lti_1p3_launch_info(config_id=lti_config.id)
+        launch_info = get_lti_1p3_launch_info(launch_data, config_id=lti_config.id)
 
         # Not checking all data here, there's a test specific for that
         self.assertEqual(launch_info['client_id'], lti_config.lti_1p3_client_id)
@@ -273,6 +412,8 @@ class TestGetLti1p3LaunchInfo(TestCase):
         block.location = 'block-v1:course+test+2020+type@problem+block@test'
         block.lti_version = LtiConfiguration.LTI_1P3
 
+        launch_data = self._get_lti_1p3_launch_data()
+
         # Create LTI Config and Deep linking object
         lti_config = LtiConfiguration.objects.create(location=block.location)
         LtiDlContentItem.objects.create(
@@ -282,7 +423,7 @@ class TestGetLti1p3LaunchInfo(TestCase):
         )
 
         # Call API
-        launch_info = get_lti_1p3_launch_info(block=block)
+        launch_info = get_lti_1p3_launch_info(launch_data, block=block)
 
         # Retrieve created config and check full launch info data
         lti_config = LtiConfiguration.objects.get()
@@ -291,12 +432,12 @@ class TestGetLti1p3LaunchInfo(TestCase):
             {
                 'client_id': lti_config.lti_1p3_client_id,
                 'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
-                    lti_config.location
+                    lti_config.config_id
                 ),
                 'deployment_id': '1',
                 'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',
                 'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
-                    lti_config.location
+                    lti_config.config_id
                 ),
                 'deep_linking_launch_url': 'http://example.com',
 
@@ -316,7 +457,10 @@ class TestGetLti1p3LaunchInfo(TestCase):
             content_type=LtiDlContentItem.IMAGE,
             attributes={"test": "this is a test attribute"}
         )
-        launch_info = get_lti_1p3_launch_info(config_id=lti_config.id)
+
+        launch_data = self._get_lti_1p3_launch_data()
+
+        launch_info = get_lti_1p3_launch_info(launch_data, config_id=lti_config.id)
         self.assertEqual(
             launch_info,
             {
@@ -346,22 +490,64 @@ class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
         Check if the API creates a model if no object matching properties is found.
         """
         with self.assertRaises(Exception):
-            get_lti_1p3_launch_start_url()
+            get_lti_1p3_launch_start_url({})
 
-    def test_retrieve_url(self):
+    def test_get_normal_lti_launch_url(self):
         """
-        Check if the correct launch url is retrieved
+        Check if the correct launch url is retrieved for a normal LTI 1.3 launch.
         """
         self._setup_lti_block()
 
-        # Call API for normal LTI launch initiation
-        launch_url = get_lti_1p3_launch_start_url(block=self.xblock, hint="test_hint")
-        self.assertIn('login_hint=test_hint', launch_url)
-        self.assertIn('lti_message_hint=', launch_url)
+        launch_data = self._get_lti_1p3_launch_data()
 
-        # Call API for deep link launch
-        launch_url = get_lti_1p3_launch_start_url(block=self.xblock, deep_link_launch=True)
-        self.assertIn('lti_message_hint=deep_linking_launch', launch_url)
+        # Call API for normal LTI launch initiation.
+        launch_url = get_lti_1p3_launch_start_url(launch_data, block=self.xblock)
+
+        parameters = parse_qs(urlparse(launch_url).query)
+        launch_data = get_data_from_cache(parameters.get("lti_message_hint")[0])
+
+        self.assertEqual(launch_data.message_type, "LtiResourceLinkRequest")
+        self.assertEqual(launch_data.deep_linking_content_item_id, None)
+
+    def test_get_deep_linking_lti_launch_url(self):
+        """
+        Check if the correct launch url is retrieved for a deep linking LTI 1.3 launch.
+        """
+        self._setup_lti_block()
+
+        launch_data = self._get_lti_1p3_launch_data()
+
+        # Call API for normal LTI launch initiation.
+        launch_url = get_lti_1p3_launch_start_url(launch_data, block=self.xblock)
+
+        parameters = parse_qs(urlparse(launch_url).query)
+        launch_url = get_lti_1p3_launch_start_url(launch_data, block=self.xblock, deep_link_launch=True)
+
+        parameters = parse_qs(urlparse(launch_url).query)
+        launch_data = get_data_from_cache(parameters.get("lti_message_hint")[0])
+
+        self.assertEqual(launch_data.message_type, "LtiDeepLinkingRequest")
+        self.assertEqual(launch_data.deep_linking_content_item_id, None)
+
+    def test_get_deep_linking_content_item_launch_url(self):
+        """
+        Check if the correct launch url is retrieved for a deep linking content item LTI 1.3 launch.
+        """
+        self._setup_lti_block()
+
+        launch_data = self._get_lti_1p3_launch_data()
+
+        # Call API for normal LTI launch initiation.
+        launch_url = get_lti_1p3_launch_start_url(launch_data, block=self.xblock)
+
+        parameters = parse_qs(urlparse(launch_url).query)
+        launch_url = get_lti_1p3_launch_start_url(launch_data, block=self.xblock, dl_content_id="1")
+
+        parameters = parse_qs(urlparse(launch_url).query)
+        launch_data = get_data_from_cache(parameters.get("lti_message_hint")[0])
+
+        self.assertEqual(launch_data.message_type, "LtiResourceLinkRequest")
+        self.assertEqual(launch_data.deep_linking_content_item_id, "1")
 
 
 class TestGetLti1p3ContentUrl(Lti1P3TestCase):
@@ -373,9 +559,11 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
         """
         Check if the correct LTI content presentation is returned on a normal LTI Launch.
         """
+        launch_data = self._get_lti_1p3_launch_data()
+
         mock_get_launch_url.return_value = 'test_url'
         self._setup_lti_block()
-        self.assertEqual(get_lti_1p3_content_url(block=self.xblock), 'test_url')
+        self.assertEqual(get_lti_1p3_content_url(launch_data, block=self.xblock), 'test_url')
 
     def test_lti_content_presentation_single_link(self):
         """
@@ -383,6 +571,8 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
         content type is present.
         """
         self._setup_lti_block()
+
+        launch_data = self._get_lti_1p3_launch_data()
 
         # Create LTI DL content items
         lti_content = LtiDlContentItem.objects.create(
@@ -392,13 +582,13 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
         )
 
         # Call API to retrieve content item URL
-        launch_url = get_lti_1p3_content_url(block=self.xblock)
-        self.assertIn(
-            # Checking for `deep_linking_content_launch:<content_item_id>`
-            # URL Encoded `:` is `%3A`
-            f'lti_message_hint=deep_linking_content_launch%3A{lti_content.id}',
-            launch_url,
-        )
+        launch_url = get_lti_1p3_content_url(launch_data, block=self.xblock)
+
+        parameters = parse_qs(urlparse(launch_url).query)
+        launch_data = get_data_from_cache(parameters.get("lti_message_hint")[0])
+
+        self.assertEqual(lti_content.id, launch_data.deep_linking_content_item_id)
+        self.assertEqual(launch_data.message_type, "LtiResourceLinkRequest")
 
     def test_lti_content_presentation_multiple_links(self):
         """
@@ -406,6 +596,15 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
         content items are set up.
         """
         self._setup_lti_block()
+
+        launch_data = self._get_lti_1p3_launch_data()
+
+        launch_data_key = get_cache_key(
+            app="lti",
+            key="launch_data",
+            user_id=launch_data.user_id,
+            resource_link_id=launch_data.resource_link_id
+        )
 
         # Create LTI DL content items
         for _ in range(3):
@@ -418,8 +617,8 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
         # Call API to retrieve content item URL
         self.assertIn(
             # Checking for the content presentation URL
-            f"/api/lti_consumer/v1/lti/{self.lti_config.id}/lti-dl/content",
-            get_lti_1p3_content_url(block=self.xblock),
+            f"/api/lti_consumer/v1/lti/{self.lti_config.id}/lti-dl/content?launch_data_key={launch_data_key}",
+            get_lti_1p3_content_url(launch_data, block=self.xblock),
         )
 
 

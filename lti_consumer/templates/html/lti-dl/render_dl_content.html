@@ -8,7 +8,7 @@
         {% for item in content_items %}
             <div>
                 {% if item.content_type == 'ltiResourceLink' %}
-                    {% include "html/lti-dl/render_lti_resource_link.html" with item=item attrs=item.attributes %}
+                    {% include "html/lti-dl/render_lti_resource_link.html" with item=item attrs=item.attributes launch_data=launch_data %}
                 {% elif item.content_type == 'link' %}
                     {% include "html/lti-dl/render_link.html" with item=item attrs=item.attributes %}
                 {% elif item.content_type == 'html' %}

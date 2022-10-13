@@ -3,7 +3,9 @@
 {% if attrs.title %}<h2>{{ attrs.title }}</h2>{% endif %}
 {% if attrs.text %}<p>{{ attrs.text }}</p>{% endif %}
 
-<a href="{{ item | get_dl_lti_launch_url }}" target="_blank">
+{% get_dl_lti_launch_url item launch_data as launch_url %}
+
+<a href="{{ launch_url }}" target="_blank">
     Click here to launch the LTI content in a new tab
     <i class="icon fa fa-external-link"></i>
 </a>

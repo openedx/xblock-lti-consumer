@@ -15,7 +15,7 @@ from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration, LtiAgsLineItem, LtiAgsScore
-from lti_consumer.tests.unit.test_utils import make_xblock
+from lti_consumer.tests.test_utils import make_xblock
 
 
 class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
@@ -49,12 +49,9 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
-
         # Create configuration
         self.lti_config = LtiConfiguration.objects.create(
-            location=str(self.xblock.location),
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3,
         )
         # Preload XBlock to avoid calls to modulestore
@@ -177,7 +174,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
             resource_id="test",
-            resource_link_id=self.xblock.location,
+            resource_link_id=self.xblock.location,  # pylint: disable=no-member
             label="test label",
             score_maximum=100
         )
@@ -198,7 +195,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
                     'scoreMaximum': 100,
                     'label': 'test label',
                     'tag': '',
-                    'resourceLinkId': self.xblock.location,
+                    'resourceLinkId': str(self.xblock.location),  # pylint: disable=no-member
                     'startDateTime': None,
                     'endDateTime': None,
                 }
@@ -215,7 +212,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
             resource_id="test",
-            resource_link_id=self.xblock.location,
+            resource_link_id=self.xblock.location,  # pylint: disable=no-member
             label="test label",
             score_maximum=100
         )
@@ -242,7 +239,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
                 'scoreMaximum': 100,
                 'label': 'test label',
                 'tag': '',
-                'resourceLinkId': self.xblock.location,
+                'resourceLinkId': str(self.xblock.location),  # pylint: disable=no-member
                 'startDateTime': None,
                 'endDateTime': None,
             }
@@ -262,7 +259,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
                 'scoreMaximum': 100,
                 'label': 'test',
                 'tag': 'score',
-                'resourceLinkId': self.xblock.location,
+                'resourceLinkId': str(self.xblock.location),  # pylint: disable=no-member
             }),
             content_type="application/vnd.ims.lis.v2.lineitem+json",
         )
@@ -276,7 +273,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
                 'scoreMaximum': 100,
                 'label': 'test',
                 'tag': 'score',
-                'resourceLinkId': self.xblock.location,
+                'resourceLinkId': str(self.xblock.location),  # pylint: disable=no-member
                 'startDateTime': None,
                 'endDateTime': None,
             }
@@ -287,7 +284,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(line_item.score_maximum, 100)
         self.assertEqual(line_item.label, 'test')
         self.assertEqual(line_item.tag, 'score')
-        self.assertEqual(str(line_item.resource_link_id), self.xblock.location)
+        self.assertEqual(str(line_item.resource_link_id), str(self.xblock.location))  # pylint: disable=no-member
 
     def test_create_lineitem_invalid_resource_link_id(self):
         """
@@ -324,7 +321,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
             resource_id="test",
-            resource_link_id=self.xblock.location,
+            resource_link_id=self.xblock.location,  # pylint: disable=no-member
             label="test label",
             score_maximum=100
         )
@@ -856,7 +853,7 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
         self.line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
             resource_id="test",
-            resource_link_id=self.xblock.location,
+            resource_link_id=self.xblock.location,  # pylint: disable=no-member
             label="test label",
             score_maximum=100
         )

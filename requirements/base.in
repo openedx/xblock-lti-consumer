@@ -1,6 +1,7 @@
 # Core requirements for using this package
 -c constraints.txt
 
+attrs
 lxml
 bleach
 django

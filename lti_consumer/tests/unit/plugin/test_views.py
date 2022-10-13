@@ -12,6 +12,7 @@ from django.urls import reverse
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
 from opaque_keys.edx.keys import UsageKey
+from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.lti_1p3.exceptions import (
     MissingRequiredClaim,
@@ -24,7 +25,8 @@ from lti_consumer.lti_1p3.exceptions import (
 )
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.lti_1p3.tests.utils import create_jwt
-from lti_consumer.tests.unit.test_utils import make_xblock
+from lti_consumer.tests.test_utils import make_xblock
+from lti_consumer.utils import cache_lti_1p3_launch_data
 
 
 class TestLti1p3KeysetEndpoint(TestCase):
@@ -122,8 +124,14 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = self.location
+
+        self.launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id=self.config.config_id,
+            resource_link_id="resource_link_id",
+        )
+        self.launch_data_key = cache_lti_1p3_launch_data(self.launch_data)
 
         self.compat_patcher = patch("lti_consumer.plugin.views.compat")
         self.compat = self.compat_patcher.start()
@@ -139,13 +147,6 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         model_compat.load_block_as_anonymous_user.return_value = self.xblock
         self.addCleanup(model_compat_patcher.stop)
 
-    def test_invalid_usage_key(self):
-        """
-        Check that passing a invalid login_hint yields HTTP code 404.
-        """
-        response = self.client.get(self.url, {"login_hint": "useless-location"})
-        self.assertEqual(response.status_code, 404)
-
     def test_invalid_lti_version(self):
         """
         Check that a LTI 1.1 tool accessing this endpoint is returned a 404.
@@ -153,7 +154,13 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.config.version = LtiConfiguration.LTI_1P1
         self.config.save()
 
-        response = self.client.get(self.url, {"login_hint": self.location})
+        response = self.client.get(
+            self.url,
+            {
+                "login_hint": self.launch_data.user_id,
+                "lti_message_hint": self.launch_data_key
+            }
+        )
         self.assertEqual(response.status_code, 404)
 
         # Rollback
@@ -164,19 +171,78 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         """
         Check that a 404 is returned when LtiConfiguration for a location doesn't exist
         """
-        response = self.client.get(self.url, {"login_hint": self.location + "extra"})
+        self.launch_data.config_id = "1"
+        response = self.client.get(
+            self.url,
+            {
+                "login_hint": self.launch_data.user_id,
+                "lti_message_hint": self.launch_data_key
+            }
+        )
         self.assertEqual(response.status_code, 404)
+
+    def test_missing_required_lti_message_hint_param(self):
+        """
+        Check that a 400 error is returned when required lti_message_hint query parameter is not provided.
+        """
+        response = self.client.post(self.url, {"login_hint": "login_hint"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_missing_required_login_hint_param(self):
+        """
+        Check that a 400 error is returned when required login_hint query parameter is not provided.
+        """
+        response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_missing_launch_data(self):
+        """
+        Check that a 400 error is returned when required lti_message_hint query parameter is not associated with
+        launch_data in the cache.
+        """
+        response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint", "login_hint": "login_hint"})
+        self.assertEqual(response.status_code, 400)
+
+    @patch('lti_consumer.api.validate_lti_1p3_launch_data')
+    @patch('lti_consumer.utils.get_data_from_cache')
+    def test_invalid_launch_data(self, mock_get_data_from_cache, mock_validate_launch_data):
+        """
+        Check that a 400 error is returned when the launch_data stored in the cache is not valid.
+        """
+        # Mock getting the launch_data from the cache.
+        mock_get_data_from_cache.return_value = {}
+
+        # Mock checking the launch_data for validity.
+        mock_validate_launch_data.return_value = (False, [])
+
+        response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint", "login_hint": "login_hint"})
+        self.assertEqual(response.status_code, 400)
+
+    @patch('lti_consumer.api.validate_lti_1p3_launch_data')
+    @patch('lti_consumer.utils.get_data_from_cache')
+    def test_invalid_context_type(self, mock_get_data_from_cache, mock_validate_launch_data):
+        # Mock getting the launch_data from the cache.
+        mock_launch_data = Mock()
+        mock_launch_data.context_type = "invalid_context_type"
+        mock_get_data_from_cache.return_value = mock_launch_data
+
+        # Mock checking the launch_data for validity.
+        mock_validate_launch_data.return_value = (True, [])
+
+        response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint", "login_hint": "login_hint"})
+        self.assertEqual(response.status_code, 400)
 
     def test_lti_launch_response(self):
         """
         Check that the right launch response is generated
         """
         params = {
-            "login_hint": self.location,
             "nonce": "nonce-value",
             "state": "hello-world",
             "redirect_uri": "https://tool.example",
-            "client_id": self.config.lti_1p3_client_id
+            "client_id": self.config.lti_1p3_client_id,
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": self.launch_data_key
         }
         response = self.client.get(self.url, params)
         self.assertEqual(response.status_code, 200)
@@ -207,8 +273,8 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
                 "client_id": self.config.lti_1p3_client_id,
                 "redirect_ur": "http://tool.example/launch",
                 "state": "state_test_123",
-                "nonce": "nonce",
-                "login_hint": self.location
+                "login_hint": self.launch_data.user_id,
+                "lti_message_hint": self.launch_data_key,
             }
             response = self.client.get(self.url, params)
             self.assertEqual(response.status_code, 400)
@@ -224,6 +290,8 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         mock_user_service = Mock()
         mock_user_service.get_external_user_id.return_value = 2
         self.xblock.runtime.service.return_value = mock_user_service
+
+        self.launch_data.user_role = user_role
 
         self.xblock.course.display_name_with_default = 'course_display_name'
         self.xblock.course.display_org_with_default = 'course_display_org'
@@ -242,8 +310,8 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
             "redirect_uri": "http://tool.example/launch",
             "state": "state_test_123",
             "nonce": "nonce",
-            "login_hint": self.location,
-            "lti_message_hint": "deep_linking_launch"
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": self.launch_data_key,
         }
         response = self.client.get(self.url, params)
 
@@ -262,7 +330,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.xblock.config_type = 'database'
 
         LtiConfiguration.objects.filter(id=self.config.id).update(
-            location=self.xblock.location,
+            location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
             lti_advantage_deep_linking_enabled=dl_enabled,
@@ -270,14 +338,15 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         )
         if dl_enabled:
             self.xblock.lti_advantage_deep_linking_launch_url = url
+            self.launch_data.message_type = "LtiDeepLinkingRequest"
 
         params = {
             "client_id": self.config.lti_1p3_client_id,
             "redirect_uri": "http://tool.example/launch",
             "state": "state_test_123",
             "nonce": "nonce",
-            "login_hint": self.location,
-            "lti_message_hint": "deep_linking_launch"
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": self.launch_data_key,
         }
         response = self.client.get(self.url, params)
 
@@ -299,14 +368,15 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self._setup_deep_linking(user_role='student')
         # Enable deep linking
         self.xblock.lti_advantage_deep_linking_enabled = True
+        self.launch_data.message_type = "LtiDeepLinkingRequest"
 
         params = {
             "client_id": self.config.lti_1p3_client_id,
             "redirect_uri": "http://tool.example/launch",
             "state": "state_test_123",
             "nonce": "nonce",
-            "login_hint": self.location,
-            "lti_message_hint": "deep_linking_launch"
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": self.launch_data_key,
         }
         response = self.client.get(self.url, params)
 
@@ -332,13 +402,17 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
             },
         }
 
+        # We need to re-cache the launch_data with a new cache key that is specific to the content item.
+        self.launch_data.deep_linking_content_item_id = "1"
+        launch_data_key = cache_lti_1p3_launch_data(self.launch_data)
+
         params = {
             "client_id": self.config.lti_1p3_client_id,
             "redirect_uri": "http://tool.example/launch",
             "state": "state_test_123",
             "nonce": "nonce",
-            "login_hint": self.location,
-            "lti_message_hint": "deep_linking_content_launch:1"
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": launch_data_key,
         }
         response = self.client.get(self.url, params)
         content = response.content.decode('utf-8')
@@ -363,13 +437,18 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
             content_type="link",
             attributes={"parameter": "custom"}
         )
+
+        # We need to re-cache the launch_data with a new cache key that is specific to the content item.
+        self.launch_data.deep_linking_content_item_id = dl_item.id
+        launch_data_key = cache_lti_1p3_launch_data(self.launch_data)
+
         params = {
             "client_id": self.config.lti_1p3_client_id,
             "redirect_uri": "http://tool.example/launch",
             "state": "state_test_123",
             "nonce": "nonce",
-            "login_hint": self.location,
-            "lti_message_hint": f"deep_linking_content_launch:{dl_item.id}"
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": launch_data_key,
         }
         response = self.client.get(self.url, params)
         # Check response

@@ -10,7 +10,7 @@ from lti_consumer.lti_1p1.exceptions import Lti1p1Error
 from lti_consumer.lti_1p1.oauth import (get_oauth_request_signature,
                                         log_authorization_header,
                                         verify_oauth_body_signature)
-from lti_consumer.tests.unit.test_utils import make_request
+from lti_consumer.tests.test_utils import make_request
 
 OAUTH_PARAMS = [
     ('oauth_nonce', '80966668944732164491378916897'),

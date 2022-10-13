@@ -15,14 +15,15 @@ from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
 from jwkest.jwk import RSAKey, KEYS
-from opaque_keys.edx.keys import UsageKey
 
 from lti_consumer.exceptions import LtiError
 
+from lti_consumer.api import _get_lti_config
+from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
 from lti_consumer.lti_1p3.tests.utils import create_jwt
-from lti_consumer.tests.unit import test_utils
-from lti_consumer.tests.unit.test_utils import FAKE_USER_ID, make_jwt_request, make_request, make_xblock
+from lti_consumer.tests import test_utils
+from lti_consumer.tests.test_utils import FAKE_USER_ID, make_jwt_request, make_request, make_xblock
 from lti_consumer.utils import resolve_custom_parameter_template
 
 HTML_PROBLEM_PROGRESS = '<div class="problem-progress">'
@@ -150,28 +151,28 @@ class TestProperties(TestLtiConsumerXBlock):
             'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
-        self.assertEqual(self.xblock.role, 'Student,Learner')
+        self.assertEqual(self.xblock.role, 'student')
 
         fake_user.opt_attrs = {
             'edx-platform.user_role': 'guest',
             'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
-        self.assertEqual(self.xblock.role, 'Student,Learner')
+        self.assertEqual(self.xblock.role, 'guest')
 
         fake_user.opt_attrs = {
             'edx-platform.user_role': 'staff',
             'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
-        self.assertEqual(self.xblock.role, 'Administrator')
+        self.assertEqual(self.xblock.role, 'staff')
 
         fake_user.opt_attrs = {
             'edx-platform.user_role': 'instructor',
             'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
-        self.assertEqual(self.xblock.role, 'Instructor')
+        self.assertEqual(self.xblock.role, 'instructor')
 
         fake_user.opt_attrs = {
             'edx-platform.user_role': 'student',
@@ -276,13 +277,29 @@ class TestProperties(TestLtiConsumerXBlock):
         with self.assertRaises(LtiError):
             __ = self.xblock.user_id
 
+    def test_external_user_id(self):
+        """
+        Test `external_user_id` returns the correct external user ID.
+        """
+        external_user_id = "external_user_id"
+        self.xblock.runtime.service(self, 'user').get_external_user_id = Mock(return_value=external_user_id)
+        self.assertEqual(self.xblock.external_user_id, external_user_id)
+
+    def test_external_user_id_none(self):
+        """
+        Test `external_user_id` raises LtiError when the external user ID cannot be returned.
+        """
+        self.xblock.runtime.service(self, 'user').get_external_user_id = Mock(return_value=None)
+        with self.assertRaises(LtiError):
+            __ = self.xblock.external_user_id
+
     def test_resource_link_id(self):
         """
         Test `resource_link_id` returns appropriate string
         """
         self.assertEqual(
             self.xblock.resource_link_id,
-            f"{self.xblock.runtime.hostname}-{self.xblock.location.html_id()}"
+            f"{self.xblock.runtime.hostname}-{self.xblock.location.html_id()}"  # pylint: disable=no-member
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
@@ -579,7 +596,6 @@ class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
         key = 'test'
         secret = 'secret'
         self.xblock.lti_id = provider
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
         type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
 
         with patch('lti_consumer.models.LtiConfiguration.block', return_value=self.xblock):
@@ -1275,7 +1291,8 @@ class TestGetContext(TestLtiConsumerXBlock):
 
     @ddt.data('lti_1p1', 'lti_1p3')
     @patch('lti_consumer.api.get_lti_1p3_content_url')
-    def test_context_keys(self, lti_version, lti_api_patch):
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data')
+    def test_context_keys(self, lti_version, lti_api_patch, mock_get_lti_1p3_launch_data):
         """
         Test `_get_context_for_template` returns dict with correct keys
         """
@@ -1287,6 +1304,11 @@ class TestGetContext(TestLtiConsumerXBlock):
             'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
             'accept_grades_past_due'
         )
+
+        # This test isn't testing the value of any of the above keys. Calling _get_lti_block_launch_handler raises an
+        # error because the mocked XBlock location attribute does not act like a UsageKey, so mock out
+        # get_lti_1p3_launch_data to avoid accessing it.
+        mock_get_lti_1p3_launch_data.return_value = None
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
 
         for key in context_keys:
@@ -1332,8 +1354,9 @@ class TestGetContext(TestLtiConsumerXBlock):
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
         self.assertEqual(context['launch_url'], lti_launch_url)
 
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data')
     @patch('lti_consumer.api.get_lti_1p3_content_url')
-    def test_context_correct_origin_1p3(self, mock_get_lti_1p3_content_url):
+    def test_context_correct_origin_1p3(self, mock_get_lti_1p3_content_url, mock_get_lti_1p3_launch_data):
         """
         Test that certain context keys relevant to 1.3 integrations that can be stored on different types of
         config_stores are pulled from the appropriate config_store.
@@ -1348,6 +1371,10 @@ class TestGetContext(TestLtiConsumerXBlock):
         type(mock_lti_consumer).launch_url = PropertyMock(return_value=lti_1p3_launch_url)
         self.xblock._get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
 
+        # Calling _get_lti_block_launch_handler raises an error because the mocked XBlock location attribute does not
+        # act like a UsageKey, so mock out get_lti_1p3_launch_data to avoid accessing it.
+        mock_get_lti_1p3_launch_data.return_value = None
+
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
         self.assertEqual(context['lti_1p3_launch_url'], lti_1p3_launch_url)
 
@@ -1358,7 +1385,7 @@ class TestProcessorSettings(TestLtiConsumerXBlock):
     Unit tests for the adding custom LTI parameters.
     """
     settings = {
-        'parameter_processors': ['lti_consumer.tests.unit.test_utils:dummy_processor']
+        'parameter_processors': ['lti_consumer.tests.test_utils:dummy_processor']
     }
 
     def test_no_processors_by_default(self):
@@ -1390,7 +1417,7 @@ class TestProcessorSettings(TestLtiConsumerXBlock):
     }, {
         # Non-existent processor
         'parameter_processors': [
-            'lti_consumer.tests.unit.test_utils:non_existent',
+            'lti_consumer.tests.test_utils:non_existent',
         ],
     })
     @patch('lti_consumer.lti_xblock.log')
@@ -1430,8 +1457,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
 
         self.mock_filter_enabled_patcher = patch("lti_consumer.lti_xblock.external_config_filter_enabled")
         self.mock_database_config_enabled_patcher = patch("lti_consumer.lti_xblock.database_config_enabled")
@@ -1440,21 +1465,72 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.addCleanup(self.mock_filter_enabled_patcher.stop)
         self.addCleanup(self.mock_database_config_enabled_patcher.stop)
 
+    def test_get_lti_1p3_launch_data(self):
+        """
+        Test that get_lti_1p3_launch_data returns an instance of Lti1p3LaunchData with the correct data.
+        """
+        # Mock out the user role and external_user_id properties.
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_role': 'instructor',
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.xblock.runtime.service(self, 'user').get_external_user_id = Mock(return_value="external_user_id")
+
+        # Mock out get_context_title to avoid calling into the compatability layer.
+        self.xblock.get_context_title = Mock(return_value="context_title")
+
+        launch_data = self.xblock.get_lti_1p3_launch_data()
+
+        lti_config = _get_lti_config(block=self.xblock)
+
+        course_key = str(self.xblock.location.course_key)  # pylint: disable=no-member
+        expected_launch_data = Lti1p3LaunchData(
+            user_id="external_user_id",
+            user_role="instructor",
+            config_id=lti_config.config_id,
+            resource_link_id=str(self.xblock.location),  # pylint: disable=no-member
+            launch_presentation_document_target="iframe",
+            message_type="LtiResourceLinkRequest",
+            context_id=course_key,
+            context_type=["course_offering"],
+            context_title="context_title",
+            context_label=course_key,
+        )
+
+        self.assertEqual(
+            launch_data,
+            expected_launch_data
+        )
+
+    @patch('lti_consumer.plugin.compat.get_course_by_id')
+    def test_get_context_title(self, mock_get_course_by_id):
+        """
+        Test that get_context_title returns the correct context title
+        """
+        mock_course = Mock()
+        mock_course.display_name_with_default = "DemoX"
+        mock_course.display_org_with_default = "edX"
+
+        mock_get_course_by_id.return_value = mock_course
+
+        self.assertEqual(self.xblock.get_context_title(), "DemoX - edX")
+
     def test_studio_view(self):
         """
         Test that the studio settings view load the custom js.
         """
-        self.xblock.location = Mock()
-        self.xblock.location.__get__ = 'block-v1:course+test+2020+type@problem+block@test'
-        self.xblock.location.course_key = 'course-v1:Demo_Course'
         response = self.xblock.studio_view({})
         self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
 
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data')
     @patch('lti_consumer.api.get_lti_1p3_launch_info')
-    def test_author_view(self, mock_get_launch_info):
+    def test_author_view(self, mock_get_launch_info, mock_lti_get_1p3_launch_data):
         """
         Test that the studio view loads LTI 1.3 view.
         """
+        mock_lti_get_1p3_launch_data.return_value = None
         mock_get_launch_info.return_value = {
             'client_id': "mock-client_id",
             'keyset_url': "mock-keyset_url",
@@ -1497,8 +1573,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
             'lti_1p3_tool_public_key': self.public_key,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
-        # Set dummy location so that UsageKey lookup is valid
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
+
         patcher = patch(
             'lti_consumer.models.compat',
             **{'load_block_as_anonymous_user.return_value': self.xblock}
@@ -1669,8 +1744,6 @@ class TestLti1p3AccessTokenJWK(TestCase):
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
             'lti_1p3_tool_keyset_url': "http://tool.example/keyset",
         })
-        self.xblock.location = 'block-v1:course+test+2020+type@problem+block@test'
-        self.xblock.save()
 
         self.key = RSAKey(key=RSA.generate(2048), kid="1")
 
@@ -1753,7 +1826,6 @@ class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
 
     def setUp(self):
         super().setUp()
-        self.xblock.location = UsageKey.from_string('block-v1:course+test+2020+type@problem+block@test')
         self.xblock.lti_version = "lti_1p3"
 
         db_config_waffle_patcher = patch('lti_consumer.lti_xblock.database_config_enabled', return_value=True)

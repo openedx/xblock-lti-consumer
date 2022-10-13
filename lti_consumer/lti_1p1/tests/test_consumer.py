@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from lti_consumer.lti_1p1.exceptions import Lti1p1Error
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1, parse_result_json
-from lti_consumer.tests.unit.test_utils import make_request
+from lti_consumer.tests.test_utils import make_request
 
 INVALID_JSON_INPUTS = [
     ([

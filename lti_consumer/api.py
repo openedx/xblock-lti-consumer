@@ -9,9 +9,11 @@ import json
 
 from opaque_keys.edx.keys import CourseKey
 
+from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
 from .exceptions import LtiError
 from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
 from .utils import (
+    get_lti_1p3_context_types_claim,
     get_lti_deeplinking_content_url,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
@@ -24,7 +26,7 @@ def _get_or_create_local_lti_config(lti_version, block_location,
                                     config_store=LtiConfiguration.CONFIG_ON_XBLOCK, external_id=None):
     """
     Retrieve the LtiConfiguration for the block described by block_location, if one exists. If one does not exist,
-    create an LtiConfiguration with the LtiConfiguration.CONFIG_ON_DB config_store.
+    create an LtiConfiguration with the LtiConfiguration.CONFIG_ON_XBLOCK config_store.
 
     Treat the lti_version argument as the source of truth for LtiConfiguration.version and override the
     LtiConfiguration.version with lti_version. This allows, for example, for
@@ -100,7 +102,11 @@ def get_lti_consumer(config_id=None, block=None):
     return _get_lti_config(config_id, block).get_lti_consumer()
 
 
-def get_lti_1p3_launch_info(config_id=None, block=None):
+def get_lti_1p3_launch_info(
+    launch_data,
+    config_id=None,
+    block=None,
+):
     """
     Retrieves the Client ID, Keyset URL and other urls used to configure a LTI tool.
     """
@@ -116,9 +122,9 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
     deep_linking_enabled = lti_consumer.lti_dl_enabled()
 
     if deep_linking_enabled:
+        launch_data.message_type = "LtiDeepLinkingRequest"
         deep_linking_launch_url = lti_consumer.prepare_preflight_url(
-            hint=lti_config.location,
-            lti_hint="deep_linking_launch"
+            launch_data,
         )
 
         # Retrieve LTI Content Items (if any was set up)
@@ -129,22 +135,28 @@ def get_lti_1p3_launch_info(config_id=None, block=None):
         if dl_content_items.exists():
             deep_linking_content_items = [item.attributes for item in dl_content_items]
 
-    link_location = lti_config.location if lti_config.location else lti_config.config_id
+    config_id = lti_config.config_id
 
     # Return LTI launch information for end user configuration
     return {
         'client_id': lti_config.lti_1p3_client_id,
-        'keyset_url': get_lms_lti_keyset_link(link_location),
+        'keyset_url': get_lms_lti_keyset_link(config_id),
         'deployment_id': '1',
         'oidc_callback': get_lms_lti_launch_link(),
-        'token_url': get_lms_lti_access_token_link(link_location),
+        'token_url': get_lms_lti_access_token_link(config_id),
         'deep_linking_launch_url': deep_linking_launch_url,
         'deep_linking_content_items':
             json.dumps(deep_linking_content_items, indent=4) if deep_linking_content_items else None,
     }
 
 
-def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=False, dl_content_id=None, hint=""):
+def get_lti_1p3_launch_start_url(
+    launch_data,
+    config_id=None,
+    block=None,
+    deep_link_launch=False,
+    dl_content_id=None,
+):
     """
     Computes and retrieves the LTI URL that starts the OIDC flow.
     """
@@ -152,25 +164,25 @@ def get_lti_1p3_launch_start_url(config_id=None, block=None, deep_link_launch=Fa
     lti_config = _get_lti_config(config_id, block)
     lti_consumer = lti_config.get_lti_consumer()
 
-    # Change LTI hint depending on LTI launch type
-    lti_hint = ""
+    # Include a message hint in the launch_data depending on LTI launch type
     # Case 1: Performs Deep Linking configuration flow. Triggered by staff users to
     # configure tool options and select content to be presented.
     if deep_link_launch:
-        lti_hint = "deep_linking_launch"
+        launch_data.message_type = "LtiDeepLinkingRequest"
     # Case 2: Perform a LTI Launch for `ltiResourceLink` content types, since they
     # need to use the launch mechanism from the callback view.
     elif dl_content_id:
-        lti_hint = f"deep_linking_content_launch:{dl_content_id}"
+        launch_data.deep_linking_content_item_id = dl_content_id
 
     # Prepare and return OIDC flow start url
-    return lti_consumer.prepare_preflight_url(
-        hint=hint,
-        lti_hint=lti_hint
-    )
+    return lti_consumer.prepare_preflight_url(launch_data)
 
 
-def get_lti_1p3_content_url(config_id=None, block=None, hint=""):
+def get_lti_1p3_content_url(
+    launch_data,
+    config_id=None,
+    block=None,
+):
     """
     Computes and returns which URL the LTI consumer should launch to.
 
@@ -189,20 +201,20 @@ def get_lti_1p3_content_url(config_id=None, block=None, hint=""):
 
     # If there's no content items, return normal LTI launch URL
     if not content_items.count():
-        return get_lti_1p3_launch_start_url(config_id, block, hint=hint)
+        return get_lti_1p3_launch_start_url(launch_data, config_id=config_id, block=block)
 
     # If there's a single `ltiResourceLink` content, return the launch
-    # url for that specif deep link
+    # url for that specific deep link
     if content_items.count() == 1 and content_items.get().content_type == LtiDlContentItem.LTI_RESOURCE_LINK:
         return get_lti_1p3_launch_start_url(
-            config_id,
-            block,
+            launch_data,
+            config_id=config_id,
+            block=block,
             dl_content_id=content_items.get().id,
-            hint=hint,
         )
 
     # If there's more than one content item, return content presentation URL
-    return get_lti_deeplinking_content_url(lti_config.id)
+    return get_lti_deeplinking_content_url(lti_config.id, launch_data)
 
 
 def get_deep_linking_data(deep_linking_id, config_id=None, block=None):
@@ -232,3 +244,40 @@ def get_lti_pii_sharing_state_for_course(course_key: CourseKey) -> bool:
         bool: The state of PII sharing for this course for LTI.
     """
     return CourseAllowPIISharingInLTIFlag.current(course_key).enabled
+
+
+def validate_lti_1p3_launch_data(launch_data):
+    """
+    Validate that the data in Lti1p3LaunchData are valid and raise an LtiMessageHintValidationFailure exception if they
+    are not.
+
+    The initializer of the Lti1p3LaunchData takes care of ensuring that required data is provided to the class. This
+    utility method verifies that other requirements of the data are met.
+    """
+    validation_messages = []
+
+    # The context claim is an object that composes properties about the context. The claim itself is optional, but if it
+    # is provided, then the id property is required. Ensure that if any other of the other optional properties are
+    # provided that the id property is also provided.
+    if ((launch_data.context_type or launch_data.context_title or launch_data.context_label) and not
+            launch_data.context_id):
+        validation_messages.append(
+            "The context_id attribute is required in the launch data if any optional context properties are provided."
+        )
+
+    if launch_data.user_role not in LTI_1P3_ROLE_MAP:
+        validation_messages.append(f"The user_role attribute {launch_data.user_role} is not a valid user_role.")
+
+    context_type = launch_data.context_type
+    if context_type:
+        try:
+            get_lti_1p3_context_types_claim(context_type)
+        except ValueError:
+            validation_messages.append(
+                f"The context_type attribute {context_type} in the launch data is not a valid context_type."
+            )
+
+    if validation_messages:
+        return False, validation_messages
+    else:
+        return True, []
