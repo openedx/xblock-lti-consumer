@@ -14,7 +14,7 @@ asgiref==3.5.2
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.12.10
+astroid==2.12.11
     # via
     #   pylint
     #   pylint-celery
@@ -26,9 +26,9 @@ bleach==5.0.1
     # via -r requirements/base.txt
 boto==2.49.0
     # via xblock-sdk
-boto3==1.24.84
+boto3==1.24.91
     # via fs-s3fs
-botocore==1.27.84
+botocore==1.27.91
     # via
     #   boto3
     #   s3transfer
@@ -64,7 +64,7 @@ ddt==1.6.0
     # via -r requirements/quality.in
 dill==0.3.5.1
     # via pylint
-django==3.2.15
+django==3.2.16
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.txt
@@ -95,7 +95,7 @@ djangorestframework==3.14.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-django-utils==5.1.0
+edx-django-utils==5.2.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
@@ -159,7 +159,7 @@ markupsafe==2.1.1
     #   xblock
 mccabe==0.7.0
     # via pylint
-newrelic==8.2.0.181
+newrelic==8.2.1
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -189,7 +189,7 @@ pycryptodomex==3.15.0
     #   pyjwkest
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.15.3
+pylint==2.15.4
     # via
     #   -r requirements/quality.in
     #   edx-lint
@@ -262,7 +262,7 @@ sqlparse==0.4.3
     # via
     #   -r requirements/base.txt
     #   django
-stevedore==4.0.0
+stevedore==4.0.1
     # via
     #   -r requirements/base.txt
     #   code-annotations
@@ -274,7 +274,7 @@ tomli==2.0.1
     # via pylint
 tomlkit==0.11.5
     # via pylint
-typing-extensions==4.3.0
+typing-extensions==4.4.0
     # via
     #   astroid
     #   pylint
