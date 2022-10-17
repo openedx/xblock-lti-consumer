@@ -15,6 +15,13 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 
 Unreleased
 ~~~~~~~~~~
+5.0.1 - 2022-10-17
+------------------
+* Fixed a bug that prevented LTI 1.3 launches from occurring in the browser due to Django's clickjacking protection.
+
+  * Added the xframe_options_exempt view decorator to launch_gate_endpoint to allow loading response in an <iframe> tags
+* Fixed a bug in the URL used for an LTI 1.3 launch; the library now sends LTI 1.3 launches to the redirect_uri provided
+  by the Tool in the authentication request, instead of the preregistered target_link_uri. 
 
 5.0.0 - 2022-10-12
 ------------------
@@ -23,9 +30,10 @@ BREAKING CHANGE:
 Please note that additional breaking changes will be forthcoming in future versions of this library.
 
 * Modified Python API methods to take Lti1p3LaunchData as a required argument
-** get_lti_1p3_launch_info
-** get_lti_1p3_launch_start_url
-** get_lti_1p3_content_url
+
+  * get_lti_1p3_launch_info
+  * get_lti_1p3_launch_start_url
+  * get_lti_1p3_content_url
 
 * Added an Lti1p3LaunchData data class
 * Added caching for Lti1p3LaunchData to limit data sent in request query or form parameters
