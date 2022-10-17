@@ -233,7 +233,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         preflight_response = request_params.dict()
 
         # Set LTI Launch URL.
-        context.update({'launch_url': lti_consumer.launch_url})
+        context.update({'launch_url': preflight_response.get("redirect_uri")})
 
         # Modify LTI Launch URL depending on launch type.
         # Deep Linking Launch - Configuration flow launched by
