@@ -10,7 +10,7 @@ from django.http import JsonResponse, Http404
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.views.decorators.clickjacking import xframe_options_exempt, xframe_options_sameorigin
 from django.shortcuts import render
 from django_filters.rest_framework import DjangoFilterBackend
 from opaque_keys import InvalidKeyError
@@ -138,6 +138,7 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
 
 
 @require_http_methods(["GET", "POST"])
+@xframe_options_exempt
 def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argument
     """
     Gate endpoint that triggers LTI launch endpoint XBlock handler
@@ -232,7 +233,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         preflight_response = request_params.dict()
 
         # Set LTI Launch URL.
-        context.update({'launch_url': lti_consumer.launch_url})
+        context.update({'launch_url': preflight_response.get("redirect_uri")})
 
         # Modify LTI Launch URL depending on launch type.
         # Deep Linking Launch - Configuration flow launched by
