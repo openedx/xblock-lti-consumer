@@ -60,7 +60,7 @@ def get_database_config_waffle_flag():
     return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_DATABASE_CONFIG}', __name__)
 
 
-def load_block_as_user(location):
+def load_block_as_user(location):  # pragma: nocover
     """
     Load a block as the current user, or load as the anonymous user if no user is available.
     """
@@ -94,7 +94,7 @@ def load_block_as_user(location):
         return _load_block_as_anonymous_user(location, descriptor)
 
 
-def _load_block_as_anonymous_user(location, descriptor):
+def _load_block_as_anonymous_user(location, descriptor):  # pragma: nocover
     """
     Load a block as the anonymous user because no user is available.
 
@@ -124,7 +124,7 @@ def _load_block_as_anonymous_user(location, descriptor):
         return descriptor
 
 
-def get_user_from_external_user_id(external_user_id):
+def get_user_from_external_user_id(external_user_id):  # pragma: nocover
     """
     Import ExternalId model and find user by external_user_id
     """
@@ -142,7 +142,8 @@ def get_user_from_external_user_id(external_user_id):
         raise LtiError('Invalid userID') from exception
 
 
-def publish_grade(block, user, score, possible, only_if_higher=False, score_deleted=None, comment=None):
+def publish_grade(block, user, score, possible,
+                  only_if_higher=False, score_deleted=None, comment=None):  # pragma: nocover
     """
     Import grades signals and publishes score by triggering SCORE_PUBLISHED signal.
     """
@@ -162,7 +163,7 @@ def publish_grade(block, user, score, possible, only_if_higher=False, score_dele
     )
 
 
-def user_has_access(*args, **kwargs):
+def user_has_access(*args, **kwargs):  # pragma: nocover
     """
     Import and run `has_access` from LMS
     """
@@ -171,7 +172,7 @@ def user_has_access(*args, **kwargs):
     return has_access(*args, **kwargs)
 
 
-def user_has_studio_write_access(*args, **kwargs):
+def user_has_studio_write_access(*args, **kwargs):  # pragma: nocover
     """
     Import and run `has_studio_write_access` from common modules.
 
@@ -183,7 +184,7 @@ def user_has_studio_write_access(*args, **kwargs):
     return has_studio_write_access(*args, **kwargs)
 
 
-def get_course_by_id(course_key):
+def get_course_by_id(course_key):  # pragma: nocover
     """
     Import and run `get_course_by_id` from LMS
 
@@ -200,7 +201,7 @@ def get_course_by_id(course_key):
     return lms_get_course_by_id(course_key)
 
 
-def user_course_access(*args, **kwargs):
+def user_course_access(*args, **kwargs):  # pragma: nocover
     """
     Import and run `check_course_access` from LMS
     """
@@ -209,7 +210,7 @@ def user_course_access(*args, **kwargs):
     return check_course_access(*args, **kwargs)
 
 
-def batch_get_or_create_externalids(users):
+def batch_get_or_create_externalids(users):  # pragma: nocover
     """
     Given a list of user, returns corresponding external id's
 
@@ -224,7 +225,7 @@ def batch_get_or_create_externalids(users):
     return ExternalId.batch_get_or_create_user_ids(users, 'lti')
 
 
-def get_course_members(course_key):
+def get_course_members(course_key):  # pragma: nocover
     """
     Returns a dict containing all users associated with the given course
     """
@@ -251,7 +252,7 @@ def request_cached(func) -> Callable[[Callable], Callable]:
         return func
 
 
-def clean_course_id(model_form: ModelForm) -> CourseKey:
+def clean_course_id(model_form: ModelForm) -> CourseKey:  # pragma: nocover
     """
     Import and run `clean_course_id` from LMS
     """
@@ -260,7 +261,7 @@ def clean_course_id(model_form: ModelForm) -> CourseKey:
     return lms_clean_course_id(model_form)
 
 
-def get_event_tracker():
+def get_event_tracker():  # pragma: nocover
     """
     Import and return LMS event tracking function
     """
