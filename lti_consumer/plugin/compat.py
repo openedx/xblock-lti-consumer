@@ -60,24 +60,6 @@ def get_database_config_waffle_flag():
     return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_DATABASE_CONFIG}', __name__)
 
 
-def run_xblock_handler(*args, **kwargs):
-    """
-    Import and run `handle_xblock_callback` from LMS
-    """
-    # pylint: disable=import-error,import-outside-toplevel
-    from lms.djangoapps.courseware.module_render import handle_xblock_callback
-    return handle_xblock_callback(*args, **kwargs)
-
-
-def run_xblock_handler_noauth(*args, **kwargs):
-    """
-    Import and run `handle_xblock_callback_noauth` from LMS
-    """
-    # pylint: disable=import-error,import-outside-toplevel
-    from lms.djangoapps.courseware.module_render import handle_xblock_callback_noauth
-    return handle_xblock_callback_noauth(*args, **kwargs)
-
-
 def load_block_as_user(location):
     """
     Load a block as the current user, or load as the anonymous user if no user is available.
