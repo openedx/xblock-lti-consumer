@@ -4,7 +4,7 @@ LTI Consumer related Signal handlers
 import logging
 
 from django.db.models.signals import post_save
-from django.dispatch import receiver
+from django.dispatch import receiver, Signal
 
 from lti_consumer.models import LtiAgsScore
 from lti_consumer.plugin import compat
@@ -62,3 +62,6 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                 exc,
             )
             raise exc
+
+
+LTI_1P3_PROCTORING_ASSESSMENT_STARTED = Signal()

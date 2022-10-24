@@ -257,11 +257,11 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         fake_user = Mock()
         fake_user.opt_attrs = {
-            'edx-platform.anonymous_user_id': FAKE_USER_ID
+            'edx-platform.user_id': FAKE_USER_ID
         }
 
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
-        self.assertEqual(self.xblock.user_id, FAKE_USER_ID)
+        self.assertEqual(self.xblock.lms_user_id, FAKE_USER_ID)
 
     def test_user_id_none(self):
         """
@@ -275,7 +275,7 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
 
         with self.assertRaises(LtiError):
-            __ = self.xblock.user_id
+            __ = self.xblock.lms_user_id
 
     def test_external_user_id(self):
         """
@@ -304,7 +304,7 @@ class TestProperties(TestLtiConsumerXBlock):
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.resource_link_id')
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.anonymous_user_id', PropertyMock(return_value=FAKE_USER_ID))
     def test_lis_result_sourcedid(self, mock_resource_link_id, mock_context_id):
         """
         Test `lis_result_sourcedid` returns appropriate string
@@ -784,7 +784,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.anonymous_user_id', PropertyMock(return_value=FAKE_USER_ID))
     def test_generate_launch_request_called(self, mock_course):
         """
         Test LtiConsumer.generate_launch_request is called and a 200 HTML response is returned
@@ -832,7 +832,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.assertIn("There was an error while launching the LTI tool.", response_body)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.user_id', PropertyMock(return_value=FAKE_USER_ID))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.anonymous_user_id', PropertyMock(return_value=FAKE_USER_ID))
     def test_publish_tracking_event(self, mock_course):
         """
         Test a tracking event is emitted when generating a launch request
@@ -1472,6 +1472,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Mock out the user role and external_user_id properties.
         fake_user = Mock()
         fake_user.opt_attrs = {
+            'edx-platform.user_id': 1,
             'edx-platform.user_role': 'instructor',
             'edx-platform.is_authenticated': True,
         }
@@ -1485,10 +1486,11 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         course_key = str(self.xblock.location.course_key)  # pylint: disable=no-member
         expected_launch_data = Lti1p3LaunchData(
-            user_id="external_user_id",
+            user_id=1,
             user_role="instructor",
             config_id=config_id_for_block(self.xblock),
             resource_link_id=str(self.xblock.location),  # pylint: disable=no-member
+            external_user_id="external_user_id",
             launch_presentation_document_target="iframe",
             message_type="LtiResourceLinkRequest",
             context_id=course_key,

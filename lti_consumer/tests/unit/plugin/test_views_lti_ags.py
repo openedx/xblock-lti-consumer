@@ -64,7 +64,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         self._load_block_patch.return_value = self.xblock
 
         self._mock_user = Mock()
-        compat_mock = patch("lti_consumer.signals.compat")
+        compat_mock = patch("lti_consumer.signals.signals.compat")
         self.addCleanup(compat_mock.stop)
         self._compat_mock = compat_mock.start()
         self._compat_mock.get_user_from_external_user_id.return_value = self._mock_user

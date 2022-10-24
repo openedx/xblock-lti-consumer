@@ -15,13 +15,8 @@ from jwkest.jwk import RSAKey
 from opaque_keys.edx.locator import CourseLocator
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import (
-    CourseAllowPIISharingInLTIFlag,
-    LtiAgsLineItem,
-    LtiAgsScore,
-    LtiConfiguration,
-    LtiDlContentItem,
-)
+from lti_consumer.models import (CourseAllowPIISharingInLTIFlag, LtiAgsLineItem, LtiAgsScore, LtiConfiguration,
+                                 LtiDlContentItem)
 from lti_consumer.tests.test_utils import make_xblock
 
 
@@ -375,6 +370,13 @@ class TestLtiConfigurationModel(TestCase):
              self.assertRaises(ValidationError):
             self.lti_1p3_config_db.clean()
 
+        self.lti_1p3_config.lti_1p3_proctoring_enabled = True
+
+        for config_store in [self.lti_1p3_config.CONFIG_ON_XBLOCK, self.lti_1p3_config.CONFIG_EXTERNAL]:
+            self.lti_1p3_config.config_store = config_store
+            with self.assertRaises(ValidationError):
+                self.lti_1p3_config.clean()
+
 
 class TestLtiAgsLineItemModel(TestCase):
     """
@@ -411,7 +413,7 @@ class TestLtiAgsScoreModel(TestCase):
         super().setUp()
 
         # patch things related to LtiAgsScore post_save signal receiver
-        compat_mock = patch("lti_consumer.signals.compat")
+        compat_mock = patch("lti_consumer.signals.signals.compat")
         self.addCleanup(compat_mock.stop)
         self._compat_mock = compat_mock.start()
         self._compat_mock.load_block_as_user.return_value = make_xblock(

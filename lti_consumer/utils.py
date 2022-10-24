@@ -10,6 +10,7 @@ from edx_django_utils.cache import get_cache_key, TieredCache
 
 from lti_consumer.plugin.compat import get_external_config_waffle_flag, get_database_config_waffle_flag
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
+from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
 
 log = logging.getLogger(__name__)
 
@@ -271,3 +272,20 @@ def get_data_from_cache(cache_key):
         return cached_data.value
 
     return None
+
+
+def check_token_claim(token, claim_key, expected_value=None, invalid_claim_error_msg=None):
+    """
+    Checks that the claim with key claim_key appears in the token. Raises a MissingRequiredClaim exception if it does
+    not. If the optional arguments expected_value and invalid_claim_error_msg are provided, then checks that the claim
+    in the token with the key claim_key matches the expected_value. Raises an InvalidClaimValue exception with the
+    invalid_claim_error_msg as the message if not. If the invalid_claim_error_msg argument is provided, then a generic
+    message is used.
+    """
+    claim_value = token.get(claim_key)
+
+    if claim_value is None:
+        raise MissingRequiredClaim(f"Token is missing required {claim_key} claim.")
+    if expected_value and claim_value != expected_value:
+        msg = invalid_claim_error_msg if invalid_claim_error_msg else f"The claim {claim_key} value is invalid."
+        raise InvalidClaimValue(msg)

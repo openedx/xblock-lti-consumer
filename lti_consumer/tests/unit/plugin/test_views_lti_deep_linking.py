@@ -96,7 +96,7 @@ class LtiDeepLinkingResponseEndpointTestCase(LtiDeepLinkingTestCase):
         super().setUp()
 
         # Patch method that calls platform core to ask for user permissions
-        compat_mock = patch("lti_consumer.signals.compat")
+        compat_mock = patch("lti_consumer.signals.signals.compat")
         self.addCleanup(compat_mock.stop)
         self._compat_mock = compat_mock.start()
         self._compat_mock.user_has_studio_write_access.return_value = True

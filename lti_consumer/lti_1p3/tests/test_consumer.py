@@ -18,8 +18,10 @@ from lti_consumer.lti_1p3 import exceptions
 from lti_consumer.lti_1p3.ags import LtiAgs
 from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
 from lti_consumer.lti_1p3.nprs import LtiNrps
-from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
-from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3
+from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE, LTI_PROCTORING_DATA_KEYS
+from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3, LtiProctoringConsumer
+from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
+
 
 # Variables required for testing and verification
 ISS = "http://test-platform.example/"
@@ -247,12 +249,18 @@ class TestLti1p3Consumer(TestCase):
         Check if setting presentation claim data works
         """
         self._setup_lti_launch_data()
-        self.lti_consumer.set_launch_presentation_claim(document_target=target)
+
+        return_url = "return_url"
+        self.lti_consumer.set_launch_presentation_claim(
+            document_target=target,
+            return_url=return_url,
+        )
         self.assertEqual(
             self.lti_consumer.lti_claim_launch_presentation,
             {
                 "https://purl.imsglobal.org/spec/lti/claim/launch_presentation": {
-                    "document_target": target
+                    "document_target": target,
+                    "return_url": return_url,
                 }
             }
         )
@@ -269,7 +277,8 @@ class TestLti1p3Consumer(TestCase):
         self.assertEqual(
             decoded["https://purl.imsglobal.org/spec/lti/claim/launch_presentation"],
             {
-                "document_target": target
+                "document_target": target,
+                "return_url": return_url,
             }
         )
 
@@ -846,3 +855,260 @@ class TestLtiAdvantageConsumer(TestCase):
                 }
             }
         )
+
+
+@ddt.ddt
+class TestLtiProctoringConsumer(TestCase):
+    """
+    Unit tests for LtiProctoringConsumer
+    """
+    def setUp(self):
+        super().setUp()
+
+        # Set up consumer
+        self.lti_consumer = LtiProctoringConsumer(
+            iss=ISS,
+            lti_oidc_url=OIDC_URL,
+            lti_launch_url=LAUNCH_URL,
+            client_id=CLIENT_ID,
+            deployment_id=DEPLOYMENT_ID,
+            rsa_key=RSA_KEY,
+            rsa_key_id=RSA_KEY_ID,
+            # Use the same key for testing purposes
+            tool_key=RSA_KEY
+        )
+
+        self.preflight_response = {}
+
+    def _setup_proctoring(self):
+        """
+        Sets up data necessary for a proctoring LTI launch.
+        """
+        # Set LTI Consumer parameters
+        self.preflight_response = {
+            "client_id": CLIENT_ID,
+            "redirect_uri": LAUNCH_URL,
+            "nonce": NONCE,
+            "state": STATE,
+            "lti_message_hint": "lti_message_hint",
+        }
+        self.lti_consumer.set_user_data("1", "student")
+        self.lti_consumer.set_resource_link_claim("resource_link_id")
+
+    def get_launch_data(self, **kwargs):
+        """
+        Returns a sample instance of Lti1p3LaunchData.
+        """
+        launch_data_kwargs = {
+            "user_id": "user_id",
+            "user_role": "student",
+            "config_id": "1",
+            "resource_link_id": "resource_link_id",
+        }
+
+        launch_data_kwargs.update(kwargs)
+
+        return Lti1p3LaunchData(**launch_data_kwargs)
+
+    @ddt.data(*LTI_PROCTORING_DATA_KEYS)
+    def test_valid_set_proctoring_data(self, key):
+        """
+        Ensures that valid proctoring data can be set on an instance of LtiProctoringConsumer.
+        """
+        value = "test_value"
+        self.lti_consumer.set_proctoring_data(**{key: value})
+
+        actual_value = self.lti_consumer.proctoring_data[key]
+
+        self.assertEqual(value, actual_value)
+
+    def test_invalid_set_proctoring_data(self):
+        """
+        Ensures that an attempt to set invalid proctoring data on an instance of LtiProctoringConsumer does not update
+        the consumer's proctoring_data.
+        """
+        self.lti_consumer.set_proctoring_data(test_key="test_value")
+
+        self.assertEqual({}, self.lti_consumer.proctoring_data)
+
+    def test_get_start_proctoring_claims(self):
+        """
+        Ensures that the correct claims are returned for a LtiStartProctoring LTI launch message.
+        """
+        self.lti_consumer.set_proctoring_data(
+            attempt_number="attempt_number",
+            session_data="session_data",
+            start_assessment_url="start_assessment_url",
+        )
+
+        actual_start_proctoring_claims = self.lti_consumer.get_start_proctoring_claims()
+
+        expected_start_proctoring_claims = {
+            "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number": "attempt_number",
+            "https://purl.imsglobal.org/spec/lti-ap/claim/session_data": "session_data",
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiStartProctoring",
+            "https://purl.imsglobal.org/spec/lti-ap/claim/start_assessment_url": "start_assessment_url",
+        }
+
+        self.assertEqual(expected_start_proctoring_claims, actual_start_proctoring_claims)
+
+    def test_get_end_assessment_claims(self):
+        """
+        Ensures that the correct claims are returned for a LtiEndAssessment LTI launch message.
+        """
+        self.lti_consumer.set_proctoring_data(
+            attempt_number="attempt_number",
+            session_data="session_data",
+        )
+
+        actual_get_end_assessment_claims = self.lti_consumer.get_end_assessment_claims()
+
+        expected_get_end_assessment_claims = {
+            "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number": "attempt_number",
+            "https://purl.imsglobal.org/spec/lti-ap/claim/session_data": "session_data",
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiEndAssessment",
+        }
+
+        self.assertEqual(expected_get_end_assessment_claims, actual_get_end_assessment_claims)
+
+    @ddt.data("LtiStartProctoring", "LtiEndAssessment")
+    @patch('lti_consumer.lti_1p3.consumer.get_data_from_cache')
+    def test_generate_launch_request(self, message_type, mock_get_data_from_cache):
+        """
+        Ensures that the correct claims are included in LTI launch messages for the LtiStartProctoring and
+        LtiEndAssessment launch message types.
+        """
+
+        mock_launch_data = self.get_launch_data(message_type=message_type)
+        mock_get_data_from_cache.return_value = mock_launch_data
+
+        self._setup_proctoring()
+
+        self.lti_consumer.set_proctoring_data(
+            attempt_number="attempt_number",
+            session_data="session_data",
+            start_assessment_url="start_assessment_url",
+        )
+
+        token = self.lti_consumer.generate_launch_request(
+            self.preflight_response,
+        )['id_token']
+
+        decoded_token = self.lti_consumer.key_handler.validate_and_decode(token)
+
+        expected_claims = {}
+
+        if message_type == "LtiStartProctoring":
+            expected_claims = self.lti_consumer.get_start_proctoring_claims()
+        else:
+            expected_claims = self.lti_consumer.get_end_assessment_claims()
+
+        decoded_token_claims = decoded_token.items()
+        for claim in expected_claims.items():
+            self.assertIn(claim, decoded_token_claims)
+
+    @patch('lti_consumer.lti_1p3.consumer.get_data_from_cache')
+    def test_generate_launch_request_invalid_message(self, mock_get_data_from_cache):
+        """
+        Ensures that a ValueError is raised if the launch_data.message_type is not LtiStartProctoring or
+        LtiEndAssessment.
+        """
+
+        mock_launch_data = self.get_launch_data(message_type="LtiResourceLinkRequest")
+        mock_get_data_from_cache.return_value = mock_launch_data
+
+        self._setup_proctoring()
+
+        self.lti_consumer.set_proctoring_data(
+            attempt_number="attempt_number",
+            session_data="session_data",
+            start_assessment_url="start_assessment_url",
+        )
+
+        with self.assertRaises(ValueError):
+            _ = self.lti_consumer.generate_launch_request(
+                self.preflight_response,
+            )['id_token']
+
+    @ddt.data(
+        "https://purl.imsglobal.org/spec/lti/claim/message_type",
+        "https://purl.imsglobal.org/spec/lti/claim/version",
+        "https://purl.imsglobal.org/spec/lti-ap/claim/session_data",
+        "https://purl.imsglobal.org/spec/lti/claim/resource_link",
+        "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number",
+    )
+    def test_invalid_check_and_decode_token(self, claim_key):
+        """
+        Ensures that LtiStartAssessment JWTs are correctly validated; ensures that missing or incorrect claims cause an
+        InvalidClaimValue or MissingRequiredClaim exception to be raised.
+        """
+        self.lti_consumer.set_proctoring_data(
+            attempt_number="attempt_number",
+            session_data="session_data",
+            start_assessment_url="start_assessment_url",
+            resource_link_id="resource_link_id",
+        )
+
+        start_assessment_response = {
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiStartAssessment",
+            "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
+            "https://purl.imsglobal.org/spec/lti-ap/claim/session_data": "session_data",
+            "https://purl.imsglobal.org/spec/lti/claim/resource_link": {"id": "resource_link_id"},
+            "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number": "attempt_number",
+        }
+
+        # Check invalid claim values.
+        start_assessment_response[claim_key] = {}
+        encoded_token = self.lti_consumer.key_handler.encode_and_sign(
+            message=start_assessment_response,
+            expiration=3600
+        )
+
+        with self.assertRaises(InvalidClaimValue):
+            self.lti_consumer.check_and_decode_token(encoded_token)
+
+        # Check missing claims.
+        del start_assessment_response[claim_key]
+        encoded_token = self.lti_consumer.key_handler.encode_and_sign(
+            message=start_assessment_response,
+            expiration=3600
+        )
+
+        with self.assertRaises(MissingRequiredClaim):
+            self.lti_consumer.check_and_decode_token(encoded_token)
+
+    def test_valid_check_and_decode_token(self):
+        """
+        Ensures that a valid LtiStartAssessment JWT is validated successfully.
+        """
+        self.lti_consumer.set_proctoring_data(
+            attempt_number="attempt_number",
+            session_data="session_data",
+            start_assessment_url="start_assessment_url",
+            resource_link_id="resource_link_id",
+        )
+
+        start_assessment_response = {
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiStartAssessment",
+            "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
+            "https://purl.imsglobal.org/spec/lti-ap/claim/session_data": "session_data",
+            "https://purl.imsglobal.org/spec/lti/claim/resource_link": {"id": "resource_link_id"},
+            "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number": "attempt_number",
+            "https://purl.imsglobal.org/spec/lti-ap/claim/verified_user": {"name": "Bob"},
+            "https://purl.imsglobal.org/spec/lti-ap/claim/end_assessment_return": "end_assessment_return",
+        }
+
+        encoded_token = self.lti_consumer.key_handler.encode_and_sign(
+            message=start_assessment_response,
+            expiration=3600
+        )
+
+        response = self.lti_consumer.check_and_decode_token(encoded_token)
+        expected_response = {
+            "end_assessment_return": "end_assessment_return",
+            "verified_user": {"name": "Bob"},
+            "resource_link": {"id": "resource_link_id"},
+            "session_data": "session_data",
+            "attempt_number": "attempt_number"
+        }
+        self.assertEqual(expected_response, response)

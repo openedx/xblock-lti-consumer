@@ -83,3 +83,6 @@ class LTI_1P3_CONTEXT_TYPE(Enum):  # pylint: disable=invalid-name
     course_offering = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseOffering'
     course_section = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseSection'
     course_template = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseTemplate'
+
+
+LTI_PROCTORING_DATA_KEYS = ['attempt_number', 'resource_link_id', 'session_data', 'start_assessment_url']

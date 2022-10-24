@@ -785,7 +785,19 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return '', ''
 
     @property
-    def user_id(self):
+    def lms_user_id(self):
+        """
+        Returns the edx-platform database user id for the current user.
+        """
+        user_id = self.runtime.service(self, 'user').get_current_user().opt_attrs.get(
+            'edx-platform.user_id', None)
+
+        if user_id is None:
+            raise LtiError(self.ugettext("Could not get user id for current request"))
+        return user_id
+
+    @property
+    def anonymous_user_id(self):
         """
         Returns the opaque anonymous_student_id for the current user.
         This defaults to 'student' when testing in studio.
@@ -863,7 +875,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return "{context}:{resource_link}:{user_id}".format(
             context=urllib.parse.quote(self.context_id),
             resource_link=self.resource_link_id,
-            user_id=self.user_id
+            user_id=self.anonymous_user_id
         )
 
     @property
@@ -1100,7 +1112,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # return a 400 response with an appropriate error template.
         try:
             real_user_data = self.extract_real_user_data()
-            user_id = self.user_id
+            user_id = self.anonymous_user_id
             role = self.role
 
             # Convert the LMS role into an LTI 1.1 role.
@@ -1429,10 +1441,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         course_key = str(location.course_key)
 
         launch_data = Lti1p3LaunchData(
-            user_id=self.external_user_id,
+            user_id=self.lms_user_id,
             user_role=self.role,
             config_id=config_id,
             resource_link_id=str(location),
+            external_user_id=self.external_user_id,
             launch_presentation_document_target="iframe",
             context_id=course_key,
             context_type=["course_offering"],

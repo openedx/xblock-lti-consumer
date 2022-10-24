@@ -13,13 +13,14 @@ from lti_consumer.api import (
     _get_config_by_config_id,
     _get_or_create_local_lti_config,
     config_id_for_block,
+    get_end_assessment_return,
     get_lti_1p3_content_url,
     get_deep_linking_data,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
     validate_lti_1p3_launch_data,
 )
-from lti_consumer.data import Lti1p3LaunchData
+from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.tests.test_utils import make_xblock
@@ -93,6 +94,8 @@ class TestConfigIdForBlock(TestCase):
     creation forks on store type.
     """
     def setUp(self):
+        super().setUp()
+
         xblock_attributes = {
             'lti_version': LtiConfiguration.LTI_1P1,
         }
@@ -236,6 +239,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         self.assertEqual(lti_config.external_id, None)
 
 
+@ddt.ddt
 class TestValidateLti1p3LaunchData(TestCase):
     """
     Unit tests for validate_lti_1p3_launch_data API method.
@@ -306,11 +310,11 @@ class TestValidateLti1p3LaunchData(TestCase):
         self.assertEqual(is_valid, False)
         self._assert_required_context_id_message(validation_messages)
 
-    def test_invalid_user_role(self):
+    @ddt.data("cat", "")
+    def test_invalid_user_role(self, user_role):
         """
         Ensure that instances of Lti1p3LaunchData are instantiated with a user_role that is in the LTI_1P3_ROLE_MAP.
         """
-        user_role = "cat"
         launch_data = Lti1p3LaunchData(
             user_id="1",
             user_role=user_role,
@@ -325,6 +329,22 @@ class TestValidateLti1p3LaunchData(TestCase):
             validation_messages,
             [f"The user_role attribute {user_role} is not a valid user_role."]
         )
+
+    def test_none_user_role(self):
+        """
+        Ensure that instances of Lti1p3LaunchData can be instantiated with a value of None for user_role.
+        """
+        launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role=None,
+            config_id=_test_config_id,
+            resource_link_id="resource_link_id",
+        )
+
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+
+        self.assertEqual(is_valid, True)
+        self.assertEqual(validation_messages, [])
 
     def test_invalid_context_type(self):
         """
@@ -348,6 +368,51 @@ class TestValidateLti1p3LaunchData(TestCase):
         self.assertEqual(
             validation_messages,
             [f"The context_type attribute {context_type} in the launch data is not a valid context_type."]
+        )
+
+    @ddt.data("LtiStartProctoring", "LtiEndAssessment")
+    def test_required_proctoring_launch_data_for_proctoring_message_type(self, message_type):
+        launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id=_test_config_id,
+            resource_link_id="resource_link_id",
+            message_type=message_type
+        )
+
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+
+        self.assertEqual(is_valid, False)
+        self.assertEqual(
+            validation_messages,
+            [
+                "The proctoring_launch_data attribute is required if the message_type attribute is "
+                "\"LtiStartProctoring\" or \"LtiEndAssessment\"."
+            ]
+        )
+
+    @ddt.data(None, "")
+    def test_required_start_assessment_url_for_start_proctoring_message_type(self, start_assessment_url):
+        proctoring_launch_data = Lti1p3ProctoringLaunchData(attempt_number=1, start_assessment_url=start_assessment_url)
+
+        launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id=_test_config_id,
+            resource_link_id="resource_link_id",
+            message_type="LtiStartProctoring",
+            proctoring_launch_data=proctoring_launch_data,
+        )
+
+        is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
+
+        self.assertEqual(is_valid, False)
+        self.assertEqual(
+            validation_messages,
+            [
+                "The proctoring_start_assessment_url attribute is required if the message_type attribute is"
+                " \"LtiStartProctoring\"."
+            ]
         )
 
 
@@ -648,3 +713,26 @@ class TestGetLtiDlContentItemData(TestCase):
 
         with self.assertRaises(Exception):
             get_deep_linking_data(content_item.id, self.lti_config.config_id)
+
+
+class TestGetEndAssessmentReturn(TestCase):
+    """
+    Unit tests for get_end_assessment_return API method.
+    """
+    def setUp(self):
+        # Patch internal method to avoid calls to modulestore
+        super().setUp()
+        patcher = patch(
+            'lti_consumer.models.LtiConfiguration.get_lti_consumer',
+        )
+        self.addCleanup(patcher.stop)
+
+    @patch('lti_consumer.api.get_data_from_cache')
+    def test_get_end_assessment_return(self, mock_get_data_from_cache):
+        """Ensures get_end_assessment_return returns whatever is in the cache."""
+
+        get_data_from_cache_return_value = "end_assessment_return"
+
+        mock_get_data_from_cache.return_value = get_data_from_cache_return_value
+
+        self.assertEqual(get_end_assessment_return("user_id", "resource_link_id"), get_data_from_cache_return_value)
