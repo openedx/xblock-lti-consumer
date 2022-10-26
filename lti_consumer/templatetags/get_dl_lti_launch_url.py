@@ -20,6 +20,5 @@ def get_dl_lti_launch_url(content_item, launch_data):
     """
     return get_lti_1p3_launch_start_url(
         launch_data,
-        config_id=content_item.lti_configuration.id,
         dl_content_id=content_item.id,
     )

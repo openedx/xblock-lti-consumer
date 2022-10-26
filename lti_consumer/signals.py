@@ -31,7 +31,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
             and instance.score_given:
         try:
             # Load block using LMS APIs and check if the block is graded and still accept grades.
-            block = compat.load_block_as_anonymous_user(instance.line_item.resource_link_id)
+            block = compat.load_block_as_user(instance.line_item.resource_link_id)
             if block.has_score and (not block.is_past_due() or block.accept_grades_past_due):
                 # Map external ID to platform user
                 user = compat.get_user_from_external_user_id(instance.user_id)

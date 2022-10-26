@@ -264,7 +264,7 @@ class LtiConfiguration(models.Model):
         if block is None:
             if self.location is None:
                 raise ValueError(_("Block location not set, it's not possible to retrieve the block."))
-            block = self._block = compat.load_block_as_anonymous_user(self.location)
+            block = self._block = compat.load_block_as_user(self.location)
         return block
 
     @block.setter

@@ -71,7 +71,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         self.addCleanup(compat_mock.stop)
         self._compat_mock = compat_mock.start()
         self._compat_mock.get_user_from_external_user_id.return_value = self._mock_user
-        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.load_block_as_user.return_value = self.xblock
 
     def _set_lti_token(self, scopes=None):
         """
@@ -431,7 +431,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
             "gradingProgress": grading_progress,
         })
 
-        self._compat_mock.load_block_as_anonymous_user.assert_not_called()
+        self._compat_mock.load_block_as_user.assert_not_called()
         self._compat_mock.get_user_from_external_user_id.assert_not_called()
 
     def test_xblock_grade_publish_on_score_save(self):
@@ -439,7 +439,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         Test that the grade is submitted when gradingProgress is `FullyGraded`.
         """
         # Set up LMS mocks
-        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.load_block_as_user.return_value = self.xblock
         self._compat_mock.get_user_from_external_user_id.return_value = 'user_mock'
         self.xblock.set_user_module_score = Mock()
 
@@ -452,7 +452,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         # Check if publish grade was called
         self.xblock.set_user_module_score.assert_called_once()
         self._compat_mock.get_user_from_external_user_id.assert_called_once()
-        self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+        self._compat_mock.load_block_as_user.assert_called_once()
 
         call_args = self.xblock.set_user_module_score.call_args.args
         self.assertEqual(call_args, ('user_mock', 0.83, 1, 'This is exceptional work.'))
@@ -462,7 +462,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         Test when given score is bigger than maximum score.
         """
         # Return block bypassing LMS API
-        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.load_block_as_user.return_value = self.xblock
         self._compat_mock.get_user_from_external_user_id.return_value = 'user_mock'
         self.xblock.set_user_module_score = Mock()
 
@@ -494,7 +494,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.xblock.runtime.publish.side_effect = LmsException
 
         # Return block bypassing LMS API
-        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.load_block_as_user.return_value = self.xblock
 
         # Check that the except statement catches the exception
         with self.assertRaises(LmsException):
@@ -511,7 +511,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self._post_lti_score()
 
         # Check that the block wasn't set if due date is past
-        self._compat_mock.load_block_as_anonymous_user.assert_called_once()
+        self._compat_mock.load_block_as_user.assert_called_once()
         self._compat_mock.get_user_from_external_user_id.assert_not_called()
         self.xblock.set_user_module_score.assert_not_called()
 
@@ -521,7 +521,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         Test grade publish after due date when accept_grades_past_due is True. Grade should publish.
         """
         # Return block bypassing LMS API
-        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.load_block_as_user.return_value = self.xblock
         self._compat_mock.get_user_from_external_user_id.return_value = 'user_mock'
         self.xblock.set_user_module_score = Mock()
 

@@ -80,7 +80,7 @@ class LtiDeepLinkingTestCase(APITransactionTestCase):
         self.addCleanup(compat_mock.stop)
         self._compat_mock = compat_mock.start()
         self._compat_mock.get_user_from_external_user_id.return_value = self._mock_user
-        self._compat_mock.load_block_as_anonymous_user.return_value = self.xblock
+        self._compat_mock.load_block_as_user.return_value = self.xblock
 
 
 @ddt.ddt
