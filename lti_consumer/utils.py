@@ -24,13 +24,20 @@ def _(text):
 def get_lms_base():
     """
     Returns LMS base url to be used as issuer on OAuth2 flows
+    and in various LTI URLs. For local testing it is often necessary
+    to override the normal LMS base with a proxy such as ngrok, use
+    the setting LTI_LMS_BASE_URL_OVERRIDE in your LMS settings if
+    necessary.
 
     TODO: This needs to be improved and account for Open edX sites and
     organizations.
     One possible improvement is to use `contentstore.get_lms_link_for_item`
     and strip the base domain name.
     """
-    return settings.LMS_ROOT_URL
+    if hasattr(settings, 'LTI_LMS_BASE_URL_OVERRIDE'):
+        return settings.LTI_LMS_BASE_URL_OVERRIDE
+    else:
+        return settings.LMS_ROOT_URL
 
 
 def get_lms_lti_keyset_link(config_id):
