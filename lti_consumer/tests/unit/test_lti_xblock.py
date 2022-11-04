@@ -130,7 +130,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `context_id` returns unicode course id
         """
-        self.assertEqual(self.xblock.context_id, str(self.xblock.runtime.scope_ids.usage_id.context_key))
+        self.assertEqual(self.xblock.context_id, str(self.xblock.scope_ids.usage_id.context_key))
 
     def test_validate(self):
         """
@@ -300,7 +300,7 @@ class TestProperties(TestLtiConsumerXBlock):
         hostname = "edx.org"
         self.assertEqual(
             self.xblock.resource_link_id,
-            f"{hostname}-{self.xblock.location.html_id()}"  # pylint: disable=no-member
+            f"{hostname}-{self.xblock.scope_ids.usage_id.html_id()}"
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
@@ -1529,12 +1529,12 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         launch_data = self.xblock.get_lti_1p3_launch_data()
 
-        course_key = str(self.xblock.location.course_key)  # pylint: disable=no-member
+        course_key = str(self.xblock.scope_ids.usage_id.course_key)
         expected_launch_data = Lti1p3LaunchData(
             user_id=1,
             user_role="instructor",
             config_id=config_id_for_block(self.xblock),
-            resource_link_id=str(self.xblock.location),  # pylint: disable=no-member
+            resource_link_id=str(self.xblock.scope_ids.usage_id),
             external_user_id="external_user_id",
             launch_presentation_document_target="iframe",
             message_type="LtiResourceLinkRequest",

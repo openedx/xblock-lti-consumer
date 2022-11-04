@@ -59,17 +59,17 @@ class TestLtiConfigurationModel(TestCase):
 
         # Creates an LTI configuration objects for testing
         self.lti_1p1_config = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P1
         )
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3
         )
 
         self.lti_1p3_config_db = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
             lti_advantage_ags_mode='programmatic',
@@ -92,7 +92,7 @@ class TestLtiConfigurationModel(TestCase):
         Helper function to create a LtiConfiguration object with specific attributes
         """
         return LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             **kwargs
         )
@@ -472,7 +472,7 @@ class TestLtiDlContentItemModel(TestCase):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3
         )
 
@@ -489,7 +489,7 @@ class TestLtiDlContentItemModel(TestCase):
         self.assertEqual(
             str(content_item),
             "[CONFIG_ON_XBLOCK] lti_1p3 - "
-            "block-v1:edX+DemoX+Demo_Course+type@problem+block@466f474fa4d045a8b7bde1b911e095ca: image"
+            f"{content_item.lti_configuration.location}: image"
         )
 
 
