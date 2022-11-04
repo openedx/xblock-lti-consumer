@@ -321,6 +321,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "prior to doing the launch request."
         ),
     )
+    lti_1p3_redirect_uris = List(
+        display_name=_("Registered Redirect URIs"),
+        # NOTE: Finish help
+        help=_("Valid URLs the Tool may redirect you to. This may or may not be the same as the launch url."),
+        scope=Scope.settings
+    )
 
     lti_1p3_tool_key_mode = String(
         display_name=_("Tool Public Key Mode"),

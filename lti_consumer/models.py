@@ -185,6 +185,14 @@ class LtiConfiguration(models.Model):
                   'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
     )
 
+    lti_1p3_redirect_uris = models.JSONField(
+        "LTI 1.3 Redirect URIs",
+        default=list,
+        blank=True,
+        # TODO: Finish help
+        help_text="Valid URLs the Tool may redirect you to. This may or may not be the same as the launch url.",
+    )
+
     # LTI 1.3 Advantage Related Variables
     lti_advantage_enable_nrps = models.BooleanField(
         "Enable LTI Advantage Names and Role Provisioning Services",
