@@ -29,7 +29,10 @@ to checkout ``xblock-lti-consumer`` and have it live in ``~/code/src/xblock-lti-
 This will make it so that you can access it inside an LMS container shell
 and easily make modifications for local testing.
 
-Run ``make lms-shell`` from your ``devstack`` directory to enter a running LMS container.
+**You will have to run the below instructions twice, once for the LMS and once for Studio.
+Otherwise you will be using different versions of the xblock in the two containers.**
+
+Run ``make dev.shell.lms`` or ``make dev.shell.studio`` from your ``devstack`` directory to enter a running container.
 Once in there, you can do the following to have your devstack pointing at a local development
 version of ``xblock-lti-consumer``:
 
