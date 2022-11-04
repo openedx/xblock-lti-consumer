@@ -506,6 +506,8 @@ class LtiConfiguration(models.Model):
                 # XBlock Private RSA Key
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
+                # Registered redirect uris
+                redirect_uris=self.block.lti_1p3_redirect_uris,
                 # LTI 1.3 Tool key/keyset url
                 tool_key=block.lti_1p3_tool_public_key,
                 tool_keyset_url=block.lti_1p3_tool_keyset_url,
@@ -522,6 +524,8 @@ class LtiConfiguration(models.Model):
                 # XBlock Private RSA Key
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
+                # Registered redirect uris
+                redirect_uris=self.lti_1p3_redirect_uris,
                 # LTI 1.3 Tool key/keyset url
                 tool_key=self.lti_1p3_tool_public_key,
                 tool_keyset_url=self.lti_1p3_tool_keyset_url,
