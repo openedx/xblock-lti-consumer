@@ -83,11 +83,6 @@ def _get_lti_config_for_block(block):
             block.location,
             LtiConfiguration.CONFIG_ON_XBLOCK,
         )
-
-    # Since the block was passed, preload it to avoid
-    # having to instance the modulestore and fetch it again.
-    lti_config.block = block
-
     return lti_config
 
 

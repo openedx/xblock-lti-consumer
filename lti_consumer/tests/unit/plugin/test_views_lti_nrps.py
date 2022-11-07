@@ -1,7 +1,7 @@
 """
 Tests for LTI Names and Role Provisioning Service views.
 """
-from unittest.mock import Mock, patch, PropertyMock
+from unittest.mock import Mock, patch
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
@@ -140,17 +140,14 @@ class LtiNrpsTestCase(APITransactionTestCase):
             location=self.xblock.location,  # pylint: disable=no-member
             version=LtiConfiguration.LTI_1P3,
         )
-        # Preload XBlock to avoid calls to modulestore
-        self.lti_config.block = self.xblock
 
         # Patch internal method to avoid calls to modulestore
         patcher = patch(
-            'lti_consumer.models.LtiConfiguration.block',
-            new_callable=PropertyMock,
-            return_value=self.xblock
+            'lti_consumer.plugin.compat.load_enough_xblock',
         )
         self.addCleanup(patcher.stop)
-        self._lti_block_patch = patcher.start()
+        self._load_block_patch = patcher.start()
+        self._load_block_patch.return_value = self.xblock
 
         self.context_membership_endpoint = reverse(
             'lti_consumer:lti-nrps-memberships-view-list',

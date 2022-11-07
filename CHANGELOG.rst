@@ -15,6 +15,14 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 
 Unreleased
 ~~~~~~~~~~
+6.1.0 - 2022-11-08
+------------------
+* 6.0.0 broke studio functionality because it leaned more heavily on the xblock load which only worked in the LMS.
+
+  * Fix by greatly limiting when we attempt a full xblock load and bind
+
+
+
 6.0.0 - 2022-10-24
 ------------------
 BREAKING CHANGE:

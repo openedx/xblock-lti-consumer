@@ -60,18 +60,30 @@ def get_database_config_waffle_flag():
     return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_DATABASE_CONFIG}', __name__)
 
 
+def load_enough_xblock(location):  # pragma: nocover
+    """
+    Load enough of an xblock to read from for LTI values stored on the block.
+    The block may or may not be bound to the user for actual use depending on
+    what has happened in the request so far.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from xmodule.modulestore.django import modulestore
+
+    # Retrieve descriptor from modulestore
+    return modulestore().get_item(location)
+
+
 def load_block_as_user(location):  # pragma: nocover
     """
     Load a block as the current user, or load as the anonymous user if no user is available.
     """
     # pylint: disable=import-error,import-outside-toplevel
     from crum import get_current_user, get_current_request
-    from xmodule.modulestore.django import modulestore
     from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
     from openedx.core.lib.xblock_utils import request_token
 
     # Retrieve descriptor from modulestore
-    descriptor = modulestore().get_item(location)
+    descriptor = load_enough_xblock(location)
     user = get_current_user()
     request = get_current_request()
     if user and request:

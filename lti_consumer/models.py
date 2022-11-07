@@ -227,17 +227,14 @@ class LtiConfiguration(models.Model):
                   'grades.'
     )
 
-    # Empty variable that'll hold the block once it's retrieved
-    # from the modulestore or preloaded
-    _block = None
-
     def clean(self):
         if self.config_store == self.CONFIG_ON_XBLOCK and self.location is None:
             raise ValidationError({
                 "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
             })
         if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
-            if not database_config_enabled(self.block.location.course_key):
+            block = compat.load_enough_xblock(self.location)
+            if not database_config_enabled(block.location.course_key):
                 raise ValidationError({
                     "config_store": _("LTI Configuration stores on database is not enabled."),
                 })
@@ -254,25 +251,6 @@ class LtiConfiguration(models.Model):
             consumer = None
         if consumer is None:
             raise ValidationError(_("Invalid LTI configuration."))
-
-    @property
-    def block(self):
-        """
-        Return instance of block (either preloaded or directly from the modulestore).
-        """
-        block = getattr(self, '_block', None)
-        if block is None:
-            if self.location is None:
-                raise ValueError(_("Block location not set, it's not possible to retrieve the block."))
-            block = self._block = compat.load_block_as_user(self.location)
-        return block
-
-    @block.setter
-    def block(self, block):
-        """
-        Allows preloading the block instead of fetching it from the modulestore.
-        """
-        self._block = block
 
     def _generate_lti_1p3_keys_if_missing(self):
         """
@@ -336,8 +314,9 @@ class LtiConfiguration(models.Model):
         """
         # If LTI configuration is stored in the XBlock.
         if self.config_store == self.CONFIG_ON_XBLOCK:
-            key, secret = self.block.lti_provider_key_secret
-            launch_url = self.block.launch_url
+            block = compat.load_enough_xblock(self.location)
+            key, secret = block.lti_provider_key_secret
+            launch_url = block.launch_url
         elif self.config_store == self.CONFIG_EXTERNAL:
             config = get_external_config_from_filter({}, self.external_id)
             key = config.get("lti_1p1_client_key")
@@ -360,7 +339,8 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_ags_mode
         else:
-            return self.block.lti_advantage_ags_mode
+            block = compat.load_enough_xblock(self.location)
+            return block.lti_advantage_ags_mode
 
     def get_lti_advantage_deep_linking_enabled(self):
         """
@@ -372,7 +352,8 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_enabled
         else:
-            return self.block.lti_advantage_deep_linking_enabled
+            block = compat.load_enough_xblock(self.location)
+            return block.lti_advantage_deep_linking_enabled
 
     def get_lti_advantage_deep_linking_launch_url(self):
         """
@@ -384,7 +365,8 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_launch_url
         else:
-            return self.block.lti_advantage_deep_linking_launch_url
+            block = compat.load_enough_xblock(self.location)
+            return block.lti_advantage_deep_linking_launch_url
 
     def get_lti_advantage_nrps_enabled(self):
         """
@@ -396,7 +378,8 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_enable_nrps
         else:
-            return self.block.lti_1p3_enable_nrps
+            block = compat.load_enough_xblock(self.location)
+            return block.lti_1p3_enable_nrps
 
     def _setup_lti_1p3_ags(self, consumer):
         """
@@ -419,21 +402,21 @@ class LtiConfiguration(models.Model):
         # and manage lineitems using the AGS endpoints.
         if not lineitem and lti_advantage_ags_mode == self.LTI_ADVANTAGE_AGS_DECLARATIVE:
             try:
-                block = self.block
+                block = compat.load_enough_xblock(self.location)
             except ValueError:  # There is no location to load the block
                 block = None
 
             if block:
                 default_values = {
                     'resource_id': self.location,
-                    'score_maximum': self.block.weight,
-                    'label': self.block.display_name,
+                    'score_maximum': block.weight,
+                    'label': block.display_name,
                 }
-                if hasattr(self.block, 'start'):
-                    default_values['start_date_time'] = self.block.start
+                if hasattr(block, 'start'):
+                    default_values['start_date_time'] = block.start
 
-                if hasattr(self.block, 'due'):
-                    default_values['end_date_time'] = self.block.due
+                if hasattr(block, 'due'):
+                    default_values['end_date_time'] = block.due
             else:
                 # TODO find a way to make these defaults more sensible
                 default_values = {
@@ -488,10 +471,11 @@ class LtiConfiguration(models.Model):
         look for the configuration and instance the class.
         """
         if self.config_store == self.CONFIG_ON_XBLOCK:
+            block = compat.load_enough_xblock(self.location)
             consumer = LtiAdvantageConsumer(
                 iss=get_lms_base(),
-                lti_oidc_url=self.block.lti_1p3_oidc_url,
-                lti_launch_url=self.block.lti_1p3_launch_url,
+                lti_oidc_url=block.lti_1p3_oidc_url,
+                lti_launch_url=block.lti_1p3_launch_url,
                 client_id=self.lti_1p3_client_id,
                 # Deployment ID hardcoded to 1 since
                 # we're not using multi-tenancy.
@@ -500,8 +484,8 @@ class LtiConfiguration(models.Model):
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
                 # LTI 1.3 Tool key/keyset url
-                tool_key=self.block.lti_1p3_tool_public_key,
-                tool_keyset_url=self.block.lti_1p3_tool_keyset_url,
+                tool_key=block.lti_1p3_tool_public_key,
+                tool_keyset_url=block.lti_1p3_tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_ON_DB:
             consumer = LtiAdvantageConsumer(

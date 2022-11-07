@@ -55,6 +55,13 @@ class TestLtiConfigurationModel(TestCase):
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
+        patcher = patch(
+            'lti_consumer.plugin.compat.load_enough_xblock',
+        )
+        self.addCleanup(patcher.stop)
+        self._load_block_patch = patcher.start()
+        self._load_block_patch.return_value = self.xblock
+
         # Creates an LTI configuration objects for testing
         self.lti_1p1_config = LtiConfiguration.objects.create(
             location=self.xblock.location,  # pylint: disable=no-member
@@ -157,7 +164,6 @@ class TestLtiConfigurationModel(TestCase):
             config_store=config_store,
             lti_advantage_ags_mode='programmatic'
         )
-        config.block = self.xblock
 
         # Get LTI 1.3 consumer
         consumer = config.get_lti_consumer()
@@ -189,7 +195,6 @@ class TestLtiConfigurationModel(TestCase):
         Check if LTI AGS is properly returned.
         """
         config = self._get_1p3_config(config_store=config_store, lti_advantage_ags_mode='disabled')
-        config.block = self.xblock
 
         self.xblock.lti_advantage_ags_mode = 'XBlock'
 
@@ -212,7 +217,6 @@ class TestLtiConfigurationModel(TestCase):
 
         # Get LTI 1.3 consumer
         config = self._get_1p3_config(config_store=config_store, lti_advantage_ags_mode='declarative')
-        config.block = self.xblock
 
         consumer = config.get_lti_consumer()
 
@@ -242,7 +246,6 @@ class TestLtiConfigurationModel(TestCase):
             config_store=config_store,
             lti_advantage_deep_linking_enabled=True
         )
-        config.block = self.xblock
 
         # Get LTI 1.3 consumer
         consumer = config.get_lti_consumer()
@@ -261,7 +264,6 @@ class TestLtiConfigurationModel(TestCase):
         Check if LTI Deep Linking enabled is properly returned.
         """
         config = self._get_1p3_config(config_store=config_store, lti_advantage_deep_linking_enabled=True)
-        config.block = self.xblock
 
         self.xblock.lti_advantage_deep_linking_enabled = False
 
@@ -282,7 +284,6 @@ class TestLtiConfigurationModel(TestCase):
         Check if LTI Deep Linking launch URL is properly returned.
         """
         config = self._get_1p3_config(config_store=config_store, lti_advantage_deep_linking_launch_url='database')
-        config.block = self.xblock
 
         self.xblock.lti_advantage_deep_linking_launch_url = 'XBlock'
 
@@ -303,7 +304,6 @@ class TestLtiConfigurationModel(TestCase):
         Check if LTI Deep Linking launch URL is properly returned.
         """
         config = self._get_1p3_config(config_store=config_store, lti_advantage_enable_nrps=True)
-        config.block = self.xblock
 
         self.xblock.lti_advantage_enable_nrps = False
 
@@ -312,24 +312,6 @@ class TestLtiConfigurationModel(TestCase):
         else:
             with self.assertRaises(NotImplementedError):
                 config.get_lti_advantage_nrps_enabled()
-
-    @patch("lti_consumer.models.compat")
-    def test_block_property(self, compat_mock):
-        """
-        Check if a block is properly loaded when calling the `block` property.
-        """
-        compat_mock.load_block_as_user.return_value = self.xblock
-
-        block = self.lti_1p3_config.block
-        self.assertEqual(block, self.xblock)
-
-    def test_block_property_missing_location(self):
-        """
-        Check the `block` property raises when failing to retrieve a block.
-        """
-        self.lti_1p3_config.location = None
-        with self.assertRaises(ValueError):
-            _ = self.lti_1p3_config.block
 
     def test_generate_private_key(self):
         """
@@ -381,9 +363,6 @@ class TestLtiConfigurationModel(TestCase):
             self.lti_1p3_config.clean()
 
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
-        self.lti_1p3_config.block = self.xblock
-
-        self.lti_1p3_config_db.block = self.xblock
 
         with patch("lti_consumer.models.database_config_enabled", return_value=False),\
              self.assertRaises(ValidationError):
