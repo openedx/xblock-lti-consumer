@@ -323,7 +323,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     )
     lti_1p3_redirect_uris = List(
         display_name=_("Registered Redirect URIs"),
-        # NOTE: Finish help
+        # TODO: Further clarify this help
         help=_("Valid URLs the Tool may redirect you to. This may or may not be the same as the launch url."),
         scope=Scope.settings
     )
