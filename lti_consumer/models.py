@@ -189,8 +189,8 @@ class LtiConfiguration(models.Model):
         "LTI 1.3 Redirect URIs",
         default=list,
         blank=True,
-        # TODO: Finish help
-        help_text="Valid URLs the Tool may redirect you to. This may or may not be the same as the launch url.",
+        # TODO: Further clarify this help
+        help_text='Valid URLs the Tool may redirect you to. This may or may not be the same as the launch url.',
     )
 
     # LTI 1.3 Advantage Related Variables
@@ -507,7 +507,7 @@ class LtiConfiguration(models.Model):
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
                 # Registered redirect uris
-                redirect_uris=self.block.lti_1p3_redirect_uris,
+                redirect_uris=self.get_lti_1p3_redirect_uris(),
                 # LTI 1.3 Tool key/keyset url
                 tool_key=block.lti_1p3_tool_public_key,
                 tool_keyset_url=block.lti_1p3_tool_keyset_url,
@@ -525,7 +525,7 @@ class LtiConfiguration(models.Model):
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
                 # Registered redirect uris
-                redirect_uris=self.lti_1p3_redirect_uris,
+                redirect_uris=self.get_lti_1p3_redirect_uris(),
                 # LTI 1.3 Tool key/keyset url
                 tool_key=self.lti_1p3_tool_public_key,
                 tool_keyset_url=self.lti_1p3_tool_keyset_url,
@@ -550,6 +550,42 @@ class LtiConfiguration(models.Model):
             return self._get_lti_1p3_consumer()
 
         return self._get_lti_1p1_consumer()
+
+    def get_lti_1p3_redirect_uris(self):
+        """
+        Return pre-registered redirect uris or sensible defaults
+        """
+        if self.config_store == self.CONFIG_EXTERNAL:
+            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
+            raise NotImplementedError
+
+        if self.config_store == self.CONFIG_ON_DB:
+            redirect_uris = self.lti_1p3_redirect_uris
+            launch_url = self.lti_1p3_launch_url
+            deep_link_launch_url = self.lti_advantage_deep_linking_launch_url,
+        else:
+            redirect_uris = self.block.lti_1p3_redirect_uris
+            launch_url = self.block.lti_1p3_launch_url
+            deep_link_launch_url = self.block.lti_advantage_deep_linking_launch_url,
+
+        return self._get_lti_1p3_redirect_uris_with_defaults(
+            redirect_uris,
+            launch_url,
+            deep_link_launch_url
+        )
+
+    def _get_lti_1p3_redirect_uris_with_defaults(self, redirect_uris, launch_url, deep_link_url):
+        """
+        Return provided redirect_uris if set, else use launch/deep_link as defaults
+        """
+        if redirect_uris:
+            return redirect_uris
+
+        result = [launch_url]
+        if deep_link_url:
+            result.append(deep_link_url)
+        return result
+
 
     @property
     def pii_share_username(self):
