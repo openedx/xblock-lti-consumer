@@ -41,7 +41,7 @@ class Lti1P3TestCase(TestCase):
 
         # Patch compat method to avoid calls to modulestore
         patcher = patch(
-            'lti_consumer.plugin.compat.load_block_as_user',
+            'lti_consumer.plugin.compat.load_enough_xblock',
         )
         self.addCleanup(patcher.stop)
         self._load_block_patch = patcher.start()
@@ -72,7 +72,6 @@ class Lti1P3TestCase(TestCase):
         self.lti_config = LtiConfiguration.objects.create(
             config_id=_test_config_id,
             location=self.xblock.location,  # pylint: disable=no-member
-            block=self.xblock,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
         )

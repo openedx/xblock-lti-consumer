@@ -133,19 +133,21 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         )
         self.launch_data_key = cache_lti_1p3_launch_data(self.launch_data)
 
-        self.compat_patcher = patch("lti_consumer.plugin.views.compat")
-        self.compat = self.compat_patcher.start()
-        self.addCleanup(self.compat.stop)
+        compat_patcher = patch("lti_consumer.plugin.views.compat")
+        self.addCleanup(compat_patcher.stop)
+        self.compat = compat_patcher.start()
         course = Mock(name="course")
         course.display_name_with_default = "course_display_name"
         course.display_org_with_default = "course_display_org"
         self.compat.get_course_by_id.return_value = course
         self.compat.get_user_role.return_value = "student"
         self.compat.get_external_id_for_user.return_value = "12345"
+
         model_compat_patcher = patch("lti_consumer.models.compat")
-        model_compat = model_compat_patcher.start()
-        model_compat.load_block_as_user.return_value = self.xblock
         self.addCleanup(model_compat_patcher.stop)
+        model_compat = model_compat_patcher.start()
+        model_compat.load_enough_xblock.return_value = self.xblock
+        model_compat.load_block_as_user.return_value = self.xblock
 
     def test_invalid_lti_version(self):
         """

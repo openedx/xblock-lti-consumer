@@ -1,7 +1,7 @@
 """
 Tests for LTI Advantage Assignments and Grades Service views.
 """
-from unittest.mock import patch, PropertyMock, Mock
+from unittest.mock import patch, Mock
 
 import re
 import ddt
@@ -63,24 +63,27 @@ class LtiDeepLinkingTestCase(APITransactionTestCase):
         for key, value in self.xblock_attributes.items():
             setattr(self.xblock, key, value)
 
-        # Preload XBlock to avoid calls to modulestore
-        self.lti_config.block = self.xblock
-
-        # Patch internal method to avoid calls to modulestore
-        patcher = patch(
-            'lti_consumer.models.LtiConfiguration.block',
-            new_callable=PropertyMock,
-            return_value=self.xblock
+        # Patch internal methods to avoid calls to modulestore
+        enough_mock = patch(
+            'lti_consumer.plugin.compat.load_enough_xblock',
         )
-        self.addCleanup(patcher.stop)
-        self._lti_block_patch = patcher.start()
+        self.addCleanup(enough_mock.stop)
+        self._load_block_patch = enough_mock.start()
+        self._load_block_patch.return_value = self.xblock
+
+        # some deep linking endpoints still load the xblock as its user for access check
+        as_user_mock = patch(
+            'lti_consumer.plugin.compat.load_block_as_user',
+        )
+        self.addCleanup(as_user_mock.stop)
+        self._load_block_as_user_patch = as_user_mock.start()
+        self._load_block_as_user_patch.return_value = self.xblock
 
         self._mock_user = Mock()
-        compat_mock = patch("lti_consumer.signals.compat")
-        self.addCleanup(compat_mock.stop)
-        self._compat_mock = compat_mock.start()
-        self._compat_mock.get_user_from_external_user_id.return_value = self._mock_user
-        self._compat_mock.load_block_as_user.return_value = self.xblock
+        get_user_mock = patch("lti_consumer.plugin.compat.get_user_from_external_user_id")
+        self.addCleanup(get_user_mock.stop)
+        self._get_user_patch = get_user_mock.start()
+        self._get_user_patch.return_value = self._mock_user
 
 
 @ddt.ddt
@@ -485,7 +488,7 @@ class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
 
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, 200)
-        expected_title = '{} | Deep Linking Contents'.format(self.lti_config.block.display_name)
+        expected_title = '{} | Deep Linking Contents'.format(self.xblock.display_name)
         self.assertContains(resp, expected_title)
 
     @ddt.data(

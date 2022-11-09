@@ -598,7 +598,7 @@ class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
         self.xblock.lti_id = provider
         type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
 
-        with patch('lti_consumer.plugin.compat.load_block_as_user', return_value=self.xblock):
+        with patch('lti_consumer.plugin.compat.load_enough_xblock', return_value=self.xblock):
             self.xblock._get_lti_consumer()  # pylint: disable=protected-access
 
         mock_lti_consumer.assert_called_with(self.xblock.launch_url, key, secret)
@@ -1573,15 +1573,15 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
         patcher = patch(
-            'lti_consumer.models.compat',
-            **{'load_block_as_user.return_value': self.xblock}
+            'lti_consumer.plugin.compat.load_enough_xblock',
         )
-        patcher.start()
         self.addCleanup(patcher.stop)
+        self._load_block_patch = patcher.start()
+        self._load_block_patch.return_value = self.xblock
 
     def test_access_token_endpoint_when_using_lti_1p1(self):
         """
-        Test that the LTI 1.3 access token endpoind is unavailable when using 1.1.
+        Test that the LTI 1.3 access token endpoint is unavailable when using 1.1.
         """
         self.xblock.lti_version = 'lti_1p1'
         self.xblock.save()
@@ -1594,7 +1594,7 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
 
     def test_access_token_endpoint_no_post(self):
         """
-        Test that the LTI 1.3 access token endpoind is unavailable when using 1.1.
+        Test that the LTI 1.3 access token endpoint is unavailable when using 1.1.
         """
         request = make_request('', 'GET')
 
@@ -1747,12 +1747,13 @@ class TestLti1p3AccessTokenJWK(TestCase):
 
         jwt = create_jwt(self.key, {})
         self.request = make_jwt_request(jwt)
+
         patcher = patch(
-            'lti_consumer.models.compat',
-            **{'load_block_as_user.return_value': self.xblock}
+            'lti_consumer.plugin.compat.load_enough_xblock',
         )
-        patcher.start()
         self.addCleanup(patcher.stop)
+        self._load_block_patch = patcher.start()
+        self._load_block_patch.return_value = self.xblock
 
     def make_keyset(self, keys):
         """
