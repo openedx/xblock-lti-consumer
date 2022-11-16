@@ -28,9 +28,9 @@ bleach==5.0.1
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.0
+boto3==1.26.10
     # via fs-s3fs
-botocore==1.29.0
+botocore==1.29.10
     # via
     #   boto3
     #   s3transfer
@@ -163,7 +163,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via -r requirements/base.txt
-keyring==23.9.3
+keyring==23.11.0
     # via twine
 lazy==1.5
     # via
@@ -176,7 +176,7 @@ lxml==4.9.1
     #   -r requirements/base.txt
     #   xblock
     #   xblock-sdk
-mako==1.2.3
+mako==1.2.4
     # via
     #   -r requirements/base.txt
     #   xblock-utils
@@ -206,9 +206,9 @@ pbr==5.11.0
     #   stevedore
 pkginfo==1.8.3
     # via twine
-platformdirs==2.5.2
+platformdirs==2.5.4
     # via pylint
-psutil==5.9.3
+psutil==5.9.4
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -297,7 +297,7 @@ s3transfer==0.6.0
     # via boto3
 secretstorage==3.3.3
     # via keyring
-simplejson==3.17.6
+simplejson==3.18.0
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
@@ -315,7 +315,7 @@ sqlparse==0.4.3
     # via
     #   -r requirements/base.txt
     #   django
-stevedore==4.1.0
+stevedore==4.1.1
     # via
     #   -r requirements/base.txt
     #   code-annotations
