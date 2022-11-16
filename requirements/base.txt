@@ -59,7 +59,7 @@ lxml==4.9.1
     # via
     #   -r requirements/base.in
     #   xblock
-mako==1.2.3
+mako==1.2.4
     # via
     #   -r requirements/base.in
     #   xblock-utils
@@ -75,7 +75,7 @@ openedx-filters==0.8.0
     # via -r requirements/base.in
 pbr==5.11.0
     # via stevedore
-psutil==5.9.3
+psutil==5.9.4
     # via edx-django-utils
 pycparser==2.21
     # via cffi
@@ -100,7 +100,7 @@ pyyaml==6.0
     # via xblock
 requests==2.28.1
     # via pyjwkest
-simplejson==3.17.6
+simplejson==3.18.0
     # via xblock-utils
 six==1.16.0
     # via
@@ -110,7 +110,7 @@ six==1.16.0
     #   python-dateutil
 sqlparse==0.4.3
     # via django
-stevedore==4.1.0
+stevedore==4.1.1
     # via
     #   edx-django-utils
     #   edx-opaque-keys
