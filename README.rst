@@ -330,8 +330,8 @@ Please do not report security issues in public. Please email security@tcril.org.
     :target: https://github.com/openedx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
     :alt: Test suite status
 
-.. |codecov-badge| image:: https://codecov.io/github/edx/xblock-lti-consumer/coverage.svg?branch=master
-    :target: https://codecov.io/github/edx/xblock-lti-consumer?branch=master
+.. |codecov-badge| image:: https://codecov.io/github/openedx/xblock-lti-consumer/coverage.svg?branch=master
+    :target: https://codecov.io/github/openedx/xblock-lti-consumer?branch=master
     :alt: Code coverage
 
 .. |status-badge| image:: https://img.shields.io/badge/Status-Maintained-brightgreen
