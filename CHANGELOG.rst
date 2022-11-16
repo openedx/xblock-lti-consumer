@@ -16,7 +16,7 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 Unreleased
 ~~~~~~~~~~
 
-6.2.0 - 2022-11-16
+6.3.0 - 2022-11-16
 ------------------
 * Adds support for LTI 1.3 Proctoring Service specification in-browser proctoring launch.
 
