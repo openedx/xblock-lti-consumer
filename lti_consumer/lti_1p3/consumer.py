@@ -4,7 +4,8 @@ LTI 1.3 Consumer implementation
 import logging
 from urllib.parse import urlencode
 
-from lti_consumer.utils import cache_lti_1p3_launch_data, get_data_from_cache
+from lti_consumer.lti_1p3.exceptions import InvalidClaimValue
+from lti_consumer.utils import cache_lti_1p3_launch_data, check_token_claim, get_data_from_cache
 
 from . import constants, exceptions
 from .constants import (
@@ -13,6 +14,7 @@ from .constants import (
     LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS,
     LTI_1P3_ACCESS_TOKEN_SCOPES,
     LTI_1P3_CONTEXT_TYPE,
+    LTI_PROCTORING_DATA_KEYS,
 )
 from .key_handlers import ToolKeyHandler, PlatformKeyHandler
 from .ags import LtiAgs
@@ -101,7 +103,7 @@ class LtiConsumer1p3:
         """
         Generates OIDC url with parameters
         """
-        user_id = launch_data.user_id
+        user_id = launch_data.external_user_id if launch_data.external_user_id else launch_data.user_id
 
         # Set the launch_data in the cache. An LTI 1.3 launch involves two "legs" - the third party initiated
         # login request (the preflight request) and the actual launch -, and this information must be shared between
@@ -193,25 +195,27 @@ class LtiConsumer1p3:
 
     def set_launch_presentation_claim(
             self,
-            document_target="iframe"
+            document_target=None,
+            return_url=None,
     ):
         """
         Optional: Set launch presentation claims
 
         http://www.imsglobal.org/spec/lti/v1p3/#launch-presentation-claim
         """
-        if document_target not in ['iframe', 'frame', 'window']:
+        if document_target is not None and document_target not in ['iframe', 'frame', 'window']:
             raise ValueError("Invalid launch presentation format.")
 
+        lti_claim_launch_presentation = {}
+
+        if document_target:
+            lti_claim_launch_presentation.update({"document_target": document_target})
+
+        if return_url:
+            lti_claim_launch_presentation.update({"return_url": return_url})
+
         self.lti_claim_launch_presentation = {
-            # Launch presentation claim
-            "https://purl.imsglobal.org/spec/lti/claim/launch_presentation": {
-                # Can be one of: iframe, frame, window
-                "document_target": document_target,
-                # TODO: Add support for `return_url` handler to allow the tool
-                # to return error messages back to the lms.
-                # See the spec referenced above for more information.
-            },
+            "https://purl.imsglobal.org/spec/lti/claim/launch_presentation": lti_claim_launch_presentation,
         }
 
     def set_context_claim(
@@ -704,3 +708,193 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
         # Include LTI NRPS claim inside the LTI Launch message
         self.set_extra_claim(self.nrps.get_lti_nrps_launch_claim())
+
+
+class LtiProctoringConsumer(LtiConsumer1p3):
+    """
+    This class is an LTI Proctoring Services LTI consumer implementation.
+
+    It builds on top of the LtiConsumer1p3 and adds support for the LTI Proctoring Services specification. The
+    specification can be found here: http://www.imsglobal.org/spec/proctoring/v1p0.
+
+    This consumer currently only supports the "Assessment Proctoring Messages" and the proctoring assessment flow.
+    It does not currently support the Assessment Control Service.
+
+    The LtiProctoringConsumer requires necessary context to work properly, including data like attempt_number,
+    resource_link, etc. This information is provided to the consumer through the set_proctoring_data method, which
+    is called from the consuming context to pass in necessary data.
+    """
+    def __init__(
+        self,
+        iss,
+        lti_oidc_url,
+        lti_launch_url,
+        client_id,
+        deployment_id,
+        rsa_key,
+        rsa_key_id,
+        tool_key=None,
+        tool_keyset_url=None,
+    ):
+        """
+        Initialize the LtiProctoringConsumer by delegating to LtiConsumer1p3's __init__ method.
+        """
+        super().__init__(
+            iss,
+            lti_oidc_url,
+            lti_launch_url,
+            client_id,
+            deployment_id,
+            rsa_key,
+            rsa_key_id,
+            tool_key,
+            tool_keyset_url
+        )
+        self.proctoring_data = {}
+
+    def set_proctoring_data(self, **kwargs):
+        """
+        Sets the self.proctoring_data dictionary with the provided kwargs, so long as a given key is in
+        LTI_PROCTORING_DATA_KEYS.
+        """
+        for key, value in kwargs.items():
+            if key in LTI_PROCTORING_DATA_KEYS:
+                self.proctoring_data[key] = value
+
+    def _get_base_claims(self):
+        """
+        Returns claims common to all LTI Proctoring Services LTI launch messages, to be used when creating LTI launch
+        messages.
+        """
+        proctoring_claims = {
+            "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number": self.proctoring_data.get("attempt_number"),
+            "https://purl.imsglobal.org/spec/lti-ap/claim/session_data": self.proctoring_data.get("session_data"),
+        }
+
+        return proctoring_claims
+
+    def get_start_proctoring_claims(self):
+        """
+        Returns claims specific to LTI Proctoring Services LtiStartProctoring LTI launch message,
+        to be injected into the LTI launch message.
+        """
+        proctoring_claims = self._get_base_claims()
+        proctoring_claims.update({
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiStartProctoring",
+            "https://purl.imsglobal.org/spec/lti-ap/claim/start_assessment_url":
+                self.proctoring_data.get("start_assessment_url"),
+        })
+
+        return proctoring_claims
+
+    def get_end_assessment_claims(self):
+        """
+        Returns claims specific to LTI Proctoring Services LtiEndAssessment LTI launch message,
+        to be injected into the LTI launch message.
+        """
+        proctoring_claims = self._get_base_claims()
+        proctoring_claims.update({
+            "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiEndAssessment",
+        })
+
+        return proctoring_claims
+
+    def generate_launch_request(
+        self,
+        preflight_response,
+    ):
+        """
+        Builds and return LTI launch message for proctoring.
+
+        Overrides LtiConsumer1p3's method to include proctoring specific launch claims. Leverages
+        the set_extra_claim method to include these additional claims in the LTI launch message.
+        """
+        lti_message_hint = preflight_response.get('lti_message_hint')
+        launch_data = get_data_from_cache(lti_message_hint)
+
+        if launch_data.message_type == "LtiStartProctoring":
+            proctoring_claims = self.get_start_proctoring_claims()
+        elif launch_data.message_type == "LtiEndAssessment":
+            proctoring_claims = self.get_end_assessment_claims()
+        else:
+            raise ValueError('lti_message_hint must \"LtiStartProctoring\" or \"LtiEndAssessment\".')
+
+        self.set_extra_claim(proctoring_claims)
+
+        return super().generate_launch_request(preflight_response)
+
+    def check_and_decode_token(self, token):
+        """
+        Decodes a Tool JWT token and validates OAuth and LTI Proctoring Services specificatin related claims. Returns a
+        dictionary representation of key proctoring claims in the Tool JWT token.
+
+        Arguments:
+            * token (string): a JWT
+        """
+        # Decode token and check expiration.
+        proctoring_response = self.tool_jwt.validate_and_decode(token)
+
+        # -------------------------
+        # Check Required LTI Claims
+        # -------------------------
+
+        # Check that the response message_type claim is "LtiStartAssessment".
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/message_type"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            "LtiStartAssessment",
+            f"Token's {claim_key} claim should be LtiStartAssessment."
+        )
+
+        # # Check that the response version claim is "1.3.0".
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/version"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            "1.3.0",
+            f"Token's {claim_key} claim should be 1.3.0."
+        )
+
+        # Check that the response session_data claim is the correct anti-CSRF token.
+        claim_key = "https://purl.imsglobal.org/spec/lti-ap/claim/session_data"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            self.proctoring_data.get("session_data"),
+            f"Token's {claim_key} claim is not correct."
+        )
+
+        # TODO: This is a special case. Right now, the library doesn't support additional claims within the
+        # resource_link claim. Once it does, we should check the entire claim instead of just the id. For now, check
+        # that the resource_link claim is supplied and that the id attribute is correct.
+        claim_key = "https://purl.imsglobal.org/spec/lti/claim/resource_link"
+        resource_link = proctoring_response.get(claim_key)
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+        )
+
+        resource_link_id = resource_link.get("id")
+        if self.proctoring_data.get("resource_link_id") != resource_link_id:
+            raise InvalidClaimValue(f"Token's {claim_key} claim is not correct.")
+
+        claim_key = "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number"
+        check_token_claim(
+            proctoring_response,
+            claim_key,
+            self.proctoring_data.get("attempt_number"),
+            f"Token's {claim_key} claim is not correct."
+        )
+
+        response = {
+            'end_assessment_return': proctoring_response.get(
+                "https://purl.imsglobal.org/spec/lti-ap/claim/end_assessment_return",
+            ),
+            'verified_user': proctoring_response.get("https://purl.imsglobal.org/spec/lti-ap/claim/verified_user", {}),
+            'resource_link': proctoring_response["https://purl.imsglobal.org/spec/lti/claim/resource_link"],
+            'session_data': proctoring_response["https://purl.imsglobal.org/spec/lti-ap/claim/session_data"],
+            'attempt_number': proctoring_response["https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number"],
+        }
+
+        return response

@@ -8,11 +8,12 @@ import ddt
 
 from django.test.testcases import TestCase
 from django.urls import reverse
+from edx_django_utils.cache import TieredCache, get_cache_key
 
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
 from opaque_keys.edx.keys import UsageKey
-from lti_consumer.data import Lti1p3LaunchData
+from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.lti_1p3.exceptions import (
     MissingRequiredClaim,
@@ -453,6 +454,72 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
             "lti_message_hint": launch_data_key,
         }
         response = self.client.get(self.url, params)
+        # Check response
+        self.assertEqual(response.status_code, 200)
+
+    def test_launch_callback_endpoint_start_proctoring(self):
+        """
+        Ensures that the launch_callback_endpoint works correctly for LtiStartProctoring LTI launch messages.
+        """
+        self.config.lti_1p3_proctoring_enabled = True
+        self.config.save()
+
+        self.launch_data.message_type = "LtiStartProctoring"
+
+        proctoring_launch_data = Lti1p3ProctoringLaunchData(
+            attempt_number=1,
+            start_assessment_url="start_assessment_url",
+        )
+
+        self.launch_data.proctoring_launch_data = proctoring_launch_data
+
+        session_data_key = get_cache_key(
+            app="lti",
+            key="session_data",
+            user_id=self.launch_data.user_id,
+            resource_link_id=self.launch_data.resource_link_id
+        )
+
+        TieredCache.set_all_tiers(session_data_key, "session_data")
+
+        params = {
+            "client_id": self.config.lti_1p3_client_id,
+            "redirect_uri": "http://tool.example/launch",
+            "state": "state_test_123",
+            "nonce": "nonce",
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": self.launch_data_key,
+        }
+        response = self.client.get(self.url, params)
+
+        # Check response
+        self.assertEqual(response.status_code, 200)
+
+    def test_launch_callback_endpoint_end_assessment(self):
+        """
+        Ensures that the launch_callback_endpoint works correctly for LtiEndAssessment LTI launch messages.
+        """
+        self.config.lti_1p3_proctoring_enabled = True
+        self.config.save()
+
+        self.launch_data.message_type = "LtiEndAssessment"
+
+        proctoring_launch_data = Lti1p3ProctoringLaunchData(
+            attempt_number=1,
+        )
+
+        self.launch_data.proctoring_launch_data = proctoring_launch_data
+
+        params = {
+            "client_id": self.config.lti_1p3_client_id,
+            "redirect_uri": "http://tool.example/launch",
+            "state": "state_test_123",
+            "nonce": "nonce",
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": self.launch_data_key,
+        }
+        response = self.client.get(self.url, params)
+
         # Check response
         self.assertEqual(response.status_code, 200)
 

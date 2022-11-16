@@ -15,13 +15,27 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 
 Unreleased
 ~~~~~~~~~~
+
+6.2.0 - 2022-11-16
+------------------
+* Adds support for LTI 1.3 Proctoring Service specification in-browser proctoring launch.
+
+  * Adds an Lti1p3ProctoringLaunchData data class. It should be included as an attribute of the Lti1p3LaunchData
+    data class to provide necessary proctoring data for a proctoring launch.
+  * Adds an LtiProctoringConsumer class. This class is used to generate LTI proctoring launch requests and to decode
+    and validate the JWT send back by the Tool with the LtiStartAssessment message.
+  * Adds an lti_1p3_proctoring_enabled BooleanField to the LtiConfiguration model. This field controls whether
+    proctoring is enabled for a particular LTI integration.
+  * Modifies the launch_gate_endpoint to support LtiStartProctoring and LtiEndAssessment LTI launch messages.
+  * Adds an start_proctoring_assessment_endpoint to support LtiStartAssessment messages from the Tool.
+  * Adds an LTI_1P3_PROCTORING_ASSESSMENT_STARTED signal. This signal is emitted when the LtiStartAssessment message is
+    sent from the Tool to inform users of the library that the LtiStartAssessment message has been received.
+
 6.1.0 - 2022-11-08
 ------------------
 * 6.0.0 broke studio functionality because it leaned more heavily on the xblock load which only worked in the LMS.
 
   * Fix by greatly limiting when we attempt a full xblock load and bind
-
-
 
 6.0.0 - 2022-10-24
 ------------------

@@ -12,6 +12,8 @@ from opaque_keys.edx.keys import CourseKey
 from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
 from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
 from .utils import (
+    get_cache_key,
+    get_data_from_cache,
     get_lti_1p3_context_types_claim,
     get_lti_deeplinking_content_url,
     get_lms_lti_keyset_link,
@@ -261,7 +263,7 @@ def validate_lti_1p3_launch_data(launch_data):
             "The context_id attribute is required in the launch data if any optional context properties are provided."
         )
 
-    if launch_data.user_role not in LTI_1P3_ROLE_MAP:
+    if launch_data.user_role not in LTI_1P3_ROLE_MAP and launch_data.user_role is not None:
         validation_messages.append(f"The user_role attribute {launch_data.user_role} is not a valid user_role.")
 
     context_type = launch_data.context_type
@@ -273,7 +275,42 @@ def validate_lti_1p3_launch_data(launch_data):
                 f"The context_type attribute {context_type} in the launch data is not a valid context_type."
             )
 
+    proctoring_launch_data = launch_data.proctoring_launch_data
+    if (launch_data.message_type in ["LtiStartProctoring", "LtiEndAssessment"] and not
+            proctoring_launch_data):
+        validation_messages.append(
+            "The proctoring_launch_data attribute is required if the message_type attribute is \"LtiStartProctoring\" "
+            "or \"LtiEndAssessment\"."
+        )
+
+    if (proctoring_launch_data and launch_data.message_type == "LtiStartProctoring" and not
+            proctoring_launch_data.start_assessment_url):
+        validation_messages.append(
+            "The proctoring_start_assessment_url attribute is required if the message_type attribute is "
+            "\"LtiStartProctoring\"."
+        )
+
     if validation_messages:
         return False, validation_messages
     else:
         return True, []
+
+
+def get_end_assessment_return(user_id, resource_link_id):
+    """
+    Returns the end_assessment_return value stored in the cache. This can be used by applications to determine whether
+    to invoke an LtiEndAssessment LTI launch.
+
+    Arguments:
+        * user_id: the database of the requesting User model instance
+        * resource_link_id: the resource_link_id of the LTI link for the assessment
+    """
+    end_assessment_return_key = get_cache_key(
+        app="lti",
+        key="end_assessment_return",
+        user_id=user_id,
+        resource_link_id=resource_link_id,
+    )
+    cached_end_assessment_return = get_data_from_cache(end_assessment_return_key)
+
+    return cached_end_assessment_return

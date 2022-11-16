@@ -6,67 +6,48 @@ import urllib
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
-from django.http import JsonResponse, Http404
 from django.db import transaction
+from django.http import Http404, JsonResponse
+from django.shortcuts import render
+from django.utils.crypto import get_random_string
+from django.views.decorators.clickjacking import xframe_options_exempt, xframe_options_sameorigin
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.clickjacking import xframe_options_exempt, xframe_options_sameorigin
-from django.shortcuts import render
 from django_filters.rest_framework import DjangoFilterBackend
+from edx_django_utils.cache import TieredCache, get_cache_key
+from jwkest.jwt import JWT, BadSyntax
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
 from lti_consumer.exceptions import LtiError
-from lti_consumer.models import (
-    LtiConfiguration,
-    LtiAgsLineItem,
-    LtiDlContentItem,
-)
-
-from lti_consumer.lti_1p3.exceptions import (
-    Lti1p3Exception,
-    LtiDeepLinkingContentTypeNotSupported,
-    UnsupportedGrantType,
-    MalformedJwtToken,
-    MissingRequiredClaim,
-    NoSuitableKeys,
-    TokenSignatureExpired,
-    UnknownClientId,
-)
-from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
-from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
-    LtiAgsLineItemSerializer,
-    LtiAgsScoreSerializer,
-    LtiAgsResultSerializer,
-    LtiNrpsContextMembershipBasicSerializer,
-    LtiNrpsContextMembershipPIISerializer,
-)
-from lti_consumer.lti_1p3.extensions.rest_framework.permissions import (
-    LtiAgsPermissions,
-    LtiNrpsContextMembershipsPermissions,
-)
+from lti_consumer.lti_1p3.consumer import LtiProctoringConsumer
+from lti_consumer.lti_1p3.exceptions import (BadJwtSignature, InvalidClaimValue, Lti1p3Exception,
+                                             LtiDeepLinkingContentTypeNotSupported, MalformedJwtToken,
+                                             MissingRequiredClaim, NoSuitableKeys, TokenSignatureExpired,
+                                             UnknownClientId, UnsupportedGrantType)
 from lti_consumer.lti_1p3.extensions.rest_framework.authentication import Lti1p3ApiAuthentication
-from lti_consumer.lti_1p3.extensions.rest_framework.renderers import (
-    LineItemsRenderer,
-    LineItemRenderer,
-    LineItemScoreRenderer,
-    LineItemResultsRenderer,
-    MembershipResultRenderer,
-)
-from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
-    LineItemParser,
-    LineItemScoreParser,
-)
+from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
+from lti_consumer.lti_1p3.extensions.rest_framework.parsers import LineItemParser, LineItemScoreParser
+from lti_consumer.lti_1p3.extensions.rest_framework.permissions import (LtiAgsPermissions,
+                                                                        LtiNrpsContextMembershipsPermissions)
+from lti_consumer.lti_1p3.extensions.rest_framework.renderers import (LineItemRenderer, LineItemResultsRenderer,
+                                                                      LineItemScoreRenderer, LineItemsRenderer,
+                                                                      MembershipResultRenderer)
+from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (LtiAgsLineItemSerializer,
+                                                                        LtiAgsResultSerializer, LtiAgsScoreSerializer,
+                                                                        LtiNrpsContextMembershipBasicSerializer,
+                                                                        LtiNrpsContextMembershipPIISerializer)
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
+from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
 from lti_consumer.plugin import compat
-from lti_consumer.utils import _, get_lti_1p3_context_types_claim, get_data_from_cache
+from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
 from lti_consumer.track import track_event
-
+from lti_consumer.utils import _, get_data_from_cache, get_lti_1p3_context_types_claim
 
 log = logging.getLogger(__name__)
 
@@ -139,13 +120,18 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
 
 @require_http_methods(["GET", "POST"])
 @xframe_options_exempt
+@csrf_exempt
 def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argument
     """
-    Gate endpoint that triggers LTI launch endpoint XBlock handler
+    Receives an LTI 1.3 authentication request from an LTI tool and returns an LTI 1.3 authentication response.
+    The authentication request and the authentication response are the second and third steps of the OpenID Connect
+    Launch Flow, respectively. The authentication response contains the LTI message and is the LTI launch.
 
-    This uses the config_id key of the "lti_message_hint" query parameter
-    to identify the LtiConfiguration and its consumer to generate the
-    LTI 1.3 Launch Form.
+    Returns a response containing an auto-submitting form that directs the browser to make a POST to the Tool.
+
+    Query Parameters:
+    * lti_message_hint (REQUIRED): a value used as a cache key to retrieved a cached instance of Lti1p3LaunchData
+    * login_hint (REQUIRED): an identifier for the user that initiated the launch; it is stable and unique to the issuer
     """
     # pylint: disable=too-many-statements
     request_params = request.GET if request.method == 'GET' else request.POST
@@ -162,7 +148,10 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
     launch_data = get_data_from_cache(lti_message_hint)
     if not launch_data:
-        log.warning(f'There was a cache miss during an LTI 1.3 launch when using the cache_key {lti_message_hint}.')
+        log.warning(
+            f'There was a cache miss trying to fetch the launch data during an LTI 1.3 launch when using the cache'
+            f' key {lti_message_hint}. The login hint is {login_hint}.'
+        )
         return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
 
     # Validate the Lti1p3LaunchData.
@@ -193,7 +182,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         lti_consumer = lti_config.get_lti_consumer()
 
         # Set sub and roles claims.
-        user_id = launch_data.user_id
+        user_id = launch_data.external_user_id if launch_data.external_user_id else launch_data.user_id
         user_role = launch_data.user_role
         lti_consumer.set_user_data(
             user_id=user_id,
@@ -204,9 +193,10 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         lti_consumer.set_resource_link_claim(launch_data.resource_link_id)
 
         # Set launch_presentation claim.
-        launch_presentation_target = launch_data.launch_presentation_document_target
-        if launch_presentation_target:
-            lti_consumer.set_launch_presentation_claim(launch_presentation_target)
+        lti_consumer.set_launch_presentation_claim(
+            document_target=launch_data.launch_presentation_document_target,
+            return_url=launch_data.launch_presentation_return_url
+        )
 
         # Set optional context claim, if supplied.
         context_type = launch_data.context_type
@@ -240,7 +230,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         # course creators to set up content.
         deep_linking_content_item_id = launch_data.deep_linking_content_item_id
 
-        if lti_consumer.dl and launch_data.message_type == 'LtiDeepLinkingRequest':
+        if launch_data.message_type == 'LtiDeepLinkingRequest' and lti_consumer.dl:
             # Check if the user is staff before LTI doing deep linking launch.
             # If not, raise exception and display error page
             if user_role not in ['instructor', 'staff']:
@@ -251,7 +241,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         # Deep Linking ltiResourceLink content presentation
         # When content type is `ltiResourceLink`, the tool will be launched with
         # different parameters, set by instructors when running the DL configuration flow.
-        elif lti_consumer.dl and deep_linking_content_item_id:
+        elif deep_linking_content_item_id and lti_consumer.dl:
             # Retrieve Deep Linking parameters using the  parameter.
             content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_content_item_id)
             # Only filter DL content item from content item set in the same LTI configuration.
@@ -263,6 +253,30 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             lti_consumer.set_dl_content_launch_parameters(
                 url=dl_params.get('url'),
                 custom=dl_params.get('custom')
+            )
+
+        if launch_data.message_type == 'LtiStartProctoring':
+            # In the synchronizer token method of CSRF protection, the anti-CSRF token must be stored on the server.
+            session_data_key = get_cache_key(
+                app="lti",
+                key="session_data",
+                user_id=launch_data.user_id,
+                resource_link_id=launch_data.resource_link_id
+            )
+
+            session_data = get_data_from_cache(session_data_key)
+            if not session_data:
+                session_data = get_random_string(32)
+                TieredCache.set_all_tiers(session_data_key, session_data)
+
+            lti_consumer.set_proctoring_data(
+                attempt_number=launch_data.proctoring_launch_data.attempt_number,
+                session_data=session_data,
+                start_assessment_url=launch_data.proctoring_launch_data.start_assessment_url
+            )
+        elif launch_data.message_type == 'LtiEndAssessment':
+            lti_consumer.set_proctoring_data(
+                attempt_number=launch_data.proctoring_launch_data.attempt_number,
             )
 
         # Update context with LTI launch parameters
@@ -302,6 +316,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
 
 @csrf_exempt
+@xframe_options_sameorigin
 @require_http_methods(["POST"])
 def access_token_endpoint(request, lti_config_id=None, usage_id=None):
     """
@@ -471,7 +486,6 @@ def deep_linking_content_endpoint(request, lti_config_id):
     if not launch_data:
         log.warning(f'There was a cache miss during an LTI 1.3 launch when using the cache_key {launch_data_key}.')
         return render(request, 'html/lti_launch_error.html', status=HTTP_400_BAD_REQUEST)
-
     try:
         # Get LTI Configuration
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
@@ -705,3 +719,113 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
                 "error": "above_response_limit",
                 "explanation": "The number of retrieved users is bigger than the maximum allowed in the configuration.",
             }, status=HTTP_403_FORBIDDEN)
+
+
+@csrf_exempt
+@require_http_methods(['POST'])
+def start_proctoring_assessment_endpoint(request):
+    """
+    Receives the Proctoring Tool's message to start the assessment. Emits a signal informing interested parties that
+    the assessment should be started.
+
+    Form Parameters:
+    * JWT (REQUIRED): a signed JWT containing the LTI message
+    """
+    # In order to get the cached data (session_data and launch_data) from the cache, we need data from the JWT
+    # before it has been decoded and validated using the ToolKeyHandler. Grab the data we need and validate the JWT
+    # after.
+    token = request.POST.get('JWT')
+
+    try:
+        jwt = JWT().unpack(token)
+    except BadSyntax:
+        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
+
+    jwt_payload = jwt.payload()
+    iss = jwt_payload.get('iss')
+    resource_link_id = jwt_payload.get('https://purl.imsglobal.org/spec/lti/claim/resource_link', {}).get('id')
+
+    try:
+        lti_config = LtiConfiguration.objects.get(lti_1p3_client_id=iss)
+    except LtiConfiguration.DoesNotExist:
+        log.error("Invalid iss claim '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint"
+                  " callback", iss)
+        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_404_NOT_FOUND)
+
+    lti_consumer = lti_config.get_lti_consumer()
+
+    if not isinstance(lti_consumer, LtiProctoringConsumer):
+        log.info("Proctoring Services for LTIConfiguration with config_id %s are not enabled", lti_config.config_id)
+        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
+
+    # Grab the data we need from the cache: launch_data and session_data.
+    common_cache_key_arguments = {
+        "app": "lti",
+        "user_id": request.user.id,
+        "resource_link_id": resource_link_id,
+    }
+
+    launch_data_key = get_cache_key(**common_cache_key_arguments, key="launch_data")
+    launch_data = get_data_from_cache(launch_data_key)
+    if not launch_data:
+        log.warning(
+            f'There was a cache miss trying to fetch the launch data during an LTI 1.3 proctoring StartAssessment '
+            f'launch when using the cache key {launch_data_key}. The LtiConfiguration config_id is '
+            f'{lti_config.config_id}.'
+        )
+        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
+
+    session_data_key = get_cache_key(**common_cache_key_arguments, key="session_data")
+    session_data = get_data_from_cache(session_data_key)
+
+    lti_consumer.set_proctoring_data(
+        attempt_number=launch_data.proctoring_launch_data.attempt_number,
+        session_data=session_data,
+        resource_link_id=launch_data.resource_link_id,
+    )
+
+    try:
+        proctoring_response = lti_consumer.check_and_decode_token(token)
+
+    except (BadJwtSignature, InvalidClaimValue, MalformedJwtToken,
+            MissingRequiredClaim, NoSuitableKeys, TokenSignatureExpired):
+        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
+
+    # If the Proctoring Tool specifies the end_assessment_return claim in its LTI launch request,
+    # the Assessment Platform MUST send an End Assessment Message at the end of the user's
+    # proctored exam.
+    end_assessment_return = proctoring_response.get('end_assessment_return')
+    if end_assessment_return:
+        end_assessment_return_key = get_cache_key(**common_cache_key_arguments, key="end_assessment_return")
+        # We convert the boolean to an int because memcached will return an int even if a boolean is stored. This
+        # ensures a consistent return value. This assumes end_assessment_return is a boolean or can otherwise be case to
+        # an integer.
+        try:
+            end_assessment_return_value = int(end_assessment_return)
+        except ValueError:
+            # If the end_assessment_return is not a boolean and cannot be cast to an integer, then assume that the value
+            # is False. We do not want to return a 404 at the end of a proctored session on account of an invalid value
+            # for this optional claim.
+            log.error(
+                "An error occurred during the handling of an LtiStartAssessment LTI lauch message for LTIConfiguration "
+                f"with config_id {lti_config.config_id} and resource_link_id {resource_link_id}. The "
+                "end_assessment_return Tool JWT claim is not a boolean value. An LtiEndAssessment LTI launch message "
+                "will not be sent as part of the end assessment workflow."
+            )
+        else:
+            # Set a long enough timeout to ensure learners can complete their assessments without a cache timeout.
+            timeout = 60 * 60 * 12
+            TieredCache.set_all_tiers(
+                end_assessment_return_key,
+                end_assessment_return_value,
+                django_cache_timeout=timeout
+            )
+
+    LTI_1P3_PROCTORING_ASSESSMENT_STARTED.send(
+        sender=None,
+        attempt_number=proctoring_response["attempt_number"],
+        resource_link=proctoring_response["resource_link"],
+        user_id=request.user.id,
+    )
+
+    return JsonResponse(data={})

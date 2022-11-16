@@ -8,6 +8,7 @@ from unittest.mock import patch
 import ddt
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
+from jwkest import BadSignature
 from jwkest.jwk import RSAKey, load_jwks
 from jwkest.jws import JWS
 
@@ -299,4 +300,21 @@ class TestToolKeyHandler(TestCase):
 
         # Decode and check results
         with self.assertRaises(exceptions.NoSuitableKeys):
+            key_handler.validate_and_decode(signed)
+
+    @patch("lti_consumer.lti_1p3.key_handlers.JWS.verify_compact")
+    def test_validate_and_decode_bad_signature(self, mock_verify_compact):
+        mock_verify_compact.side_effect = BadSignature()
+
+        key_handler = ToolKeyHandler()
+
+        message = {
+            "test": "test_message",
+            "iat": 1000,
+            "exp": 1200,
+        }
+        signed = create_jwt(self.key, message)
+
+        # Decode and check results
+        with self.assertRaises(exceptions.BadJwtSignature):
             key_handler.validate_and_decode(signed)

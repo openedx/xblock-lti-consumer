@@ -10,7 +10,7 @@ import time
 import json
 
 from Cryptodome.PublicKey import RSA
-from jwkest import BadSyntax, WrongNumberOfParts, jwk
+from jwkest import BadSignature, BadSyntax, WrongNumberOfParts, jwk
 from jwkest.jwk import RSAKey, load_jwks_from_url
 from jwkest.jws import JWS, NoSuitableSigningKeys
 from jwkest.jwt import JWT
@@ -124,6 +124,8 @@ class ToolKeyHandler:
             raise exceptions.NoSuitableKeys() from err
         except (BadSyntax, WrongNumberOfParts) as err:
             raise exceptions.MalformedJwtToken() from err
+        except BadSignature as err:
+            raise exceptions.BadJwtSignature() from err
 
 
 class PlatformKeyHandler:

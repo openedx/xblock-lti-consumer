@@ -20,7 +20,7 @@ from lti_consumer.filters import get_external_config_from_filter
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 # LTI 1.3
-from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer
+from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiProctoringConsumer
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
 from lti_consumer.plugin.compat import request_cached
@@ -227,6 +227,13 @@ class LtiConfiguration(models.Model):
                   'grades.'
     )
 
+    # LTI Proctoring Service Related Variables
+    lti_1p3_proctoring_enabled = models.BooleanField(
+        "Enable LTI Proctoring Services",
+        default=False,
+        help_text='Enable LTI Proctoring Services',
+    )
+
     def clean(self):
         if self.config_store == self.CONFIG_ON_XBLOCK and self.location is None:
             raise ValidationError({
@@ -245,6 +252,12 @@ class LtiConfiguration(models.Model):
                         "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
                     ),
                 })
+        if (self.version == self.LTI_1P3 and self.config_store in [self.CONFIG_ON_XBLOCK, self.CONFIG_EXTERNAL] and
+                self.lti_1p3_proctoring_enabled):
+            raise ValidationError({
+                "config_store": _("CONFIG_ON_XBLOCK and CONFIG_EXTERNAL are not supported for "
+                                  "LTI 1.3 Proctoring Services."),
+            })
         try:
             consumer = self.get_lti_consumer()
         except NotImplementedError:
@@ -470,9 +483,18 @@ class LtiConfiguration(models.Model):
         Uses the `config_store` variable to determine where to
         look for the configuration and instance the class.
         """
+        consumer_class = LtiAdvantageConsumer
+        # LTI Proctoring Services is not currently supported for CONFIG_ON_XBLOCK or CONFIG_EXTERNAL.
+        # NOTE: This currently prevents an LTI Consumer from supporting both the LTI 1.3 proctoring feature and the LTI
+        # Advantage services. We plan to address this. Follow this issue:
+        # https://github.com/openedx/xblock-lti-consumer/issues/303.
+        if self.lti_1p3_proctoring_enabled and self.config_store == self.CONFIG_ON_DB:
+            consumer_class = LtiProctoringConsumer
+
         if self.config_store == self.CONFIG_ON_XBLOCK:
             block = compat.load_enough_xblock(self.location)
-            consumer = LtiAdvantageConsumer(
+
+            consumer = consumer_class(
                 iss=get_lms_base(),
                 lti_oidc_url=block.lti_1p3_oidc_url,
                 lti_launch_url=block.lti_1p3_launch_url,
@@ -488,7 +510,7 @@ class LtiConfiguration(models.Model):
                 tool_keyset_url=block.lti_1p3_tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_ON_DB:
-            consumer = LtiAdvantageConsumer(
+            consumer = consumer_class(
                 iss=get_lms_base(),
                 lti_oidc_url=self.lti_1p3_oidc_url,
                 lti_launch_url=self.lti_1p3_launch_url,
@@ -508,9 +530,11 @@ class LtiConfiguration(models.Model):
             # or CONFIG_ON_DB.
             raise NotImplementedError
 
-        self._setup_lti_1p3_ags(consumer)
-        self._setup_lti_1p3_deep_linking(consumer)
-        self._setup_lti_1p3_nrps(consumer)
+        if isinstance(consumer, LtiAdvantageConsumer):
+            self._setup_lti_1p3_ags(consumer)
+            self._setup_lti_1p3_deep_linking(consumer)
+            self._setup_lti_1p3_nrps(consumer)
+
         return consumer
 
     def get_lti_consumer(self):
