@@ -31,6 +31,17 @@ WAFFLE_NAMESPACE = 'lti_consumer'
 # .. toggle_warning: None.
 ENABLE_EXTERNAL_CONFIG_FILTER = 'enable_external_config_filter'
 
+# .. toggle_name: lti_consumer.enable_external_user_id_1p1_launches
+# .. toggle_implementation: CourseWaffleFlag
+# .. toggle_default: False
+# .. toggle_description: Enables sending a user's external user ID, as created and stored by the external_user_ids
+#    Djangoapp, instead of an anonymous user ID in LTI 1.1 launches.
+# .. toggle_use_cases: open_edx
+# .. toggle_creation_date: 2022-11-18
+# .. toggle_tickets: https://github.com/openedx/xblock-lti-consumer/pull/307
+# .. toggle_warning: None.
+ENABLE_EXTERNAL_USER_ID_1P1_LAUNCHES = 'enable_external_user_id_1p1_launches'
+
 # Waffle Flags
 # .. toggle_name: lti_consumer.enable_database_config
 # .. toggle_implementation: CourseWaffleFlag
@@ -52,6 +63,15 @@ def get_external_config_waffle_flag():
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
     return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_EXTERNAL_CONFIG_FILTER}', __name__)
+
+
+def get_external_user_id_1p1_launches_waffle_flag():
+    """
+    Import and return Waffle flag for enabling sending external user IDs in LTI 1.1 launches.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
+    return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_EXTERNAL_USER_ID_1P1_LAUNCHES}', __name__)
 
 
 def get_database_config_waffle_flag():

@@ -85,7 +85,6 @@ class TestProperties(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock properties
     """
-
     def test_descriptor(self):
         """
         Test `descriptor` returns the XBLock object
@@ -304,13 +303,14 @@ class TestProperties(TestLtiConsumerXBlock):
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.resource_link_id')
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.anonymous_user_id', PropertyMock(return_value=FAKE_USER_ID))
-    def test_lis_result_sourcedid(self, mock_resource_link_id, mock_context_id):
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p1_user_id')
+    def test_lis_result_sourcedid(self, mock_get_external_user_id, mock_resource_link_id, mock_context_id):
         """
         Test `lis_result_sourcedid` returns appropriate string
         """
         mock_resource_link_id.__get__ = Mock(return_value='resource_link_id')
         mock_context_id.__get__ = Mock(return_value='context_id')
+        mock_get_external_user_id.return_value = FAKE_USER_ID
 
         self.assertEqual(self.xblock.lis_result_sourcedid, f"context_id:resource_link_id:{FAKE_USER_ID}")
 
@@ -668,6 +668,35 @@ class TestExtractRealUserData(TestLtiConsumerXBlock):
             self.xblock.extract_real_user_data()
 
 
+@ddt.ddt
+class TestGetLti1p1UserId(TestLtiConsumerXBlock):
+    """ Unit tests for the get_lti_1p1_user_id method"""
+    def setUp(self):
+        super().setUp()
+
+        # Mock out the anonymous_user_id and external_user_id properties.
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_id': 1,
+            'edx-platform.user_role': 'studnent',
+            'edx-platform.is_authenticated': True,
+            'edx-platform.anonymous_user_id': 'anonymous_user_id',
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.xblock.runtime.service(self, 'user').get_external_user_id = Mock(return_value="external_user_id")
+
+    @ddt.data(
+        (True, 'external_user_id'),
+        (False, 'anonymous_user_id'),
+    )
+    @ddt.unpack
+    def test_external_user_id_flag_enabled(self, external_user_id_1p1_launches_enabled_value, expected_value):
+        with patch('lti_consumer.lti_xblock.external_user_id_1p1_launches_enabled') as \
+                external_user_id_1p1_launches_enabled:
+            external_user_id_1p1_launches_enabled.return_value = external_user_id_1p1_launches_enabled_value
+            self.assertEqual(self.xblock.get_lti_1p1_user_id(), expected_value)
+
+
 class TestStudentView(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock.student_view()
@@ -782,6 +811,11 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         }
 
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+
+        self.mock_external_user_ids_patcher = patch("lti_consumer.lti_xblock.external_user_id_1p1_launches_enabled")
+        self.mock_external_user_ids_patcher_enabled = self.mock_external_user_ids_patcher.start()
+        self.mock_external_user_ids_patcher_enabled.return_value = False
+        self.addCleanup(self.mock_external_user_ids_patcher.stop)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.anonymous_user_id', PropertyMock(return_value=FAKE_USER_ID))
