@@ -37,8 +37,8 @@ consumer to allow LTI launches from outside the context of an XBlock, following 
 While this is a smaller step than the implementation above, it allows LTI 1.1 launches on any LMS/Studio view, but doesn't implement
 the configuration storage.
 
-.. _`Merge LTI 1.3 support to master`: https://github.com/openedx/xblock-lti-consumer/pull/82
-.. _`Add support for LTI embeds in course tabs and elsewhere`: https://github.com/openedx/xblock-lti-consumer/pull/77
+.. _`Merge LTI 1.3 support to master`: https://github.com/edx/xblock-lti-consumer/pull/82
+.. _`Add support for LTI embeds in course tabs and elsewhere`: https://github.com/edx/xblock-lti-consumer/pull/77
 
 
 A few actions that need to be taken to achieve the desired architecture are outlined below:
@@ -93,7 +93,7 @@ Here is the new proposed folder structure::
 
 (Here are the `Inter App APIs`_ guidelines.)
 
-.. _`Inter App APIs`: https://github.com/openedx/edx-platform/blob/master/docs/decisions/0002-inter-app-apis.rst
+.. _`Inter App APIs`: https://github.com/edx/edx-platform/blob/master/docs/decisions/0002-inter-app-apis.rst
 
 Tech Debt
 =========

@@ -11,7 +11,7 @@ Changelog
 
 .. There should always be an "Unreleased" section for changes pending release.
 
-Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/releases) for the complete changelog.
+Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/releases) for the complete changelog.
 
 Unreleased
 ~~~~~~~~~~
@@ -197,7 +197,7 @@ Please note that additional breaking changes will be forthcoming in future versi
 -------------------
 
 * NOTE: This release requires a corresponding change in edx-platform that was
-  implemented in https://github.com/openedx/edx-platform/pull/27529
+  implemented in https://github.com/edx/edx-platform/pull/27529
   As such, this release cannot be installed in releases before Maple.
 * Move ``CourseEditLTIFieldsEnabledFlag`` from ``edx-platform`` to this repo
   while retaining data from existing model.

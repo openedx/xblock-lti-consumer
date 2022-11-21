@@ -119,7 +119,7 @@ setup(
     packages=find_packages(),
     install_requires=load_requirements('requirements/base.in'),
     dependency_links=[
-        'https://github.com/openedx/xblock-utils/tarball/c39bf653e4f27fb3798662ef64cde99f57603f79#egg=xblock-utils',
+        'https://github.com/edx/xblock-utils/tarball/c39bf653e4f27fb3798662ef64cde99f57603f79#egg=xblock-utils',
     ],
     entry_points={
         'xblock.v1': [
@@ -134,7 +134,7 @@ setup(
     },
     package_data=package_data("lti_consumer", ["static", "templates", "public", "translations"]),
     keywords='lti consumer xblock',
-    url='https://github.com/openedx/xblock-lti-consumer',
+    url='https://github.com/edx/xblock-lti-consumer',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Framework :: Django',
