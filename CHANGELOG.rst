@@ -15,6 +15,13 @@ Please See the [releases tab](https://github.com/edx/xblock-lti-consumer/release
 
 Unreleased
 ~~~~~~~~~~
+6.4.0 - 2022-11-18
+------------------
+Adds support for sending an external_user_id in LTI 1.1 XBlock launches. When the
+lti_consumer.enable_external_user_id_1p1_launches CourseWaffleFlag is enabled, the LTI 1.1 launch will send an
+external_user_id as the user_id attribute of the launch. When the lti_consumer.enable_external_user_id_1p1_launches
+CourseWaffleFlag is disabled, the LTI 1.1 launch will continue to send the anonymous_user_id. The external_user_id is
+defined, created, and stored by the external_user_ids Djangoapp in edx-platform.
 
 6.3.0 - 2022-11-16
 ------------------

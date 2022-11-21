@@ -75,7 +75,13 @@ from .lti_1p1.oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .plugin import compat
 from .track import track_event
-from .utils import _, resolve_custom_parameter_template, external_config_filter_enabled, database_config_enabled
+from .utils import (
+    _,
+    resolve_custom_parameter_template,
+    external_config_filter_enabled,
+    external_user_id_1p1_launches_enabled,
+    database_config_enabled,
+)
 
 log = logging.getLogger(__name__)
 
@@ -826,6 +832,22 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             raise LtiError(self.ugettext("Could not get user id for current request"))
         return str(user_id)
 
+    def get_lti_1p1_user_id(self):
+        """
+        Returns the user ID to send to an LTI tool during an LTI 1.1 launch. If the
+        enable_external_user_id_1p1_launches CourseWaffleFlag is enabled for the course, returns the external_user_id
+        defined by the external_user_ids Djangoapp. Otherwise, returns the anonymous_user_id.
+
+        This addresses cases where LTI tools require a static, opaque user_id that is consistent across contexts. On an
+        opt-in basis, courses can be set up to send the external_user_id instead of the anonymous_user_id. Note that
+        toggling this flag in a running course carries the risk of breaking the LTI integrations in the course. This
+        flag should also only be enabled for new courses in which no LTI attempts have been made.
+        """
+        if external_user_id_1p1_launches_enabled(self.location.course_key):  # pylint: disable=no-member
+            return self.external_user_id
+
+        return self.anonymous_user_id
+
     @property
     def resource_link_id(self):
         """
@@ -875,7 +897,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return "{context}:{resource_link}:{user_id}".format(
             context=urllib.parse.quote(self.context_id),
             resource_link=self.resource_link_id,
-            user_id=self.anonymous_user_id
+            user_id=self.get_lti_1p1_user_id()
         )
 
     @property
@@ -1112,7 +1134,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # return a 400 response with an appropriate error template.
         try:
             real_user_data = self.extract_real_user_data()
-            user_id = self.anonymous_user_id
+            user_id = self.get_lti_1p1_user_id()
             role = self.role
 
             # Convert the LMS role into an LTI 1.1 role.
