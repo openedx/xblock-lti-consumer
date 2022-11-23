@@ -109,6 +109,7 @@ class TestLti1p3Consumer(TestCase):
     @ddt.data(
         ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, True),
         ({"client_id": "2", "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, False),
+        ({"client_id": CLIENT_ID, "redirect_uri": "http://other.url", "nonce": STATE, "state": STATE}, False),
         ({"redirect_uri": LAUNCH_URL, "nonce": NONCE, "state": STATE}, False),
         ({"client_id": CLIENT_ID, "nonce": NONCE, "state": STATE}, False),
         ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "state": STATE}, False),
