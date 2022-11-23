@@ -115,7 +115,8 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.config = LtiConfiguration(
             version=LtiConfiguration.LTI_1P3,
             location=self.location,
-            config_store=LtiConfiguration.CONFIG_ON_DB
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_1p3_redirect_uris=["https://tool.example", "http://tool.example/launch"]
         )
         self.config.save()
 
