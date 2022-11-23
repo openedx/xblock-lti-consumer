@@ -323,8 +323,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     )
     lti_1p3_redirect_uris = List(
         display_name=_("Registered Redirect URIs"),
-        # TODO: Further clarify this help
-        help=_("Valid URLs the Tool may redirect you to. This may or may not be the same as the launch url."),
+        help=_(
+            "Valid urls the Tool may request us to redirect the id token to. The redirect uris "
+            "are often the same as the launch url/deep linking url so if this field is "
+            "empty, it will use them as the default. If you need to use different redirect "
+            "uri's, enter them here. If you use this field you must enter all valid redirect "
+            "uri's the tool may request."
+        ),
         scope=Scope.settings
     )
 
