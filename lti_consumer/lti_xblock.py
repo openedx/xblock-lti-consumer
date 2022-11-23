@@ -591,7 +591,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     editable_field_names = (
         'display_name', 'description', 'config_type', 'lti_version', 'external_config',
         # LTI 1.3 variables
-        'lti_1p3_launch_url', 'lti_1p3_oidc_url',
+        'lti_1p3_launch_url', 'lti_1p3_redirect_uris', 'lti_1p3_oidc_url',
         'lti_1p3_tool_key_mode', 'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key',
         'lti_1p3_enable_nrps',
         # LTI Advantage variables
