@@ -562,11 +562,11 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             redirect_uris = self.lti_1p3_redirect_uris
             launch_url = self.lti_1p3_launch_url
-            deep_link_launch_url = self.lti_advantage_deep_linking_launch_url,
+            deep_link_launch_url = self.lti_advantage_deep_linking_launch_url
         else:
             redirect_uris = self.block.lti_1p3_redirect_uris
             launch_url = self.block.lti_1p3_launch_url
-            deep_link_launch_url = self.block.lti_advantage_deep_linking_launch_url,
+            deep_link_launch_url = self.block.lti_advantage_deep_linking_launch_url
 
         return self._get_lti_1p3_redirect_uris_with_defaults(
             redirect_uris,
@@ -581,7 +581,7 @@ class LtiConfiguration(models.Model):
         if redirect_uris:
             return redirect_uris
 
-        result = [launch_url]
+        result = [launch_url] if launch_url else []
         if deep_link_url:
             result.append(deep_link_url)
         return result
