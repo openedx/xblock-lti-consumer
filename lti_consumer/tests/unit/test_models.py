@@ -20,6 +20,9 @@ from lti_consumer.models import (CourseAllowPIISharingInLTIFlag, LtiAgsLineItem,
 from lti_consumer.tests.test_utils import make_xblock
 
 
+LAUNCH_URL = 'http://tool.example/launch'
+DEEP_LINK_URL = 'http://tool.example/deep-link/launch'
+
 @ddt.ddt
 class TestLtiConfigurationModel(TestCase):
     """
@@ -39,7 +42,7 @@ class TestLtiConfigurationModel(TestCase):
 
         self.xblock_attributes = {
             'lti_version': 'lti_1p3',
-            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_launch_url': LAUNCH_URL,
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
             # We need to set the values below because they are not automatically
             # generated until the user selects `lti_version == 'lti_1p3'` on the
@@ -371,6 +374,53 @@ class TestLtiConfigurationModel(TestCase):
             self.lti_1p3_config.config_store = config_store
             with self.assertRaises(ValidationError):
                 self.lti_1p3_config.clean()
+
+    def test_get_redirect_uris_raises_error_for_external_config(self):
+        """
+        An external config raises NotImplementedError
+        """
+        with self.assertRaises(NotImplementedError):
+            self.lti_1p3_config_external.get_lti_1p3_redirect_uris()
+
+    @ddt.data(
+        ("", "", [], []),
+        (LAUNCH_URL, "", [], [LAUNCH_URL]),
+        ("", DEEP_LINK_URL, [], [DEEP_LINK_URL]),
+        (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
+        (LAUNCH_URL, DEEP_LINK_URL, ["http://other.url"], ["http://other.url"]),
+    )
+    @ddt.unpack
+    def test_get_redirect_uris_for_xblock_model_returns_expected(
+            self, launch_url, deep_link_url, redirect_uris, expected):
+        """
+        Returns expected redirect uris for xblock model
+        """
+        self.xblock.lti_1p3_launch_url = launch_url
+        self.xblock.lti_advantage_deep_linking_launch_url = deep_link_url
+        self.xblock.lti_1p3_redirect_uris = redirect_uris
+        self.lti_1p3_config._block = self.xblock
+
+        assert self.lti_1p3_config.get_lti_1p3_redirect_uris() == expected
+
+    @ddt.data(
+        ("", "", [], []),
+        (LAUNCH_URL, "", [], [LAUNCH_URL]),
+        ("", DEEP_LINK_URL, [], [DEEP_LINK_URL]),
+        (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
+        (LAUNCH_URL, DEEP_LINK_URL, ["http://other.url"], ["http://other.url"]),
+    )
+    @ddt.unpack
+    def test_get_redirect_uris_for_db_model_returns_expected(
+            self, launch_url, deep_link_url, redirect_uris, expected):
+        """
+        Returns expected redirect uris for db model
+        """
+        self.lti_1p3_config_db.lti_1p3_launch_url = launch_url
+        self.lti_1p3_config_db.lti_advantage_deep_linking_launch_url = deep_link_url
+        self.lti_1p3_config_db.lti_1p3_redirect_uris = redirect_uris
+        self.lti_1p3_config_db.save()
+
+        assert self.lti_1p3_config_db.get_lti_1p3_redirect_uris() == expected
 
 
 class TestLtiAgsLineItemModel(TestCase):
