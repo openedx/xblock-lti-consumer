@@ -8,11 +8,15 @@ from django.test.testcases import TestCase
 
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.utils import (
+    choose_lti_1p3_redirect_uris,
     get_lti_1p3_context_types_claim,
     get_lti_1p3_launch_data_cache_key,
     cache_lti_1p3_launch_data,
     get_data_from_cache,
 )
+
+LAUNCH_URL = "http://tool.launch"
+DEEP_LINK_URL = "http://tool.deep.launch"
 
 
 @ddt.ddt
@@ -113,3 +117,25 @@ class TestCacheUtilities(TestCase):
             self.assertEqual(value, "value")
         else:
             self.assertIsNone(value)
+
+    @ddt.data(
+        ("", "", [], []),
+        (LAUNCH_URL, "", [], [LAUNCH_URL]),
+        ("", DEEP_LINK_URL, [], [DEEP_LINK_URL]),
+        (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
+        (LAUNCH_URL, DEEP_LINK_URL, ["http://other.url"], ["http://other.url"]),
+    )
+    @ddt.unpack
+    def test_choose_lti_1p3_redirect_uri_returns_expected(
+            self, launch_url, deep_link_url, redirect_uris, expected
+        ):
+        """
+        Returns redirect_uris if set, else returns launch/deep_link urls as defaults
+        """
+        result = choose_lti_1p3_redirect_uris(
+            redirect_uris=redirect_uris,
+            launch_url=launch_url,
+            deep_link_url=deep_link_url
+        )
+
+        assert result == expected
