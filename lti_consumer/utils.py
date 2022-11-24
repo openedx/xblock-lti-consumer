@@ -249,6 +249,19 @@ def get_lti_1p3_context_types_claim(context_types):
     return lti_context_types
 
 
+def choose_lti_1p3_redirect_uris(redirect_uris, launch_url, deep_link_url):
+    """
+    Return provided redirect_uris if set, else use launch/deep_link as defaults
+    """
+    if redirect_uris:
+        return redirect_uris
+
+    result = [launch_url] if launch_url else []
+    if deep_link_url:
+        result.append(deep_link_url)
+    return result
+
+
 def get_lti_1p3_launch_data_cache_key(launch_data):
     """
     Return the cache key for the instance of Lti1p3LaunchData.
