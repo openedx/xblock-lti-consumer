@@ -383,9 +383,6 @@ class TestLtiConfigurationModel(TestCase):
             self.lti_1p3_config_external.get_lti_1p3_redirect_uris()
 
     @ddt.data(
-        ("", "", [], []),
-        (LAUNCH_URL, "", [], [LAUNCH_URL]),
-        ("", DEEP_LINK_URL, [], [DEEP_LINK_URL]),
         (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
         (LAUNCH_URL, DEEP_LINK_URL, ["http://other.url"], ["http://other.url"]),
     )
@@ -398,14 +395,10 @@ class TestLtiConfigurationModel(TestCase):
         self.xblock.lti_1p3_launch_url = launch_url
         self.xblock.lti_advantage_deep_linking_launch_url = deep_link_url
         self.xblock.lti_1p3_redirect_uris = redirect_uris
-        self.lti_1p3_config._block = self.xblock
 
         assert self.lti_1p3_config.get_lti_1p3_redirect_uris() == expected
 
     @ddt.data(
-        ("", "", [], []),
-        (LAUNCH_URL, "", [], [LAUNCH_URL]),
-        ("", DEEP_LINK_URL, [], [DEEP_LINK_URL]),
         (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
         (LAUNCH_URL, DEEP_LINK_URL, ["http://other.url"], ["http://other.url"]),
     )
