@@ -743,6 +743,7 @@ class LtiProctoringConsumer(LtiConsumer1p3):
         deployment_id,
         rsa_key,
         rsa_key_id,
+        redirect_uris,
         tool_key=None,
         tool_keyset_url=None,
     ):
@@ -757,6 +758,7 @@ class LtiProctoringConsumer(LtiConsumer1p3):
             deployment_id,
             rsa_key,
             rsa_key_id,
+            redirect_uris,
             tool_key,
             tool_keyset_url
         )
