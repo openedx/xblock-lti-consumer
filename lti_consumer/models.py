@@ -28,6 +28,7 @@ from lti_consumer.utils import (
     get_lti_ags_lineitems_url,
     get_lti_deeplinking_response_url,
     get_lti_nrps_context_membership_url,
+    choose_lti_1p3_redirect_uris,
 )
 
 log = logging.getLogger(__name__)
@@ -568,28 +569,16 @@ class LtiConfiguration(models.Model):
             launch_url = self.lti_1p3_launch_url
             deep_link_launch_url = self.lti_advantage_deep_linking_launch_url
         else:
-            redirect_uris = self.block.lti_1p3_redirect_uris
-            launch_url = self.block.lti_1p3_launch_url
-            deep_link_launch_url = self.block.lti_advantage_deep_linking_launch_url
+            block = compat.load_enough_xblock(self.location)
+            redirect_uris = block.lti_1p3_redirect_uris
+            launch_url = block.lti_1p3_launch_url
+            deep_link_launch_url = block.lti_advantage_deep_linking_launch_url
 
-        return self._get_lti_1p3_redirect_uris_with_defaults(
+        return choose_lti_1p3_redirect_uris(
             redirect_uris,
             launch_url,
             deep_link_launch_url
         )
-
-    def _get_lti_1p3_redirect_uris_with_defaults(self, redirect_uris, launch_url, deep_link_url):
-        """
-        Return provided redirect_uris if set, else use launch/deep_link as defaults
-        """
-        if redirect_uris:
-            return redirect_uris
-
-        result = [launch_url] if launch_url else []
-        if deep_link_url:
-            result.append(deep_link_url)
-        return result
-
 
     @property
     def pii_share_username(self):
