@@ -886,6 +886,7 @@ class TestLtiProctoringConsumer(TestCase):
             deployment_id=DEPLOYMENT_ID,
             rsa_key=RSA_KEY,
             rsa_key_id=RSA_KEY_ID,
+            redirect_uris=REDIRECT_URIS,
             # Use the same key for testing purposes
             tool_key=RSA_KEY
         )
