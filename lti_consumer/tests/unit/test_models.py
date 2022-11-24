@@ -19,9 +19,9 @@ from lti_consumer.models import (CourseAllowPIISharingInLTIFlag, LtiAgsLineItem,
                                  LtiDlContentItem)
 from lti_consumer.tests.test_utils import make_xblock
 
-
 LAUNCH_URL = 'http://tool.example/launch'
 DEEP_LINK_URL = 'http://tool.example/deep-link/launch'
+
 
 @ddt.ddt
 class TestLtiConfigurationModel(TestCase):

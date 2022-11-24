@@ -126,9 +126,7 @@ class TestCacheUtilities(TestCase):
         (LAUNCH_URL, DEEP_LINK_URL, ["http://other.url"], ["http://other.url"]),
     )
     @ddt.unpack
-    def test_choose_lti_1p3_redirect_uri_returns_expected(
-            self, launch_url, deep_link_url, redirect_uris, expected
-        ):
+    def test_choose_lti_1p3_redirect_uri_returns_expected(self, launch_url, deep_link_url, redirect_uris, expected):
         """
         Returns redirect_uris if set, else returns launch/deep_link urls as defaults
         """

@@ -191,11 +191,11 @@ class LtiConfiguration(models.Model):
         default=list,
         blank=True,
         # TODO: Further clarify this help
-        help_text= "Valid urls the Tool may request us to redirect the id token to. The redirect uris "
-                   "are often the same as the launch url/deep linking url so if this field is "
-                   "empty, it will use them as the default. If you need to use different redirect "
-                   "uri's, enter them here. If you use this field you must enter all valid redirect "
-                   "uri's the tool may request."
+        help_text="Valid urls the Tool may request us to redirect the id token to. The redirect uris "
+                  "are often the same as the launch url/deep linking url so if this field is "
+                  "empty, it will use them as the default. If you need to use different redirect "
+                  "uri's, enter them here. If you use this field you must enter all valid redirect "
+                  "uri's the tool may request."
     )
 
     # LTI 1.3 Advantage Related Variables
