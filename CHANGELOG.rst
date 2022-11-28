@@ -16,6 +16,12 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+=======
+7.0.1 - 2022-11-29
+------------------
+
+Fix LtiConfiguration clean method to look only at location so that it can work in environments that cannot load the block.
+
 7.0.0 - 2022-11-29
 ------------------
 * Refactor anonymous user to real user rebinding function to use `rebind_user` service.
