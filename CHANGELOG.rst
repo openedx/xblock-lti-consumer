@@ -16,7 +16,16 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
-=======
+7.0.2 - 2022-11-29
+------------------
+* Fix the LTI 1.1 Outcome Results Service to be able to tie an outcome pass back to a user when the user ID is an
+  `external_user_id`.
+* Fix the LTI 2.0 Result Service to be able to tie a result pass back to a user when the user ID is an
+  `external_user_id`.
+* Update the `RESULT_SERVICE_SUFFIX_PARSER` regex string to be able to parse UUIDs to accommodate `external_user_ids`.
+* Add a `get_lti_1p1_user_from_user_id` method to the `LtiConsumerXBlock` to get the user object associated with a user
+  ID.
+
 7.0.1 - 2022-11-29
 ------------------
 

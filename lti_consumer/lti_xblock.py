@@ -93,7 +93,7 @@ DOCS_ANCHOR_TAG_OPEN = (
     "/projects/open-edx-building-and-running-a-course/en/latest/exercises_tools/lti_component.html"
     "'>"
 )
-RESULT_SERVICE_SUFFIX_PARSER = re.compile(r"^user/(?P<anon_id>\w+)", re.UNICODE)
+RESULT_SERVICE_SUFFIX_PARSER = re.compile(r"^user/(?P<anon_id>[\w-]+)", re.UNICODE)
 LTI_1P1_ROLE_MAP = {
     'student': 'Student,Learner',
     'staff': 'Administrator',
@@ -835,7 +835,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     def get_lti_1p1_user_id(self):
         """
-        Returns the user ID to send to an LTI tool during an LTI 1.1 launch. If the
+        Returns the user ID to send to an LTI tool during an LTI 1.1/2.0 launch. If the
         enable_external_user_id_1p1_launches CourseWaffleFlag is enabled for the course, returns the external_user_id
         defined by the external_user_ids Djangoapp. Otherwise, returns the anonymous_user_id.
 
@@ -848,6 +848,23 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return self.external_user_id
 
         return self.anonymous_user_id
+
+    def get_lti_1p1_user_from_user_id(self, user_id):
+        """
+        Returns the user object associated with a user_id. This is used in LTI 1.1/2.0 integrations for calls to the
+        LTI 1.1 Basic Outcomes service and the LTI 2.0 Results service. Tool Providers may make calls to this library's
+        endpoints with a user identifier. This function returns a user object associated with that user identifier.
+
+        The user identifier may be a course-anonymized user ID (i.e. the anonymous_user_id) or the global, consistent
+        user ID (i.e. the external_user_id). This functions returns the correct User object.
+        """
+        if external_user_id_1p1_launches_enabled(self.scope_ids.usage_id.context_key):
+            try:
+                return compat.get_user_from_external_user_id(user_id)
+            except LtiError:
+                return None
+        else:
+            return self.runtime.service(self, 'user').get_user_by_anonymous_id(user_id)
 
     @property
     def resource_link_id(self):
@@ -1293,7 +1310,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         except LtiError:
             return Response(status=401)  # Unauthorized in this case.  401 is right
 
-        user = self.runtime.service(self, 'user').get_user_by_anonymous_id(anon_id)
+        user = self.get_lti_1p1_user_from_user_id(anon_id)
         if not user:  # that means we can't save to database, as we do not have real user id.
             msg = _("[LTI]: Real user not found against anon_id: {}").format(anon_id)
             log.info(msg)
