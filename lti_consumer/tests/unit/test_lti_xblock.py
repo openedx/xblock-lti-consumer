@@ -130,7 +130,7 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `context_id` returns unicode course id
         """
-        self.assertEqual(self.xblock.context_id, str(self.xblock.course_id))
+        self.assertEqual(self.xblock.context_id, str(self.xblock.scope_ids.usage_id.context_key))
 
     def test_validate(self):
         """
@@ -292,13 +292,15 @@ class TestProperties(TestLtiConsumerXBlock):
         with self.assertRaises(LtiError):
             __ = self.xblock.external_user_id
 
+    @override_settings(LMS_BASE="edx.org")
     def test_resource_link_id(self):
         """
         Test `resource_link_id` returns appropriate string
         """
+        hostname = "edx.org"
         self.assertEqual(
             self.xblock.resource_link_id,
-            f"{self.xblock.runtime.hostname}-{self.xblock.location.html_id()}"  # pylint: disable=no-member
+            f"{hostname}-{self.xblock.scope_ids.usage_id.html_id()}"
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
@@ -996,7 +998,11 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         Test 404 response returned when a user cannot be found
         """
         mock_parse_suffix.return_value = FAKE_USER_ID
-        self.xblock.runtime.get_real_user.return_value = None
+        self.xblock.runtime.service = Mock(
+            return_value=Mock(
+                get_user_by_anonymous_id=Mock(return_value=None)
+            )
+        )
         response = self.xblock.result_service_handler(make_request('', 'GET'))
 
         self.assertEqual(response.status_code, 404)
@@ -1074,10 +1080,12 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         mock_runtime = self.xblock.runtime = Mock()
         mock_lti_consumer = Mock()
         mock_user = Mock()
+        mock_rebind_user_service = Mock()
+        mock_runtime.service.return_value = mock_rebind_user_service
 
         self.xblock._result_service_get(mock_lti_consumer, mock_user)  # pylint: disable=protected-access
 
-        mock_runtime.rebind_noauth_module_to_user.assert_called_with(self.xblock, mock_user)
+        mock_rebind_user_service.rebind_noauth_module_to_user.assert_called_with(self.xblock, mock_user)
         mock_lti_consumer.get_result.assert_called_with()
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.module_score', PropertyMock(return_value=0.5))
@@ -1210,12 +1218,15 @@ class TestSetScore(TestLtiConsumerXBlock):
 
     def test_rebind_called(self):
         """
-        Test that `runtime.rebind_noauth_module_to_user` is called
+        Test that `rebind_noauth_module_to_user` service is called
         """
+        mock_rebind_user_service = Mock()
+        self.xblock.runtime.service = Mock()
+        self.xblock.runtime.service.return_value = mock_rebind_user_service
         user = Mock(user_id=FAKE_USER_ID)
         self.xblock.set_user_module_score(user, 0.92, 1.0, 'Great Job!')
 
-        self.xblock.runtime.rebind_noauth_module_to_user.assert_called_with(self.xblock, user)
+        mock_rebind_user_service.rebind_noauth_module_to_user.assert_called_with(self.xblock, user)
 
     def test_publish_grade_event_called(self):
         """
@@ -1518,12 +1529,12 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         launch_data = self.xblock.get_lti_1p3_launch_data()
 
-        course_key = str(self.xblock.location.course_key)  # pylint: disable=no-member
+        course_key = str(self.xblock.scope_ids.usage_id.course_key)
         expected_launch_data = Lti1p3LaunchData(
             user_id=1,
             user_role="instructor",
             config_id=config_id_for_block(self.xblock),
-            resource_link_id=str(self.xblock.location),  # pylint: disable=no-member
+            resource_link_id=str(self.xblock.scope_ids.usage_id),
             external_user_id="external_user_id",
             launch_presentation_document_target="iframe",
             message_type="LtiResourceLinkRequest",

@@ -65,24 +65,24 @@ def _get_lti_config_for_block(block):
     if block.config_type == 'database':
         lti_config = _get_or_create_local_lti_config(
             block.lti_version,
-            block.location,
+            block.scope_ids.usage_id,
             LtiConfiguration.CONFIG_ON_DB,
         )
     elif block.config_type == 'external':
         config = get_external_config_from_filter(
-            {"course_key": block.location.course_key},
+            {"course_key": block.scope_ids.usage_id.context_key},
             block.external_config
         )
         lti_config = _get_or_create_local_lti_config(
             config.get("version"),
-            block.location,
+            block.scope_ids.usage_id,
             LtiConfiguration.CONFIG_EXTERNAL,
             external_id=block.external_config,
         )
     else:
         lti_config = _get_or_create_local_lti_config(
             block.lti_version,
-            block.location,
+            block.scope_ids.usage_id,
             LtiConfiguration.CONFIG_ON_XBLOCK,
         )
     return lti_config

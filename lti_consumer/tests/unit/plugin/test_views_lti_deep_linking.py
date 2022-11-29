@@ -31,7 +31,7 @@ class LtiDeepLinkingTestCase(APITransactionTestCase):
 
         # Create configuration
         self.lti_config = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
         )
 

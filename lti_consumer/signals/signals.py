@@ -46,7 +46,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                 # the LMS database.
                 log.info(
                     "Publishing LTI grade from block %s to LMS. User: %s (score: %s)",
-                    block.location,
+                    block.scope_ids.usage_id,
                     user,
                     score,
                 )

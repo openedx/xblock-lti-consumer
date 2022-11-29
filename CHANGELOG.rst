@@ -15,6 +15,15 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ~~~~~~~~~~
+
+7.0.0 - 2022-11-29
+------------------
+* Refactor anonymous user to real user rebinding function to use `rebind_user` service.
+* Refactor accessing hostname from runtime attribute to using `settings.LMS_BASE`.
+* Refactor usage of `get_real_user` with `UserService`.
+* Refactor deprecated usage of `runtime.course_id` and replace with `runtime.scope_ids.usage_id.context_key`.
+* Refactor deprecated usage of `block.location` with `block.scope_ids.usage_id`.
+
 6.4.0 - 2022-11-18
 ------------------
 Adds support for sending an external_user_id in LTI 1.1 XBlock launches. When the

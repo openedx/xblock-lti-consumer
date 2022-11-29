@@ -5,7 +5,8 @@ Utility functions used within unit tests
 from unittest.mock import Mock
 import urllib
 
-from opaque_keys.edx.keys import UsageKey
+from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.locator import LocalId
 from webob import Request
 from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
@@ -22,30 +23,27 @@ def make_xblock(xblock_name, xblock_cls, attributes):
     runtime = WorkbenchRuntime()
     key_store = DictKeyValueStore()
     db_model = KvsFieldData(key_store)
-    ids = generate_scope_ids(runtime, xblock_name)
+    course_id = 'course-v1:edX+DemoX+Demo_Course'
+    course_key = CourseKey.from_string(course_id)
+    ids = generate_scope_ids(course_key, xblock_name)
+
     xblock = xblock_cls(runtime, db_model, scope_ids=ids)
     xblock.category = Mock()
-
-    xblock.location = UsageKey.from_string(
-        'block-v1:edX+DemoX+Demo_Course+type@problem+block@466f474fa4d045a8b7bde1b911e095ca'
-    )
 
     xblock.runtime = Mock(
         hostname='localhost',
     )
-    xblock.course_id = 'course-v1:edX+DemoX+Demo_Course'
     for key, value in attributes.items():
         setattr(xblock, key, value)
     return xblock
 
 
-def generate_scope_ids(runtime, block_type):
+def generate_scope_ids(course_key, block_type):
     """
     Helper to generate scope IDs for an XBlock
     """
-    def_id = runtime.id_generator.create_definition(block_type)
-    usage_id = runtime.id_generator.create_usage(def_id)
-    return ScopeIds('user', block_type, def_id, usage_id)
+    usage_key = course_key.make_usage_key(block_type, str(LocalId()))
+    return ScopeIds('user', block_type, usage_key, usage_key)
 
 
 def make_request(body, method='POST'):

@@ -72,7 +72,7 @@ class Lti1P3TestCase(TestCase):
         # Create lti configuration
         self.lti_config = LtiConfiguration.objects.create(
             config_id=_test_config_id,
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
         )
@@ -464,15 +464,11 @@ class TestGetLti1p3LaunchInfo(TestCase):
         """
         Check if the API creates the model and retrieved correct info.
         """
-        block = Mock()
-        block.location = 'block-v1:course+test+2020+type@problem+block@test'
-        block.lti_version = LtiConfiguration.LTI_1P3
-
         launch_data = self._get_lti_1p3_launch_data()
 
         # Create LTI Config and Deep linking object
         lti_config = LtiConfiguration.objects.create(
-            location=block.location,
+            location='block-v1:course+test+2020+type@problem+block@test',
             config_id=_test_config_id,
         )
         LtiDlContentItem.objects.create(

@@ -139,10 +139,10 @@ def valid_config_type_values(block):
         {"display_name": _("Configuration on block"), "value": "new"}
     ]
 
-    if database_config_enabled(block.location.course_key):
+    if database_config_enabled(block.scope_ids.usage_id.context_key):
         values.append({"display_name": _("Database Configuration"), "value": "database"})
 
-    if external_config_filter_enabled(block.location.course_key):
+    if external_config_filter_enabled(block.scope_ids.usage_id.context_key):
         values.append({"display_name": _("Reusable Configuration"), "value": "external"})
 
     return values
@@ -161,6 +161,7 @@ class LaunchTarget:
 
 
 @XBlock.needs('i18n')
+@XBlock.needs('rebind_user')
 @XBlock.wants('user')
 @XBlock.wants('settings')
 @XBlock.wants('lti-configuration')
@@ -695,8 +696,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         editable_fields = self.editable_field_names
         noneditable_fields = []
 
-        is_database_config_enabled = database_config_enabled(self.location.course_key)  # pylint: disable=no-member
-        is_external_config_filter_enabled = external_config_filter_enabled(self.location.course_key)  # pylint: disable=no-member
+        is_database_config_enabled = database_config_enabled(self.scope_ids.usage_id.context_key)
+        is_external_config_filter_enabled = external_config_filter_enabled(self.scope_ids.usage_id.context_key)
 
         # If neither additional config_types are enabled, do not display the "config_type" field to users, as "new" is
         # the only option and does not make sense without other options.
@@ -713,7 +714,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if config_service:
             is_already_sharing_learner_info = self.ask_to_send_email or self.ask_to_send_username
             if not config_service.configuration.lti_access_to_learners_editable(
-                    self.course_id,
+                    self.scope_ids.usage_id.context_key,
                     is_already_sharing_learner_info,
             ):
                 noneditable_fields.extend(['ask_to_send_username', 'ask_to_send_email'])
@@ -745,7 +746,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context_id is an opaque identifier that uniquely identifies the context (e.g., a course)
         that contains the link being launched.
         """
-        return str(self.course_id)
+        return str(self.scope_ids.usage_id.context_key)
 
     @property
     def role(self):
@@ -763,7 +764,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Return course by course id.
         """
-        return self.runtime.modulestore.get_course(self.runtime.course_id)
+        return self.runtime.modulestore.get_course(self.scope_ids.usage_id.context_key)
 
     @property
     def lti_provider_key_secret(self):
@@ -843,7 +844,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         toggling this flag in a running course carries the risk of breaking the LTI integrations in the course. This
         flag should also only be enabled for new courses in which no LTI attempts have been made.
         """
-        if external_user_id_1p1_launches_enabled(self.location.course_key):  # pylint: disable=no-member
+        if external_user_id_1p1_launches_enabled(self.scope_ids.usage_id.context_key):
             return self.external_user_id
 
         return self.anonymous_user_id
@@ -880,9 +881,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         i4x-2-3-lti-31de800015cf4afb973356dbe81496df this part of resource_link_id:
         makes resource_link_id to be unique among courses inside same system.
         """
-        return str(urllib.parse.quote(
-            f"{self.runtime.hostname}-{self.location.html_id()}"  # pylint: disable=no-member
-        ))
+        return str(urllib.parse.quote(f"{settings.LMS_BASE}-{self.scope_ids.usage_id.html_id()}"))
 
     @property
     def lis_result_sourcedid(self):
@@ -1223,7 +1222,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Runtime import because this can only be run in the LMS/Studio Django
         # environments. Importing the views on the top level will cause RuntimeErorr
         from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
-        return access_token_endpoint(request, usage_id=str(self.location))  # pylint: disable=no-member
+        return access_token_endpoint(request, usage_id=str(self.scope_ids.usage_id))
 
     @XBlock.handler
     def outcome_service_handler(self, request, suffix=''):  # pylint: disable=unused-argument
@@ -1294,7 +1293,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         except LtiError:
             return Response(status=401)  # Unauthorized in this case.  401 is right
 
-        user = self.runtime.get_real_user(anon_id)
+        user = self.runtime.service(self, 'user').get_user_by_anonymous_id(anon_id)
         if not user:  # that means we can't save to database, as we do not have real user id.
             msg = _("[LTI]: Real user not found against anon_id: {}").format(anon_id)
             log.info(msg)
@@ -1332,7 +1331,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             dict:  response to this request as dictated by the LtiConsumer
         """
-        self.runtime.rebind_noauth_module_to_user(self, user)
+        self.runtime.service(self, 'rebind_user').rebind_noauth_module_to_user(self, user)
         args = []
         if self.module_score:
             args.extend([self.module_score, self.score_comment])
@@ -1420,7 +1419,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         else:
             scaled_score = None
 
-        self.runtime.rebind_noauth_module_to_user(self, user)
+        self.runtime.service(self, 'rebind_user').rebind_noauth_module_to_user(self, user)
 
         # have to publish for the progress page...
         self.runtime.publish(
@@ -1459,8 +1458,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         from lti_consumer.api import config_id_for_block
         config_id = config_id_for_block(self)
 
-        location = self.location  # pylint: disable=no-member
-        course_key = str(location.course_key)
+        location = self.scope_ids.usage_id
+        course_key = str(location.context_key)
 
         launch_data = Lti1p3LaunchData(
             user_id=self.lms_user_id,
@@ -1482,7 +1481,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Return the title attribute of the context_claim for LTI 1.3 launches. This information is included in the
         launch_data query or form parameter of the LTI 1.3 third-party login initiation request.
         """
-        course_key = self.location.course_key  # pylint: disable=no-member
+        course_key = self.scope_ids.usage_id.context_key
         course = compat.get_course_by_id(course_key)
 
         return " - ".join([
@@ -1555,7 +1554,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return {
             'launch_url': launch_url.strip(),
             'lti_1p3_launch_url': lti_1p3_launch_url,
-            'element_id': self.location.html_id(),  # pylint: disable=no-member
+            'element_id': self.scope_ids.usage_id.html_id(),
             'element_class': self.category,
             'launch_target': self.launch_target,
             'display_name': self.display_name,
