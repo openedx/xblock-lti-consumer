@@ -671,8 +671,8 @@ class TestExtractRealUserData(TestLtiConsumerXBlock):
 
 
 @ddt.ddt
-class TestGetLti1p1UserId(TestLtiConsumerXBlock):
-    """ Unit tests for the get_lti_1p1_user_id method"""
+class TestLti1p1UserId(TestLtiConsumerXBlock):
+    """ Unit tests for the get_lti_1p1_user_id and get_lti_1p1_user_from_user_id methods"""
     def setUp(self):
         super().setUp()
 
@@ -697,6 +697,40 @@ class TestGetLti1p1UserId(TestLtiConsumerXBlock):
                 external_user_id_1p1_launches_enabled:
             external_user_id_1p1_launches_enabled.return_value = external_user_id_1p1_launches_enabled_value
             self.assertEqual(self.xblock.get_lti_1p1_user_id(), expected_value)
+
+    @patch('lti_consumer.lti_xblock.compat')
+    @ddt.data(True, False)
+    def test_get_lti_1p1_user_from_user_id(
+            self,
+            external_user_id_1p1_launches_enabled,
+            compat_mock):
+
+        # Set the mock user objects for user objects associated with an anonymous_user_id and an external_user_id.
+        mock_anonymous_user = Mock()
+        mock_external_user = Mock()
+
+        self.xblock.runtime.service(self, 'user').get_user_by_anonymous_id = Mock(return_value=mock_anonymous_user)
+        compat_mock.get_user_from_external_user_id.return_value = mock_external_user
+
+        with patch('lti_consumer.lti_xblock.external_user_id_1p1_launches_enabled') as \
+                mock_external_user_id_1p1_launches_enabled:
+            mock_external_user_id_1p1_launches_enabled.return_value = external_user_id_1p1_launches_enabled
+
+            user = self.xblock.get_lti_1p1_user_from_user_id('user_id')
+
+            if external_user_id_1p1_launches_enabled:
+                self.assertEqual(user, mock_external_user)
+            else:
+                self.assertEqual(user, mock_anonymous_user)
+
+    @patch('lti_consumer.lti_xblock.external_user_id_1p1_launches_enabled')
+    @patch('lti_consumer.lti_xblock.compat')
+    def test_get_lti_1p1_user_from_user_id_lti_error(self, compat_mock, mock_external_user_id_1p1_launches_enabled):
+        mock_external_user_id_1p1_launches_enabled.return_value = True
+        compat_mock.get_user_from_external_user_id.side_effect = LtiError()
+
+        user = self.xblock.get_lti_1p1_user_from_user_id('user_id')
+        self.assertEqual(user, None)
 
 
 class TestStudentView(TestLtiConsumerXBlock):
@@ -917,10 +951,14 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         super().setUp()
         self.lti_provider_key = 'test'
         self.lti_provider_secret = 'secret'
-        self.xblock.runtime.get_real_user = Mock()
         self.xblock.accept_grades_past_due = True
         self.mock_lti_consumer = Mock()
         self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+
+        mock_user = Mock()
+        mock_id = PropertyMock(return_value=1)
+        type(mock_user).id = mock_id
+        self.xblock.get_lti_1p1_user_from_user_id = Mock(return_value=mock_user)
 
     @override_settings(DEBUG=True)
     @patch('lti_consumer.lti_xblock.log_authorization_header')
@@ -998,11 +1036,8 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         Test 404 response returned when a user cannot be found
         """
         mock_parse_suffix.return_value = FAKE_USER_ID
-        self.xblock.runtime.service = Mock(
-            return_value=Mock(
-                get_user_by_anonymous_id=Mock(return_value=None)
-            )
-        )
+        self.xblock.get_lti_1p1_user_from_user_id.return_value = None
+
         response = self.xblock.result_service_handler(make_request('', 'GET'))
 
         self.assertEqual(response.status_code, 404)
@@ -1326,6 +1361,15 @@ class TestParseSuffix(TestLtiConsumerXBlock):
         """
         parsed = parse_handler_suffix(f"user/{FAKE_USER_ID}")
         self.assertEqual(parsed, FAKE_USER_ID)
+
+    def test_suffix_match_uuid(self):
+        """
+        Test `parse_handler_suffix` when `suffix` is a UUID. Note that we may send UUIDs as user IDs when the
+        lti_consumer.enable_external_user_id_1p1_launches CourseWaffleFlag is enabled, so we must be able to parse
+        UUID user IDs.
+        """
+        parsed = parse_handler_suffix("user/2e9ec4fa-e1cc-4591-9f19-cf1e94454c21")
+        self.assertEqual(parsed, "2e9ec4fa-e1cc-4591-9f19-cf1e94454c21")
 
 
 @ddt.ddt
