@@ -29,7 +29,6 @@ from lti_consumer.utils import (
     get_lti_ags_lineitems_url,
     get_lti_deeplinking_response_url,
     get_lti_nrps_context_membership_url,
-    database_config_enabled,
 )
 
 log = logging.getLogger(__name__)
@@ -240,10 +239,6 @@ class LtiConfiguration(models.Model):
                 "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
             })
         if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
-            if not database_config_enabled(self.location.course_key):
-                raise ValidationError({
-                    "config_store": _("LTI Configuration stores on database is not enabled."),
-                })
             if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
                 raise ValidationError({
                     "config_store": _(
