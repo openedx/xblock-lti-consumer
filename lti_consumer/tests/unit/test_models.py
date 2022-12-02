@@ -359,15 +359,10 @@ class TestLtiConfigurationModel(TestCase):
 
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
 
-        with patch("lti_consumer.models.database_config_enabled", return_value=False),\
-             self.assertRaises(ValidationError):
-            self.lti_1p3_config_db.clean()
-
         self.lti_1p3_config_db.lti_1p3_tool_keyset_url = ''
         self.lti_1p3_config_db.lti_1p3_tool_public_key = ''
 
-        with patch("lti_consumer.models.database_config_enabled", return_value=True),\
-             self.assertRaises(ValidationError):
+        with self.assertRaises(ValidationError):
             self.lti_1p3_config_db.clean()
 
         self.lti_1p3_config.lti_1p3_proctoring_enabled = True
