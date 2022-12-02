@@ -16,6 +16,10 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+7.0.3 - 2022-12-02
+------------------
+* Removed check against LMS specific `database_config_enabled` in LtiConfiguration model.
+
 7.0.2 - 2022-11-29
 ------------------
 * Fix the LTI 1.1 Outcome Results Service to be able to tie an outcome pass back to a user when the user ID is an
