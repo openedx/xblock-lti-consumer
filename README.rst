@@ -262,6 +262,21 @@ To enable LTI-DL and its capabilities, you need to set these settings in the blo
 
 To enable LTI-NRPS, you set **Enable LTI NRPS** to **True** in the block settings on Studio.
 
+
+LTI 1.1/1.2 Basic Outcomes Service 1.1
+--------------------------------------
+
+This XBlock supports `LTI 1.1/1.2 Basic Outcomes Service 1.0 <http://www.imsglobal.org/spec/lti-bo/v1p1/>`_. Please see these
+`LTI 1.1/1.2 Basic Outcomes Service 1.0 instructions <https://github.com/openedx/xblock-lti-consumer/tree/master/docs/basic_outcomes_service.rst>`_
+for testing the LTI 1.1/1.2 Basic Outcomes Service 1.1 implementation.
+
+LTI 2.0 Result Service 2.0
+--------------------------
+
+This XBlock supports `LTI 2.0 Result Service 2.0 <https://www.imsglobal.org/lti/model/uml/purl.imsglobal.org/vocab/lis/v2/outcomes/Result/service.html>`_.
+Please see the `LTI 2.0 Result Service 2.0 instructions <https://github.com/openedx/xblock-lti-consumer/tree/master/docs/result_service.rst>`_
+for testing the LTI 2.0 Result Service 2.0 implementation.
+
 Getting Help
 ************
 
