@@ -305,9 +305,10 @@ def get_event_tracker():  # pragma: nocover
     except ModuleNotFoundError:
         return None
 
+
 def nrps_pii_disallowed():
     """
     Check if platform disallows sharing pii over NRPS
     """
     return (hasattr(settings, 'LTI_NRPS_DISALLOW_PII') and
-        settings.LTI_NRPS_DISALLOW_PII is True)
+            settings.LTI_NRPS_DISALLOW_PII is True)
