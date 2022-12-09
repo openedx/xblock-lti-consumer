@@ -16,6 +16,11 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+7.1.0 - 2022-12-09
+------------------
+* Add support for platform setting `LTI_NRPS_DISALLOW_PII` to prevent sharing of pii over the names and roles
+  provisioning service.
+
 7.0.3 - 2022-12-02
 ------------------
 * Removed check against LMS specific `database_config_enabled` in LtiConfiguration model.
