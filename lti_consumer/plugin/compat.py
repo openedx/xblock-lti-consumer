@@ -4,6 +4,7 @@ Compatibility layer to isolate core-platform method calls from implementation.
 import logging
 from typing import Callable
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from opaque_keys.edx.keys import CourseKey
@@ -303,3 +304,10 @@ def get_event_tracker():  # pragma: nocover
         return tracker
     except ModuleNotFoundError:
         return None
+
+def nrps_pii_disallowed():
+    """
+    Check if platform disallows sharing pii over NRPS
+    """
+    return (hasattr(settings, 'LTI_NRPS_DISALLOW_PII') and
+        settings.LTI_NRPS_DISALLOW_PII is True)
