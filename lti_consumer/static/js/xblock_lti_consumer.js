@@ -22,11 +22,23 @@ function LtiConsumerXBlock(runtime, element) {
                     // window, requesting creation of a modal there.
                     // This is used by the courseware microfrontend.
                     if (window !== window.parent) {
+                        // LTI 1.1 launch URLs are XBlock handler URLs that point to the lti_launch_handler method of
+                        // the XBlock. When we get the handler URL from the runtime, it returns a relative URL without a
+                        // protocol or hostname. However, in LTI 1.3, the launch URLs come from user input, including
+                        // the values of fields on the XBlock or fields in the database. These URLs should be absolute
+                        // URLs with a protocol and hostname, so we should not prepend a protocol and hostname to those
+                        // URLs.
+                        var launch_url = $modal.data('launch-url');
+
+                        if (ltiVersion === 'lti_1p1') {
+                            launch_url = window.location.origin + launch_url
+                        }
+
                         window.parent.postMessage(
                             {
                                 'type': 'plugin.modal',
                                 'payload': {
-                                    'url': window.location.origin + $modal.data('launch-url'),
+                                    'url': launch_url,
                                     'title': $modal.find('iframe').attr('title'),
                                     'width': $modal.data('width')
                                 }
@@ -35,7 +47,8 @@ function LtiConsumerXBlock(runtime, element) {
                         );
                         return;
                     }
-                    // Set iframe src attribute to launch LTI provider
+
+                    // Set iframe src attribute to launch LTI provider.
                     $modal.find('iframe').attr('src', $modal.data('launch-url'));
                     $("#" + overlay_id).click(function () {
                         close_modal(modal_id)
@@ -128,6 +141,7 @@ function LtiConsumerXBlock(runtime, element) {
         var $ltiContainer = $element.find('.lti-consumer-container');
         var askToSendUsername = $ltiContainer.data('ask-to-send-username') == 'True';
         var askToSendEmail = $ltiContainer.data('ask-to-send-email') == 'True';
+        var ltiVersion = $ltiContainer.data('lti-version');
 
         function renderPIIConsentPromptIfRequired(onSuccess, showCancelButton=true) {
             if (askToSendUsername && askToSendEmail) {

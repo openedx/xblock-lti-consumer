@@ -1391,7 +1391,7 @@ class TestGetContext(TestLtiConsumerXBlock):
             'display_name', 'form_url', 'hide_launch', 'has_score', 'weight', 'module_score',
             'comment', 'description', 'ask_to_send_username', 'ask_to_send_email', 'button_text',
             'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
-            'accept_grades_past_due'
+            'accept_grades_past_due', 'lti_version',
         )
 
         # This test isn't testing the value of any of the above keys. Calling _get_lti_block_launch_handler raises an

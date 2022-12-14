@@ -1590,6 +1590,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'modal_horizontal_offset': self._get_modal_position_offset(self.modal_width),
             'modal_width': self.modal_width,
             'accept_grades_past_due': self.accept_grades_past_due,
+            'lti_version': self.lti_version,
         }
 
     def _get_modal_position_offset(self, viewport_percentage):
