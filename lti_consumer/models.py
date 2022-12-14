@@ -23,7 +23,6 @@ from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiProctoringConsumer
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
-from lti_consumer.plugin.compat import request_cached
 from lti_consumer.utils import (
     get_lms_base,
     get_lti_ags_lineitems_url,
@@ -778,7 +777,6 @@ class CourseAllowPIISharingInLTIFlag(ConfigurationModel):
     course_id = CourseKeyField(max_length=255, db_index=True)
 
     @classmethod
-    @request_cached
     def lti_access_to_learners_editable(cls, course_id: CourseKey, is_already_sharing_learner_info: bool) -> bool:
         """
         Looks at the currently active configuration model to determine whether
