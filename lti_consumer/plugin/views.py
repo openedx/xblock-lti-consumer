@@ -187,6 +187,8 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         lti_consumer.set_user_data(
             user_id=user_id,
             role=user_role,
+            email_address=launch_data.email,
+            preferred_username=launch_data.preferred_username,
         )
 
         # Set resource_link claim.
