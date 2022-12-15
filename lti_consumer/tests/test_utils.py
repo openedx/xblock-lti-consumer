@@ -92,3 +92,19 @@ defaulting_processor.lti_xblock_default_params = {
     'custom_name': 'Lex',
     'custom_country': '',
 }
+
+
+def get_mock_lti_configuration(editable):
+    """
+    Returns a mock object of lti-configuration service
+
+    Arguments:
+        editable (bool): This indicates whether the LTI fields (i.e. 'ask_to_send_username' and
+        'ask_to_send_email') are editable.
+    """
+    lti_configuration = Mock()
+    lti_configuration.configuration = Mock()
+    lti_configuration.configuration.lti_access_to_learners_editable = Mock(
+        return_value=editable
+    )
+    return lti_configuration

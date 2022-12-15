@@ -16,6 +16,41 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+7.2.0 - 2022-12-15
+------------------
+
+This release addresses a number of issues with and bugs in sharing personally identifiable information (PII) in LTI
+launches.
+
+* Replaces the PII sharing consent modal with an inline PII sharing consent dialog to better suit the three different
+  LTI launch types (i.e. ``inline``, ``modal``, and ``new_window``).
+* Adds a PII consent dialog for ``inline`` LTI launches.
+* Fixes a bug in the ``modal`` LTI launch in LTI 1.3 that was preventing the LTI launch.
+* Fixes a bug in evaluating and caching whether PII sharing is enabled via the ``CourseAllowPIISharingInLTIFlag``.
+
+  * This fixes a bug where the PII sharing fields in the LTI XBlock edit menu appeared regardless of the existence or
+    value of this flag. The PII sharing fields will now always be hidden if either no ``CourseAllowPIISharingInLTIFlag``
+    exists for a course or if a ``CourseAllowPIISharingInLTIFlag`` exists for the course but is not enabled.
+  * This fixes a bug in the backwards compatibility code in ``lti_access_to_learners_editable``. Now,
+    ``CourseAllowPIISharingInLTIFlag`` will always be created for courses that contain (an) LTI XBlock(s) that have (a)
+    PII sharing field(s) set to True when a user opens the LTI XBlock edit menu. Before, this would occur inconsistently
+    due to a bug in the caching code.
+
+* Enables sharing username and email in LTI 1.3 launches.
+
+  * Adds ``preferred_username`` and ``email`` attributes to the ``Lti1p3LaunchData`` class. The application or context
+    that instantiates ``Lti1p3LaunchData`` is responsible for ensuring that username and email can be sent via an LTI
+    1.3 launch and supplying these data, if appropriate.
+
+* Adds code to eventually support the value of ``CourseAllowPIISharingInLTIFlag`` controlling PII sharing for a given
+  course in LTI 1.1 and LTI 1.3 launches.
+
+  * This code does not currently work, because the LTI configuration service is not available or defined in all runtime
+    contexts. This code works in the LTI XBlock edit menu (i.e. the ``studio_view``), but it does not work in the Studio
+    preview context (i.e. the ``author_view``) or the LMS (i.e. the ``student_view``). The effect is that
+    the ``CourseAllowPIISharingInLTIFlag`` can only control the appearance of the username and email PII sharing fields
+    in the XBlock edit menu; it does not control PII sharing. We plan to fix this bug in the future.
+
 7.1.0 - 2022-12-09
 ------------------
 * Add support for platform setting `LTI_NRPS_DISALLOW_PII` to prevent sharing of pii over the names and roles

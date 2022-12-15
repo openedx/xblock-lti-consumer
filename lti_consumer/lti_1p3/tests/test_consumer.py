@@ -210,12 +210,20 @@ class TestLti1p3Consumer(TestCase):
         ),
         # User with extra data
         (
-            {"user_id": "1", "role": '', "full_name": "Jonh", "email_address": "jonh@example.com"},
+            {
+                "user_id": "1",
+                "role": '',
+                "full_name":
+                "Jonh",
+                "email_address":
+                "jonh@example.com",
+                "preferred_username": "johnuser"},
             {
                 "sub": "1",
                 "https://purl.imsglobal.org/spec/lti/claim/roles": [],
                 "name": "Jonh",
-                "email": "jonh@example.com"
+                "email": "jonh@example.com",
+                "preferred_username": "johnuser",
             }
         ),
     )

@@ -132,7 +132,8 @@ class LtiConsumer1p3:
             user_id,
             role,
             full_name=None,
-            email_address=None
+            email_address=None,
+            preferred_username=None,
     ):
         """
         Set user data/roles and convert to IMS Specification
@@ -160,6 +161,11 @@ class LtiConsumer1p3:
         if email_address:
             self.lti_claim_user_data.update({
                 "email": email_address,
+            })
+
+        if preferred_username:
+            self.lti_claim_user_data.update({
+                "preferred_username": preferred_username,
             })
 
     def set_resource_link_claim(
