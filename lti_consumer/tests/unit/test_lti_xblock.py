@@ -1596,7 +1596,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
     @ddt.idata(product([True, False], [True, False], [True, False]))
     @ddt.unpack
-    def test_get_lti_1p3_launch_data(self, pii_sharing_enabled, send_username, send_email):
+    def test_get_lti_1p3_launch_data(self, pii_sharing_enabled, ask_to_send_username, ask_to_send_email):
         """
         Test that get_lti_1p3_launch_data returns an instance of Lti1p3LaunchData with the correct data.
         """
@@ -1611,8 +1611,11 @@ class TestLtiConsumer1p3XBlock(TestCase):
             'edx-platform.is_authenticated': True,
             'edx-platform.username': fake_username,
         }
+
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.xblock.runtime.service(self, 'user').get_external_user_id = Mock(return_value="external_user_id")
+        self.xblock.ask_to_send_username = ask_to_send_username
+        self.xblock.ask_to_send_email = ask_to_send_email
 
         # Mock out get_context_title to avoid calling into the compatability layer.
         self.xblock.get_context_title = Mock(return_value="context_title")
@@ -1639,24 +1642,14 @@ class TestLtiConsumer1p3XBlock(TestCase):
         }
 
         if pii_sharing_enabled:
-            if send_username:
+            if ask_to_send_username:
                 expected_launch_data_kwargs["preferred_username"] = fake_username
 
-            if send_email:
+            if ask_to_send_email:
                 expected_launch_data_kwargs["email"] = fake_user_email
 
         expected_launch_data = Lti1p3LaunchData(
-            user_id=1,
-            user_role="instructor",
-            config_id=config_id_for_block(self.xblock),
-            resource_link_id=str(self.xblock.scope_ids.usage_id),
-            external_user_id="external_user_id",
-            launch_presentation_document_target="iframe",
-            message_type="LtiResourceLinkRequest",
-            context_id=course_key,
-            context_type=["course_offering"],
-            context_title="context_title",
-            context_label=course_key,
+            **expected_launch_data_kwargs
         )
 
         self.assertEqual(
