@@ -12,7 +12,7 @@ attrs==22.1.0
     # via -r requirements/base.in
 bleach==5.0.1
     # via -r requirements/base.in
-certifi==2022.9.24
+certifi==2022.12.7
     # via requests
 cffi==1.15.1
     # via pynacl
@@ -55,7 +55,7 @@ jsonfield==3.1.0
     # via -r requirements/base.in
 lazy==1.5
     # via -r requirements/base.in
-lxml==4.9.1
+lxml==4.9.2
     # via
     #   -r requirements/base.in
     #   xblock
@@ -67,7 +67,7 @@ markupsafe==2.1.1
     # via
     #   mako
     #   xblock
-newrelic==8.4.0
+newrelic==8.5.0
     # via edx-django-utils
 oauthlib==3.2.2
     # via -r requirements/base.in

@@ -16,7 +16,7 @@ attrs==22.1.0
     # via -r requirements/base.txt
 bleach==5.0.1
     # via -r requirements/base.txt
-certifi==2022.9.24
+certifi==2022.12.7
     # via
     #   -r requirements/base.txt
     #   requests
@@ -83,7 +83,7 @@ jsonfield==3.1.0
     # via -r requirements/base.txt
 lazy==1.5
     # via -r requirements/base.txt
-lxml==4.9.1
+lxml==4.9.2
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -96,7 +96,7 @@ markupsafe==2.1.1
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==8.4.0
+newrelic==8.5.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils

@@ -28,13 +28,13 @@ bleach==5.0.1
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.21
+boto3==1.26.31
     # via fs-s3fs
-botocore==1.29.21
+botocore==1.29.31
     # via
     #   boto3
     #   s3transfer
-certifi==2022.9.24
+certifi==2022.12.7
     # via
     #   -r requirements/base.txt
     #   requests
@@ -142,7 +142,7 @@ importlib-metadata==5.1.0
     # via
     #   keyring
     #   twine
-isort==5.10.1
+isort==5.11.2
     # via pylint
 jaraco-classes==3.2.3
     # via keyring
@@ -171,7 +171,7 @@ lazy==1.5
     #   xblock-sdk
 lazy-object-proxy==1.8.0
     # via astroid
-lxml==4.9.1
+lxml==4.9.2
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -192,7 +192,7 @@ mock==4.0.3
     # via -r requirements/test.in
 more-itertools==9.0.0
     # via jaraco-classes
-newrelic==8.4.0
+newrelic==8.5.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -206,7 +206,7 @@ pbr==5.11.0
     #   stevedore
 pkginfo==1.9.2
     # via twine
-platformdirs==2.5.4
+platformdirs==2.6.0
     # via pylint
 psutil==5.9.4
     # via
@@ -228,7 +228,7 @@ pygments==2.13.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.15.7
+pylint==2.15.8
     # via
     #   edx-lint
     #   pylint-celery
