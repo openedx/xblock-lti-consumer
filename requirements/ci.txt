@@ -35,16 +35,16 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.26.21
+boto3==1.26.31
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.29.21
+botocore==1.29.31
     # via
     #   -r requirements/test.txt
     #   boto3
     #   s3transfer
-certifi==2022.9.24
+certifi==2022.12.7
     # via
     #   -r requirements/test.txt
     #   requests
@@ -154,7 +154,7 @@ edx-lint==5.3.0
     # via -r requirements/test.txt
 edx-opaque-keys[django]==2.3.0
     # via -r requirements/test.txt
-filelock==3.8.0
+filelock==3.8.2
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -183,7 +183,7 @@ importlib-metadata==5.1.0
     #   -r requirements/test.txt
     #   keyring
     #   twine
-isort==5.10.1
+isort==5.11.2
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -225,7 +225,7 @@ lazy-object-proxy==1.8.0
     # via
     #   -r requirements/test.txt
     #   astroid
-lxml==4.9.1
+lxml==4.9.2
     # via
     #   -r requirements/test.txt
     #   xblock
@@ -250,7 +250,7 @@ more-itertools==9.0.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
-newrelic==8.4.0
+newrelic==8.5.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -258,7 +258,7 @@ oauthlib==3.2.2
     # via -r requirements/test.txt
 openedx-filters==0.8.0
     # via -r requirements/test.txt
-packaging==21.3
+packaging==22.0
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -270,7 +270,7 @@ pkginfo==1.9.2
     # via
     #   -r requirements/test.txt
     #   twine
-platformdirs==2.5.4
+platformdirs==2.6.0
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -305,7 +305,7 @@ pygments==2.13.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.15.7
+pylint==2.15.8
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -333,10 +333,6 @@ pynacl==1.5.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
-pyparsing==3.0.9
-    # via
-    #   -r requirements/tox.txt
-    #   packaging
 pypng==0.20220715.0
     # via
     #   -r requirements/test.txt
@@ -438,7 +434,9 @@ tomlkit==0.11.6
     #   -r requirements/test.txt
     #   pylint
 tox==3.27.1
-    # via -r requirements/tox.txt
+    # via
+    #   -c requirements/common_constraints.txt
+    #   -r requirements/tox.txt
 twine==4.0.2
     # via -r requirements/test.txt
 typing-extensions==4.4.0
@@ -453,7 +451,7 @@ urllib3==1.26.13
     #   botocore
     #   requests
     #   twine
-virtualenv==20.17.0
+virtualenv==20.17.1
     # via
     #   -r requirements/tox.txt
     #   tox
