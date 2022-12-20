@@ -24,7 +24,7 @@ from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiProctoringCon
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
 from lti_consumer.utils import (
-    get_lms_base,
+    get_lti_api_base,
     get_lti_ags_lineitems_url,
     get_lti_deeplinking_response_url,
     get_lti_nrps_context_membership_url,
@@ -488,7 +488,7 @@ class LtiConfiguration(models.Model):
             block = compat.load_enough_xblock(self.location)
 
             consumer = consumer_class(
-                iss=get_lms_base(),
+                iss=get_lti_api_base(),
                 lti_oidc_url=block.lti_1p3_oidc_url,
                 lti_launch_url=block.lti_1p3_launch_url,
                 client_id=self.lti_1p3_client_id,
@@ -504,7 +504,7 @@ class LtiConfiguration(models.Model):
             )
         elif self.config_store == self.CONFIG_ON_DB:
             consumer = consumer_class(
-                iss=get_lms_base(),
+                iss=get_lti_api_base(),
                 lti_oidc_url=self.lti_1p3_oidc_url,
                 lti_launch_url=self.lti_1p3_launch_url,
                 client_id=self.lti_1p3_client_id,

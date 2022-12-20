@@ -26,22 +26,36 @@ def _(text):
     return text
 
 
-def get_lms_base():
+def get_lti_api_base():
     """
-    Returns LMS base url to be used as issuer on OAuth2 flows
-    and in various LTI URLs. For local testing it is often necessary
-    to override the normal LMS base with a proxy such as ngrok, use
-    the setting LTI_LMS_BASE_URL_OVERRIDE in your LMS settings if
-    necessary.
+    Returns base url to be used as issuer on OAuth2 flows
+    and in various LTI API calls.
 
     TODO: This needs to be improved and account for Open edX sites and
     organizations.
     One possible improvement is to use `contentstore.get_lms_link_for_item`
     and strip the base domain name.
     """
-    if hasattr(settings, 'LTI_LMS_BASE_URL_OVERRIDE'):
-        return settings.LTI_LMS_BASE_URL_OVERRIDE
+    if hasattr(settings, 'LTI_API_BASE_URL'):
+        return settings.LTI_API_BASE_URL
+    elif hasattr(settings, 'LTI_VIEW_BASE_URL'):
+        return settings.LTI_VIEW_BASE_URL
     else:
+        # TODO: we should move away from supporting this setting as it conflicts with usage
+        # in applications that are not the LMS
+        return settings.LMS_ROOT_URL
+
+
+def get_lti_view_base():
+    """
+    Returns base url to be used when generating view and redirect urls
+    as part of the LTI launch flow.
+    """
+    if hasattr(settings, 'LTI_VIEW_BASE_URL'):
+        return settings.LTI_VIEW_BASE_URL
+    else:
+        # TODO: we should move away from supporting this setting as it conflicts with usage
+        # in applications that are not the LMS
         return settings.LMS_ROOT_URL
 
 
@@ -52,7 +66,7 @@ def get_lms_lti_keyset_link(config_id):
     :param config_id: the config_id of the LtiConfiguration object
     """
     return "{lms_base}/api/lti_consumer/v1/public_keysets/{config_id}".format(
-        lms_base=get_lms_base(),
+        lms_base=get_lti_api_base(),
         config_id=str(config_id),
     )
 
@@ -64,7 +78,7 @@ def get_lms_lti_launch_link():
     :param location: the location of the block
     """
     return "{lms_base}/api/lti_consumer/v1/launch/".format(
-        lms_base=get_lms_base(),
+        lms_base=get_lti_view_base(),
     )
 
 
@@ -75,7 +89,7 @@ def get_lms_lti_access_token_link(config_id):
     :param config_id: the config_id of the LtiConfiguration object
     """
     return "{lms_base}/api/lti_consumer/v1/token/{config_id}".format(
-        lms_base=get_lms_base(),
+        lms_base=get_lti_api_base(),
         config_id=str(config_id),
     )
 
@@ -90,7 +104,7 @@ def get_lti_ags_lineitems_url(lti_config_id, lineitem_id=None):
     """
 
     url = "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-ags".format(
-        lms_base=get_lms_base(),
+        lms_base=get_lti_api_base(),
         lti_config_id=str(lti_config_id),
     )
 
@@ -107,7 +121,7 @@ def get_lti_deeplinking_response_url(lti_config_id):
     :param lti_config_id: LTI configuration id
     """
     return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/response".format(
-        lms_base=get_lms_base(),
+        lms_base=get_lti_api_base(),
         lti_config_id=str(lti_config_id),
     )
 
@@ -120,7 +134,7 @@ def get_lti_deeplinking_content_url(lti_config_id, launch_data):
     :param launch_data: (lti_consumer.data.Lti1p3LaunchData): a class containing data necessary for an LTI 1.3 launch
     """
     url = "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/content".format(
-        lms_base=get_lms_base(),
+        lms_base=get_lti_api_base(),
         lti_config_id=str(lti_config_id),
     )
     url += "?"
@@ -142,7 +156,7 @@ def get_lti_nrps_context_membership_url(lti_config_id):
     """
 
     return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/memberships".format(
-        lms_base=get_lms_base(),
+        lms_base=get_lti_api_base(),
         lti_config_id=str(lti_config_id),
     )
 
