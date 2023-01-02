@@ -10,7 +10,7 @@ appdirs==1.4.4
     #   fs
 arrow==1.2.3
     # via jinja2-time
-asgiref==3.5.2
+asgiref==3.6.0
     # via
     #   -r requirements/base.txt
     #   django
@@ -18,7 +18,7 @@ astroid==2.12.13
     # via
     #   pylint
     #   pylint-celery
-attrs==22.1.0
+attrs==22.2.0
     # via -r requirements/base.txt
 binaryornot==0.4.4
     # via cookiecutter
@@ -28,9 +28,9 @@ bleach==5.0.1
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.31
+boto3==1.26.41
     # via fs-s3fs
-botocore==1.29.31
+botocore==1.29.41
     # via
     #   boto3
     #   s3transfer
@@ -69,7 +69,7 @@ coverage==6.5.0
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
-cryptography==38.0.4
+cryptography==39.0.0
     # via secretstorage
 ddt==1.6.0
     # via -r requirements/test.in
@@ -138,11 +138,13 @@ idna==3.4
     # via
     #   -r requirements/base.txt
     #   requests
-importlib-metadata==5.1.0
+importlib-metadata==6.0.0
     # via
     #   keyring
     #   twine
-isort==5.11.2
+importlib-resources==5.10.2
+    # via keyring
+isort==5.11.4
     # via pylint
 jaraco-classes==3.2.3
     # via keyring
@@ -163,7 +165,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via -r requirements/base.txt
-keyring==23.11.0
+keyring==23.13.1
     # via twine
 lazy==1.5
     # via
@@ -188,7 +190,7 @@ markupsafe==2.1.1
     #   xblock
 mccabe==0.7.0
     # via pylint
-mock==4.0.3
+mock==5.0.0
     # via -r requirements/test.in
 more-itertools==9.0.0
     # via jaraco-classes
@@ -206,7 +208,7 @@ pbr==5.11.0
     #   stevedore
 pkginfo==1.9.2
     # via twine
-platformdirs==2.6.0
+platformdirs==2.6.2
     # via pylint
 psutil==5.9.4
     # via
@@ -222,13 +224,13 @@ pycryptodomex==3.16.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-pygments==2.13.0
+pygments==2.14.0
     # via
     #   readme-renderer
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.15.8
+pylint==2.15.9
     # via
     #   edx-lint
     #   pylint-celery
@@ -262,7 +264,7 @@ python-slugify==7.0.0
     # via
     #   code-annotations
     #   cookiecutter
-pytz==2022.6
+pytz==2022.7
     # via
     #   -r requirements/base.txt
     #   django
@@ -291,7 +293,7 @@ requests-toolbelt==0.10.1
     # via twine
 rfc3986==2.0.0
     # via twine
-rich==12.6.0
+rich==13.0.0
     # via twine
 s3transfer==0.6.0
     # via boto3
@@ -367,7 +369,9 @@ xblock-sdk==0.5.1
 xblock-utils==3.0.0
     # via -r requirements/base.txt
 zipp==3.11.0
-    # via importlib-metadata
+    # via
+    #   importlib-metadata
+    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
