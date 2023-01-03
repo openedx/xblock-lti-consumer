@@ -42,8 +42,8 @@ def get_lti_api_base():
     elif hasattr(settings, 'LTI_BASE'):
         return settings.LTI_BASE
     else:
-        # TODO: we should move away from supporting this setting as it conflicts with usage
-        # in applications that are not the LMS
+        # Eventually we should move away from supporting this setting as it is incorrect
+        # in applications that are not the LMS. Keeping this around for backward support.
         return settings.LMS_ROOT_URL
 
 
@@ -55,8 +55,8 @@ def get_lti_view_base():
     if hasattr(settings, 'LTI_BASE'):
         return settings.LTI_BASE
     else:
-        # TODO: we should move away from supporting this setting as it conflicts with usage
-        # in applications that are not the LMS
+        # Eventually we should move away from supporting this setting as it is incorrect
+        # in applications that are not the LMS. Keeping this around for backward support.
         return settings.LMS_ROOT_URL
 
 
