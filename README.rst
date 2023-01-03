@@ -184,11 +184,11 @@ needs to know the LMS's one.
 
 Instructions:
 
-#. Set up a local tunnel tunneling the LMS (using `ngrok` or a similar tool) to get a URL accessible from the internet.
+#. Set up a local tunnel (using `ngrok` or a similar tool) to get a URL accessible from the internet.
 #. Add the following settings to `edx-platform/lms/envs/private.py` and `edx-platform/cms/envs/private.py`:
 
-    * LTI_VIEW_BASE_URL="http://localhost:18000"
-    * LTI_API_BASE_URL="http://<your_ngrok>.ngrok.io"
+    * LTI_BASE="http://localhost:18000"
+    * LTI_API_BASE="http://<your_ngrok>.ngrok.io"
 
 #. Create a new course, and add the `lti_consumer` block to the advanced modules list.
 #. In the course, create a new unit and add the LTI block.

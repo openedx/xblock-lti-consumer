@@ -29,17 +29,18 @@ def _(text):
 def get_lti_api_base():
     """
     Returns base url to be used as issuer on OAuth2 flows
-    and in various LTI API calls.
+    and in various LTI API calls. If LTI_API_BASE is set this will
+    override the default LTI_BASE url for these URLs only.
 
     TODO: This needs to be improved and account for Open edX sites and
     organizations.
     One possible improvement is to use `contentstore.get_lms_link_for_item`
     and strip the base domain name.
     """
-    if hasattr(settings, 'LTI_API_BASE_URL'):
-        return settings.LTI_API_BASE_URL
-    elif hasattr(settings, 'LTI_VIEW_BASE_URL'):
-        return settings.LTI_VIEW_BASE_URL
+    if hasattr(settings, 'LTI_API_BASE'):
+        return settings.LTI_API_BASE
+    elif hasattr(settings, 'LTI_BASE'):
+        return settings.LTI_BASE
     else:
         # TODO: we should move away from supporting this setting as it conflicts with usage
         # in applications that are not the LMS
@@ -51,8 +52,8 @@ def get_lti_view_base():
     Returns base url to be used when generating view and redirect urls
     as part of the LTI launch flow.
     """
-    if hasattr(settings, 'LTI_VIEW_BASE_URL'):
-        return settings.LTI_VIEW_BASE_URL
+    if hasattr(settings, 'LTI_BASE'):
+        return settings.LTI_BASE
     else:
         # TODO: we should move away from supporting this setting as it conflicts with usage
         # in applications that are not the LMS
