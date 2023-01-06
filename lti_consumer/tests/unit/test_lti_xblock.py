@@ -91,11 +91,11 @@ class TestProperties(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock properties
     """
-    def test_descriptor(self):
+    def test_block(self):
         """
-        Test `descriptor` returns the XBLock object
+        Test `block` returns the XBLock object
         """
-        self.assertEqual(self.xblock.descriptor, self.xblock)
+        self.assertEqual(self.xblock.block, self.xblock)
 
     def test_workbench_scenarios(self):
         """

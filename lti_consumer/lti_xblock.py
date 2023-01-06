@@ -743,12 +743,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return editable_fields
 
     @property
-    def descriptor(self):
+    def block(self):
         """
         Returns this XBlock object.
 
         This is for backwards compatibility with the XModule API.
-        Some LMS code still assumes a descriptor attribute on the XBlock object.
+        Some LMS code still assumes a block attribute on the XBlock object.
         See courseware.block_render.rebind_noauth_module_to_user.
         """
         return self
