@@ -54,7 +54,7 @@ def _get_lti1p3_consumer():
       lti_oidc_url=lti_1p3_oidc_url,
       lti_launch_url=lti_1p3_launch_url,
       # Platform and deployment configuration
-      iss=get_lms_base(),
+      iss=get_lti_api_base(),
       client_id=lti_1p3_client_id,
       deployment_id="1",
       # Platform key
