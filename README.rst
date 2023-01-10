@@ -203,8 +203,8 @@ Instructions:
     Client ID: f0532860-cb34-47a9-b16c-53deb077d4de
     Deployment ID: 1
     # Note that these are LMS URLS
-    Keyset URL: http://1234.ngrok.io/api/lti_consumer/v1/public_keysets/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
-    Access Token URL: http://1234.ngrok.io/api/lti_consumer/v1/token/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
+    Keyset URL: http://1234.ngrok.io/api/lti_consumer/v1/public_keysets/88e45ecbd-7cce-4fa0-9537-23e9f7288ad9
+    Access Token URL: http://1234.ngrok.io/api/lti_consumer/v1/token/8e45ecbd-7cce-4fa0-9537-23e9f7288ad9
     OIDC Callback URL: http://localhost:18000/api/lti_consumer/v1/launch/
 
 
