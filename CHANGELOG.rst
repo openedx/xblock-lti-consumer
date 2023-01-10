@@ -16,6 +16,10 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+7.2.1 - 2023-01-10
+------------------
+* Adds support for LTI_BASE and LTI_API_BASE Django settings to allow URL configuration independent of LMS settings.
+
 7.2.0 - 2022-12-15
 ------------------
 
