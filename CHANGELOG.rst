@@ -16,6 +16,12 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+7.2.3 - 2023-01-24
+------------------
+* This release fixes a bug in the way that the PII sharing consent dialog renders. The bug resulted in the "OK" and
+  "Cancel" buttons as well as the text of the PII sharing consent prompt appearing inside an inappropriate component
+  when there was more than one LTI component in a unit.
+
 7.2.2 - 2023-01-12
 ------------------
 * Fixes LTI 1.3 grade injection vulnerability that allowed LTI integrations to modify scores for any block.
