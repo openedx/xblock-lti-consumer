@@ -107,30 +107,39 @@ function LtiConsumerXBlock(runtime, element) {
 
         function confirmDialog(message, triggerElement, showCancelButton) {
             var def = $.Deferred();
+
+            // In order to scope the dialog container to the lti-consumer-container, grab the ID of the
+            // lti-consumer-container ancestor and append it to the ID of the dialog container.
+            var container_id = triggerElement.closest(".lti-consumer-container").attr("id");
+            var dialog_container_id = "dialog-container-" + container_id;
+
             // Hide the button that triggered the event, i.e. the launch button.
             triggerElement.hide();
 
-            $('<div id="dialog-container"></div>').insertAfter(triggerElement) // TODO: this will need some cute styling. It looks like trash but it works.
+            $('<div id="' + dialog_container_id + '"></div>').insertAfter(triggerElement) // TODO: this will need some cute styling. It looks like trash but it works.
                 .append('<p>' + message + '</p>')
+
+            var $dialog_container = $("#" + dialog_container_id);
+
             if (showCancelButton) {
-                $('#dialog-container')
+                $dialog_container
                 .append('<button style="margin-right:1rem" id="cancel-button">Cancel</button>');
             }
-            $('#dialog-container').append('<button id="confirm-button">OK</button>');
+            $dialog_container.append('<button id="confirm-button">OK</button>');
 
             // When a learner clicks "OK" or "Cancel" in the consent dialog, remove the consent dialog, show the launch
             // button, and resolve the promise.
-            $('#confirm-button').click(function () {
+            $dialog_container.find('#confirm-button').click(function () {
                 // Show the button that triggered the event, i.e. the launch button.
                 triggerElement.show();
-                $("#dialog-container").remove()
+                $dialog_container.remove()
                 $('body').append('<h1>Confirm Dialog Result: <i>Yes</i></h1>');
                 def.resolve("OK");
             })
-            $('#cancel-button').click(function () {
+            $dialog_container.find('#cancel-button').click(function () {
                 // Hide the button that triggered the event, i.e. the launch button.
                 triggerElement.show()
-                $("#dialog-container").remove()
+                $dialog_container.remove()
                 $('body').append('<h1>Confirm Dialog Result: <i>No</i></h1>');
                 def.resolve("Cancel");
             })
