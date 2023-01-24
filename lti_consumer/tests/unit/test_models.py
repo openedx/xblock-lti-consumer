@@ -382,7 +382,6 @@ class TestLtiAgsLineItemModel(TestCase):
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.lti_ags_model = LtiAgsLineItem.objects.create(
-            lti_configuration=None,
             resource_id="test-id",
             label="this-is-a-test",
             resource_link_id=self.dummy_location,
@@ -419,8 +418,16 @@ class TestLtiAgsScoreModel(TestCase):
         )
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
+
+        self.lti_config = LtiConfiguration.objects.create(
+            config_id='6c440bf4-face-beef-face-e8bcfb1e53bd',
+            location=self.dummy_location,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+        )
+
         self.line_item = LtiAgsLineItem.objects.create(
-            lti_configuration=None,
+            lti_configuration=self.lti_config,
             resource_id="test-id",
             label="this-is-a-test",
             resource_link_id=self.dummy_location,
