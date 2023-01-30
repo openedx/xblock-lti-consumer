@@ -749,7 +749,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         This is for backwards compatibility with the XModule API.
         Some LMS code still assumes a descriptor attribute on the XBlock object.
-        See courseware.module_render.rebind_noauth_module_to_user.
         """
         return self
 

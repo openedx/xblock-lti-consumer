@@ -16,6 +16,10 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+7.3.0 - 2023-01-30
+------------------
+* Rename edx-platform import of ``get_module_for_descriptor_internal``.
+
 7.2.3 - 2023-01-24
 ------------------
 * This release fixes a bug in the way that the PII sharing consent dialog renders. The bug resulted in the "OK" and

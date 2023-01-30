@@ -100,7 +100,7 @@ def load_block_as_user(location):  # pragma: nocover
     """
     # pylint: disable=import-error,import-outside-toplevel
     from crum import get_current_user, get_current_request
-    from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
+    from lms.djangoapps.courseware.block_render import get_block_for_descriptor_internal
     from openedx.core.lib.xblock_utils import request_token
 
     # Retrieve descriptor from modulestore
@@ -114,7 +114,7 @@ def load_block_as_user(location):  # pragma: nocover
             return descriptor
 
         # If not load this block to bind it onto the user
-        get_module_for_descriptor_internal(
+        get_block_for_descriptor_internal(
             user=user,
             descriptor=descriptor,
             student_data=None,
@@ -138,14 +138,14 @@ def _load_block_as_anonymous_user(location, descriptor):  # pragma: nocover
     # pylint: disable=import-error,import-outside-toplevel
     from crum import impersonate
     from django.contrib.auth.models import AnonymousUser
-    from lms.djangoapps.courseware.module_render import get_module_for_descriptor_internal
+    from lms.djangoapps.courseware.block_render import get_block_for_descriptor_internal
 
     # ensure `crum.get_current_user` returns AnonymousUser. It returns None when outside
     # of request scope which causes error during block loading.
     user = AnonymousUser()
     with impersonate(user):
         # Load block, attaching it to AnonymousUser
-        get_module_for_descriptor_internal(
+        get_block_for_descriptor_internal(
             user=user,
             descriptor=descriptor,
             student_data=None,
