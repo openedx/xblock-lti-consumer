@@ -108,7 +108,6 @@ django==3.2.16
     #   django-config-models
     #   django-crum
     #   django-filter
-    #   django-pyfs
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
@@ -122,8 +121,6 @@ django-crum==0.7.9
     #   -r requirements/test.txt
     #   edx-django-utils
 django-filter==22.1
-    # via -r requirements/test.txt
-django-pyfs==3.2.0
     # via -r requirements/test.txt
 django-waffle==3.0.0
     # via
@@ -157,14 +154,12 @@ filelock==3.9.0
 fs==2.4.16
     # via
     #   -r requirements/test.txt
-    #   django-pyfs
     #   fs-s3fs
     #   openedx-django-pyfs
     #   xblock
 fs-s3fs==1.1.1
     # via
     #   -r requirements/test.txt
-    #   django-pyfs
     #   openedx-django-pyfs
     #   xblock-sdk
 future==0.18.3
