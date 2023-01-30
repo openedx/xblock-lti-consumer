@@ -14,7 +14,7 @@ asgiref==3.6.0
     #   django
 attrs==22.2.0
     # via -r requirements/base.txt
-bleach==5.0.1
+bleach==6.0.0
     # via -r requirements/base.txt
 certifi==2022.12.7
     # via
@@ -91,7 +91,7 @@ mako==1.2.4
     # via
     #   -r requirements/base.txt
     #   xblock-utils
-markupsafe==2.1.1
+markupsafe==2.1.2
     # via
     #   -r requirements/base.txt
     #   mako
@@ -102,7 +102,7 @@ newrelic==8.5.0
     #   edx-django-utils
 oauthlib==3.2.2
     # via -r requirements/base.txt
-openedx-filters==0.8.0
+openedx-filters==1.0.0
     # via -r requirements/base.txt
 path==16.6.0
     # via edx-i18n-tools
@@ -120,7 +120,7 @@ pycparser==2.21
     # via
     #   -r requirements/base.txt
     #   cffi
-pycryptodomex==3.16.0
+pycryptodomex==3.17
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -190,7 +190,7 @@ webob==1.8.7
     # via
     #   -r requirements/base.txt
     #   xblock
-xblock==1.6.1
+xblock==1.6.2
     # via
     #   -r requirements/base.txt
     #   xblock-utils
