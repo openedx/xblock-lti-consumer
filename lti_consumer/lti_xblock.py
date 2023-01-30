@@ -1585,7 +1585,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # For more context on ALLOWED_TAGS and ALLOWED_ATTRIBUTES
         # Look into this documentation URL see https://bleach.readthedocs.io/en/latest/clean.html#allowed-tags-tags
         # This lets all plaintext through.
-        allowed_tags = bleach.sanitizer.ALLOWED_TAGS + ['img']
+        allowed_tags = bleach.sanitizer.ALLOWED_TAGS | {'img'}
         allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
         sanitized_comment = bleach.clean(self.score_comment, tags=allowed_tags, attributes=allowed_attributes)
 
