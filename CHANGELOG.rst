@@ -16,6 +16,12 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+8.0.0 - 2023-01-31
+------------------
+* Update to work with bleachk>=6.0.0 and make that an explicit requirement in
+  ``install_requires`` since the changes are incompatible with the older
+  versions of bleach.
+
 7.3.0 - 2023-01-30
 ------------------
 * Rename edx-platform import of ``get_module_for_descriptor_internal``.
