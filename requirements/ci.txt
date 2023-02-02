@@ -16,7 +16,7 @@ asgiref==3.6.0
     # via
     #   -r requirements/test.txt
     #   django
-astroid==2.13.3
+astroid==2.14.1
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -35,11 +35,11 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.26.59
+boto3==1.26.62
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.29.59
+botocore==1.29.62
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -101,7 +101,7 @@ distlib==0.3.6
     # via
     #   -r requirements/tox.txt
     #   virtualenv
-django==3.2.16
+django==3.2.17
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/test.txt
@@ -313,7 +313,7 @@ pygments==2.14.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.15.10
+pylint==2.16.0
     # via
     #   -r requirements/test.txt
     #   edx-lint

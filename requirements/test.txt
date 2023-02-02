@@ -14,7 +14,7 @@ asgiref==3.6.0
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.13.3
+astroid==2.14.1
     # via
     #   pylint
     #   pylint-celery
@@ -28,9 +28,9 @@ bleach==6.0.0
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.59
+boto3==1.26.62
     # via fs-s3fs
-botocore==1.29.59
+botocore==1.29.62
     # via
     #   boto3
     #   s3transfer
@@ -230,7 +230,7 @@ pygments==2.14.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.15.10
+pylint==2.16.0
     # via
     #   edx-lint
     #   pylint-celery
