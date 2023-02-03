@@ -16,6 +16,11 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+8.0.1 - 2023-02-03
+------------------
+* This releases fixes the PII sharing consent dialog for inline launches to no longer refer to a nonexistent
+  "Cancel" button.
+
 8.0.0 - 2023-01-31
 ------------------
 * Update to work with bleachk>=6.0.0 and make that an explicit requirement in
