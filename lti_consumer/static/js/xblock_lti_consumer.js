@@ -154,15 +154,21 @@ function LtiConsumerXBlock(runtime, element) {
 
         function renderPIIConsentPromptIfRequired(onSuccess, showCancelButton=true) {
             if (askToSendUsername && askToSendEmail) {
-                msg = gettext("Click OK to have your username and e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information.");
+                msg = "Click OK to have your username and e-mail address sent to a 3rd party application.";
             } else if (askToSendUsername) {
-                msg = gettext("Click OK to have your username sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information.");
+                msg = "Click OK to have your username sent to a 3rd party application.";
             } else if (askToSendEmail) {
-                msg = gettext("Click OK to have your e-mail address sent to a 3rd party application.\n\nClick Cancel to return to this page without sending your information.");
+                msg = "Click OK to have your e-mail address sent to a 3rd party application.";
             } else {
                 onSuccess("OK");
                 return;
             }
+
+            if (showCancelButton) {
+                msg += "\n\nClick Cancel to return to this page without sending your information.";
+            }
+
+            msg = gettext(msg);
             $.when(confirmDialog(msg, $(this), showCancelButton)).then(onSuccess);
         }
 
