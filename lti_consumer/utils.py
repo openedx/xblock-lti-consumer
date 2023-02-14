@@ -122,7 +122,7 @@ def get_lti_deeplinking_response_url(lti_config_id):
     :param lti_config_id: LTI configuration id
     """
     return "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/response".format(
-        lms_base=get_lti_api_base(),
+        lms_base=get_lti_view_base(),
         lti_config_id=str(lti_config_id),
     )
 
@@ -135,7 +135,7 @@ def get_lti_deeplinking_content_url(lti_config_id, launch_data):
     :param launch_data: (lti_consumer.data.Lti1p3LaunchData): a class containing data necessary for an LTI 1.3 launch
     """
     url = "{lms_base}/api/lti_consumer/v1/lti/{lti_config_id}/lti-dl/content".format(
-        lms_base=get_lti_api_base(),
+        lms_base=get_lti_view_base(),
         lti_config_id=str(lti_config_id),
     )
     url += "?"
