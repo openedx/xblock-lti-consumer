@@ -14,7 +14,7 @@ asgiref==3.6.0
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.14.1
+astroid==2.14.2
     # via
     #   pylint
     #   pylint-celery
@@ -28,9 +28,9 @@ bleach==6.0.0
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.62
+boto3==1.26.72
     # via fs-s3fs
-botocore==1.29.62
+botocore==1.29.72
     # via
     #   boto3
     #   s3transfer
@@ -67,7 +67,7 @@ coverage==6.5.0
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
-cryptography==39.0.0
+cryptography==39.0.1
     # via secretstorage
 ddt==1.6.0
     # via -r requirements/test.in
@@ -110,7 +110,7 @@ edx-django-utils==5.2.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-lint==5.3.0
+edx-lint==5.3.2
     # via -r requirements/test.in
 edx-opaque-keys[django]==2.3.0
     # via -r requirements/base.txt
@@ -192,7 +192,7 @@ mock==5.0.1
     # via -r requirements/test.in
 more-itertools==9.0.0
     # via jaraco-classes
-newrelic==8.5.0
+newrelic==8.6.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -208,7 +208,7 @@ pbr==5.11.1
     #   stevedore
 pkginfo==1.9.6
     # via twine
-platformdirs==2.6.2
+platformdirs==3.0.0
     # via pylint
 psutil==5.9.4
     # via
@@ -230,7 +230,7 @@ pygments==2.14.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.16.0
+pylint==2.16.2
     # via
     #   edx-lint
     #   pylint-celery
@@ -299,7 +299,7 @@ s3transfer==0.6.0
     # via boto3
 secretstorage==3.3.3
     # via keyring
-simplejson==3.18.1
+simplejson==3.18.3
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
@@ -317,7 +317,7 @@ sqlparse==0.4.3
     # via
     #   -r requirements/base.txt
     #   django
-stevedore==4.1.1
+stevedore==5.0.0
     # via
     #   -r requirements/base.txt
     #   code-annotations
@@ -331,7 +331,7 @@ tomlkit==0.11.6
     # via pylint
 twine==4.0.2
     # via -r requirements/test.in
-typing-extensions==4.4.0
+typing-extensions==4.5.0
     # via
     #   astroid
     #   pylint
@@ -368,7 +368,7 @@ xblock-sdk==0.5.4
     # via -r requirements/test.in
 xblock-utils==3.0.0
     # via -r requirements/base.txt
-zipp==3.12.0
+zipp==3.13.0
     # via
     #   importlib-metadata
     #   importlib-resources
