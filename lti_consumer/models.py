@@ -1,22 +1,20 @@
 """
 LTI configuration and linking models.
 """
+import json
 import logging
 import uuid
-import json
-
-from django.db import models
-from django.core.validators import MinValueValidator
-from django.core.exceptions import ValidationError
-
-from jsonfield import JSONField
 from Cryptodome.PublicKey import RSA
+from config_models.models import ConfigurationModel
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+from jsonfield import JSONField
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from opaque_keys.edx.keys import CourseKey
-from config_models.models import ConfigurationModel
-from django.utils.translation import gettext_lazy as _
-from lti_consumer.filters import get_external_config_from_filter
 
+from lti_consumer.filters import get_external_config_from_filter
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 # LTI 1.3
@@ -38,6 +36,67 @@ def generate_client_id():
     Generates a random UUID string.
     """
     return str(uuid.uuid4())
+
+
+class Lti1_3Authentication(models.Model):
+    """
+    Model to store LTI 1.3 authentication information.
+
+    .. no_pii:
+    """
+    # LTI 1.3 Related variables
+    lti_1p3_internal_private_key = models.TextField(
+        blank=True,
+        help_text=_("Platform's generated Private key. Keep this value secret."),
+    )
+
+    lti_1p3_internal_private_key_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text=_("Platform's generated Private key ID"),
+    )
+
+    lti_1p3_internal_public_jwk = models.TextField(
+        blank=True,
+        help_text=_("Platform's generated JWK keyset."),
+    )
+
+    lti_1p3_client_id = models.CharField(
+        max_length=255,
+        default=generate_client_id,
+        help_text=_("Client ID used by LTI tool"),
+    )
+
+    lti_1p3_oidc_url = models.CharField(
+        'LTI 1.3 OpenID Connect (OIDC) Login URL',
+        max_length=255,
+        blank=True,
+        help_text='This is the OIDC third-party initiated login endpoint URL in the LTI 1.3 flow, '
+                  'which should be provided by the LTI Tool.'
+    )
+
+    lti_1p3_launch_url = models.CharField(
+        'LTI 1.3 Launch URL',
+        max_length=255,
+        blank=True,
+        help_text='This is the LTI 1.3 launch endpoint URL in the LTI 1.3 flow, '
+                  'which should be provided by the LTI Tool.'
+    )
+
+    lti_1p3_tool_public_key = models.TextField(
+        "LTI 1.3 Tool Public Key",
+        blank=True,
+        help_text='This is the LTI Tool\'s public key. This should be provided by the LTI Tool. '
+                  'One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
+    )
+
+    lti_1p3_tool_keyset_url = models.CharField(
+        "LTI 1.3 Tool Keyset URL",
+        max_length=255,
+        blank=True,
+        help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
+                  'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
+    )
 
 
 class LtiConfiguration(models.Model):
@@ -130,60 +189,8 @@ class LtiConfiguration(models.Model):
         help_text=_("Client secret provided by the LTI tool provider.")
     )
 
-    # LTI 1.3 Related variables
-    lti_1p3_internal_private_key = models.TextField(
-        blank=True,
-        help_text=_("Platform's generated Private key. Keep this value secret."),
-    )
-
-    lti_1p3_internal_private_key_id = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text=_("Platform's generated Private key ID"),
-    )
-
-    lti_1p3_internal_public_jwk = models.TextField(
-        blank=True,
-        help_text=_("Platform's generated JWK keyset."),
-    )
-
-    lti_1p3_client_id = models.CharField(
-        max_length=255,
-        default=generate_client_id,
-        help_text=_("Client ID used by LTI tool"),
-    )
-
-    lti_1p3_oidc_url = models.CharField(
-        'LTI 1.3 OpenID Connect (OIDC) Login URL',
-        max_length=255,
-        blank=True,
-        help_text='This is the OIDC third-party initiated login endpoint URL in the LTI 1.3 flow, '
-                  'which should be provided by the LTI Tool.'
-    )
-
-    lti_1p3_launch_url = models.CharField(
-        'LTI 1.3 Launch URL',
-        max_length=255,
-        blank=True,
-        help_text='This is the LTI launch URL, otherwise known as the target_link_uri. '
-                  'It represents the LTI resource to launch to or load in the second leg of the launch flow, '
-                  'when the resource is actually launched or loaded.'
-    )
-
-    lti_1p3_tool_public_key = models.TextField(
-        "LTI 1.3 Tool Public Key",
-        blank=True,
-        help_text='This is the LTI Tool\'s public key. This should be provided by the LTI Tool. '
-                  'One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
-    )
-
-    lti_1p3_tool_keyset_url = models.CharField(
-        "LTI 1.3 Tool Keyset URL",
-        max_length=255,
-        blank=True,
-        help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
-                  'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
-    )
+    # LTI 1.3 Authentication model
+    lti_1_3_auth_model = models.ForeignKey(Lti1_3AuthenticationModel, on_delete=models.CASCADE, null=True, blank=True)
 
     # LTI 1.3 Advantage Related Variables
     lti_advantage_enable_nrps = models.BooleanField(
@@ -246,7 +253,7 @@ class LtiConfiguration(models.Model):
                     ),
                 })
         if (self.version == self.LTI_1P3 and self.config_store in [self.CONFIG_ON_XBLOCK, self.CONFIG_EXTERNAL] and
-                self.lti_1p3_proctoring_enabled):
+            self.lti_1p3_proctoring_enabled):
             raise ValidationError({
                 "config_store": _("CONFIG_ON_XBLOCK and CONFIG_EXTERNAL are not supported for "
                                   "LTI 1.3 Proctoring Services."),
@@ -541,19 +548,19 @@ class LtiConfiguration(models.Model):
 
     @property
     def pii_share_username(self):
-        return self.lti_config.get('pii_share_username', False)     # pylint: disable=no-member
+        return self.lti_config.get('pii_share_username', False)  # pylint: disable=no-member
 
     @pii_share_username.setter
     def pii_share_username(self, value):
-        self.lti_config['pii_share_username'] = value               # pylint: disable=unsupported-assignment-operation
+        self.lti_config['pii_share_username'] = value  # pylint: disable=unsupported-assignment-operation
 
     @property
     def pii_share_email(self):
-        return self.lti_config.get('pii_share_email', False)        # pylint: disable=no-member
+        return self.lti_config.get('pii_share_email', False)  # pylint: disable=no-member
 
     @pii_share_email.setter
     def pii_share_email(self, value):
-        self.lti_config['pii_share_email'] = value                  # pylint: disable=unsupported-assignment-operation
+        self.lti_config['pii_share_email'] = value  # pylint: disable=unsupported-assignment-operation
 
     def __str__(self):
         return f"[{self.config_store}] {self.version} - {self.location}"
