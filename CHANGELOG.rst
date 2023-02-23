@@ -15,6 +15,15 @@ Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ~~~~~~~~~~
+BREAKING CHANGE:
+
+* Validates Tool provided ``redirect_uri`` against stored ``lti_1p3_redirect_uris`` field per
+  `LTI Specification <https://www.imsglobal.org/spec/security/v1p0/#step-3-authentication-response>`_
+* ``lti_1p3_redirect_uris`` defaults to ``{lti_1p3_launch_url, lti_1p3_redirect_uris}`` when empty to provide
+  minimal distruption to existing integrations
+* **NOTE:** Since the redirect URI was never validated in the past, there is always a chance it is something
+  other than the launch url/deep linking url, so you may have to explicitly set it as appropriate.
+
 
 8.0.1 - 2023-02-03
 ------------------
