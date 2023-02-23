@@ -190,7 +190,6 @@ class LtiConfiguration(models.Model):
         "LTI 1.3 Redirect URIs",
         default=list,
         blank=True,
-        # TODO: Further clarify this help
         help_text="Valid urls the Tool may request us to redirect the id token to. The redirect uris "
                   "are often the same as the launch url/deep linking url so if this field is "
                   "empty, it will use them as the default. If you need to use different redirect "
