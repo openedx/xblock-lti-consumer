@@ -35,11 +35,11 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.26.72
+boto3==1.26.82
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.29.72
+botocore==1.29.82
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -175,7 +175,7 @@ importlib-metadata==6.0.0
     #   -r requirements/test.txt
     #   keyring
     #   twine
-importlib-resources==5.10.2
+importlib-resources==5.12.0
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -230,7 +230,7 @@ mako==1.2.4
     # via
     #   -r requirements/test.txt
     #   xblock-utils
-markdown-it-py==2.1.0
+markdown-it-py==2.2.0
     # via
     #   -r requirements/test.txt
     #   rich
@@ -250,11 +250,11 @@ mdurl==0.1.2
     #   markdown-it-py
 mock==5.0.1
     # via -r requirements/test.txt
-more-itertools==9.0.0
+more-itertools==9.1.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
-newrelic==8.6.0
+newrelic==8.7.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -264,7 +264,7 @@ openedx-django-pyfs==3.2.1
     # via
     #   -r requirements/test.txt
     #   xblock
-openedx-filters==1.0.0
+openedx-filters==1.2.0
     # via -r requirements/test.txt
 packaging==23.0
     # via
@@ -351,7 +351,7 @@ python-dateutil==2.8.2
     #   arrow
     #   botocore
     #   xblock
-python-slugify==8.0.0
+python-slugify==8.0.1
     # via
     #   -r requirements/test.txt
     #   code-annotations
@@ -459,7 +459,7 @@ urllib3==1.26.14
     #   botocore
     #   requests
     #   twine
-virtualenv==20.19.0
+virtualenv==20.20.0
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -478,7 +478,7 @@ webob==1.8.7
     #   -r requirements/test.txt
     #   xblock
     #   xblock-sdk
-wrapt==1.14.1
+wrapt==1.15.0
     # via
     #   -r requirements/test.txt
     #   astroid
@@ -491,7 +491,7 @@ xblock-sdk==0.5.4
     # via -r requirements/test.txt
 xblock-utils==3.0.0
     # via -r requirements/test.txt
-zipp==3.13.0
+zipp==3.15.0
     # via
     #   -r requirements/test.txt
     #   importlib-metadata
