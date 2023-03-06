@@ -321,6 +321,17 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "prior to doing the launch request."
         ),
     )
+    lti_1p3_redirect_uris = List(
+        display_name=_("Registered Redirect URIs"),
+        help=_(
+            "Valid urls the Tool may request us to redirect the id token to. The redirect uris "
+            "are often the same as the launch url/deep linking url so if this field is "
+            "empty, it will use them as the default. If you need to use different redirect "
+            "uri's, enter them here. If you use this field you must enter all valid redirect "
+            "uri's the tool may request."
+        ),
+        scope=Scope.settings
+    )
 
     lti_1p3_tool_key_mode = String(
         display_name=_("Tool Public Key Mode"),
@@ -585,7 +596,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     editable_field_names = (
         'display_name', 'description', 'config_type', 'lti_version', 'external_config',
         # LTI 1.3 variables
-        'lti_1p3_launch_url', 'lti_1p3_oidc_url',
+        'lti_1p3_launch_url', 'lti_1p3_redirect_uris', 'lti_1p3_oidc_url',
         'lti_1p3_tool_key_mode', 'lti_1p3_tool_keyset_url', 'lti_1p3_tool_public_key',
         'lti_1p3_enable_nrps',
         # LTI Advantage variables

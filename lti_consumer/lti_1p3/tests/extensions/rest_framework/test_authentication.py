@@ -17,6 +17,7 @@ from lti_consumer.models import LtiConfiguration
 ISS = "http://test-platform.example/"
 OIDC_URL = "http://test-platform/oidc"
 LAUNCH_URL = "http://test-platform/launch"
+REDIRECT_URIS = [LAUNCH_URL]
 CLIENT_ID = "1"
 DEPLOYMENT_ID = "1"
 NONCE = "1234"
@@ -43,6 +44,7 @@ class TestLtiAuthentication(TestCase):
             deployment_id=DEPLOYMENT_ID,
             rsa_key=RSA_KEY,
             rsa_key_id=RSA_KEY_ID,
+            redirect_uris=REDIRECT_URIS,
             # Use the same key for testing purposes
             tool_key=RSA_KEY,
         )
