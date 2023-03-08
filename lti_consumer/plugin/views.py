@@ -3,6 +3,7 @@ LTI consumer plugin passthrough views
 """
 import logging
 import urllib
+import re
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
@@ -65,7 +66,7 @@ from lti_consumer.lti_1p3.extensions.rest_framework.parsers import (
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
 from lti_consumer.plugin import compat
-from lti_consumer.utils import _
+from lti_consumer.utils import _, resolve_custom_parameter_template
 from lti_consumer.track import track_event
 
 
@@ -99,6 +100,42 @@ def has_block_access(user, block, course_key):
 
     # Return True if the user has access to xblock and is enrolled in that specific course.
     return course_access and block_access
+
+
+def parse_custom_parameters(block):
+    """
+    Parse XBlock custom_parameters field values.
+
+    This allows us to transform the list items on the custom_parameters field into a dictionary of custom parameters
+    that can be used with the LtiConsumer1p3 set_custom_parameters method, it will also resolve any dynamic custom
+    parameter present on the field.
+
+    Args:
+        block: xblock Object to get custom_parameters from
+
+    Returns:
+        dict: Parsed custom_parameters dictionary
+
+    Raises:
+        LtiError: If custom_parameter cannot be parsed.
+    """
+    result = {}
+
+    for p in block.custom_parameters:
+        try:
+            k, v = [i.strip() for i in p.split('=', 1)]
+
+            # Resolve dynamic custom parameter value.
+            if re.search(r'\$\{\ *\w+\ *\}', v):
+                v = resolve_custom_parameter_template(block, v)
+
+            result.update({k: v})
+        except ValueError as exc:
+            raise LtiError(
+                f"Could not parse custom parameter: {p}. Should be 'x=y' string."
+            ) from exc
+
+    return result
 
 
 @require_http_methods(["GET"])
@@ -245,6 +282,10 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
                 url=dl_params.get('url'),
                 custom=dl_params.get('custom')
             )
+
+        # Set LTI custom properties claim
+        if lti_config.block.custom_parameters:
+            lti_consumer.set_custom_parameters(parse_custom_parameters(lti_config.block))
 
         # Update context with LTI launch parameters
         context.update({

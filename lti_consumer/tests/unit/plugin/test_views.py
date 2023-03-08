@@ -12,6 +12,7 @@ from django.urls import reverse
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
 from opaque_keys.edx.keys import UsageKey
+from lti_consumer.exceptions import LtiError
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.lti_1p3.exceptions import (
     MissingRequiredClaim,
@@ -25,6 +26,50 @@ from lti_consumer.lti_1p3.exceptions import (
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.tests.unit.test_utils import make_xblock
+from lti_consumer.plugin.views import parse_custom_parameters
+
+
+class TestParseCustomParameters(TestCase):
+    """
+    Test `parse_custom_parameters` function.
+    """
+
+    @patch('lti_consumer.plugin.views.resolve_custom_parameter_template')
+    def test_valid_custom_parameters(self, mock_resolve_custom_parameter_template):
+        """
+        Check works on valid custom parameters.
+        """
+        block = Mock()
+        block.custom_parameters = ['test=test']
+
+        result = parse_custom_parameters(block)
+
+        mock_resolve_custom_parameter_template.assert_not_called()
+        self.assertEqual(result, {'test': 'test'})
+
+    @patch('lti_consumer.plugin.views.resolve_custom_parameter_template')
+    def test_valid_dynamic_custom_parameters(self, mock_resolve_custom_parameter_template):
+        """
+        Check resolves dynamic custom parameters.
+        """
+        mock_resolve_custom_parameter_template.return_value = ''
+        block = Mock()
+        block.custom_parameters = ['test=${test}']
+
+        result = parse_custom_parameters(block)
+
+        mock_resolve_custom_parameter_template.assert_called_once()
+        self.assertEqual(result, {'test': ''})
+
+    def test_invalid_custom_parameters(self):
+        """
+        Check fails on invalid custom parameters.
+        """
+        block = Mock()
+        block.custom_parameters = ['test']
+
+        with self.assertRaises(LtiError):
+            parse_custom_parameters(block)
 
 
 class TestLti1p3KeysetEndpoint(TestCase):
@@ -374,6 +419,46 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         response = self.client.get(self.url, params)
         # Check response
         self.assertEqual(response.status_code, 200)
+
+    @patch('lti_consumer.lti_1p3.consumer.LtiConsumer1p3.set_custom_parameters')
+    @patch('lti_consumer.plugin.views.parse_custom_parameters')
+    def test_launch_existing_custom_parameters(self, mock_set_custom_parameters, mock_parse_custom_parameters):
+        """
+        Check custom parameters are set if they exist on XBlock configuration.
+        """
+        mock_parse_custom_parameters.return_value = self.xblock
+        self.xblock.custom_parameters = ['test=test']
+
+        params = {
+            "login_hint": self.location,
+            "nonce": "nonce-value",
+            "state": "hello-world",
+            "redirect_uri": "https://tool.example",
+            "client_id": self.config.lti_1p3_client_id
+        }
+        response = self.client.get(self.url, params)
+
+        self.assertEqual(response.status_code, 200)
+        mock_set_custom_parameters.assert_called_once_with(mock_parse_custom_parameters())
+
+    @patch('lti_consumer.lti_1p3.consumer.LtiConsumer1p3.set_custom_parameters')
+    def test_launch_non_existing_custom_parameters(self, mock_set_custom_parameters):
+        """
+        Check custom parameters are not set if they don't exist on XBlock configuration.
+        """
+        self.xblock.custom_parameters = []
+
+        params = {
+            "login_hint": self.location,
+            "nonce": "nonce-value",
+            "state": "hello-world",
+            "redirect_uri": "https://tool.example",
+            "client_id": self.config.lti_1p3_client_id
+        }
+        response = self.client.get(self.url, params)
+
+        self.assertEqual(response.status_code, 200)
+        mock_set_custom_parameters.assert_not_called()
 
 
 class TestLti1p3AccessTokenEndpoint(TestCase):
