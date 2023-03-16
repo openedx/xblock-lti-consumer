@@ -14,7 +14,7 @@ asgiref==3.6.0
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.14.2
+astroid==2.15.0
     # via
     #   pylint
     #   pylint-celery
@@ -26,9 +26,9 @@ bleach==6.0.0
     # via -r requirements/base.txt
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.82
+boto3==1.26.92
     # via fs-s3fs
-botocore==1.29.82
+botocore==1.29.92
     # via
     #   boto3
     #   s3transfer
@@ -42,7 +42,7 @@ cffi==1.15.1
     #   pynacl
 chardet==5.1.0
     # via binaryornot
-charset-normalizer==3.0.1
+charset-normalizer==3.1.0
     # via
     #   -r requirements/base.txt
     #   requests
@@ -97,7 +97,7 @@ edx-django-utils==5.2.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-lint==5.3.2
+edx-lint==5.3.4
     # via -r requirements/quality.in
 edx-opaque-keys[django]==2.3.0
     # via -r requirements/base.txt
@@ -171,7 +171,7 @@ pbr==5.11.1
     # via
     #   -r requirements/base.txt
     #   stevedore
-platformdirs==3.0.0
+platformdirs==3.1.1
     # via pylint
 psutil==5.9.4
     # via
@@ -189,7 +189,7 @@ pycryptodomex==3.17
     #   pyjwkest
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.16.2
+pylint==2.17.0
     # via
     #   -r requirements/quality.in
     #   edx-lint
@@ -244,7 +244,7 @@ requests==2.28.2
     #   xblock-sdk
 s3transfer==0.6.0
     # via boto3
-simplejson==3.18.3
+simplejson==3.18.4
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
@@ -278,7 +278,7 @@ typing-extensions==4.5.0
     # via
     #   astroid
     #   pylint
-urllib3==1.26.14
+urllib3==1.26.15
     # via
     #   -r requirements/base.txt
     #   botocore

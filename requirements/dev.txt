@@ -24,7 +24,7 @@ cffi==1.15.1
     # via
     #   -r requirements/base.txt
     #   pynacl
-charset-normalizer==3.0.1
+charset-normalizer==3.1.0
     # via
     #   -r requirements/base.txt
     #   requests
@@ -153,7 +153,7 @@ requests==2.28.2
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-simplejson==3.18.3
+simplejson==3.18.4
     # via
     #   -r requirements/base.txt
     #   xblock-utils
@@ -173,7 +173,7 @@ stevedore==5.0.0
     #   -r requirements/base.txt
     #   edx-django-utils
     #   edx-opaque-keys
-urllib3==1.26.14
+urllib3==1.26.15
     # via
     #   -r requirements/base.txt
     #   requests
