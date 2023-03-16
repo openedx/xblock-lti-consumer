@@ -14,7 +14,7 @@ asgiref==3.6.0
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.14.2
+astroid==2.15.0
     # via
     #   pylint
     #   pylint-celery
@@ -28,9 +28,9 @@ bleach==6.0.0
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.82
+boto3==1.26.92
     # via fs-s3fs
-botocore==1.29.82
+botocore==1.29.92
     # via
     #   boto3
     #   s3transfer
@@ -45,7 +45,7 @@ cffi==1.15.1
     #   pynacl
 chardet==5.1.0
     # via binaryornot
-charset-normalizer==3.0.1
+charset-normalizer==3.1.0
     # via
     #   -r requirements/base.txt
     #   requests
@@ -67,7 +67,7 @@ coverage==6.5.0
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
-cryptography==39.0.1
+cryptography==39.0.2
     # via secretstorage
 ddt==1.6.0
     # via -r requirements/test.in
@@ -110,7 +110,7 @@ edx-django-utils==5.2.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-lint==5.3.2
+edx-lint==5.3.4
     # via -r requirements/test.in
 edx-opaque-keys[django]==2.3.0
     # via -r requirements/base.txt
@@ -208,7 +208,7 @@ pbr==5.11.1
     #   stevedore
 pkginfo==1.9.6
     # via twine
-platformdirs==3.0.0
+platformdirs==3.1.1
     # via pylint
 psutil==5.9.4
     # via
@@ -230,7 +230,7 @@ pygments==2.14.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.16.2
+pylint==2.17.0
     # via
     #   edx-lint
     #   pylint-celery
@@ -293,13 +293,13 @@ requests-toolbelt==0.10.1
     # via twine
 rfc3986==2.0.0
     # via twine
-rich==13.3.1
+rich==13.3.2
     # via twine
 s3transfer==0.6.0
     # via boto3
 secretstorage==3.3.3
     # via keyring
-simplejson==3.18.3
+simplejson==3.18.4
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
@@ -336,7 +336,7 @@ typing-extensions==4.5.0
     #   astroid
     #   pylint
     #   rich
-urllib3==1.26.14
+urllib3==1.26.15
     # via
     #   -r requirements/base.txt
     #   botocore
