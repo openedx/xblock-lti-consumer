@@ -61,7 +61,7 @@ WORKING_DIR := lti_consumer
 EXTRACT_DIR := $(WORKING_DIR)/translations/en/LC_MESSAGES
 EXTRACTED_DJANGO := $(EXTRACT_DIR)/django-partial.po
 EXTRACTED_DJANGOJS := $(EXTRACT_DIR)/djangojs-partial.po
-EXTRACTED_TEXT := $(EXTRACT_DIR)/text.po
+EXTRACTED_TEXT := $(EXTRACT_DIR)/django.po
 
 extract_translations: ## extract strings to be translated, outputting .po files
 	cd $(WORKING_DIR) && i18n_tool extract
