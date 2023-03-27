@@ -3,7 +3,7 @@
 
 attrs
 lxml
-bleach
+bleach>=6.0.0
 django
 oauthlib
 mako

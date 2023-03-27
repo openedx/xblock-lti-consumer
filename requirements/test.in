@@ -5,7 +5,6 @@
 
 coveralls
 ddt
-django-pyfs
 djangorestframework
 edx_lint
 mock

@@ -13,7 +13,7 @@ def lti_sanitize(html):
     """
     Sanitize a html fragment with bleach.
     """
-    allowed_tags = bleach.sanitizer.ALLOWED_TAGS + ['img']
+    allowed_tags = bleach.sanitizer.ALLOWED_TAGS | {'img'}
     allowed_attributes = dict(bleach.sanitizer.ALLOWED_ATTRIBUTES, **{'img': ['src', 'alt']})
     sanitized_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attributes)
     return mark_safe(sanitized_html)

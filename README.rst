@@ -184,39 +184,36 @@ needs to know the LMS's one.
 
 Instructions:
 
-1. Set up a local tunnel tunneling the LMS (using `ngrok` or a similar tool) to get a URL accessible from the internet.
-2. Create a new course, and add the `lti_consumer` block to the advanced modules list.
-3. In the course, create a new unit and add the LTI block.
+#. Set up a local tunnel (using `ngrok` or a similar tool) to get a URL accessible from the internet.
+#. Add the following settings to `edx-platform/lms/envs/private.py` and `edx-platform/cms/envs/private.py`:
+
+    * LTI_BASE="http://localhost:18000"
+    * LTI_API_BASE="http://<your_ngrok>.ngrok.io"
+
+#. Create a new course, and add the `lti_consumer` block to the advanced modules list.
+#. In the course, create a new unit and add the LTI block.
 
    * Set ``LTI Version`` to ``LTI 1.3``.
    * Set the ``Tool Launch URL`` to ``https://lti-ri.imsglobal.org/lti/tools/``
 
-4. In Studio, you'll see a few parameters being displayed in the preview:
+#. In Studio, you'll see a few parameters being displayed in the preview:
 
 .. code::
 
     Client ID: f0532860-cb34-47a9-b16c-53deb077d4de
     Deployment ID: 1
     # Note that these are LMS URLS
-    Keyset URL: http://localhost:18000/api/lti_consumer/v1/public_keysets/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
-    Access Token URL: http://localhost:18000/api/lti_consumer/v1/token/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@efc55c7abb87430883433bfafb83f054
+    Keyset URL: http://1234.ngrok.io/api/lti_consumer/v1/public_keysets/88e45ecbd-7cce-4fa0-9537-23e9f7288ad9
+    Access Token URL: http://1234.ngrok.io/api/lti_consumer/v1/token/8e45ecbd-7cce-4fa0-9537-23e9f7288ad9
     OIDC Callback URL: http://localhost:18000/api/lti_consumer/v1/launch/
 
 
-5. Add the tunnel URL to the each of these URLs as it'll need to be accessed by the tool (hosted externally).
-
-.. code::
-
-    # This is <LMS_URL>/api/lti_consumer/v1/public_keysets/<BLOCK_LOCATION>
-    https://647dd2e1.ngrok.io/api/lti_consumer/v1/public_keysets/block-v1:OpenCraft+LTI101+2020_T2+type@lti_consumer+block@996c72b16070434098bc598bd7d6dbde
-
-
-6. Set up a tool in the IMS Global reference implementation (https://lti-ri.imsglobal.org/lti/tools/).
+#. Set up a tool in the IMS Global reference implementation (https://lti-ri.imsglobal.org/lti/tools/).
 
    * Click on ``Add tool`` at the top of the page (https://lti-ri.imsglobal.org/lti/tools).
    * Add the parameters and URLs provided by the block, and generate a private key on https://lti-ri.imsglobal.org/keygen/index and paste it there (don't close the tab, you'll need the public key later).
 
-7. Go back to Studio, and edit the block adding its settings (you'll find them by scrolling down https://lti-ri.imsglobal.org/lti/tools/ until you find the tool you just created):
+#. Go back to Studio, and edit the block adding its settings (you'll find them by scrolling down https://lti-ri.imsglobal.org/lti/tools/ until you find the tool you just created):
 
 .. code::
 
@@ -224,15 +221,8 @@ Instructions:
     Tool Initiate Login URL: https://lti-ri.imsglobal.org/lti/tools/[tool_id]/login_initiations
     Tool Public key: Public key from key page.
 
-8. Publish block, log into LMS and navigate to the LTI block page.
-9. Click ``Send Request`` and verify that the LTI launch was successful.
-
-.. admonition:: Testing using ``ngrok``
-
-    When launching LTI 1.3 requests through ``ngrok``, make sure your LMS is serving session cookies marked as
-    ``Secure`` and with the ``SameSite`` attribute set to ``None``. You can do this by changing ``SESSION_COOKIE_SECURE: true``
-    and ``DCS_SESSION_COOKIE_SAMESITE: None`` in your ``lms.yml`` configuration files. Note that this will break logins
-    for locally accessed URLs in the devstack.
+#. Publish block, log into LMS and navigate to the LTI block page.
+#. Click ``Send Request`` and verify that the LTI launch was successful.
 
 
 LTI Advantage Features
@@ -261,6 +251,21 @@ To enable LTI-DL and its capabilities, you need to set these settings in the blo
    If it’s not provided, try using the same value as in the LTI 1.3 Tool Launch URL.
 
 To enable LTI-NRPS, you set **Enable LTI NRPS** to **True** in the block settings on Studio.
+
+
+LTI 1.1/1.2 Basic Outcomes Service 1.1
+--------------------------------------
+
+This XBlock supports `LTI 1.1/1.2 Basic Outcomes Service 1.0 <http://www.imsglobal.org/spec/lti-bo/v1p1/>`_. Please see these
+`LTI 1.1/1.2 Basic Outcomes Service 1.0 instructions <https://github.com/openedx/xblock-lti-consumer/tree/master/docs/basic_outcomes_service.rst>`_
+for testing the LTI 1.1/1.2 Basic Outcomes Service 1.1 implementation.
+
+LTI 2.0 Result Service 2.0
+--------------------------
+
+This XBlock supports `LTI 2.0 Result Service 2.0 <https://www.imsglobal.org/lti/model/uml/purl.imsglobal.org/vocab/lis/v2/outcomes/Result/service.html>`_.
+Please see the `LTI 2.0 Result Service 2.0 instructions <https://github.com/openedx/xblock-lti-consumer/tree/master/docs/result_service.rst>`_
+for testing the LTI 2.0 Result Service 2.0 implementation.
 
 Getting Help
 ************

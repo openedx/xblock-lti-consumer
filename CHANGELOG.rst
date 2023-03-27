@@ -11,10 +11,118 @@ Changelog
 
 .. There should always be an "Unreleased" section for changes pending release.
 
-Please See the [releases tab](https://github.com/openedx/xblock-lti-consumer/releases) for the complete changelog.
+Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/releases>`_ for the complete changelog.
 
 Unreleased
 ~~~~~~~~~~
+
+9.0.0 - 2023-03-03
+------------------
+BREAKING CHANGE:
+
+* Validates Tool provided ``redirect_uri`` against new ``lti_1p3_redirect_uris`` field per
+  `LTI Specification <https://www.imsglobal.org/spec/security/v1p0/#step-3-authentication-response>`_.
+* ``lti_1p3_redirect_uris`` defaults to ``{lti_1p3_launch_url, lti_1p3_redirect_uris}`` when empty to provide
+  minimal distruption to existing integrations.
+* **NOTE:** Since the redirect URI was never validated in the past, there is always a chance it is something
+  other than the launch url/deep linking url, so you may have to explicitly set it as appropriate.
+
+8.0.1 - 2023-02-03
+------------------
+* This releases fixes the PII sharing consent dialog for inline launches to no longer refer to a nonexistent
+  "Cancel" button.
+
+8.0.0 - 2023-01-31
+------------------
+* Update to work with bleachk>=6.0.0 and make that an explicit requirement in
+  ``install_requires`` since the changes are incompatible with the older
+  versions of bleach.
+
+7.3.0 - 2023-01-30
+------------------
+* Rename edx-platform import of ``get_module_for_descriptor_internal``.
+
+7.2.3 - 2023-01-24
+------------------
+* This release fixes a bug in the way that the PII sharing consent dialog renders. The bug resulted in the "OK" and
+  "Cancel" buttons as well as the text of the PII sharing consent prompt appearing inside an inappropriate component
+  when there was more than one LTI component in a unit.
+
+7.2.2 - 2023-01-12
+------------------
+* Fixes LTI 1.3 grade injection vulnerability that allowed LTI integrations to modify scores for any block.
+
+7.2.1 - 2023-01-10
+------------------
+* Adds support for LTI_BASE and LTI_API_BASE Django settings to allow URL configuration independent of LMS settings.
+
+7.2.0 - 2022-12-15
+------------------
+
+This release addresses a number of issues with and bugs in sharing personally identifiable information (PII) in LTI
+launches.
+
+* Replaces the PII sharing consent modal with an inline PII sharing consent dialog to better suit the three different
+  LTI launch types (i.e. ``inline``, ``modal``, and ``new_window``).
+* Adds a PII consent dialog for ``inline`` LTI launches.
+* Fixes a bug in the ``modal`` LTI launch in LTI 1.3 that was preventing the LTI launch.
+* Fixes a bug in evaluating and caching whether PII sharing is enabled via the ``CourseAllowPIISharingInLTIFlag``.
+
+  * This fixes a bug where the PII sharing fields in the LTI XBlock edit menu appeared regardless of the existence or
+    value of this flag. The PII sharing fields will now always be hidden if either no ``CourseAllowPIISharingInLTIFlag``
+    exists for a course or if a ``CourseAllowPIISharingInLTIFlag`` exists for the course but is not enabled.
+  * This fixes a bug in the backwards compatibility code in ``lti_access_to_learners_editable``. Now,
+    ``CourseAllowPIISharingInLTIFlag`` will always be created for courses that contain (an) LTI XBlock(s) that have (a)
+    PII sharing field(s) set to True when a user opens the LTI XBlock edit menu. Before, this would occur inconsistently
+    due to a bug in the caching code.
+
+* Enables sharing username and email in LTI 1.3 launches.
+
+  * Adds ``preferred_username`` and ``email`` attributes to the ``Lti1p3LaunchData`` class. The application or context
+    that instantiates ``Lti1p3LaunchData`` is responsible for ensuring that username and email can be sent via an LTI
+    1.3 launch and supplying these data, if appropriate.
+
+* Adds code to eventually support the value of ``CourseAllowPIISharingInLTIFlag`` controlling PII sharing for a given
+  course in LTI 1.1 and LTI 1.3 launches.
+
+  * This code does not currently work, because the LTI configuration service is not available or defined in all runtime
+    contexts. This code works in the LTI XBlock edit menu (i.e. the ``studio_view``), but it does not work in the Studio
+    preview context (i.e. the ``author_view``) or the LMS (i.e. the ``student_view``). The effect is that
+    the ``CourseAllowPIISharingInLTIFlag`` can only control the appearance of the username and email PII sharing fields
+    in the XBlock edit menu; it does not control PII sharing. We plan to fix this bug in the future.
+
+7.1.0 - 2022-12-09
+------------------
+* Add support for platform setting `LTI_NRPS_DISALLOW_PII` to prevent sharing of pii over the names and roles
+  provisioning service.
+
+7.0.3 - 2022-12-02
+------------------
+* Removed check against LMS specific `database_config_enabled` in LtiConfiguration model.
+
+7.0.2 - 2022-11-29
+------------------
+* Fix the LTI 1.1 Outcome Results Service to be able to tie an outcome pass back to a user when the user ID is an
+  `external_user_id`.
+* Fix the LTI 2.0 Result Service to be able to tie a result pass back to a user when the user ID is an
+  `external_user_id`.
+* Update the `RESULT_SERVICE_SUFFIX_PARSER` regex string to be able to parse UUIDs to accommodate `external_user_ids`.
+* Add a `get_lti_1p1_user_from_user_id` method to the `LtiConsumerXBlock` to get the user object associated with a user
+  ID.
+
+7.0.1 - 2022-11-29
+------------------
+
+Fix LtiConfiguration clean method to look only at location so that it can work in environments that cannot load the block.
+
+7.0.0 - 2022-11-29
+------------------
+* Refactor anonymous user to real user rebinding function to use `rebind_user` service.
+* Refactor accessing hostname from runtime attribute to using `settings.LMS_BASE`.
+* Refactor usage of `get_real_user` with `UserService`.
+* Refactor deprecated usage of `runtime.course_id` and replace with `runtime.scope_ids.usage_id.context_key`.
+* Refactor deprecated usage of `block.location` with `block.scope_ids.usage_id`.
+
 6.4.0 - 2022-11-18
 ------------------
 Adds support for sending an external_user_id in LTI 1.1 XBlock launches. When the

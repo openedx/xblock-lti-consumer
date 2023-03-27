@@ -6,8 +6,8 @@ https://www.imsglobal.org/specs/ltiomv1p0
 """
 
 import logging
-import urllib.parse
 from xml.sax.saxutils import escape
+from urllib.parse import unquote
 
 from lxml import etree
 from xblockutils.resources import ResourceLoader
@@ -183,7 +183,9 @@ class OutcomeService:
             log.debug("[LTI]: %s", error_message)
             return response_xml_template.format(**failure_values)
 
-        real_user = self.xblock.runtime.get_real_user(urllib.parse.unquote(sourced_id.split(':')[-1]))
+        user_id = unquote(sourced_id.split(':')[-1])
+        real_user = self.xblock.get_lti_1p1_user_from_user_id(user_id)
+
         if not real_user:  # that means we can't save to database, as we do not have real user id.
             failure_values['imsx_messageIdentifier'] = escape(imsx_message_identifier)
             failure_values['imsx_description'] = "User not found."

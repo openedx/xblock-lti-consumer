@@ -13,6 +13,7 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
 
     const lti1P3FieldList = [
         "lti_1p3_launch_url",
+        "lti_1p3_redirect_uris",
         "lti_1p3_oidc_url",
         "lti_1p3_tool_key_mode",
         "lti_1p3_tool_keyset_url",
@@ -60,14 +61,14 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
             lti1P1FieldList.forEach(function (field) {
                 fieldsToHide.push(field);
             });
-        } else {}
+        } else { }
 
         return fieldsToHide;
     }
 
 
     /**
-     * Return fields that should be hidden based on the selected config type. 
+     * Return fields that should be hidden based on the selected config type.
      *
      *  new - Show all the LTI 1.1/1.3 config fields
      *  database - Do not show the LTI 1.1/1.3 config fields
@@ -152,7 +153,7 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
 
         for (const field of hiddenFields) {
             toggleFieldVisibility(field, false);
-          }
+        }
     }
 
     // Call once component is instanced to hide fields

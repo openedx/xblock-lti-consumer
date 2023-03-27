@@ -18,6 +18,7 @@
     class="${element_class} lti-consumer-container"
     data-ask-to-send-username="${ask_to_send_username}"
     data-ask-to-send-email="${ask_to_send_email}"
+    data-lti-version="${lti_version}"
 >
 
 % if (launch_url or lti_1p3_launch_url) and not hide_launch:
@@ -68,9 +69,11 @@
         </section>
     % endif
     % if launch_target == 'iframe':
-        <div style="height:${inline_height}px;">
+        <div id="lti-iframe-container" data-target="${form_url}" style="height:${inline_height}px;">
             ## The result of the LTI launch form submit will be rendered here.
-            <%include file="templates/html/lti_iframe.html" args="initial_launch_url=form_url"/>
+            ## Don't pass in the initial_launch_url. Let the Javascript set the src, so we can get PII sharing consent
+            ## before the launch occurs, if needed.
+            <%include file="templates/html/lti_iframe.html" args="initial_launch_url=''"/>
         </div>
     % endif
 % elif not hide_launch:

@@ -19,6 +19,9 @@ from lti_consumer.models import (CourseAllowPIISharingInLTIFlag, LtiAgsLineItem,
                                  LtiDlContentItem)
 from lti_consumer.tests.test_utils import make_xblock
 
+LAUNCH_URL = 'http://tool.example/launch'
+DEEP_LINK_URL = 'http://tool.example/deep-link/launch'
+
 
 @ddt.ddt
 class TestLtiConfigurationModel(TestCase):
@@ -39,7 +42,7 @@ class TestLtiConfigurationModel(TestCase):
 
         self.xblock_attributes = {
             'lti_version': 'lti_1p3',
-            'lti_1p3_launch_url': 'http://tool.example/launch',
+            'lti_1p3_launch_url': LAUNCH_URL,
             'lti_1p3_oidc_url': 'http://tool.example/oidc',
             # We need to set the values below because they are not automatically
             # generated until the user selects `lti_version == 'lti_1p3'` on the
@@ -59,17 +62,17 @@ class TestLtiConfigurationModel(TestCase):
 
         # Creates an LTI configuration objects for testing
         self.lti_1p1_config = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P1
         )
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3
         )
 
         self.lti_1p3_config_db = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
             lti_advantage_ags_mode='programmatic',
@@ -92,7 +95,7 @@ class TestLtiConfigurationModel(TestCase):
         Helper function to create a LtiConfiguration object with specific attributes
         """
         return LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             **kwargs
         )
@@ -359,15 +362,10 @@ class TestLtiConfigurationModel(TestCase):
 
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
 
-        with patch("lti_consumer.models.database_config_enabled", return_value=False),\
-             self.assertRaises(ValidationError):
-            self.lti_1p3_config_db.clean()
-
         self.lti_1p3_config_db.lti_1p3_tool_keyset_url = ''
         self.lti_1p3_config_db.lti_1p3_tool_public_key = ''
 
-        with patch("lti_consumer.models.database_config_enabled", return_value=True),\
-             self.assertRaises(ValidationError):
+        with self.assertRaises(ValidationError):
             self.lti_1p3_config_db.clean()
 
         self.lti_1p3_config.lti_1p3_proctoring_enabled = True
@@ -376,6 +374,46 @@ class TestLtiConfigurationModel(TestCase):
             self.lti_1p3_config.config_store = config_store
             with self.assertRaises(ValidationError):
                 self.lti_1p3_config.clean()
+
+    def test_get_redirect_uris_raises_error_for_external_config(self):
+        """
+        An external config raises NotImplementedError
+        """
+        with self.assertRaises(NotImplementedError):
+            self.lti_1p3_config_external.get_lti_1p3_redirect_uris()
+
+    @ddt.data(
+        (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
+        (LAUNCH_URL, DEEP_LINK_URL, ["http://other.url"], ["http://other.url"]),
+    )
+    @ddt.unpack
+    def test_get_redirect_uris_for_xblock_model_returns_expected(
+            self, launch_url, deep_link_url, redirect_uris, expected):
+        """
+        Returns expected redirect uris for xblock model
+        """
+        self.xblock.lti_1p3_launch_url = launch_url
+        self.xblock.lti_advantage_deep_linking_launch_url = deep_link_url
+        self.xblock.lti_1p3_redirect_uris = redirect_uris
+
+        assert self.lti_1p3_config.get_lti_1p3_redirect_uris() == expected
+
+    @ddt.data(
+        (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
+        (LAUNCH_URL, DEEP_LINK_URL, ["http://other.url"], ["http://other.url"]),
+    )
+    @ddt.unpack
+    def test_get_redirect_uris_for_db_model_returns_expected(
+            self, launch_url, deep_link_url, redirect_uris, expected):
+        """
+        Returns expected redirect uris for db model
+        """
+        self.lti_1p3_config_db.lti_1p3_launch_url = launch_url
+        self.lti_1p3_config_db.lti_advantage_deep_linking_launch_url = deep_link_url
+        self.lti_1p3_config_db.lti_1p3_redirect_uris = redirect_uris
+        self.lti_1p3_config_db.save()
+
+        assert self.lti_1p3_config_db.get_lti_1p3_redirect_uris() == expected
 
 
 class TestLtiAgsLineItemModel(TestCase):
@@ -387,7 +425,6 @@ class TestLtiAgsLineItemModel(TestCase):
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
         self.lti_ags_model = LtiAgsLineItem.objects.create(
-            lti_configuration=None,
             resource_id="test-id",
             label="this-is-a-test",
             resource_link_id=self.dummy_location,
@@ -424,8 +461,16 @@ class TestLtiAgsScoreModel(TestCase):
         )
 
         self.dummy_location = 'block-v1:course+test+2020+type@problem+block@test'
+
+        self.lti_config = LtiConfiguration.objects.create(
+            config_id='6c440bf4-face-beef-face-e8bcfb1e53bd',
+            location=self.dummy_location,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+        )
+
         self.line_item = LtiAgsLineItem.objects.create(
-            lti_configuration=None,
+            lti_configuration=self.lti_config,
             resource_id="test-id",
             label="this-is-a-test",
             resource_link_id=self.dummy_location,
@@ -472,7 +517,7 @@ class TestLtiDlContentItemModel(TestCase):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3
         )
 
@@ -489,7 +534,7 @@ class TestLtiDlContentItemModel(TestCase):
         self.assertEqual(
             str(content_item),
             "[CONFIG_ON_XBLOCK] lti_1p3 - "
-            "block-v1:edX+DemoX+Demo_Course+type@problem+block@466f474fa4d045a8b7bde1b911e095ca: image"
+            f"{content_item.lti_configuration.location}: image"
         )
 
 

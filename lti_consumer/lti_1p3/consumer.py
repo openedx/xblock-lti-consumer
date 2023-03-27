@@ -37,6 +37,7 @@ class LtiConsumer1p3:
             deployment_id,
             rsa_key,
             rsa_key_id,
+            redirect_uris,
             tool_key=None,
             tool_keyset_url=None,
     ):
@@ -48,6 +49,7 @@ class LtiConsumer1p3:
         self.launch_url = lti_launch_url
         self.client_id = client_id
         self.deployment_id = deployment_id
+        self.redirect_uris = redirect_uris
 
         # Set up platform message signature class
         self.key_handler = PlatformKeyHandler(rsa_key, rsa_key_id)
@@ -132,7 +134,8 @@ class LtiConsumer1p3:
             user_id,
             role,
             full_name=None,
-            email_address=None
+            email_address=None,
+            preferred_username=None,
     ):
         """
         Set user data/roles and convert to IMS Specification
@@ -160,6 +163,11 @@ class LtiConsumer1p3:
         if email_address:
             self.lti_claim_user_data.update({
                 "email": email_address,
+            })
+
+        if preferred_username:
+            self.lti_claim_user_data.update({
+                "preferred_username": preferred_username,
             })
 
     def set_resource_link_claim(
@@ -463,9 +471,11 @@ class LtiConsumer1p3:
         :param response: the preflight response to be validated
         """
         try:
+            redirect_uri = response.get("redirect_uri")
             assert response.get("nonce")
             assert response.get("state")
-            assert response.get("redirect_uri")
+            assert redirect_uri
+            assert redirect_uri in self.redirect_uris
             assert response.get("client_id") == self.client_id
         except AssertionError as err:
             raise exceptions.PreflightRequestValidationFailure() from err
@@ -733,6 +743,7 @@ class LtiProctoringConsumer(LtiConsumer1p3):
         deployment_id,
         rsa_key,
         rsa_key_id,
+        redirect_uris,
         tool_key=None,
         tool_keyset_url=None,
     ):
@@ -747,6 +758,7 @@ class LtiProctoringConsumer(LtiConsumer1p3):
             deployment_id,
             rsa_key,
             rsa_key_id,
+            redirect_uris,
             tool_key,
             tool_keyset_url
         )

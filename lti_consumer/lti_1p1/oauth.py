@@ -147,7 +147,7 @@ def log_authorization_header(request, client_key, client_secret):
     oauth_body_hash = str(base64.b64encode(sha1.digest()))
     log.debug("[LTI] oauth_body_hash = %s", oauth_body_hash)
     client = oauth1.Client(client_key, client_secret)
-    params = client.get_oauth_params(request)
+    params = oauth1.rfc5849.signature.collect_parameters(headers=request.headers, exclude_oauth_signature=False)
     params.append(('oauth_body_hash', oauth_body_hash))
     mock_request = SignedRequest(
         uri=str(urllib.parse.unquote(request.url)),

@@ -22,16 +22,34 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
     in the LMS. Trying to trigger this signal from Studio (from the Django-admin interface, for example)
     throw an exception.
     """
+    line_item = instance.line_item
+    lti_config = line_item.lti_configuration
+
+    # Only save score if the `line_item.resource_link_id` is the same as
+    # `lti_configuration.location` to prevent LTI tools to alter grades they don't
+    # have permissions to.
+    # TODO: This security mechanism will need to be reworked once we enable LTI 1.3
+    # reusability to allow one configuration to save scores on multiple placements,
+    # but still locking down access to the items that are using the LTI configurtion.
+    if line_item.resource_link_id != lti_config.location:
+        log.warning(
+            "LTI tool tried publishing score %r to block %s (outside allowed scope of: %s).",
+            instance,
+            line_item.resource_link_id,
+            lti_config.location,
+        )
+        return
+
     # Before starting to publish grades to the LMS, check that:
     # 1. The grade being submitted in the final one - `FullyGraded`
     # 2. This LineItem is linked to a LMS grade - the `LtiResouceLinkId` field is set
     # 3. There's a valid grade in this score - `scoreGiven` is set
     if instance.grading_progress == LtiAgsScore.FULLY_GRADED \
-            and instance.line_item.resource_link_id \
+            and line_item.resource_link_id \
             and instance.score_given:
         try:
             # Load block using LMS APIs and check if the block is graded and still accept grades.
-            block = compat.load_block_as_user(instance.line_item.resource_link_id)
+            block = compat.load_block_as_user(line_item.resource_link_id)
             if block.has_score and (not block.is_past_due() or block.accept_grades_past_due):
                 # Map external ID to platform user
                 user = compat.get_user_from_external_user_id(instance.user_id)
@@ -46,7 +64,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                 # the LMS database.
                 log.info(
                     "Publishing LTI grade from block %s to LMS. User: %s (score: %s)",
-                    block.location,
+                    block.scope_ids.usage_id,
                     user,
                     score,
                 )
@@ -58,7 +76,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
             log.exception(
                 "Error while publishing score %r to block %s to LMS: %s",
                 instance,
-                instance.line_item.resource_link_id,
+                line_item.resource_link_id,
                 exc,
             )
             raise exc

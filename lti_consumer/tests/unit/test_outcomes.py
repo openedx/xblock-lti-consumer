@@ -5,13 +5,14 @@ Unit tests for lti_consumer.outcomes module
 import textwrap
 import unittest
 from copy import copy
-
 from unittest.mock import Mock, PropertyMock, patch
+
+import ddt
 
 from lti_consumer.exceptions import LtiError
 from lti_consumer.outcomes import OutcomeService, parse_grade_xml_body
-from lti_consumer.tests.unit.test_lti_xblock import TestLtiConsumerXBlock
 from lti_consumer.tests.test_utils import make_request
+from lti_consumer.tests.unit.test_lti_xblock import TestLtiConsumerXBlock
 
 REQUEST_BODY_TEMPLATE_VALID = textwrap.dedent("""
     <?xml version="1.0" encoding="UTF-8"?>
@@ -326,6 +327,7 @@ class TestParseGradeXmlBody(unittest.TestCase):
         self.assertEqual(action, 'ţéšţ_action')
 
 
+@ddt.ddt
 class TestOutcomeService(TestLtiConsumerXBlock):
     """
     Unit tests for OutcomeService
@@ -333,7 +335,17 @@ class TestOutcomeService(TestLtiConsumerXBlock):
 
     def setUp(self):
         super().setUp()
-        self.outcome_servce = OutcomeService(self.xblock)
+        self.outcome_service = OutcomeService(self.xblock)
+
+        # Set up user mock for LtiConsumerXBlock.get_lti_1p1_user_from_user_id method.
+        self.mock_get_user_id_patcher = patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p1_user_from_user_id')
+        self.addCleanup(self.mock_get_user_id_patcher.stop)
+        self.mock_get_user_id_patcher_enabled = self.mock_get_user_id_patcher.start()
+
+        mock_user = Mock()
+        mock_id = PropertyMock(return_value=1)
+        type(mock_user).id = mock_id
+        self.mock_get_user_id_patcher_enabled.return_value = mock_user
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
@@ -343,6 +355,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         Test replace result request returns with success indicator
         """
         request = make_request('')
+
         values = {
             'code': 'success',
             'description': 'Score for  is now 0.5',
@@ -351,7 +364,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         }
 
         self.assertEqual(
-            self.outcome_servce.handle_request(request).strip(),
+            self.outcome_service.handle_request(request).strip(),
             RESPONSE_BODY_TEMPLATE.format(**values).strip()
         )
 
@@ -362,7 +375,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         """
         request = make_request('')
         self.xblock.accept_grades_past_due = False
-        response = self.outcome_servce.handle_request(request)
+        response = self.outcome_service.handle_request(request)
 
         self.assertIn('failure', response)
         self.assertIn('Grade is past due', response)
@@ -376,7 +389,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         request = make_request('test_string')
 
         mock_parse.side_effect = LtiError
-        response = self.outcome_servce.handle_request(request)
+        response = self.outcome_service.handle_request(request)
         self.assertNotIn('TypeError', response)
         self.assertNotIn('a bytes-like object is required', response)
         self.assertIn('Request body XML parsing error', response)
@@ -389,7 +402,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         request = make_request('')
 
         mock_parse.side_effect = LtiError
-        response = self.outcome_servce.handle_request(request)
+        response = self.outcome_service.handle_request(request)
         self.assertIn('failure', response)
         self.assertIn('Request body XML parsing error', response)
 
@@ -403,10 +416,10 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         request = make_request('')
 
         mock_verify.side_effect = ValueError
-        self.assertIn('failure', self.outcome_servce.handle_request(request))
+        self.assertIn('failure', self.outcome_service.handle_request(request))
 
         mock_verify.side_effect = LtiError
-        self.assertIn('failure', self.outcome_servce.handle_request(request))
+        self.assertIn('failure', self.outcome_service.handle_request(request))
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
@@ -416,8 +429,9 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         Test user not found returns failure response
         """
         request = make_request('')
-        self.xblock.runtime.get_real_user.return_value = None
-        response = self.outcome_servce.handle_request(request)
+
+        self.mock_get_user_id_patcher_enabled.return_value = None
+        response = self.outcome_service.handle_request(request)
 
         self.assertIn('failure', response)
         self.assertIn('User not found', response)
@@ -430,7 +444,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         Test unsupported action returns unsupported response
         """
         request = make_request('')
-        response = self.outcome_servce.handle_request(request)
+        response = self.outcome_service.handle_request(request)
 
         self.assertIn('unsupported', response)
         self.assertIn('Target does not support the requested operation.', response)

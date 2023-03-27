@@ -115,7 +115,8 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.config = LtiConfiguration(
             version=LtiConfiguration.LTI_1P3,
             location=self.location,
-            config_store=LtiConfiguration.CONFIG_ON_DB
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_1p3_redirect_uris=["https://tool.example", "http://tool.example/launch"]
         )
         self.config.save()
 
@@ -333,7 +334,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.xblock.config_type = 'database'
 
         LtiConfiguration.objects.filter(id=self.config.id).update(
-            location=self.xblock.location,  # pylint: disable=no-member
+            location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
             lti_advantage_deep_linking_enabled=dl_enabled,

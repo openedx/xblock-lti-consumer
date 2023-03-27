@@ -187,6 +187,8 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         lti_consumer.set_user_data(
             user_id=user_id,
             role=user_role,
+            email_address=launch_data.email,
+            preferred_username=launch_data.preferred_username,
         )
 
         # Set resource_link claim.
@@ -682,7 +684,8 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         Overrides ModelViewSet's `get_serializer_class` method.
         Checks if PII fields can be exposed and returns appropiate serializer.
         """
-        if get_lti_pii_sharing_state_for_course(self.request.lti_configuration.location.course_key):
+        if (not compat.nrps_pii_disallowed() and
+                get_lti_pii_sharing_state_for_course(self.request.lti_configuration.location.course_key)):
             return LtiNrpsContextMembershipPIISerializer
         else:
             return LtiNrpsContextMembershipBasicSerializer

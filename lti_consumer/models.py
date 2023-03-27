@@ -23,13 +23,12 @@ from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiProctoringConsumer
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
-from lti_consumer.plugin.compat import request_cached
 from lti_consumer.utils import (
-    get_lms_base,
+    get_lti_api_base,
     get_lti_ags_lineitems_url,
     get_lti_deeplinking_response_url,
     get_lti_nrps_context_membership_url,
-    database_config_enabled,
+    choose_lti_1p3_redirect_uris,
 )
 
 log = logging.getLogger(__name__)
@@ -187,6 +186,17 @@ class LtiConfiguration(models.Model):
                   'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
     )
 
+    lti_1p3_redirect_uris = models.JSONField(
+        "LTI 1.3 Redirect URIs",
+        default=list,
+        blank=True,
+        help_text="Valid urls the Tool may request us to redirect the id token to. The redirect uris "
+                  "are often the same as the launch url/deep linking url so if this field is "
+                  "empty, it will use them as the default. If you need to use different redirect "
+                  "uri's, enter them here. If you use this field you must enter all valid redirect "
+                  "uri's the tool may request."
+    )
+
     # LTI 1.3 Advantage Related Variables
     lti_advantage_enable_nrps = models.BooleanField(
         "Enable LTI Advantage Names and Role Provisioning Services",
@@ -240,11 +250,6 @@ class LtiConfiguration(models.Model):
                 "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
             })
         if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
-            block = compat.load_enough_xblock(self.location)
-            if not database_config_enabled(block.location.course_key):
-                raise ValidationError({
-                    "config_store": _("LTI Configuration stores on database is not enabled."),
-                })
             if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
                 raise ValidationError({
                     "config_store": _(
@@ -495,7 +500,7 @@ class LtiConfiguration(models.Model):
             block = compat.load_enough_xblock(self.location)
 
             consumer = consumer_class(
-                iss=get_lms_base(),
+                iss=get_lti_api_base(),
                 lti_oidc_url=block.lti_1p3_oidc_url,
                 lti_launch_url=block.lti_1p3_launch_url,
                 client_id=self.lti_1p3_client_id,
@@ -505,13 +510,15 @@ class LtiConfiguration(models.Model):
                 # XBlock Private RSA Key
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
+                # Registered redirect uris
+                redirect_uris=self.get_lti_1p3_redirect_uris(),
                 # LTI 1.3 Tool key/keyset url
                 tool_key=block.lti_1p3_tool_public_key,
                 tool_keyset_url=block.lti_1p3_tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_ON_DB:
             consumer = consumer_class(
-                iss=get_lms_base(),
+                iss=get_lti_api_base(),
                 lti_oidc_url=self.lti_1p3_oidc_url,
                 lti_launch_url=self.lti_1p3_launch_url,
                 client_id=self.lti_1p3_client_id,
@@ -521,6 +528,8 @@ class LtiConfiguration(models.Model):
                 # XBlock Private RSA Key
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
+                # Registered redirect uris
+                redirect_uris=self.get_lti_1p3_redirect_uris(),
                 # LTI 1.3 Tool key/keyset url
                 tool_key=self.lti_1p3_tool_public_key,
                 tool_keyset_url=self.lti_1p3_tool_keyset_url,
@@ -545,6 +554,30 @@ class LtiConfiguration(models.Model):
             return self._get_lti_1p3_consumer()
 
         return self._get_lti_1p1_consumer()
+
+    def get_lti_1p3_redirect_uris(self):
+        """
+        Return pre-registered redirect uris or sensible defaults
+        """
+        if self.config_store == self.CONFIG_EXTERNAL:
+            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
+            raise NotImplementedError
+
+        if self.config_store == self.CONFIG_ON_DB:
+            redirect_uris = self.lti_1p3_redirect_uris
+            launch_url = self.lti_1p3_launch_url
+            deep_link_launch_url = self.lti_advantage_deep_linking_launch_url
+        else:
+            block = compat.load_enough_xblock(self.location)
+            redirect_uris = block.lti_1p3_redirect_uris
+            launch_url = block.lti_1p3_launch_url
+            deep_link_launch_url = block.lti_advantage_deep_linking_launch_url
+
+        return choose_lti_1p3_redirect_uris(
+            redirect_uris,
+            launch_url,
+            deep_link_launch_url
+        )
 
     @property
     def pii_share_username(self):
@@ -784,7 +817,6 @@ class CourseAllowPIISharingInLTIFlag(ConfigurationModel):
     course_id = CourseKeyField(max_length=255, db_index=True)
 
     @classmethod
-    @request_cached
     def lti_access_to_learners_editable(cls, course_id: CourseKey, is_already_sharing_learner_info: bool) -> bool:
         """
         Looks at the currently active configuration model to determine whether
