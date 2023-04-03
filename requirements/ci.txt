@@ -16,7 +16,7 @@ asgiref==3.6.0
     # via
     #   -r requirements/test.txt
     #   django
-astroid==2.15.0
+astroid==2.15.2
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -35,11 +35,11 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.26.92
+boto3==1.26.104
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.29.92
+botocore==1.29.104
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -87,7 +87,7 @@ coverage==6.5.0
     #   coveralls
 coveralls==3.3.1
     # via -r requirements/test.txt
-cryptography==39.0.2
+cryptography==40.0.1
     # via
     #   -r requirements/test.txt
     #   secretstorage
@@ -120,7 +120,7 @@ django-crum==0.7.9
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
-django-filter==22.1
+django-filter==23.1
     # via -r requirements/test.txt
 django-waffle==3.0.0
     # via
@@ -138,7 +138,7 @@ docutils==0.19
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-edx-django-utils==5.2.0
+edx-django-utils==5.3.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
@@ -146,7 +146,7 @@ edx-lint==5.3.4
     # via -r requirements/test.txt
 edx-opaque-keys[django]==2.3.0
     # via -r requirements/test.txt
-filelock==3.10.0
+filelock==3.10.7
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -170,7 +170,7 @@ idna==3.4
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==6.0.0
+importlib-metadata==6.1.0
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -254,7 +254,7 @@ more-itertools==9.1.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
-newrelic==8.7.0
+newrelic==8.8.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -278,7 +278,7 @@ pkginfo==1.9.6
     # via
     #   -r requirements/test.txt
     #   twine
-platformdirs==3.1.1
+platformdirs==3.2.0
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -313,7 +313,7 @@ pygments==2.14.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.17.0
+pylint==2.17.2
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -356,7 +356,7 @@ python-slugify==8.0.1
     #   -r requirements/test.txt
     #   code-annotations
     #   cookiecutter
-pytz==2022.7.1
+pytz==2023.3
     # via
     #   -r requirements/test.txt
     #   django
@@ -389,7 +389,7 @@ rfc3986==2.0.0
     # via
     #   -r requirements/test.txt
     #   twine
-rich==13.3.2
+rich==13.3.3
     # via
     #   -r requirements/test.txt
     #   twine
@@ -437,7 +437,7 @@ tomli==2.0.1
     #   -r requirements/tox.txt
     #   pylint
     #   tox
-tomlkit==0.11.6
+tomlkit==0.11.7
     # via
     #   -r requirements/test.txt
     #   pylint
