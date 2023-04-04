@@ -28,9 +28,9 @@ bleach==6.0.0
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.104
+boto3==1.26.105
     # via fs-s3fs
-botocore==1.29.104
+botocore==1.29.105
     # via
     #   boto3
     #   s3transfer
