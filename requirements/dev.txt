@@ -126,6 +126,8 @@ pycryptodomex==3.17
     #   pyjwkest
 pyjwkest==1.4.2
     # via -r requirements/base.txt
+pyjwt==2.6.0
+    # via -r requirements/base.txt
 pymongo==3.13.0
     # via
     #   -r requirements/base.txt

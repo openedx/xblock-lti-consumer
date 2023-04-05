@@ -26,9 +26,9 @@ bleach==6.0.0
     # via -r requirements/base.txt
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.104
+boto3==1.26.106
     # via fs-s3fs
-botocore==1.29.104
+botocore==1.29.106
     # via
     #   boto3
     #   s3transfer
@@ -188,6 +188,8 @@ pycryptodomex==3.17
     #   -r requirements/base.txt
     #   pyjwkest
 pyjwkest==1.4.2
+    # via -r requirements/base.txt
+pyjwt==2.6.0
     # via -r requirements/base.txt
 pylint==2.17.2
     # via
