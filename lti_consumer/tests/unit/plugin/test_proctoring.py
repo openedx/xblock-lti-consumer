@@ -134,8 +134,8 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
 
     def test_unparsable_token(self):
         """Tests that a call to the start_assessment_endpoint with an unparsable token results in a 400 response."""
-        with patch("lti_consumer.plugin.views.JWT.unpack") as mock_jwt_unpack_method:
-            mock_jwt_unpack_method.side_effect = BadSyntax(value="", msg="")
+        with patch("lti_consumer.plugin.views.jwt.decode") as mock_jwt_decode_method:
+            mock_jwt_decode_method.side_effect = Exception
 
             response = self.client.post(
                 self.url,

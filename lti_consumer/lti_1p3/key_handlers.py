@@ -4,16 +4,15 @@ LTI 1.3 - Access token library
 This handles validating messages sent by the tool and generating
 access token with LTI scopes.
 """
-import codecs
 import copy
-import time
 import json
+import math
+import time
+import sys
 
+import jwt
 from Cryptodome.PublicKey import RSA
-from jwkest import BadSignature, BadSyntax, WrongNumberOfParts, jwk
-from jwkest.jwk import RSAKey, load_jwks_from_url
-from jwkest.jws import JWS, NoSuitableSigningKeys
-from jwkest.jwt import JWT
+from jwt.api_jwk import PyJWK
 
 from . import exceptions
 
@@ -47,14 +46,9 @@ class ToolKeyHandler:
         # Import from public key
         if public_key:
             try:
-                new_key = RSAKey(use='sig')
-
-                # Unescape key before importing it
-                raw_key = codecs.decode(public_key, 'unicode_escape')
-
                 # Import Key and save to internal state
-                new_key.load_key(RSA.import_key(raw_key))
-                self.public_key = new_key
+                algo_obj = jwt.get_algorithm_by_name('RS256')
+                self.public_key = PyJWK.from_json(algo_obj.to_jwk(public_key))
             except ValueError as err:
                 raise exceptions.InvalidRsaKey() from err
 
@@ -69,7 +63,7 @@ class ToolKeyHandler:
 
         if self.keyset_url:
             try:
-                keys = load_jwks_from_url(self.keyset_url)
+                keys = jwt.PyJWKClient(self.keyset_url).get_jwk_set()
             except Exception as err:
                 # Broad Exception is required here because jwkest raises
                 # an Exception object explicitly.
@@ -78,13 +72,13 @@ class ToolKeyHandler:
                 raise exceptions.NoSuitableKeys() from err
             keyset.extend(keys)
 
-        if self.public_key and kid:
-            # Fill in key id of stored key.
-            # This is needed because if the JWS is signed with a
-            # key with a kid, pyjwkest doesn't match them with
-            # keys without kid (kid=None) and fails verification
-            self.public_key.kid = kid
-
+        if self.public_key:
+            if kid:
+                # Fill in key id of stored key.
+                # This is needed because if the JWS is signed with a
+                # key with a kid, pyjwkest doesn't match them with
+                # keys without kid (kid=None) and fails verification
+                self.public_key.kid = kid
             # Add to keyset
             keyset.append(self.public_key)
 
@@ -100,32 +94,24 @@ class ToolKeyHandler:
         iss, sub, exp, aud and jti claims.
         """
         try:
-            # Get KID from JWT header
-            jwt = JWT().unpack(token)
-
-            # Verify message signature
-            message = JWS().verify_compact(
-                token,
-                keys=self._get_keyset(
-                    jwt.headers.get('kid')
-                )
-            )
-
-            # If message is valid, check expiration from JWT
-            if 'exp' in message and message['exp'] < time.time():
-                raise exceptions.TokenSignatureExpired()
-
-            # TODO: Validate other JWT claims
-
-            # Else returns decoded message
-            return message
-
-        except NoSuitableSigningKeys as err:
-            raise exceptions.NoSuitableKeys() from err
-        except (BadSyntax, WrongNumberOfParts) as err:
-            raise exceptions.MalformedJwtToken() from err
-        except BadSignature as err:
-            raise exceptions.BadJwtSignature() from err
+            key_set = self._get_keyset()
+            if not key_set:
+                raise exceptions.NoSuitableKeys()
+            for i in range(len(key_set)):
+                try:
+                    message = jwt.decode(
+                            token,
+                            key=key_set[i],
+                            algorithms=['RS256', 'RS512',],
+                            options={'verify_signature': True}
+                        )
+                    return message
+                except Exception:
+                    if i == len(key_set) - 1:
+                        raise
+        except Exception as token_error:
+            exc_info = sys.exc_info()
+            raise jwt.InvalidTokenError(exc_info[2]) from token_error
 
 
 class PlatformKeyHandler:
@@ -144,14 +130,11 @@ class PlatformKeyHandler:
         if key_pem:
             # Import JWK from RSA key
             try:
-                self.key = RSAKey(
-                    # Using the same key ID as client id
-                    # This way we can easily serve multiple public
-                    # keys on teh same endpoint and keep all
-                    # LTI 1.3 blocks working
-                    kid=kid,
-                    key=RSA.import_key(key_pem)
-                )
+                algo = jwt.get_algorithm_by_name('RS256')
+                key_data = algo.prepare_key(key_pem)
+                rsa_jwk = json.loads(algo.to_jwk(key_data))
+                rsa_jwk['kid'] = kid
+                self.key = PyJWK.from_dict(rsa_jwk)
             except ValueError as err:
                 raise exceptions.InvalidRsaKey() from err
 
@@ -167,28 +150,26 @@ class PlatformKeyHandler:
         # Set iat and exp if expiration is set
         if expiration:
             _message.update({
-                "iat": int(round(time.time())),
-                "exp": int(round(time.time()) + expiration),
+                "iat": int(math.floor(time.time())),
+                "exp": int(math.floor(time.time()) + expiration),
             })
 
         # The class instance that sets up the signing operation
         # An RS 256 key is required for LTI 1.3
-        _jws = JWS(_message, alg="RS256", cty="JWT")
-
-        # Encode and sign LTI message
-        return _jws.sign_compact([self.key])
+        return jwt.encode(_message, self.key, algorithm="RS256")
 
     def get_public_jwk(self):
         """
         Export Public JWK
         """
-        public_keys = jwk.KEYS()
+        jwk = {"keys": []}
 
         # Only append to keyset if a key exists
         if self.key:
-            public_keys.append(self.key)
-
-        return json.loads(public_keys.dump_jwks())
+            algo_obj = jwt.get_algorithm_by_name('RS256')
+            public_jwk = algo_obj.to_jwk(self.key.key.public_key())
+            jwk['keys'].append(json.loads(public_jwk))
+        return jwk
 
     def validate_and_decode(self, token, iss=None, aud=None):
         """
@@ -197,29 +178,22 @@ class PlatformKeyHandler:
         Validates a token sent by the tool using the platform's RSA Key.
         Optionally validate iss and aud claims if provided.
         """
+        if not self.key:
+            raise exceptions.RsaKeyNotSet()
         try:
-            # Verify message signature
-            message = JWS().verify_compact(token, keys=[self.key])
-
-            # If message is valid, check expiration from JWT
-            if 'exp' in message and message['exp'] < time.time():
-                raise exceptions.TokenSignatureExpired()
-
-            # Validate issuer claim (if present)
-            if iss:
-                if 'iss' not in message or message['iss'] != iss:
-                    raise exceptions.InvalidClaimValue('The required iss claim is either missing or does '
-                                                       'not match the expected iss value.')
-
-            # Validate audience claim (if present)
-            if aud:
-                if 'aud' not in message or aud not in message['aud']:
-                    raise exceptions.InvalidClaimValue('The required aud claim is missing.')
-
-            # Else return token contents
+            message = jwt.decode(
+                            token,
+                            key=self.key.public_key(),
+                            audience=aud,
+                            issuer=iss,
+                            algorithms=['RS256', 'RS512'],
+                            options={
+                                'verify_signature': True,
+                                'verify_aud': True if aud else False
+                            }
+                        )
             return message
 
-        except NoSuitableSigningKeys as err:
-            raise exceptions.NoSuitableKeys() from err
-        except BadSyntax as err:
-            raise exceptions.MalformedJwtToken() from err
+        except Exception as token_error:
+            exc_info = sys.exc_info()
+            raise jwt.InvalidTokenError(exc_info[2]) from token_error

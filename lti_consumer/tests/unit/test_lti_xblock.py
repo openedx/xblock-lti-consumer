@@ -3,6 +3,7 @@ Unit tests for LtiConsumerXBlock
 """
 
 import json
+import jwt
 import logging
 from datetime import timedelta
 from itertools import product
@@ -1710,11 +1711,11 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self.rsa_key_id = "1"
         # Generate RSA and save exports
         rsa_key = RSA.generate(2048)
-        self.key = RSAKey(
-            key=rsa_key,
-            kid=self.rsa_key_id
-        )
-        self.public_key = rsa_key.publickey().export_key()
+        pem = rsa_key.export_key('PEM')
+        algo_obj = jwt.get_algorithm_by_name('RS256')
+        self.key = algo_obj.prepare_key(pem)
+        self.public_key = rsa_key.public_key().export_key('PEM')
+
 
         self.xblock_attributes = {
             'lti_version': 'lti_1p3',

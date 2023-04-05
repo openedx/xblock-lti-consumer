@@ -230,6 +230,8 @@ pygments==2.14.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
+pyjwt==2.6.0
+    # via -r requirements/base.txt
 pylint==2.17.2
     # via
     #   edx-lint
@@ -375,3 +377,6 @@ zipp==3.15.0
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
+
+
+edx-drf-extensions @ git+https://github.com/openedx/edx-drf-extensions.git@umar/make-verify-signature-method-generic

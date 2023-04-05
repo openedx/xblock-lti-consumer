@@ -2,8 +2,10 @@
 LTI consumer plugin passthrough views
 """
 import logging
+import sys
 import urllib
 
+import jwt
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
@@ -15,7 +17,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django_filters.rest_framework import DjangoFilterBackend
 from edx_django_utils.cache import TieredCache, get_cache_key
-from jwkest.jwt import JWT, BadSyntax
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 from rest_framework import status, viewsets
@@ -360,20 +361,22 @@ def access_token_endpoint(request, lti_config_id=None, usage_id=None):
             ))
         )
         return JsonResponse(token)
+    except Exception as token_error:
+        exc_info = sys.exc_info()
 
-    # Handle errors and return a proper response
-    except MissingRequiredClaim:
-        # Missing request attibutes
-        return JsonResponse({"error": "invalid_request"}, status=HTTP_400_BAD_REQUEST)
-    except (MalformedJwtToken, TokenSignatureExpired):
-        # Triggered when a invalid grant token is used
-        return JsonResponse({"error": "invalid_grant"}, status=HTTP_400_BAD_REQUEST)
-    except (NoSuitableKeys, UnknownClientId):
-        # Client ID is not registered in the block or
-        # isn't possible to validate token using available keys.
-        return JsonResponse({"error": "invalid_client"}, status=HTTP_400_BAD_REQUEST)
-    except UnsupportedGrantType:
-        return JsonResponse({"error": "unsupported_grant_type"}, status=HTTP_400_BAD_REQUEST)
+        # Handle errors and return a proper response
+        if exc_info[0] == MissingRequiredClaim:
+            # Missing request attributes
+            return JsonResponse({"error": "invalid_request"}, status=HTTP_400_BAD_REQUEST)
+        elif exc_info[0] in (MalformedJwtToken, TokenSignatureExpired, jwt.InvalidTokenError):
+            # Triggered when a invalid grant token is used
+            return JsonResponse({"error": "invalid_grant"}, status=HTTP_400_BAD_REQUEST)
+        elif exc_info[0] == UnsupportedGrantType:
+            return JsonResponse({"error": "unsupported_grant_type"}, status=HTTP_400_BAD_REQUEST)
+        else:
+            # Client ID is not registered in the block or
+            # isn't possible to validate token using available keys.
+            return JsonResponse({"error": "invalid_client"}, status=HTTP_400_BAD_REQUEST)
 
 
 # Post from external tool that doesn't
@@ -740,13 +743,12 @@ def start_proctoring_assessment_endpoint(request):
     token = request.POST.get('JWT')
 
     try:
-        jwt = JWT().unpack(token)
-    except BadSyntax:
+        decoded_jwt = jwt.decode(token, options={'verify_signature': False})
+    except Exception:
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
 
-    jwt_payload = jwt.payload()
-    iss = jwt_payload.get('iss')
-    resource_link_id = jwt_payload.get('https://purl.imsglobal.org/spec/lti/claim/resource_link', {}).get('id')
+    iss = decoded_jwt.get('iss')
+    resource_link_id = decoded_jwt.get('https://purl.imsglobal.org/spec/lti/claim/resource_link', {}).get('id')
 
     try:
         lti_config = LtiConfiguration.objects.get(lti_1p3_client_id=iss)
