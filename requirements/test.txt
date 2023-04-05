@@ -250,6 +250,8 @@ pygments==2.18.0
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
+pyjwt==2.6.0
+    # via -r requirements/base.txt
 pylint==3.3.2
     # via
     #   edx-lint
