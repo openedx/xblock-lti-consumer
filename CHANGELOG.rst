@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.0.1 - 2023-04-11
+------------------
+* Updated translations.
+
 9.0.0 - 2023-03-03
 ------------------
 BREAKING CHANGE:
