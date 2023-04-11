@@ -1,58 +1,207 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
 # 
 # Translators:
 # Albeiro Gonzalez <albeiro.gonzalez@edunext.co>, 2018
-# Juan Camilo Montoya Franco <juan.montoya@edunext.co>, 2017
+# Ana Garcia, 2022
+# Juan Camilo Montoya Franco <juan.montoya@edunext.co>, 2017,2021
 # Laura Silva <lingison@edx.org>, 2016
 msgid ""
 msgstr ""
 "Project-Id-Version: XBlocks\n"
-"POT-Creation-Date: 2016-03-18 15:09+0500\n"
-"PO-Revision-Date: 2018-02-16 21:43+0000\n"
-"Last-Translator: Albeiro Gonzalez <albeiro.gonzalez@edunext.co>\n"
-"Language-Team: Spanish (Latin America) (http://www.transifex.com/open-edx/xblocks/language/es_419/)\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-02-01 17:24-0300\n"
+"PO-Revision-Date: 2016-06-08 14:38+0000\n"
+"Last-Translator: Ana Garcia, 2022\n"
+"Language-Team: Spanish (Latin America) (http://app.transifex.com/open-edx/xblocks/language/es_419/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Language: es_419\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 1.8.7\n"
-"X-Poedit-Basepath: ../../..\n"
-"X-Poedit-SearchPath-0: lti_consumer.py\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
 
-#: lti_consumer.py
+#: lti_1p3/extensions/rest_framework/authentication.py:40
+msgid "Missing LTI 1.3 authentication token."
+msgstr "El token de autenticación de LTI 1.3 no se encuentra disponible."
+
+#: lti_1p3/extensions/rest_framework/authentication.py:44
+msgid "Invalid token header. No credentials provided."
+msgstr "Encabezado de token inválido. No se suministraron las credenciales."
+
+#: lti_1p3/extensions/rest_framework/authentication.py:48
+msgid "Invalid token header. Token string should not contain spaces."
+msgstr "Encabezado de token inválido. La cadena de caracteres del token no debe contener espacios."
+
+#: lti_1p3/extensions/rest_framework/authentication.py:56
+msgid "LTI configuration not found."
+msgstr "No se encontró la configuración LTI."
+
+#: lti_1p3/extensions/rest_framework/authentication.py:65
+msgid "Invalid token signature."
+msgstr "Firma de token inválida."
+
+#: lti_xblock.py:127
 msgid "No valid user id found in endpoint URL"
 msgstr "No se encontró un id de usuario válido en el URL del endpoint"
 
-#: lti_consumer.py
+#: lti_xblock.py:233
 msgid "Display Name"
 msgstr "Nombre a mostrar"
 
-#: lti_consumer.py
+#: lti_xblock.py:235
 msgid ""
 "Enter the name that students see for this component. Analytics reports may "
 "also use the display name to identify this component."
 msgstr "Ingrese el nombre que los estudiantes verán para este componente. Los reportes de Analytics también pueden utilizar el nombre para mostrar para identificar este componente."
 
-#: lti_consumer.py
+#: lti_xblock.py:239
 msgid "LTI Consumer"
 msgstr "Consumidor LTI"
 
-#: lti_consumer.py:256
+#: lti_xblock.py:242
 msgid "LTI Application Information"
 msgstr "Información sobre la aplicación LTI"
 
-#: lti_consumer.py
+#: lti_xblock.py:244
 msgid ""
 "Enter a description of the third party application. If requesting username "
 "and/or email, use this text box to inform users why their username and/or "
 "email will be forwarded to a third party application."
 msgstr "Provea una descripción de la aplicación de un tercero. Si se solicita el nombre del usuario o su correo, use este cuadro de texto para informar al usuario que su nombre de usuario y su correo serán redireccionados a una aplicación de un tercero."
 
-#: lti_consumer.py
+#: lti_xblock.py:254
+msgid "LTI Version"
+msgstr "Versión LTI"
+
+#: lti_xblock.py:262
+msgid ""
+"Select the LTI version that your tool supports.<br />The XBlock LTI Consumer"
+" fully supports LTI 1.1.1, LTI 1.3 and LTI Advantage features."
+msgstr "Seleccione la versión de LTI que su herramienta soporta. <br />El Xblock LTI Consumer soporta completamente las características de LTI 1.1.1, LTI 1.3 y LTI Advantage."
+
+#: lti_xblock.py:268
+msgid "Tool Launch URL"
+msgstr "URL para lanzar la herramienta"
+
+#: lti_xblock.py:272
+msgid ""
+"Enter the LTI 1.3 Tool Launch URL. <br />This is the URL the LMS will use to"
+" launch the LTI Tool."
+msgstr "Ingrese la URL para lanzar la herramienta LTI 1.3. <br />Esta es la URL que el LMS usará para abrir la herramienta LTI."
+
+#: lti_xblock.py:277
+msgid "Tool Initiate Login URL"
+msgstr "URL para iniciar el login en la herramienta externa"
+
+#: lti_xblock.py:281
+msgid ""
+"Enter the LTI 1.3 Tool OIDC Authorization url (can also be called login or "
+"login initiation URL).<br />This is the URL the LMS will use to start a LTI "
+"authorization prior to doing the launch request."
+msgstr "Ingrese la URL de autorización OIDC de la herramienta LTI 1.3 (tambien llamada URL de login, o de inicio de sesión). <br />Esta es la URL que el LMS usará para iniciar la autorización con el componente LTI antes de comenzar."
+
+#: lti_xblock.py:288
+msgid "Tool Public Key Mode"
+msgstr "Modo de clave pública de la herramienta"
+
+#: lti_xblock.py:296
+msgid "Select how the tool's public key information will be specified."
+msgstr "Seleccione cómo se especificará la información de la clave pública de la herramienta."
+
+#: lti_xblock.py:300
+msgid "Tool Keyset URL"
+msgstr "URL del conjunto de claves de la herramienta"
+
+#: lti_xblock.py:304
+msgid ""
+"Enter the LTI 1.3 Tool's JWK keysets URL.<br />This link should retrieve a "
+"JSON file containing public keys and signature algorithm information, so "
+"that the LMS can check if the messages and launch requests received have the"
+" signature from the tool.<br /><b>This is not required when doing LTI 1.3 "
+"Launches without LTI Advantage nor Basic Outcomes requests.</b>"
+msgstr "Ingrese la clave pública de la herramienta LTI 1.3.<br />Esta cadena de texto comienza con '-----BEGIN PUBLIC KEY-----' y es requerida por el LMS para verificar los mensajes recibidos desde la herramienta externa.<br /><b>No es requerida cuando se hace el lanzamiento de la herramienta sin LTI Advantage ni para peticiones sencillas.</b>"
+
+#: lti_xblock.py:314
+msgid "Tool Public Key"
+msgstr "Llave pública de la herramienta"
+
+#: lti_xblock.py:319
+msgid ""
+"Enter the LTI 1.3 Tool's public key.<br />This is a string that starts with "
+"'-----BEGIN PUBLIC KEY-----' and is required so that the LMS can check if "
+"the messages and launch requests received have the signature from the "
+"tool.<br /><b>This is not required when doing LTI 1.3 Launches without LTI "
+"Advantage nor Basic Outcomes requests.</b>"
+msgstr "Ingrese la llave pública de la herramienta LTI 1.3.<br />Esta cadena de texto comienza con '-----BEGIN PUBLIC KEY-----' y es requerida por el LMS para verificar los mensajes recibidos desde la herramienta externa.<br /><b>No es requerida cuando se hace el lanzamiento de la herramienta sin LTI Advantage ni para peticiones sencillas.</b>"
+
+#: lti_xblock.py:329
+msgid "Enable LTI NRPS"
+msgstr "Habilitar LTI NRPS"
+
+#: lti_xblock.py:330
+msgid "Enable LTI Names and Role Provisioning Services."
+msgstr "Habilitar los servicios de provisión de nombres y roles de LTI."
+
+#: lti_xblock.py:337
+msgid "LTI 1.3 Block Client ID - DEPRECATED"
+msgstr "LTI 1.3 Block Client ID - DEPRECADO"
+
+#: lti_xblock.py:340
+msgid "DEPRECATED - This is now stored in the LtiConfiguration model."
+msgstr "DEPRECADO - Esto ahora se almacena en el modelo LtiConfiguration."
+
+#: lti_xblock.py:343
+msgid "LTI 1.3 Block Key - DEPRECATED"
+msgstr "LTI 1.3 Block Key - DEPRECADO"
+
+#: lti_xblock.py:350
+msgid "Deep linking"
+msgstr "Deep linking"
+
+#: lti_xblock.py:351
+msgid "Select True if you want to enable LTI Advantage Deep Linking."
+msgstr "Seleccione True si desea habiliitar el Deep Linking de LTI Advantage."
+
+#: lti_xblock.py:356
+msgid "Deep Linking Launch URL"
+msgstr "URL de lanzamiento para Deep Linking"
+
+#: lti_xblock.py:360
+msgid ""
+"Enter the LTI Advantage Deep Linking Launch URL. If the tool does not "
+"specify one, use the same value as 'Tool Launch URL'."
+msgstr "Ingrese la URL de lanzamiento para LTI Advantage Deep Linking. Si la herramienta no especifica una dirección, use la misma dirección URL para lanzamiento de la herramienta."
+
+#: lti_xblock.py:365
+msgid "LTI Assignment and Grades Service"
+msgstr "Servicio de Tareas y Calificaciones de LTI"
+
+#: lti_xblock.py:367
+msgid "Disabled"
+msgstr "Invalidar"
+
+#: lti_xblock.py:368
+msgid "Allow tools to submit grades only (declarative)"
+msgstr "Permite que las herramientas envíen únicamente calificaciones (declarativo)"
+
+#: lti_xblock.py:369
+msgid "Allow tools to manage and submit grade (programmatic)"
+msgstr "Permite que las herramientas envíen calificaciones (programático)"
+
+#: lti_xblock.py:374
+msgid ""
+"Enable the LTI-AGS service and select the functionality enabled for LTI "
+"tools. The 'declarative' mode (default) will provide a tool with a LineItem "
+"created from the XBlock settings, while the 'programmatic' one will allow "
+"tools to manage, create and link the grades."
+msgstr "Habilite el servicio AGS de LTI y seleccione la funcionalidad habilitada para las herramientas LTI. El modo 'declarativo' (por defecto) le dará una herramienta con un LineItem creado a partir de las configuraciones del Xblock, mientras el modo 'programático' le permitirá a las herramientas administrar, crear y enlazar las calificaciones."
+
+#: lti_xblock.py:382
 msgid "LTI ID"
 msgstr "ID de LTI"
 
-#: lti_consumer.py
+#: lti_xblock.py:384
 #, python-brace-format
 msgid ""
 "Enter the LTI ID for the external LTI provider. This value must be the same "
@@ -61,11 +210,11 @@ msgid ""
 "documentation{anchor_close} for more details on this setting."
 msgstr "Introduzca el ID LTI para el proveedor LTI externo. Este valor debe ser el mismo ID LTI que ingresó en la configuración de Pasaportes LTI en la página Configuración avanzada.<br />Consulte la {docs_anchor_open} documentación de edX LTI {anchor_close} para obtener más detalles sobre esta configuración."
 
-#: lti_consumer.py
+#: lti_xblock.py:396
 msgid "LTI URL"
 msgstr "URL de LTI"
 
-#: lti_consumer.py
+#: lti_xblock.py:398
 #, python-brace-format
 msgid ""
 "Enter the URL of the external tool that this component launches. This "
@@ -74,11 +223,11 @@ msgid ""
 "this setting."
 msgstr "Ingrese la URL de la herramienta externa que este componente inicia. Esta configuración sólo se utiliza cuando Ocultar herramienta externa se establece en Falso.<br />Consulte la {docs_anchor_open} documentación de edX LTI {anchor_close} para obtener más detalles sobre esta configuración."
 
-#: lti_consumer.py
+#: lti_xblock.py:411
 msgid "Custom Parameters"
 msgstr "Parámetros personalizados"
 
-#: lti_consumer.py
+#: lti_xblock.py:413
 #, python-brace-format
 msgid ""
 "Add the key/value pair for any custom parameters, such as the page your "
@@ -87,11 +236,11 @@ msgid ""
 "documentation{anchor_close} for more details on this setting."
 msgstr "Agregue el par clave / valor para cualquier parámetro personalizado, como la página a la que su libro electrónico debe abrirse o el color de fondo para este componente. Ej. [\"page=1\", \"color=white\"]<br />Consulte la {docs_anchor_open} documentación de edX LTI {anchor_close} para obtener más detalles sobre esta configuración"
 
-#: lti_consumer.py
+#: lti_xblock.py:423
 msgid "LTI Launch Target"
 msgstr "Target para el LTI"
 
-#: lti_consumer.py
+#: lti_xblock.py:425
 msgid ""
 "Select Inline if you want the LTI content to open in an IFrame in the "
 "current page. Select Modal if you want the LTI content to open in a modal "
@@ -100,130 +249,327 @@ msgid ""
 "Tool is set to False."
 msgstr "Seleccione Inline si desea que el contenido LTI se abra en un IFrame en la página actual. Seleccione Modal si desea que el contenido LTI se abra en una ventana modal en la página actual. Seleccione Nueva ventana si desea que el contenido LTI se abra en una nueva ventana del navegador. Esta configuración sólo se utiliza cuando Ocultar herramienta externa se establece en Falso."
 
-#: lti_consumer.py
+#: lti_xblock.py:439
 msgid "Button Text"
 msgstr "Texto para el botón"
 
-#: lti_consumer.py
+#: lti_xblock.py:441
 msgid ""
 "Enter the text on the button used to launch the third party application. "
 "This setting is only used when Hide External Tool is set to False and LTI "
 "Launch Target is set to Modal or New Window."
 msgstr "Ingrese el texto en el botón usado para iniciar la aplicación de terceros. Esta opción sólo se utiliza cuando Ocultar herramienta externa se establece en Falso y el Target para el LTI se establece en Modal o Nueva Ventana."
 
-#: lti_consumer.py
+#: lti_xblock.py:449
 msgid "Inline Height"
 msgstr "Altura Inline"
 
-#: lti_consumer.py
+#: lti_xblock.py:451
 msgid ""
 "Enter the desired pixel height of the iframe which will contain the LTI "
 "tool. This setting is only used when Hide External Tool is set to False and "
 "LTI Launch Target is set to Inline."
 msgstr "Introduzca la altura en píxeles deseada del iframe que contendrá la herramienta LTI. Esta opción sólo se utiliza cuando Ocultar herramienta externa se establece en False y Target para el LTI se establece en Inline."
 
-#: lti_consumer.py
+#: lti_xblock.py:459
 msgid "Modal Height"
 msgstr "Altura del modal"
 
-#: lti_consumer.py
+#: lti_xblock.py:461
 msgid ""
 "Enter the desired viewport percentage height of the modal overlay which will"
 " contain the LTI tool. This setting is only used when Hide External Tool is "
 "set to False and LTI Launch Target is set to Modal."
 msgstr "Ingrese la altura de porcentaje de visualización deseada de la superposición modal que contendrá la herramienta LTI. Esta opción sólo se utiliza cuando Ocultar herramienta externa se establece en False y Target para el LTI se establece en Modal."
 
-#: lti_consumer.py
+#: lti_xblock.py:469
 msgid "Modal Width"
 msgstr "Ancho del modal"
 
-#: lti_consumer.py
+#: lti_xblock.py:471
 msgid ""
 "Enter the desired viewport percentage width of the modal overlay which will "
 "contain the LTI tool. This setting is only used when Hide External Tool is "
 "set to False and LTI Launch Target is set to Modal."
 msgstr "Ingrese el ancho de porcentaje de la ventana de visualización de la superposición modal que contendrá la herramienta LTI. Esta opción sólo se utiliza cuando Ocultar herramienta externa se establece en False y Target para el LTI se establece en Modal."
 
-#: lti_consumer.py
+#: lti_xblock.py:479
 msgid "Scored"
 msgstr "Puntuado"
 
-#: lti_consumer.py
+#: lti_xblock.py:480
 msgid ""
 "Select True if this component will receive a numerical score from the "
 "external LTI system."
 msgstr "Seleccione True si este componente recibirá una puntuación numérica desde un sistema LTI externo."
 
-#: lti_consumer.py
+#: lti_xblock.py:487
 msgid ""
 "Enter the number of points possible for this component.  The default value "
 "is 1.0.  This setting is only used when Scored is set to True."
 msgstr "Ingrese el número de puntos posibles para este componente. El valor por defecto es 1.0. Este valor solo se utiliza cuando el parámetro de calificación está definido como True."
 
-#: lti_consumer.py
+#: lti_xblock.py:496
 msgid ""
 "The score kept in the xblock KVS -- duplicate of the published score in "
 "django DB"
 msgstr "La calificación almacenada en xblock KVS -- un duplicado de la calificación publicada en django DB"
 
-#: lti_consumer.py
+#: lti_xblock.py:501
 msgid "Comment as returned from grader, LTI2.0 spec"
 msgstr "El comentario tal y como fue enviado por el evaluador, LTI2.0 spec"
 
-#: lti_consumer.py
+#: lti_xblock.py:506
 msgid "Hide External Tool"
 msgstr "Ocultar la herramienta externa"
 
-#: lti_consumer.py
+#: lti_xblock.py:508
 msgid ""
 "Select True if you want to use this component as a placeholder for syncing "
 "with an external grading  system rather than launch an external tool.  This "
 "setting hides the Launch button and any IFrames for this component."
 msgstr "Seleccione True si desea usar este componente como marcador para sincronizarse con un servicio externo en lugar de lanzar una herramienta externa. Esta opción oculta el botón de Lanzar y cualquier iframe para este componente."
 
-#: lti_consumer.py
+#: lti_xblock.py:516
 msgid "Accept grades past deadline"
 msgstr "Aceptar notas después de la fecha límite"
 
-#: lti_consumer.py
+#: lti_xblock.py:517
 msgid ""
 "Select True to allow third party systems to post grades past the deadline."
 msgstr "Seleccione True para permitir que sistemas de terceros publiquen calificaciones después de la fecha límite."
 
-#: lti_consumer.py
+#: lti_xblock.py:525
 msgid "Request user's username"
 msgstr "Solicite el nombre público del usuario"
 
-#: lti_consumer.py
+#. Translators: This is used to request the user's username for a third party
+#. service.
+#: lti_xblock.py:527
 msgid "Select True to request the user's username."
 msgstr "Seleccione True para solicitar el nombre de usuario."
 
-#: lti_consumer.py
+#: lti_xblock.py:532
 msgid "Request user's email"
 msgstr "Solicitar la dirección de correo del usuario"
 
-#: lti_consumer.py
+#. Translators: This is used to request the user's email for a third party
+#. service.
+#: lti_xblock.py:534
 msgid "Select True to request the user's email address."
 msgstr "Seleccione True para solicitar el correo electrónico del usuario."
 
-#: lti_consumer.py
-#, python-brace-format
-msgid ""
-"Could not parse LTI passport: {lti_passport}. Should be \"id:key:secret\" "
-"string."
-msgstr "No ha sido posible leer el pasaporte LTI: {lti_passport}. Debería ser una cadena \"id:key:secret\"."
+#: lti_xblock.py:539
+msgid "Send extra parameters"
+msgstr "Enviar parámetros adicionales"
 
-#: lti_consumer.py
+#: lti_xblock.py:540
+msgid ""
+"Select True to send the extra parameters, which might contain Personally "
+"Identifiable Information. The processors are site-wide, please consult the "
+"site administrator if you have any questions."
+msgstr "Seleccione True praa enviar los parámetros adicionales, los cuales pueden contener información de identificación personal. Los procesadores son para todo el sitio, por favor consulte al administrador del sitio si tiene cualquier pregunta."
+
+#: lti_xblock.py:603
+msgid "Custom Parameters must be a list"
+msgstr "Los parámetros personalizados deben ser una lista"
+
+#: lti_xblock.py:713
+msgid ""
+"Could not parse LTI passport: {lti_passport!r}. Should be \"id:key:secret\" "
+"string."
+msgstr "No fué posible parsear el pasaporte LTI: {lti_passport!r}. Debería ser una cadena de tipo \"id:key:secret\"."
+
+#: lti_xblock.py:729 lti_xblock.py:745
 msgid "Could not get user id for current request"
 msgstr "No se pudo obtener el id de usuario para esta petición"
 
-#: lti_consumer.py
-#, python-brace-format
+#: lti_xblock.py:850
 msgid ""
-"Could not parse custom parameter: {custom_parameter}. Should be \"x=y\" "
+"Could not parse custom parameter: {custom_parameter!r}. Should be \"x=y\" "
 "string."
-msgstr "No se pudo leer el parámetro personalizado: {custom_parameter}. Debería ser una cadena \"x=y\"."
+msgstr "No fué posible parsear el parametro: {custom_parameter!r}. Debería ser una cadena tipo \"x=y\"."
 
-#: lti_consumer.py
+#: lti_xblock.py:1310
 msgid "[LTI]: Real user not found against anon_id: {}"
 msgstr "[LTI]: No se encontró un usuario que coincidiera con anon_id: {}"
+
+#: models.py:72
+msgid "Configuration Stored on XBlock fields"
+msgstr "Configuración almacenada en campos de XBlocks"
+
+#: models.py:73
+msgid "Configuration Stored on this model"
+msgstr "Configuración almacenada en este modelo"
+
+#: models.py:97
+msgid "LTI configuration data."
+msgstr "Datos de configuración de LTI"
+
+#: models.py:104
+msgid "The URL of the external tool that initiates the launch."
+msgstr "URL de la herramienta externa que inicia el lanzamiento."
+
+#: models.py:109
+msgid "Client key provided by the LTI tool provider."
+msgstr "Llave de cliente suministrada por el proveedor de la herramienta LTI."
+
+#: models.py:115
+msgid "Client secret provided by the LTI tool provider."
+msgstr "Secreto de cliente suministrado por el proveedor de la herramienta LTI."
+
+#: models.py:121
+msgid "Platform's generated Private key. Keep this value secret."
+msgstr "Llave privada generada para la plataforma. Mantenga este valor en secreto."
+
+#: models.py:127
+msgid "Platform's generated Private key ID"
+msgstr "Llave privada generada para la plataforma."
+
+#: models.py:132
+msgid "Platform's generated JWK keyset."
+msgstr "JWK keyset generado para la plataforma"
+
+#: models.py:138
+msgid "Client ID used by LTI tool"
+msgstr "ID del cliente usado por la herramienta LTI"
+
+#: models.py:148
+msgid "LTI Configuration stores on XBlock needs a block location set."
+msgstr "Las configuraciones LTI para XBlock necesitan una ubicación de bloque."
+
+#: models.py:155
+msgid "Invalid LTI configuration."
+msgstr "Configuración LTI inválida"
+
+#: models.py:165
+msgid "Block location not set, it's not possible to retrieve the block."
+msgstr "No se definió la ubicación del bloque, por lo que no es posible encontrar el bloque"
+
+#: plugin/views.py:246
+msgid "The selected content type is not supported by Open edX."
+msgstr "El tipo de contenido seleccionado no está soportado por Open edX."
+
+#: plugin/views.py:261
+msgid "You don't have access to save LTI Content Items."
+msgstr "Usted no tiene acceso para guardar items de contenido LTI."
+
+#: plugin/views.py:262
+msgid ""
+"Please check that you have course staff permissions and double check this "
+"block's LTI settings."
+msgstr "Por favor verifique que tiene permisos de staff en el curso y confirme las configuraciones de LTI para este bloque."
+
+#: templates/html/lti-dl/dl_response_error.html:6
+msgid "LTI Deep Linking failed."
+msgstr "Falló el Deep Linking de LTI"
+
+#: templates/html/lti-dl/dl_response_saved.html:6
+msgid "LTI Deep Linking"
+msgstr "Deep Linking de LTI"
+
+#: templates/html/lti-dl/dl_response_saved.html:10
+msgid "The LTI Deep Linking content was successfully saved in the LMS."
+msgstr "El contenido de Deep Linking de LTI fué guardado con exito en el LMS."
+
+#: templates/html/lti-dl/dl_response_saved.html:13
+msgid "You can safely close this page now."
+msgstr "Puede cerrar esta página ahora."
+
+#: templates/html/lti_1p3_launch_error.html:10
+msgid "There was an error while launching the LTI 1.3 tool."
+msgstr "Ocurrió un error al lanzar la herramienta LTI 1.3."
+
+#: templates/html/lti_1p3_launch_error.html:13
+msgid ""
+"If you're seeing this on a live course, please contact the course staff."
+msgstr "Si usted está viendo esto en un curso en vivo, por favor contacte al equipo del curso."
+
+#: templates/html/lti_1p3_permission_error.html:10
+msgid "Unauthorized."
+msgstr "No autorizado."
+
+#: templates/html/lti_1p3_permission_error.html:13
+msgid ""
+"Students don't have permissions to perform LTI Deep Linking configuration "
+"launches."
+msgstr "Los estudiantes no tienen permisos para lanzar configuraciones de LTI Deep Linking."
+
+#: templates/html/lti_1p3_studio.html:3
+msgid "LTI 1.3 Launches can only be performed from the LMS."
+msgstr "Los lanzamientos de LTI 1.3 solo pueden ser realizados desde el LMS."
+
+#: templates/html/lti_1p3_studio.html:7
+msgid ""
+"To set up the LTI integration, you need to register the LMS in the tool with"
+" the information provided below."
+msgstr "Para configurar la integración LTI, debe registrar al LMS en la herramienta externa con la información suministrada a continuación."
+
+#: templates/html/lti_1p3_studio.html:11
+msgid "Client ID: "
+msgstr "ID de cliente:"
+
+#: templates/html/lti_1p3_studio.html:16
+msgid "Deployment ID: "
+msgstr "ID del deployment:"
+
+#: templates/html/lti_1p3_studio.html:21
+msgid "Keyset URL: "
+msgstr "URL del Keyset:"
+
+#: templates/html/lti_1p3_studio.html:26
+msgid "Access Token URL: "
+msgstr "URL del token de acceso:"
+
+#: templates/html/lti_1p3_studio.html:31
+msgid "Login URL: "
+msgstr "URL de inicio de sesión:"
+
+#: templates/html/lti_1p3_studio.html:39
+msgid "Deep Linking is configured on this tool."
+msgstr "Deep Linking está configurado para esta herramienta."
+
+#: templates/html/lti_1p3_studio.html:40
+msgid "The Deep Linking configuration stored is presented below:"
+msgstr "La configuración guardada de Deep Linking se presenta a continuación:"
+
+#: templates/html/lti_1p3_studio.html:45
+msgid "If you run deep linking again, the content above will be replaced."
+msgstr "Si ejecuta Deep Linking nuevamente, todo el contenido de arriba será reemplazado."
+
+#: templates/html/lti_1p3_studio.html:49
+msgid "You can configure this tool's content using LTI Deep Linking."
+msgstr "Puede configurar el contenido de esta herramienta usando LTI deep linking"
+
+#: templates/html/lti_1p3_studio.html:50
+msgid "To do that, make sure the block is published and click the link below:"
+msgstr "Para hacer esto, asegurese de que el bloque esté publicado y haga clic en el link a continuación:"
+
+#: templates/html/lti_1p3_studio.html:53
+msgid "Deep Linking Launch - Configure tool"
+msgstr "Herramienta de configuración para lanzamiento de Deep Linking"
+
+#: templates/html/lti_launch.html:27
+msgid "Press to Launch"
+msgstr "Pulsar para iniciar"
+
+#: static/js/xblock_lti_consumer.js:142
+msgid ""
+"Click OK to have your username and e-mail address sent to a 3rd party application.\n"
+"\n"
+"Click Cancel to return to this page without sending your information."
+msgstr "Haz Clic en ACEPTAR para que tu nombre de usuario y correo electrónico sean enviados a una aplicación de 3ros.\n\nHaz Clic en CANCELAR para volver a está página sin que se que envíe su información."
+
+#: static/js/xblock_lti_consumer.js:144
+msgid ""
+"Click OK to have your username sent to a 3rd party application.\n"
+"\n"
+"Click Cancel to return to this page without sending your information."
+msgstr "Haz Clic en ACEPTAR para que su nombre de usuario sea enviado a una aplicación de 3ros.\n\nHaz Clic en CANCELAR para volver a está página sin que se que envíe su información."
+
+#: static/js/xblock_lti_consumer.js:146
+msgid ""
+"Click OK to have your e-mail address sent to a 3rd party application.\n"
+"\n"
+"Click Cancel to return to this page without sending your information."
+msgstr "Haz Clic en ACEPTAR para que tu correo electrónico sea enviado a una aplicación de 3ros.\n\nHaz Clic en CANCELAR para volver a está página sin que se que envíe su información."
