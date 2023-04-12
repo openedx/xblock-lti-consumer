@@ -123,9 +123,9 @@ function LtiConsumerXBlock(runtime, element) {
 
             if (showCancelButton) {
                 $dialog_container
-                .append('<button style="margin-right:1rem" id="cancel-button">Cancel</button>');
+                .append('<button style="margin-right:1rem" id="cancel-button">' + gettext("Cancel") + '</button>');
             }
-            $dialog_container.append('<button id="confirm-button">OK</button>');
+            $dialog_container.append('<button id="confirm-button">' + gettext('OK') + '</button>');
 
             // When a learner clicks "OK" or "Cancel" in the consent dialog, remove the consent dialog, show the launch
             // button, and resolve the promise.
@@ -154,21 +154,20 @@ function LtiConsumerXBlock(runtime, element) {
 
         function renderPIIConsentPromptIfRequired(onSuccess, showCancelButton=true) {
             if (askToSendUsername && askToSendEmail) {
-                msg = "Click OK to have your username and e-mail address sent to a 3rd party application.";
+                msg = gettext('Click OK to have your username and e-mail address sent to a 3rd party application.');
             } else if (askToSendUsername) {
-                msg = "Click OK to have your username sent to a 3rd party application.";
+                msg = gettext('Click OK to have your username sent to a 3rd party application.');
             } else if (askToSendEmail) {
-                msg = "Click OK to have your e-mail address sent to a 3rd party application.";
+                msg = gettext('Click OK to have your e-mail address sent to a 3rd party application.');
             } else {
-                onSuccess("OK");
+                onSuccess('OK');
                 return;
             }
 
             if (showCancelButton) {
-                msg += "\n\nClick Cancel to return to this page without sending your information.";
+                msg += '\n\n' + gettext('Click Cancel to return to this page without sending your information.');
             }
 
-            msg = gettext(msg);
             $.when(confirmDialog(msg, $(this), showCancelButton)).then(onSuccess);
         }
 
