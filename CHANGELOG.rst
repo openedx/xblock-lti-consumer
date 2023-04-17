@@ -16,6 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.0.2 - 2023-04-12
+------------------
+* Updated PII JS so strings can be extracted for translation.
+* Updated translations using transifex pull.
+
 9.0.1 - 2023-04-11
 ------------------
 * Updated translations.
