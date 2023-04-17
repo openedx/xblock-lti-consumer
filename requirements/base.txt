@@ -100,7 +100,7 @@ pyyaml==6.0
     # via xblock
 requests==2.28.2
     # via pyjwkest
-simplejson==3.18.4
+simplejson==3.19.1
     # via xblock-utils
 six==1.16.0
     # via

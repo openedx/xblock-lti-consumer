@@ -28,9 +28,9 @@ bleach==6.0.0
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.104
+boto3==1.26.110
     # via fs-s3fs
-botocore==1.29.104
+botocore==1.29.110
     # via
     #   boto3
     #   s3transfer
@@ -132,7 +132,7 @@ idna==3.4
     # via
     #   -r requirements/base.txt
     #   requests
-importlib-metadata==6.1.0
+importlib-metadata==6.3.0
     # via
     #   keyring
     #   twine
@@ -224,7 +224,7 @@ pycryptodomex==3.17
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-pygments==2.14.0
+pygments==2.15.0
     # via
     #   readme-renderer
     #   rich
@@ -299,7 +299,7 @@ s3transfer==0.6.0
     # via boto3
 secretstorage==3.3.3
     # via keyring
-simplejson==3.18.4
+simplejson==3.19.1
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
