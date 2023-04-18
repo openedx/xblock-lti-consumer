@@ -10,7 +10,8 @@ from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from jwkest import BadSignature
 from jwkest.jwk import RSAKey, load_jwks
-from jwkest.jws import JWS
+from jwkest.jws import JWS, NoSuitableSigningKeys, UnknownAlgorithm
+
 
 from lti_consumer.lti_1p3 import exceptions
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler, ToolKeyHandler
@@ -82,6 +83,30 @@ class TestPlatformKeyHandler(TestCase):
                 "exp": 2000
             }
         )
+
+    def test_encode_and_sign_no_suitable_keys(self):
+        """
+        Test if an exception is raised when there are no suitable keys when signing the JWT.
+        """
+        message = {
+            "test": "test"
+        }
+
+        with patch('lti_consumer.lti_1p3.key_handlers.JWS.sign_compact', side_effect=NoSuitableSigningKeys):
+            with self.assertRaises(exceptions.NoSuitableKeys):
+                self.key_handler.encode_and_sign(message)
+
+    def test_encode_and_sign_unknown_algorithm(self):
+        """
+        Test if an exception is raised when the signing algorithm is unknown when signing the JWT.
+        """
+        message = {
+            "test": "test"
+        }
+
+        with patch('lti_consumer.lti_1p3.key_handlers.JWS.sign_compact', side_effect=UnknownAlgorithm):
+            with self.assertRaises(exceptions.MalformedJwtToken):
+                self.key_handler.encode_and_sign(message)
 
     def test_invalid_rsa_key(self):
         """

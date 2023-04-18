@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.0.3 - 2023-04-18
+------------------
+* Add logging for error cases in the access_token_endpoint view and the key handler classes.
+
 9.0.2 - 2023-04-12
 ------------------
 * Updated PII JS so strings can be extracted for translation.

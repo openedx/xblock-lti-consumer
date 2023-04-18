@@ -417,10 +417,20 @@ class LtiConsumer1p3:
         # Check if all required claims are present
         for required_claim in LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS:
             if required_claim not in token_request_data.keys():
-                raise exceptions.MissingRequiredClaim(f'The required claim {required_claim} is missing from the JWT.')
+                error_msg = (
+                    f'The required claim {required_claim} is missing from the OAuth 2.0 Client-Credentials '
+                    'Grant JWT.'
+                )
+                log.warning(error_msg)
+                raise exceptions.MissingRequiredClaim(error_msg)
 
         # Check that grant type is `client_credentials`
-        if token_request_data['grant_type'] != 'client_credentials':
+        grant_type = token_request_data['grant_type']
+        if grant_type != 'client_credentials':
+            log.warning(
+                'The required grant_type parameter in the OAuth 2.0 Client-Credentials Grant JWT was expected to be '
+                f'client_credentials but was {grant_type} instead.'
+            )
             raise exceptions.UnsupportedGrantType()
 
         # Validate JWT token
