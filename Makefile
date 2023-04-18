@@ -59,6 +59,7 @@ upgrade: $(COMMON_CONSTRAINTS_TXT)  ## update the requirements/*.txt files with 
 
 WORKING_DIR := lti_consumer
 EXTRACT_DIR := $(WORKING_DIR)/translations/en/LC_MESSAGES
+JS_COMPILE_DIR := $(WORKING_DIR)/public/js/translations
 EXTRACTED_DJANGO := $(EXTRACT_DIR)/django-partial.po
 EXTRACTED_DJANGOJS := $(EXTRACT_DIR)/djangojs-partial.po
 EXTRACTED_TEXT := $(EXTRACT_DIR)/django.po
@@ -73,6 +74,7 @@ extract_translations: ## extract strings to be translated, outputting .po files
 
 compile_translations: ## compile translation files, outputting .mo files for each supported language
 	cd $(WORKING_DIR) && i18n_tool generate
+	python manage.py compilejsi18n --namespace XBlockLtiConsumerI18N --output $(JS_COMPILE_DIR)
 
 detect_changed_source_translations:
 	cd $(WORKING_DIR) && i18n_tool changed

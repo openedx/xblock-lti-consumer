@@ -55,10 +55,11 @@ import re
 import urllib.parse
 from collections import namedtuple
 from importlib import import_module
+import pkg_resources
 
 import bleach
 from django.conf import settings
-from django.utils import timezone
+from django.utils import timezone, translation
 from web_fragments.fragment import Fragment
 
 from webob import Response
@@ -645,6 +646,22 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         ]
         return scenarios
 
+    @staticmethod
+    def _get_statici18n_js_url(loader):  # pragma: no cover
+        """
+        Returns the Javascript translation file for the currently selected language, if any found by
+        `pkg_resources`
+        """
+        lang_code = translation.get_language()
+        if not lang_code:
+            return None
+        text_js = 'public/js/translations/{lang_code}/text.js'
+        country_code = lang_code.split('-')[0]
+        for code in (translation.to_locale(lang_code), lang_code, country_code):
+            if pkg_resources.resource_exists(loader.module_name, text_js.format(lang_code=code)):
+                return text_js.format(lang_code=code)
+        return None
+
     def validate_field_data(self, validation, data):
         if not isinstance(data.custom_parameters, list):
             _ = self.runtime.service(self, "i18n").ugettext
@@ -1125,6 +1142,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         )
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
+        statici18n_js_url = self._get_statici18n_js_url(loader)
+        if statici18n_js_url:
+            fragment.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
         fragment.initialize_js('LtiConsumerXBlock')
         return fragment
 
@@ -1149,6 +1169,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
+        statici18n_js_url = self._get_statici18n_js_url(loader)
+        print(statici18n_js_url)
+        if statici18n_js_url:
+            fragment.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
         fragment.initialize_js('LtiConsumerXBlock')
         return fragment
 

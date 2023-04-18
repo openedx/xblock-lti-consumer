@@ -17,3 +17,4 @@ django-filter
 jsonfield
 django-config-models         # Configuration models for Django allowing config management with auditing
 openedx-filters
+django-statici18n
