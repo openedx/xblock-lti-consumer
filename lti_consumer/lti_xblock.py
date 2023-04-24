@@ -1170,7 +1170,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
         statici18n_js_url = self._get_statici18n_js_url(loader)
-        print(statici18n_js_url)
         if statici18n_js_url:
             fragment.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
         fragment.initialize_js('LtiConsumerXBlock')

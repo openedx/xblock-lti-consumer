@@ -10,12 +10,34 @@
   const django = globals.django || (globals.django = {});
 
   
-  django.pluralidx = function(count) { return (count == 1) ? 0 : 1; };
+  django.pluralidx = function(n) {
+    const v = (n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;
+    if (typeof v === 'boolean') {
+      return v ? 1 : 0;
+    } else {
+      return v;
+    }
+  };
   
 
   /* gettext library */
 
   django.catalog = django.catalog || {};
+  
+  const newcatalog = {
+    "Display Name": "Nome de exibi\u00e7\u00e3o",
+    "Enter the name that students see for this component. Analytics reports may also use the display name to identify this component.": "Forne\u00e7a o nome que os alunos ver\u00e3o para este componente. Os relat\u00f3rios de an\u00e1lise tamb\u00e9m poder\u00e3o usar o nome de exibi\u00e7\u00e3o para identificar este componente. ",
+    "Inline Height": "Altura do embutido",
+    "LTI Application Information": "Informa\u00e7\u00f5es do aplicativo LTI",
+    "LTI Consumer": "Consumidor de LTI",
+    "LTI ID": "ID do LTI",
+    "Modal Height": "Altura do modal",
+    "Modal Width": "Largura do modal",
+    "No valid user id found in endpoint URL": "Nenhuma ID de usu\u00e1rio v\u00e1lido encontrada no ponto de extremidade da URL"
+  };
+  for (const key in newcatalog) {
+    django.catalog[key] = newcatalog[key];
+  }
   
 
   if (!django.jsi18n_initialized) {
