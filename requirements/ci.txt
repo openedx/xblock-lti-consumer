@@ -16,7 +16,7 @@ asgiref==3.6.0
     # via
     #   -r requirements/test.txt
     #   django
-astroid==2.15.3
+astroid==2.15.4
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -35,11 +35,11 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.26.115
+boto3==1.26.119
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.29.115
+botocore==1.29.119
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -146,7 +146,7 @@ edx-lint==5.3.4
     # via -r requirements/test.txt
 edx-opaque-keys[django]==2.3.0
     # via -r requirements/test.txt
-filelock==3.11.0
+filelock==3.12.0
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -170,7 +170,7 @@ idna==3.4
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==6.5.0
+importlib-metadata==6.6.0
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -278,7 +278,7 @@ pkginfo==1.9.6
     # via
     #   -r requirements/test.txt
     #   twine
-platformdirs==3.2.0
+platformdirs==3.3.0
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -306,14 +306,14 @@ pycryptodomex==3.17
     # via
     #   -r requirements/test.txt
     #   pyjwkest
-pygments==2.15.0
+pygments==2.15.1
     # via
     #   -r requirements/test.txt
     #   readme-renderer
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.17.2
+pylint==2.17.3
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -459,7 +459,7 @@ urllib3==1.26.15
     #   botocore
     #   requests
     #   twine
-virtualenv==20.21.0
+virtualenv==20.22.0
     # via
     #   -r requirements/tox.txt
     #   tox
