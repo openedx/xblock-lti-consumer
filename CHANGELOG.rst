@@ -16,6 +16,12 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.0.4 - 2023-04-25
+------------------
+* Standardize translation directory to comply with openedx-translations.
+* Add creation of JS translations to compile_translations command.
+* Add support for JS translations in student_view.
+
 9.0.3 - 2023-04-18
 ------------------
 * Add logging for error cases in the access_token_endpoint view and the key handler classes.

@@ -1,4 +1,21 @@
 function LtiConsumerXBlock(runtime, element) {
+    var gettext;
+    if ('XBlockLtiConsumerI18N' in window) {
+        // Use local translations
+        gettext = function(string) {
+            var translated = window.XBlockLtiConsumerI18N.gettext(string);
+            // if lti-consumer translation is the same as the input, check if global has a different value
+            // This is useful for overriding the XBlock's string by themes (only for English)
+            if (string === translated && 'gettext' in window) {
+                translated = window.gettext(string);
+            }
+            return translated;
+        };
+    } else if ('gettext' in window) {
+        // Use edxapp's global translations
+        gettext = window.gettext;
+    }
+
     $(function ($) {
         // Adapted from leanModal v1.1 by Ray Stone - http://finelysliced.com.au
         // Dual licensed under the MIT and GPL
