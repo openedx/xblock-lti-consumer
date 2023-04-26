@@ -21,7 +21,7 @@ from opaque_keys.edx.keys import UsageKey
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
 from lti_consumer.exceptions import LtiError
@@ -834,4 +834,4 @@ def start_proctoring_assessment_endpoint(request):
         user_id=request.user.id,
     )
 
-    return JsonResponse(data={})
+    return render(request, 'html/lti_start_assessment.html', status=HTTP_200_OK)

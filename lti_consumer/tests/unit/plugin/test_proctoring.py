@@ -280,3 +280,17 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
             user_id=self.user.id,
         )
         self.assertEqual(mock_assessment_started_signal.call_args, expected_call_args)
+
+    def test_start_assessment_endpoint_returns_valid_html(self):
+        """
+        Tests that a successful call to the start_assessment_endpoint returns the correct html response.
+        """
+        response = self.client.post(
+            self.url,
+            {
+                "JWT": self.create_tool_jwt_token()
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('window.close', response.content.decode('utf-8'))

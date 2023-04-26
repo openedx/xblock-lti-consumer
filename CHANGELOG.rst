@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.5.0 - 2023-05-08
+------------------
+* Return HTML message telling user that exam is ready to start on start assessment response to LTI proctoring launch.
+
 9.4.0 - 2023-05-08
 ------------------
 * Fix broken call to LMS `get_block_for_descriptor_internal` due to descriptor->block rename.
