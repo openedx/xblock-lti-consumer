@@ -477,32 +477,38 @@ class TestEditableFields(TestLtiConsumerXBlock):
 
     def test_editable_fields_with_no_config(self):
         """
-        Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
+        Test that LTI XBlock's fields (i.e. 'ask_to_send_username', 'ask_to_send_full_name', and 'ask_to_send_email')
         are editable when lti-configuration service is not provided.
         """
         self.xblock.runtime.service.return_value = None
-        # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
-        self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        # Assert that 'ask_to_send_username', 'ask_to_send_full_name', and 'ask_to_send_email' are editable.
+        self.assertTrue(
+            self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email'])
+        )
 
     def test_editable_fields_when_editing_allowed(self):
         """
-        Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
+        Test that LTI XBlock's fields (i.e. 'ask_to_send_username', 'ask_to_send_full_name', and 'ask_to_send_email')
         are editable when this XBlock is configured to allow it.
         """
         # this XBlock is configured to allow editing of LTI fields
         self.xblock.runtime.service.return_value = get_mock_lti_configuration(editable=True)
-        # Assert that 'ask_to_send_username' and 'ask_to_send_email' are editable.
-        self.assertTrue(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        # Assert that 'ask_to_send_username', 'ask_to_send_full_name', and 'ask_to_send_email' are editable.
+        self.assertTrue(
+            self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email'])
+        )
 
     def test_editable_fields_when_editing_not_allowed(self):
         """
-        Test that LTI XBlock's fields (i.e. 'ask_to_send_username' and 'ask_to_send_email')
+        Test that LTI XBlock's fields (i.e. 'ask_to_send_username', 'ask_to_send_full_name', and 'ask_to_send_email')
         are not editable when this XBlock is configured to not to allow it.
         """
         # this XBlock is configured to not to allow editing of LTI fields
         self.xblock.runtime.service.return_value = get_mock_lti_configuration(editable=False)
-        # Assert that 'ask_to_send_username' and 'ask_to_send_email' are not editable.
-        self.assertFalse(self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_email']))
+        # Assert that 'ask_to_send_username', 'ask_to_send_full_name', and 'ask_to_send_email' are not editable.
+        self.assertFalse(
+            self.are_fields_editable(fields=['ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email'])
+        )
 
     def test_lti_1p3_fields_appear(self):
         """
@@ -831,6 +837,10 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         fake_user = Mock()
         fake_user_email = 'abc@example.com'
         fake_user.emails = [fake_user_email]
+
+        full_name_mock = PropertyMock(return_value='fake_full_name')
+        type(fake_user).full_name = full_name_mock
+
         fake_username = 'fake'
         fake_user.opt_attrs = {
             "edx-platform.username": fake_username,
@@ -876,6 +886,10 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         fake_user = Mock()
         fake_user_email = 'abc@example.com'
         fake_user.emails = [fake_user_email]
+
+        full_name_mock = PropertyMock(return_value='fake_full_name')
+        type(fake_user).full_name = full_name_mock
+
         fake_username = 'fake'
         fake_user.opt_attrs = {
             "edx-platform.username": fake_username,
@@ -915,9 +929,15 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.anonymous_user_id', PropertyMock(return_value=FAKE_USER_ID))
-    @ddt.idata(product([True, False], [True, False], [True, False]))
+    @ddt.idata(product([True, False], [True, False], [True, False], [True, False]))
     @ddt.unpack
-    def test_lti_launch_pii_sharing(self, pii_sharing_enabled, ask_to_send_username, ask_to_send_email):
+    def test_lti_launch_pii_sharing(
+        self,
+        pii_sharing_enabled,
+        ask_to_send_username,
+        ask_to_send_email,
+        ask_to_send_full_name
+    ):
         """
         Test that the values of the LTI 1.1 PII fields person_sourcedid and person_contact_email_primary that are set
         on the LTI consumer are actual values for those fields only when PII sharing is enabled. If PII sharing is not
@@ -926,6 +946,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.xblock.get_pii_sharing_enabled = Mock(return_value=pii_sharing_enabled)
 
         self.xblock.ask_to_send_username = ask_to_send_username
+        self.xblock.ask_to_send_full_name = ask_to_send_full_name
         self.xblock.ask_to_send_email = ask_to_send_email
 
         request = make_request('', 'GET')
@@ -936,6 +957,9 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         }
 
         set_user_data_kwargs['person_sourcedid'] = 'fake' if pii_sharing_enabled and ask_to_send_username else None
+        set_user_data_kwargs['person_name_full'] = (
+            'fake_full_name' if pii_sharing_enabled and ask_to_send_full_name else None
+        )
         set_user_data_kwargs['person_contact_email_primary'] = (
             'abc@example.com' if pii_sharing_enabled and ask_to_send_email else None
         )
@@ -1408,8 +1432,8 @@ class TestGetContext(TestLtiConsumerXBlock):
         context_keys = (
             'launch_url', 'lti_1p3_launch_url', 'element_id', 'element_class', 'launch_target',
             'display_name', 'form_url', 'hide_launch', 'has_score', 'weight', 'module_score',
-            'comment', 'description', 'ask_to_send_username', 'ask_to_send_email', 'button_text',
-            'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
+            'comment', 'description', 'ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email',
+            'button_text', 'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
             'accept_grades_past_due', 'lti_version',
         )
 
@@ -1486,24 +1510,34 @@ class TestGetContext(TestLtiConsumerXBlock):
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
         self.assertEqual(context['lti_1p3_launch_url'], lti_1p3_launch_url)
 
-    @ddt.idata(product([True, False], [True, False], [True, False]))
+    @ddt.idata(product([True, False], [True, False], [True, False], [True, False]))
     @ddt.unpack
-    def test_context_pii_sharing(self, pii_sharing_enabled, ask_to_send_username, ask_to_send_email):
+    def test_context_pii_sharing(
+        self,
+        pii_sharing_enabled,
+        ask_to_send_username,
+        ask_to_send_full_name,
+        ask_to_send_email
+    ):
         """
-        Test that the values for context keys ask_to_send_username and ask_to_send_email are the values of the
-        corresponding XBlock fields only when PII sharing is enabled. Otherwise, they should always be False.
+        Test that the values for context keys ask_to_send_username, 'ask_to_send_full_name', and ask_to_send_email
+        are the values of thecorresponding XBlock fields only when PII sharing is enabled.
+        Otherwise, they should always be False.
         """
         self.xblock.get_pii_sharing_enabled = Mock(return_value=pii_sharing_enabled)
         self.xblock.ask_to_send_username = ask_to_send_username
+        self.xblock.ask_to_send_full_name = ask_to_send_full_name
         self.xblock.ask_to_send_email = ask_to_send_email
 
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
 
         if pii_sharing_enabled:
             self.assertEqual(context['ask_to_send_username'], self.xblock.ask_to_send_username)
+            self.assertEqual(context['ask_to_send_full_name'], self.xblock.ask_to_send_full_name)
             self.assertEqual(context['ask_to_send_email'], self.xblock.ask_to_send_email)
         else:
             self.assertEqual(context['ask_to_send_username'], False)
+            self.assertEqual(context['ask_to_send_full_name'], False)
             self.assertEqual(context['ask_to_send_email'], False)
 
 
@@ -1594,9 +1628,15 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.addCleanup(self.mock_filter_enabled_patcher.stop)
         self.addCleanup(self.mock_database_config_enabled_patcher.stop)
 
-    @ddt.idata(product([True, False], [True, False], [True, False]))
+    @ddt.idata(product([True, False], [True, False], [True, False], [True, False]))
     @ddt.unpack
-    def test_get_lti_1p3_launch_data(self, pii_sharing_enabled, ask_to_send_username, ask_to_send_email):
+    def test_get_lti_1p3_launch_data(
+        self,
+        pii_sharing_enabled,
+        ask_to_send_username,
+        ask_to_send_full_name,
+        ask_to_send_email
+    ):
         """
         Test that get_lti_1p3_launch_data returns an instance of Lti1p3LaunchData with the correct data.
         """
@@ -1604,7 +1644,13 @@ class TestLtiConsumer1p3XBlock(TestCase):
         fake_user = Mock()
         fake_user_email = 'fake_email@example.com'
         fake_username = 'fake_username'
+
+        fake_name = 'fake_full_name'
+        full_name_mock = PropertyMock(return_value=fake_name)
+        type(fake_user).full_name = full_name_mock
+
         fake_user.emails = [fake_user_email]
+        fake_user.name = fake_name
         fake_user.opt_attrs = {
             'edx-platform.user_id': 1,
             'edx-platform.user_role': 'instructor',
@@ -1615,6 +1661,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.xblock.runtime.service(self, 'user').get_external_user_id = Mock(return_value="external_user_id")
         self.xblock.ask_to_send_username = ask_to_send_username
+        self.xblock.ask_to_send_full_name = ask_to_send_full_name
         self.xblock.ask_to_send_email = ask_to_send_email
 
         # Mock out get_context_title to avoid calling into the compatability layer.
@@ -1644,6 +1691,9 @@ class TestLtiConsumer1p3XBlock(TestCase):
         if pii_sharing_enabled:
             if ask_to_send_username:
                 expected_launch_data_kwargs["preferred_username"] = fake_username
+
+            if ask_to_send_full_name:
+                expected_launch_data_kwargs["name"] = fake_name
 
             if ask_to_send_email:
                 expected_launch_data_kwargs["email"] = fake_user_email
@@ -2013,9 +2063,9 @@ class TestGetPiiSharingEnabled(TestLtiConsumerXBlock):
         )
         self.assertEqual(self.xblock.get_pii_sharing_enabled(), lti_access_to_learners_editable)
 
-    @ddt.idata(product([True, False], [True, False]))
+    @ddt.idata(product([True, False], [True, False], [True, False]))
     @ddt.unpack
-    def test_lti_access_to_learners_editable_args(self, ask_to_send_username, ask_to_send_email):
+    def test_lti_access_to_learners_editable_args(self, ask_to_send_username, ask_to_send_full_name, ask_to_send_email):
         """
         Test that the lti_access_to_learners_editable_mock method of the LTI configuration service is called with the
         the correct arguments.
@@ -2027,11 +2077,12 @@ class TestGetPiiSharingEnabled(TestLtiConsumerXBlock):
         self.xblock.runtime.service.return_value = lti_configuration
 
         self.xblock.ask_to_send_username = ask_to_send_username
+        self.xblock.ask_to_send_full_name = ask_to_send_full_name
         self.xblock.ask_to_send_email = ask_to_send_email
 
         self.xblock.get_pii_sharing_enabled()
 
         lti_access_to_learners_editable_mock.assert_called_once_with(
             self.xblock.scope_ids.usage_id.context_key,
-            ask_to_send_username or ask_to_send_email,
+            ask_to_send_username or ask_to_send_full_name or ask_to_send_email,
         )
