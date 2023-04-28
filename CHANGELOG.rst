@@ -16,6 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.1.0 - 2023-04-28
+------------------
+* Add full name as an LTI parameter to LTI 1.1 launches as the "lis_person_name_full" parameter.
+* Add full name as an LTI parameter to LTI 1.3 launches as the "name" ID token claim.
+
 9.0.4 - 2023-04-25
 ------------------
 * Standardize translation directory to comply with openedx-translations.
