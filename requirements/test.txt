@@ -14,7 +14,7 @@ asgiref==3.6.0
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.15.3
+astroid==2.15.4
     # via
     #   pylint
     #   pylint-celery
@@ -28,9 +28,9 @@ bleach==6.0.0
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.115
+boto3==1.26.119
     # via fs-s3fs
-botocore==1.29.115
+botocore==1.29.119
     # via
     #   boto3
     #   s3transfer
@@ -132,7 +132,7 @@ idna==3.4
     # via
     #   -r requirements/base.txt
     #   requests
-importlib-metadata==6.5.0
+importlib-metadata==6.6.0
     # via
     #   keyring
     #   twine
@@ -208,7 +208,7 @@ pbr==5.11.1
     #   stevedore
 pkginfo==1.9.6
     # via twine
-platformdirs==3.2.0
+platformdirs==3.3.0
     # via pylint
 psutil==5.9.5
     # via
@@ -224,13 +224,13 @@ pycryptodomex==3.17
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-pygments==2.15.0
+pygments==2.15.1
     # via
     #   readme-renderer
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.17.2
+pylint==2.17.3
     # via
     #   edx-lint
     #   pylint-celery
