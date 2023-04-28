@@ -578,6 +578,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default=False,
         scope=Scope.settings
     )
+    ask_to_send_full_name = Boolean(
+        display_name=_("Request user's full name"),
+        # Translators: This is used to request the user's full name for a third party service.
+        help=_("Select True to request the user's full name."),
+        default=False,
+        scope=Scope.settings
+    )
     ask_to_send_email = Boolean(
         display_name=_("Request user's email"),
         # Translators: This is used to request the user's email for a third party service.
@@ -585,6 +592,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         default=False,
         scope=Scope.settings
     )
+
     enable_processors = Boolean(
         display_name=_("Send extra parameters"),
         help=_("Select True to send the extra parameters, which might contain Personally Identifiable Information. "
@@ -608,7 +616,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Other parameters
         'custom_parameters', 'launch_target', 'button_text', 'inline_height', 'modal_height',
         'modal_width', 'has_score', 'weight', 'hide_launch', 'accept_grades_past_due',
-        'ask_to_send_username', 'ask_to_send_email', 'enable_processors',
+        'ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email', 'enable_processors',
     )
 
     # Author view
@@ -704,13 +712,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     def get_pii_sharing_enabled(self):
         """
         Returns whether PII can be transmitted via this XBlock. This controls both whether the PII sharing XBlock
-        fields ask_to_send_username and ask_to_send_email are displayed in Studio and whether these data are shared
-        in LTI launches, regardless of the values of the settings on the XBlock.
+        fields ask_to_send_username, ask_to_send_full_name, and ask_to_send_email are displayed in Studio and whether
+        these data are shared in LTI launches, regardless of the values of the settings on the XBlock.
         """
         config_service = self.runtime.service(self, 'lti-configuration')
         if config_service:
-            is_already_sharing_learner_info = self.ask_to_send_email or self.ask_to_send_username
-
+            is_already_sharing_learner_info = (
+                self.ask_to_send_username or
+                self.ask_to_send_full_name or
+                self.ask_to_send_email
+            )
             return config_service.configuration.lti_access_to_learners_editable(
                 self.scope_ids.usage_id.context_key,
                 is_already_sharing_learner_info,
@@ -738,8 +749,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         those fields to become editable at that time. The Javascript will determine when to show or to hide a given
         field.
 
-        Fields that are potentially filtered out include "config_type", "external_config", "ask_to_send_username", and
-        "ask_to_send_email".
+        Fields that are potentially filtered out include "config_type", "external_config", "ask_to_send_username",
+        "ask_to_send_full_name", and "ask_to_send_email".
         """
         editable_fields = self.editable_field_names
         noneditable_fields = []
@@ -757,10 +768,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             noneditable_fields.append('external_config')
 
         # update the editable fields if this XBlock is configured to not to allow the
-        # editing of 'ask_to_send_username' and 'ask_to_send_email'.
+        # editing of 'ask_to_send_username', 'ask_to_send_full_name', and 'ask_to_send_email'.
         pii_sharing_enabled = self.get_pii_sharing_enabled()
         if not pii_sharing_enabled:
-            noneditable_fields.extend(['ask_to_send_username', 'ask_to_send_email'])
+            noneditable_fields.extend(['ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email'])
 
         editable_fields = tuple(
             field
@@ -1081,6 +1092,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         user_data = {
             'user_email': None,
             'user_username': None,
+            'user_full_name': user.full_name,
             'user_language': None,
         }
 
@@ -1211,12 +1223,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             return Response(template, status=400, content_type='text/html')
 
         username = None
+        full_name = None
         email = None
+
         # Send PII fields only if this XBlock is configured to allow the sending PII.
         pii_sharing_enabled = self.get_pii_sharing_enabled()
         if pii_sharing_enabled:
             if self.ask_to_send_username and real_user_data['user_username']:
                 username = real_user_data['user_username']
+            if self.ask_to_send_full_name and real_user_data['user_full_name']:
+                full_name = real_user_data['user_full_name']
             if self.ask_to_send_email and real_user_data['user_email']:
                 email = real_user_data['user_email']
 
@@ -1225,7 +1241,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             role,
             result_sourcedid=result_sourcedid,
             person_sourcedid=username,
-            person_contact_email_primary=email
+            person_contact_email_primary=email,
+            person_name_full=full_name,
         )
 
         lti_consumer.set_context_data(
@@ -1530,6 +1547,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         course_key = str(location.context_key)
 
         username = None
+        full_name = None
         email = None
 
         pii_sharing_enabled = self.get_pii_sharing_enabled()
@@ -1538,6 +1556,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
             if self.ask_to_send_username and user_data['user_username']:
                 username = user_data['user_username']
+            if self.ask_to_send_full_name and user_data['user_full_name']:
+                full_name = user_data['user_full_name']
             if self.ask_to_send_email and user_data['user_email']:
                 email = user_data['user_email']
 
@@ -1548,6 +1568,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             resource_link_id=str(location),
             external_user_id=self.external_user_id,
             preferred_username=username,
+            name=full_name,
             email=email,
             launch_presentation_document_target="iframe",
             context_id=course_key,
@@ -1633,7 +1654,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         lti_block_launch_handler = self._get_lti_block_launch_handler()
         lti_1p3_launch_url = self._get_lti_1p3_launch_url(lti_consumer)
 
-        # The values of ask_to_send_username and ask_to_send_email should only apply if PII sharing is enabled.
+        # The values of ask_to_send_username, ask_to_send_full_name, and ask_to_send_email should only apply if PII
+        # sharing is enabled.
         pii_sharing_enabled = self.get_pii_sharing_enabled()
 
         return {
@@ -1651,6 +1673,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'comment': sanitized_comment,
             'description': self.description,
             'ask_to_send_username': self.ask_to_send_username if pii_sharing_enabled else False,
+            'ask_to_send_full_name': self.ask_to_send_full_name if pii_sharing_enabled else False,
             'ask_to_send_email': self.ask_to_send_email if pii_sharing_enabled else False,
             'button_text': self.button_text,
             'inline_height': self.inline_height,

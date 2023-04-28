@@ -155,7 +155,8 @@ class LtiConsumer1p1:
             roles,
             result_sourcedid,
             person_sourcedid=None,
-            person_contact_email_primary=None
+            person_contact_email_primary=None,
+            person_name_full=None,
     ):
         """
         Set user data/roles
@@ -167,6 +168,7 @@ class LtiConsumer1p1:
                 and uniquely identifies a row and column within the Tool Consumer gradebook
             person_sourcedid (string):  LIS identifier for the user account performing the launch
             person_contact_email_primary (string):  Primary contact email address of the user
+            person_name_full (string): Full name of the user
         """
         self.lti_user_data = {
             'user_id': user_id,
@@ -174,7 +176,7 @@ class LtiConsumer1p1:
             'lis_result_sourcedid': result_sourcedid,
         }
 
-        # Additonal user identity data
+        # Additional user identity data
         # Optional user data that can be sent to the tool, if the block is configured to do so
         if person_sourcedid:
             self.lti_user_data.update({
@@ -184,6 +186,11 @@ class LtiConsumer1p1:
         if person_contact_email_primary:
             self.lti_user_data.update({
                 'lis_person_contact_email_primary': person_contact_email_primary,
+            })
+
+        if person_name_full:
+            self.lti_user_data.update({
+                'lis_person_name_full': person_name_full,
             })
 
     def set_context_data(self, context_id, context_title, context_label):

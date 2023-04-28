@@ -193,6 +193,7 @@ class TestLtiConsumer1p1(unittest.TestCase):
         roles = 'roles'
         result_sourcedid = 'result_sourcedid'
         person_sourcedid = 'person_sourcedid'
+        person_name_full = 'person_name_full'
         person_contact_email_primary = 'person_contact_email_primary'
         context_id = 'context_id'
         context_title = 'context_title'
@@ -210,7 +211,8 @@ class TestLtiConsumer1p1(unittest.TestCase):
             roles,
             result_sourcedid,
             person_sourcedid=person_sourcedid,
-            person_contact_email_primary=person_contact_email_primary
+            person_contact_email_primary=person_contact_email_primary,
+            person_name_full=person_name_full,
         )
         self.lti_consumer.set_context_data(context_id, context_title, context_label)
         self.lti_consumer.set_outcome_service_url(outcome_service_url)
@@ -229,6 +231,7 @@ class TestLtiConsumer1p1(unittest.TestCase):
             'lis_result_sourcedid': result_sourcedid,
             'lis_person_sourcedid': person_sourcedid,
             'lis_person_contact_email_primary': person_contact_email_primary,
+            'lis_person_name_full': person_name_full,
             'context_id': context_id,
             'context_label': context_label,
             'context_title': context_title,

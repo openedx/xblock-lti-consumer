@@ -46,6 +46,7 @@ class Lti1p3LaunchData:
     * resource_link_id (required): A unique identifier that is guaranteed to be unique for each placement of the LTI
         link.
     * preferred_username (optional): The user's username.
+    * name (optional): The user's full name.
     * email (optional): The user's email.
     * external_user_id (optional): A unique identifier for the user that is requesting the LTI 1.3 launch that can be
         shared externally. The identifier must be stable to the issuer. This value will be sent to the the Tool in the
@@ -76,6 +77,7 @@ class Lti1p3LaunchData:
     config_id = field()
     resource_link_id = field()
     preferred_username = field(default=None)
+    name = field(default=None)
     email = field(default=None)
     external_user_id = field(default=None)
     launch_presentation_document_target = field(default=None)

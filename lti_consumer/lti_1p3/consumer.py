@@ -153,7 +153,7 @@ class LtiConsumer1p3:
             "https://purl.imsglobal.org/spec/lti/claim/roles": self._get_user_roles(role)
         }
 
-        # Additonal user identity claims
+        # Additional user identity claims
         # Optional user data that can be sent to the tool, if the block is configured to do so
         if full_name:
             self.lti_claim_user_data.update({
