@@ -5,9 +5,11 @@ Unit tests for LTI 1.3 consumer implementation
 import json
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
+import uuid
 
 import ddt
 from Cryptodome.PublicKey import RSA
+from django.conf import settings
 from django.test.testcases import TestCase
 from edx_django_utils.cache import get_cache_key, TieredCache
 from jwkest.jwk import load_jwks
@@ -505,6 +507,29 @@ class TestLti1p3Consumer(TestCase):
         """
         with self.assertRaises(ValueError):
             self.lti_consumer.set_custom_parameters("invalid")
+
+    def test_platform_instance_claim(self):
+        """
+        Check that the platform instance claim is present on launch
+        """
+        self._setup_lti_launch_data()
+        launch_request = self._get_lti_message()
+
+        # Decode and verify message
+        decoded = self._decode_token(launch_request['id_token'])
+        self.assertIn(
+            "https://purl.imsglobal.org/spec/lti/claim/tool_platform",
+            decoded.keys()
+        )
+
+        expected_data = {
+            'guid': str(uuid.uuid5(uuid.NAMESPACE_DNS, settings.PLATFORM_NAME)),
+            'name': settings.PLATFORM_NAME
+        }
+        self.assertEqual(
+            decoded["https://purl.imsglobal.org/spec/lti/claim/tool_platform"],
+            expected_data
+        )
 
     def test_access_token_missing_params(self):
         """

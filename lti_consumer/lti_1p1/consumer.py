@@ -9,6 +9,8 @@ import json
 import logging
 import urllib.parse
 
+from django.conf import settings
+
 from .exceptions import Lti1p1Error
 from .oauth import get_oauth_request_signature, verify_oauth_body_signature
 
@@ -280,6 +282,8 @@ class LtiConsumer1p1:
 
             # Parameters required for grading:
             'resource_link_id': resource_link_id,
+
+            'tool_consumer_info_product_family_code': settings.PLATFORM_NAME,
         }
 
         # Check if user data is set, then append it to lti message
