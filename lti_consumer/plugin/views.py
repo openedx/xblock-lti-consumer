@@ -275,7 +275,9 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             lti_consumer.set_proctoring_data(
                 attempt_number=launch_data.proctoring_launch_data.attempt_number,
                 session_data=session_data,
-                start_assessment_url=launch_data.proctoring_launch_data.start_assessment_url
+                start_assessment_url=launch_data.proctoring_launch_data.start_assessment_url,
+                assessment_control_url=launch_data.proctoring_launch_data.assessment_control_url,
+                assessment_control_actions=launch_data.proctoring_launch_data.assessment_control_actions,
             )
         elif launch_data.message_type == 'LtiEndAssessment':
             lti_consumer.set_proctoring_data(

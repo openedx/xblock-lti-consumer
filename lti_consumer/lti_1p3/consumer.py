@@ -809,6 +809,17 @@ class LtiProctoringConsumer(LtiConsumer1p3):
 
         return proctoring_claims
 
+    def get_assessment_control_claims(self):
+        """
+        Returns LTI Proctoring Services ACS Claim to be injected in the LTI launch message.
+        """
+        return {
+            "https://purl.imsglobal.org/spec/lti-ap/claim/acs": {
+                "assessment_control_url": self.proctoring_data.get("assessment_control_url"),
+                "actions": self.proctoring_data.get("assessment_control_actions"),
+            }
+        }
+
     def get_end_assessment_claims(self):
         """
         Returns claims specific to LTI Proctoring Services LtiEndAssessment LTI launch message,
@@ -842,6 +853,9 @@ class LtiProctoringConsumer(LtiConsumer1p3):
             raise ValueError('lti_message_hint must \"LtiStartProctoring\" or \"LtiEndAssessment\".')
 
         self.set_extra_claim(proctoring_claims)
+
+        if self.proctoring_data.get("assessment_control_url"):
+            self.set_extra_claim(self.get_assessment_control_claims())
 
         return super().generate_launch_request(preflight_response)
 
