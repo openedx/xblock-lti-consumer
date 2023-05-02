@@ -26,6 +26,8 @@ class Lti1p3ProctoringLaunchData:
         assessment message to after it has completed the proctoring setup and verification. This attribute is required
         if the message_type attribute of the Lti1p3LaunchData instance is "LtiStartProctoring". It is optional and
         unused otherwise.
+    * assessment_control_url (optional): The Platform URL that the Tool will send assessment control messages to.
+    * assessment_control_actions (optional): A list of assessment control actions supported by the platform.
     """
     attempt_number = field()
     start_assessment_url = field(default=None)
