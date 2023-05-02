@@ -984,6 +984,27 @@ class TestLtiProctoringConsumer(TestCase):
 
         self.assertEqual(expected_get_end_assessment_claims, actual_get_end_assessment_claims)
 
+    def test_assessment_control_claims(self):
+        """
+        Ensure the correct claims are returned for the assessment control service.
+        """
+        self.lti_consumer.set_proctoring_data(
+            attempt_number="attempt_number",
+            session_data="session_data",
+            start_assessment_url="start_assessment_url",
+            assessment_control_url="assessment_control_url",
+            assessment_control_actions=["flagRequest", "terminateRequest"],
+        )
+        proctoring_acs_claims = self.lti_consumer.get_assessment_control_claim()
+
+        expected_acs_claims = {
+            "https://purl.imsglobal.org/spec/lti-ap/claim/acs": {
+                "assessment_control_url": "assessment_control_url",
+                "actions": ["flagRequest", "terminateRequest"],
+            },
+        }
+        self.assertDictEqual(proctoring_acs_claims, expected_acs_claims)
+
     @ddt.data("LtiStartProctoring", "LtiEndAssessment")
     @patch('lti_consumer.lti_1p3.consumer.get_data_from_cache')
     def test_generate_launch_request(self, message_type, mock_get_data_from_cache):
@@ -1015,6 +1036,36 @@ class TestLtiProctoringConsumer(TestCase):
             expected_claims = self.lti_consumer.get_start_proctoring_claims()
         else:
             expected_claims = self.lti_consumer.get_end_assessment_claims()
+
+        decoded_token_claims = decoded_token.items()
+        for claim in expected_claims.items():
+            self.assertIn(claim, decoded_token_claims)
+
+    @patch('lti_consumer.lti_1p3.consumer.get_data_from_cache')
+    def test_enable_assessment_control(self, mock_get_data_from_cache):
+        """
+        Ensure that the correct claims are included in LTI launch messages with an ACS url set.
+        """
+
+        mock_launch_data = self.get_launch_data(message_type="LtiStartProctoring")
+        mock_get_data_from_cache.return_value = mock_launch_data
+        self._setup_proctoring()
+
+        self.lti_consumer.set_proctoring_data(
+            attempt_number="attempt_number",
+            session_data="session_data",
+            start_assessment_url="start_assessment_url",
+            assessment_control_url="assessment_control_url",
+            assessment_control_actions=["flagRequest", "terminateRequest"],
+        )
+
+        token = self.lti_consumer.generate_launch_request(
+            self.preflight_response,
+        )['id_token']
+
+        decoded_token = self.lti_consumer.key_handler.validate_and_decode(token)
+        expected_claims = self.lti_consumer.get_start_proctoring_claims()
+        expected_claims.update(self.lti_consumer.get_assessment_control_claim())
 
         decoded_token_claims = decoded_token.items()
         for claim in expected_claims.items():

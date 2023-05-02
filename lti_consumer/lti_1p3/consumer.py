@@ -809,7 +809,7 @@ class LtiProctoringConsumer(LtiConsumer1p3):
 
         return proctoring_claims
 
-    def get_assessment_control_claims(self):
+    def get_assessment_control_claim(self):
         """
         Returns LTI Proctoring Services ACS Claim to be injected in the LTI launch message.
         """
@@ -855,7 +855,7 @@ class LtiProctoringConsumer(LtiConsumer1p3):
         self.set_extra_claim(proctoring_claims)
 
         if self.proctoring_data.get("assessment_control_url"):
-            self.set_extra_claim(self.get_assessment_control_claims())
+            self.set_extra_claim(self.get_assessment_control_claim())
 
         return super().generate_launch_request(preflight_response)
 

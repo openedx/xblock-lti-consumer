@@ -85,7 +85,14 @@ class LTI_1P3_CONTEXT_TYPE(Enum):  # pylint: disable=invalid-name
     course_template = 'http://purl.imsglobal.org/vocab/lis/v2/course#CourseTemplate'
 
 
-LTI_PROCTORING_DATA_KEYS = ['attempt_number', 'resource_link_id', 'session_data', 'start_assessment_url', 'assessment_control_url', 'assessment_control_actions']
+LTI_PROCTORING_DATA_KEYS = [
+    'attempt_number',
+    'resource_link_id',
+    'session_data',
+    'start_assessment_url',
+    'assessment_control_url',
+    'assessment_control_actions'
+]
 
 LTI_PROCTORING_ASSESSMENT_CONTROL_ACTIONS = [
     'pauseRequest',
