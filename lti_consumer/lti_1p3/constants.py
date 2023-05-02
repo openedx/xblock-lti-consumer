@@ -68,7 +68,7 @@ LTI_1P3_ACCESS_TOKEN_SCOPES = [
 
     # ACS Scopes
     # TODO: This isn't necessarily the best place for this.
-    'https://purl.imsglobal.org/spec/lti-ap/claim/acs',
+    'https://purl.imsglobal.org/spec/lti-ap/scope/control.all',
 ]
 
 

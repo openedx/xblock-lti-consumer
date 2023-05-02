@@ -456,12 +456,14 @@ class LtiConsumer1p3:
         requested_scopes = token_request_data['scope'].split(' ')
 
         for scope in requested_scopes:
-            # TODO: Add additional checks for permitted scopes
             # Currently there are no scopes, because there is no use for
             # these access tokens until a tool needs to access the LMS.
             # LTI Advantage extensions make use of this.
             if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
                 valid_scopes.append(scope)
+            # TODO: Add additional checks for permitted scopes
+            # elif scope == 'https://purl.imsglobal.org/spec/lti-ap/scope/control.all' and proctoring_enabled is True:
+                # valid_scopes.append('https://purl.imsglobal.org/spec/lti-ap/scope/control.all')
 
         # Scopes are space separated as described in
         # https://tools.ietf.org/html/rfc6749

@@ -118,5 +118,5 @@ class LtiProctoringAcsPermissions(LTIBasePermissions):
         There is only one: http://www.imsglobal.org/spec/proctoring/v1p0#h.ckrfa92a27mw
         """
         return [
-            'https://purl.imsglobal.org/spec/lti-ap/claim/acs',
+            'https://purl.imsglobal.org/spec/lti-ap/scope/control.all',
         ]
