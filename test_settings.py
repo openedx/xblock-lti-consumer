@@ -25,3 +25,6 @@ REST_FRAMEWORK = {
 DEFAULT_HASHING_ALGORITHM = "sha1"
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+# Platform name for LTI 1.1 and 1.3 claims testing
+PLATFORM_NAME = "Your platform name here"

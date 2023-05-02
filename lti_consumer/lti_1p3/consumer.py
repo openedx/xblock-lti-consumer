@@ -3,6 +3,9 @@ LTI 1.3 Consumer implementation
 """
 import logging
 from urllib.parse import urlencode
+import uuid
+
+from django.conf import settings
 
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue
 from lti_consumer.utils import cache_lti_1p3_launch_data, check_token_claim, get_data_from_cache
@@ -348,6 +351,16 @@ class LtiConsumer1p3:
             # Context claim
             if self.lti_claim_context:
                 lti_message.update(self.lti_claim_context)
+
+            # Platform instance claim
+            # The GUID must be consistent across platform deployments, so we have opted to generate a UUID
+            # based on a namespace identifier and the platform name itself.
+            guid = uuid.uuid5(uuid.NAMESPACE_DNS, settings.PLATFORM_NAME)
+            platform_instance_claim = {'guid': str(guid), 'name': settings.PLATFORM_NAME}
+            platform_instance_claim = {
+                "https://purl.imsglobal.org/spec/lti/claim/tool_platform": platform_instance_claim
+            }
+            lti_message.update(platform_instance_claim)
 
             # Custom variables claim
             if self.lti_claim_custom_parameters:

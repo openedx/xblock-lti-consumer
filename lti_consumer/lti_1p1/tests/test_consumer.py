@@ -3,8 +3,9 @@ Unit tests for lti_consumer.lti_1p1.consumer module
 """
 
 import unittest
-
 from unittest.mock import Mock, patch
+
+from django.conf import settings
 
 from lti_consumer.lti_1p1.exceptions import Lti1p1Error
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1, parse_result_json
@@ -177,6 +178,7 @@ class TestLtiConsumer1p1(unittest.TestCase):
             'oauth_signature_method': 'fake_method',
             'oauth_consumer_key': 'fake_consumer_key',
             'oauth_signature': 'fake_signature',
+            'tool_consumer_info_product_family_code': settings.PLATFORM_NAME,
         }
         self.assertEqual(lti_parameters, expected_lti_parameters)
 
@@ -246,6 +248,7 @@ class TestLtiConsumer1p1(unittest.TestCase):
             'oauth_signature_method': 'fake_method',
             'oauth_consumer_key': 'fake_consumer_key',
             'oauth_signature': 'fake_signature',
+            'tool_consumer_info_product_family_code': settings.PLATFORM_NAME,
         }
         self.assertEqual(lti_parameters, expected_lti_parameters)
 
