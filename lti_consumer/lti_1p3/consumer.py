@@ -355,8 +355,8 @@ class LtiConsumer1p3:
             # Platform instance claim
             # The GUID must be consistent across platform deployments, so we have opted to generate a UUID
             # based on a namespace identifier and the platform name itself.
-            guid = uuid.uuid5(uuid.NAMESPACE_DNS, settings.PLATFORM_NAME)
-            platform_instance_claim = {'guid': str(guid), 'name': settings.PLATFORM_NAME}
+            guid = uuid.uuid5(uuid.NAMESPACE_DNS, str(settings.PLATFORM_NAME))
+            platform_instance_claim = {'guid': str(guid), 'name': str(settings.PLATFORM_NAME)}
             platform_instance_claim = {
                 "https://purl.imsglobal.org/spec/lti/claim/tool_platform": platform_instance_claim
             }

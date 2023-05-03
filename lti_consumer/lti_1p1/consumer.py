@@ -283,7 +283,7 @@ class LtiConsumer1p1:
             # Parameters required for grading:
             'resource_link_id': resource_link_id,
 
-            'tool_consumer_info_product_family_code': settings.PLATFORM_NAME,
+            'tool_consumer_info_product_family_code': str(settings.PLATFORM_NAME),
         }
 
         # Check if user data is set, then append it to lti message
