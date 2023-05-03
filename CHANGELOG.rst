@@ -16,7 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
-921.0 - 2023-05-02
+9.2.1 - 2023-05-02
+------------------
+* Bug fix for adding platform name as an LTI parameter
+
+9.2.0 - 2023-05-02
 ------------------
 * Add platform name as an LTI parameter to LTI 1.1 launches as the "tool_consumer_info_product_family_code" parameter.
 * Add platform name as an LTI parameter to LTI 1.3 launches as the "platform instance" claim.
