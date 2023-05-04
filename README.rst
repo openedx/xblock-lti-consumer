@@ -145,6 +145,13 @@ See the `developer guide`_ for implementation details and other developer concer
 Testing
 *******
 
+Unit Testing
+============
+
+* To run all of the unit tests at once, run `make test`
+* To run tests on individual files in development, run `python ./test.py -k=[name of test file without .py]`
+* For example, if you want to run the tests in test_permissions.py, run `python ./test.py -k=test_permissions`
+
 Testing Against an LTI Provider
 ===============================
 

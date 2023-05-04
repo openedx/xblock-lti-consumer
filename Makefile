@@ -23,8 +23,6 @@ quality:  ## Run the quality checks
 	python setup.py -q sdist
 	twine check dist/*
 
-## NOTE: To run tests on individual files in development, run the command below:
-## python ./test.py -k=[name of the test file without .py]
 test:  ## Run the tests
 	mkdir -p var
 	rm -rf .coverage
