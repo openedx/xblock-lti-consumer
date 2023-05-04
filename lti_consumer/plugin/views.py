@@ -827,15 +827,11 @@ def start_proctoring_assessment_endpoint(request):
                 django_cache_timeout=timeout
             )
 
-    lti_proctoring_response = LTI_1P3_PROCTORING_ASSESSMENT_STARTED.send(
+    LTI_1P3_PROCTORING_ASSESSMENT_STARTED.send(
         sender=None,
         attempt_number=proctoring_response["attempt_number"],
         resource_link=proctoring_response["resource_link"],
         user_id=request.user.id,
     )
 
-    response_data = lti_proctoring_response[0][1]
-    # if we have more than one receiver, how hard would this code be to modify?
-    # Note: must abide by LTI rules. So have handler that warns "hey you're data's the wrong shape" if it is
-
-    return JsonResponse(data={response_data})
+    return JsonResponse(data={})
