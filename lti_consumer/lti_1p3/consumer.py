@@ -847,15 +847,18 @@ class LtiProctoringConsumer(LtiConsumer1p3):
 
         if launch_data.message_type == "LtiStartProctoring":
             proctoring_claims = self.get_start_proctoring_claims()
+
+            # Enable ACS if assessment_control_url is present on the launch data.
+            # Normally we would enable this using a field on the LtiConfiguration model like other
+            # Advantage services, but this isn't actually optional or configurable for Open edX.
+            if self.proctoring_data.get("assessment_control_url"):
+                self.set_extra_claim(self.get_assessment_control_claim())
         elif launch_data.message_type == "LtiEndAssessment":
             proctoring_claims = self.get_end_assessment_claims()
         else:
             raise ValueError('lti_message_hint must \"LtiStartProctoring\" or \"LtiEndAssessment\".')
 
         self.set_extra_claim(proctoring_claims)
-
-        if self.proctoring_data.get("assessment_control_url"):
-            self.set_extra_claim(self.get_assessment_control_claim())
 
         return super().generate_launch_request(preflight_response)
 
