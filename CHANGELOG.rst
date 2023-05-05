@@ -16,6 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.3.0 - 2023-05-05
+------------------
+* Added handling for the ACS scope and ACS actions
+* Added permissions class for ACS
+
 9.2.1 - 2023-05-02
 ------------------
 * Bug fix for adding platform name as an LTI parameter
