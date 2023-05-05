@@ -65,12 +65,9 @@ LTI_1P3_ACCESS_TOKEN_SCOPES = [
 
     # LTI-NRPS Scopes
     'https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly',
-
-    # ACS Scopes
-    # TODO: This isn't necessarily the best place for this.
-    'https://purl.imsglobal.org/spec/lti-ap/scope/control.all',
 ]
 
+LTI_1P3_ACS_TOKEN_SCOPE = 'https://purl.imsglobal.org/spec/lti-ap/scope/control.all'
 
 LTI_DEEP_LINKING_ACCEPTED_TYPES = [
     'ltiResourceLink',
