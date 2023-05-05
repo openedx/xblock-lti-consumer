@@ -5,6 +5,8 @@ by users of this library.
 
 from attrs import define, field, validators
 
+from lti_consumer.lti_1p3.constants import LTI_PROCTORING_ASSESSMENT_CONTROL_ACTIONS
+
 
 @define
 class Lti1p3ProctoringLaunchData:
@@ -24,9 +26,19 @@ class Lti1p3ProctoringLaunchData:
         assessment message to after it has completed the proctoring setup and verification. This attribute is required
         if the message_type attribute of the Lti1p3LaunchData instance is "LtiStartProctoring". It is optional and
         unused otherwise.
+    * assessment_control_url (optional): The Platform URL that the Tool will send assessment control messages to.
+    * assessment_control_actions (optional): A list of assessment control actions supported by the platform.
     """
     attempt_number = field()
     start_assessment_url = field(default=None)
+    assessment_control_url = field(default=None)
+    assessment_control_actions = field(
+        default=[],
+        validator=[validators.deep_iterable(
+            member_validator=validators.in_(LTI_PROCTORING_ASSESSMENT_CONTROL_ACTIONS),
+            iterable_validator=validators.instance_of(list),
+        )],
+    )
 
 
 @define

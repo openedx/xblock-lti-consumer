@@ -822,6 +822,17 @@ class LtiProctoringConsumer(LtiConsumer1p3):
 
         return proctoring_claims
 
+    def get_assessment_control_claim(self):
+        """
+        Returns LTI Proctoring Services ACS Claim to be injected in the LTI launch message.
+        """
+        return {
+            "https://purl.imsglobal.org/spec/lti-ap/claim/acs": {
+                "assessment_control_url": self.proctoring_data.get("assessment_control_url"),
+                "actions": self.proctoring_data.get("assessment_control_actions"),
+            }
+        }
+
     def get_end_assessment_claims(self):
         """
         Returns claims specific to LTI Proctoring Services LtiEndAssessment LTI launch message,
@@ -849,6 +860,12 @@ class LtiProctoringConsumer(LtiConsumer1p3):
 
         if launch_data.message_type == "LtiStartProctoring":
             proctoring_claims = self.get_start_proctoring_claims()
+
+            # Enable ACS if assessment_control_url is present on the launch data.
+            # Normally we would enable this using a field on the LtiConfiguration model like other
+            # Advantage services, but this isn't actually optional or configurable for Open edX.
+            if self.proctoring_data.get("assessment_control_url"):
+                self.set_extra_claim(self.get_assessment_control_claim())
         elif launch_data.message_type == "LtiEndAssessment":
             proctoring_claims = self.get_end_assessment_claims()
         else:
