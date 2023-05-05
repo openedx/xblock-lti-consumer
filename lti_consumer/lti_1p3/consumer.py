@@ -456,7 +456,6 @@ class LtiConsumer1p3:
         requested_scopes = token_request_data['scope'].split(' ')
 
         for scope in requested_scopes:
-            # TODO: Add additional checks for permitted scopes
             # Currently there are no scopes, because there is no use for
             # these access tokens until a tool needs to access the LMS.
             # LTI Advantage extensions make use of this.
@@ -872,6 +871,9 @@ class LtiProctoringConsumer(LtiConsumer1p3):
             raise ValueError('lti_message_hint must \"LtiStartProctoring\" or \"LtiEndAssessment\".')
 
         self.set_extra_claim(proctoring_claims)
+
+        if self.proctoring_data.get("assessment_control_url"):
+            self.set_extra_claim(self.get_assessment_control_claim())
 
         return super().generate_launch_request(preflight_response)
 

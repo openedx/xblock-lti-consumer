@@ -13,6 +13,7 @@ from lti_consumer.models import LtiConfiguration
 from lti_consumer.lti_1p3.extensions.rest_framework.permissions import (
     LtiAgsPermissions,
     LtiNrpsContextMembershipsPermissions,
+    LtiProctoringAcsPermissions,
 )
 
 
@@ -261,6 +262,32 @@ class TestLtiAuthentication(TestCase):
         Test if LTI NRPS Context membership endpoint is availabe for correct token.
         """
         perm_class = LtiNrpsContextMembershipsPermissions()
+
+        mock_view = MagicMock()
+
+        # Make token and include it in the mock request
+        token = self._make_token(token_scopes)
+        self.mock_request.headers = {
+            "Authorization": "Bearer {}".format(token)
+        }
+
+        # Test scores view
+        mock_view.action = 'list'
+        self.assertEqual(
+            perm_class.has_permission(self.mock_request, mock_view),
+            is_allowed,
+        )
+
+    @ddt.data(
+        (["https://purl.imsglobal.org/spec/lti-ap/scope/control.all"], True),
+        ([], False),
+    )
+    @ddt.unpack
+    def test_proctoring_acs_permissions(self, token_scopes, is_allowed):
+        """
+        Test if LTI Proctoring ACS Permissions endpoint is availabe for correct token.
+        """
+        perm_class = LtiProctoringAcsPermissions()
 
         mock_view = MagicMock()
 

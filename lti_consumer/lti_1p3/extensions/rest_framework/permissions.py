@@ -99,3 +99,24 @@ class LtiNrpsContextMembershipsPermissions(LTIBasePermissions):
             ]
 
         return scopes
+
+
+class LtiProctoringAcsPermissions(LTIBasePermissions):
+    """
+    LTI ACS Permissions.
+
+    This checks if the token included in the request
+    has the allowed scopes to perform ACS actions
+    (insert action examples here)
+
+    Link to relevant docs: (ims global docs url here)
+    """
+
+    def get_permission_scopes(self, request, view):
+        """
+        Return the LTI ACS scope.
+        There is only one: http://www.imsglobal.org/spec/proctoring/v1p0#h.ckrfa92a27mw
+        """
+        return [
+            'https://purl.imsglobal.org/spec/lti-ap/scope/control.all',
+        ]
