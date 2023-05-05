@@ -16,7 +16,6 @@ from .constants import (
     LTI_BASE_MESSAGE,
     LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS,
     LTI_1P3_ACCESS_TOKEN_SCOPES,
-    LTI_1P3_ACS_TOKEN_SCOPE,
     LTI_1P3_CONTEXT_TYPE,
     LTI_PROCTORING_DATA_KEYS,
 )
@@ -462,9 +461,6 @@ class LtiConsumer1p3:
             # LTI Advantage extensions make use of this.
             if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
                 valid_scopes.append(scope)
-            # Add the ACS scope if the JWT has the ACS scope and if proctoring is enabled
-            elif self.lti_1p3_proctoring_enabled and scope == LTI_1P3_ACS_TOKEN_SCOPE:
-                valid_scopes.append(LTI_1P3_ACS_TOKEN_SCOPE)
 
         # Scopes are space separated as described in
         # https://tools.ietf.org/html/rfc6749
