@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.4.0 - 2023-05-08
+------------------
+* Fix broken call to LMS `get_block_for_descriptor_internal` due to descriptor->block rename.
+
 9.3.0 - 2023-05-05
 ------------------
 * Added handling for the ACS scope and ACS actions
