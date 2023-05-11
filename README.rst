@@ -133,7 +133,7 @@ inside project root directory:
 
 .. code:: bash
 
-    $ tx pull -f --mode=reviewed -l en,ar,es_419,fr,he,hi,ko_KR,pt_BR,ru,zh_CN
+    $ tx pull -f --mode=reviewed
 
 Further Development Info
 ------------------------
