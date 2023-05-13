@@ -13,3 +13,11 @@ locales:
   - pt_PT  # Portuguese (Portugal)
   - ru  # Russian
   - zh_CN  # Chinese (China)
+
+# Directories we don't search for strings.
+ignore_dirs:
+    - '*/css'
+    - '*/sass'
+    - 'public/js/translations'
+    - 'translations'
+    - 'locale'
