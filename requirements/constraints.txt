@@ -11,3 +11,4 @@
 # Common constraints for edx repos
 -c common_constraints.txt
 
+urllib3<1.27,>=1.25.4
