@@ -777,7 +777,7 @@ def start_proctoring_assessment_endpoint(request):
         log.warning(
             f'There was a cache miss trying to fetch the launch data during an LTI 1.3 proctoring StartAssessment '
             f'launch when using the cache key {launch_data_key}. The LtiConfiguration config_id is '
-            f'{lti_config.config_id}.'
+            f'{lti_config.config_id} the user_id is {request.user.id}.'
         )
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
 
