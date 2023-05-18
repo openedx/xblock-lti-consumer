@@ -15,6 +15,7 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ~~~~~~~~~~
+* Improved logging for Proctoring LTI 1.3 launch failure.
 
 9.5.0 - 2023-05-08
 ------------------
