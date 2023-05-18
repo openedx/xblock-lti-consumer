@@ -409,6 +409,26 @@ class LtiConsumer1p3:
         """
         return self.key_handler.get_public_jwk()
 
+    def _get_access_token_scopes(self, scopes):
+        """
+        Helper function to return the list of valid scopes present in the
+        request to the access token endpoint.
+        """
+        # TODO: Make this function should only return the NRPS and AGS scopes if those features are enabled.
+        valid_scopes = []
+        for scope in scopes:
+            # Currently there are no scopes, because there is no use for
+            # these access tokens until a tool needs to access the LMS.
+            # LTI Advantage extensions make use of this.
+            if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
+                valid_scopes.append(scope)
+            else:
+                log.warning(
+                    f'Scope: {scope} found in the request is not a valid '
+                    f'LTI 1.3 access token or ACS scope'
+                )
+        return valid_scopes
+
     def access_token(self, token_request_data):
         """
         Validate request and return JWT access token.
@@ -454,25 +474,8 @@ class LtiConsumer1p3:
         )
 
         # Check scopes and only return valid and supported ones
-        valid_scopes = []
         requested_scopes = token_request_data['scope'].split(' ')
-
-        for scope in requested_scopes:
-            # Currently there are no scopes, because there is no use for
-            # these access tokens until a tool needs to access the LMS.
-            # LTI Advantage extensions make use of this.
-            if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
-                valid_scopes.append(scope)
-            else:
-                # Add the ACS scope (if present) to the access token if this is a proctored exam
-                try:
-                    if self.proctoring_data is not None and scope is LTI_1P3_ACS_SCOPE:
-                       valid_scopes.append(scope)
-                except:
-                    log.warning(
-                        f'Scope: {scope} found in the request is not a valid '
-                        f'LTI 1.3 access token or ACS scope'
-                    )
+        valid_scopes = self._get_access_token_scopes(requested_scopes)
 
         # Scopes are space separated as described in
         # https://tools.ietf.org/html/rfc6749
@@ -891,20 +894,22 @@ class LtiProctoringConsumer(LtiConsumer1p3):
 
         return super().generate_launch_request(preflight_response)
 
-    # def access_token(self, token_request_data):
-    #     """
-    #     Add the ACS scope to the access token if present
-    #     """
-    #     # Call the super function to perform basic request validation
-    #     super().access_token(self, token_request_data)
-
-    #     # Check scopes and only return valid and supported ones
-    #     valid_scopes = []
-    #     requested_scopes = token_request_data['scope'].split(' ')
-
-    #     for scope in requested_scopes:
-    #         if scope is LTI_1P3_ACS_SCOPE:
-    #             valid_scopes.append(scope)
+    def _get_access_token_scopes(self, scopes):
+        """
+        Override of Lti1p3Consumer's _get_access_token_scopes
+        that accounts for the ACS scope for proctoring.
+        """
+        valid_scopes = []
+        for scope in scopes:
+            if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
+                valid_scopes.append(scope)
+            elif scope is LTI_1P3_ACS_SCOPE:
+                valid_scopes.append(scope)
+            else:
+                log.warning(
+                    f'Scope: "{scope}" found in the request is not a valid LTI 1.3 scope'
+                )
+        return valid_scopes
 
     def check_and_decode_token(self, token):
         """
