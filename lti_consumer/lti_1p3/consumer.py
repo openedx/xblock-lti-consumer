@@ -16,6 +16,7 @@ from .constants import (
     LTI_BASE_MESSAGE,
     LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS,
     LTI_1P3_ACCESS_TOKEN_SCOPES,
+    LTI_1P3_ACS_SCOPE,
     LTI_1P3_CONTEXT_TYPE,
     LTI_PROCTORING_DATA_KEYS,
 )
@@ -31,6 +32,7 @@ class LtiConsumer1p3:
     """
     LTI 1.3 Consumer Implementation
     """
+
     def __init__(
             self,
             iss,
@@ -461,6 +463,16 @@ class LtiConsumer1p3:
             # LTI Advantage extensions make use of this.
             if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
                 valid_scopes.append(scope)
+            else:
+                # Add the ACS scope (if present) to the access token if this is a proctored exam
+                try:
+                    if self.proctoring_data is not None and scope is LTI_1P3_ACS_SCOPE:
+                       valid_scopes.append(scope)
+                except:
+                    log.warning(
+                        f'Scope: {scope} found in the request is not a valid '
+                        f'LTI 1.3 access token or ACS scope'
+                    )
 
         # Scopes are space separated as described in
         # https://tools.ietf.org/html/rfc6749
@@ -544,6 +556,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
       Note: this is a partial implementation with read-only LineItems.
       Reference spec: https://www.imsglobal.org/spec/lti-ags/v2p0
     """
+
     def __init__(self, *args, **kwargs):
         """
         Override parent class and set up required LTI Advantage variables.
@@ -756,6 +769,7 @@ class LtiProctoringConsumer(LtiConsumer1p3):
     resource_link, etc. This information is provided to the consumer through the set_proctoring_data method, which
     is called from the consuming context to pass in necessary data.
     """
+
     def __init__(
         self,
         iss,
@@ -876,6 +890,21 @@ class LtiProctoringConsumer(LtiConsumer1p3):
             self.set_extra_claim(self.get_assessment_control_claim())
 
         return super().generate_launch_request(preflight_response)
+
+    # def access_token(self, token_request_data):
+    #     """
+    #     Add the ACS scope to the access token if present
+    #     """
+    #     # Call the super function to perform basic request validation
+    #     super().access_token(self, token_request_data)
+
+    #     # Check scopes and only return valid and supported ones
+    #     valid_scopes = []
+    #     requested_scopes = token_request_data['scope'].split(' ')
+
+    #     for scope in requested_scopes:
+    #         if scope is LTI_1P3_ACS_SCOPE:
+    #             valid_scopes.append(scope)
 
     def check_and_decode_token(self, token):
         """

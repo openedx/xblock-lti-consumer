@@ -1166,6 +1166,12 @@ class TestLtiProctoringConsumer(TestCase):
         with self.assertRaises(MissingRequiredClaim):
             self.lti_consumer.check_and_decode_token(encoded_token)
 
+    def test_access_token(self):
+        """
+        Boilerplate for acs test to be made when an approach is decided on
+        """
+        return
+
     def test_valid_check_and_decode_token(self):
         """
         Ensures that a valid LtiStartAssessment JWT is validated successfully.
