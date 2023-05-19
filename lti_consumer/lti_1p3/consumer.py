@@ -409,25 +409,18 @@ class LtiConsumer1p3:
         """
         return self.key_handler.get_public_jwk()
 
-    def _get_access_token_scopes(self, scopes):
+    def _check_if_scope_is_valid(self, scope):
         """
         Helper function to return the list of valid scopes present in the
         request to the access token endpoint.
         """
+        # Currently there are no scopes, because there is no use for
+        # these access tokens until a tool needs to access the LMS.
+        # LTI Advantage extensions make use of this.
         # TODO: Make this function should only return the NRPS and AGS scopes if those features are enabled.
-        valid_scopes = []
-        for scope in scopes:
-            # Currently there are no scopes, because there is no use for
-            # these access tokens until a tool needs to access the LMS.
-            # LTI Advantage extensions make use of this.
-            if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
-                valid_scopes.append(scope)
-            else:
-                log.warning(
-                    f'Scope: {scope} found in the request is not a valid '
-                    f'LTI 1.3 access token or ACS scope'
-                )
-        return valid_scopes
+        if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
+            return True
+        return False
 
     def access_token(self, token_request_data):
         """
@@ -474,8 +467,16 @@ class LtiConsumer1p3:
         )
 
         # Check scopes and only return valid and supported ones
+        valid_scopes = []
         requested_scopes = token_request_data['scope'].split(' ')
-        valid_scopes = self._get_access_token_scopes(requested_scopes)
+        for scope in requested_scopes:
+            if self._check_if_scope_is_valid(scope):
+                    valid_scopes.append(scope)
+            else:
+                log.warning(
+                    f'Scope: {scope} found in the request is not a valid '
+                    f'LTI 1.3 access token or ACS scope'
+                )
 
         # Scopes are space separated as described in
         # https://tools.ietf.org/html/rfc6749
@@ -894,22 +895,14 @@ class LtiProctoringConsumer(LtiConsumer1p3):
 
         return super().generate_launch_request(preflight_response)
 
-    def _get_access_token_scopes(self, scopes):
+    def _check_if_scope_is_valid(self, scope):
         """
-        Override of Lti1p3Consumer's _get_access_token_scopes
+        Override of Lti1p3Consumer's _check_if_scope_is_valid
         that accounts for the ACS scope for proctoring.
         """
-        valid_scopes = []
-        for scope in scopes:
-            if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
-                valid_scopes.append(scope)
-            elif scope is LTI_1P3_ACS_SCOPE:
-                valid_scopes.append(scope)
-            else:
-                log.warning(
-                    f'Scope: "{scope}" found in the request is not a valid LTI 1.3 scope'
-                )
-        return valid_scopes
+        if scope in (LTI_1P3_ACCESS_TOKEN_SCOPES, LTI_1P3_ACS_SCOPE):
+            return True
+        return False
 
     def check_and_decode_token(self, token):
         """
