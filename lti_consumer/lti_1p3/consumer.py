@@ -471,7 +471,7 @@ class LtiConsumer1p3:
         requested_scopes = token_request_data['scope'].split(' ')
         for scope in requested_scopes:
             if self._check_if_scope_is_valid(scope):
-                    valid_scopes.append(scope)
+                valid_scopes.append(scope)
             else:
                 log.warning(
                     f'Scope: {scope} found in the request is not a valid '
