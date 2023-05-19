@@ -1227,26 +1227,6 @@ class TestLtiProctoringConsumer(TestCase):
         # Check that the response has the ACS scope
         self.assertEqual(response.get('scope'), "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
 
-    def test_access_token(self):
-        """
-        Ensure that the ACS scope is added based on the request to the access token endpoint
-        """
-        # Generate a dummy, but valid JWT
-        token = self.lti_consumer.key_handler.encode_and_sign(
-            {
-                "test": "test"
-            },
-            expiration=1000
-        )
-
-        # This should be a valid JWT w/ the ACS scope
-        request_data = _generate_token_request_data(token, "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
-
-        response = self.lti_consumer.access_token(request_data)
-
-        # Check that the response has the ACS scope
-        self.assertEqual(response.get('scope'), "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
-
     def test_valid_check_and_decode_token(self):
         """
         Ensures that a valid LtiStartAssessment JWT is validated successfully.
