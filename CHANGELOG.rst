@@ -17,6 +17,11 @@ Unreleased
 ~~~~~~~~~~
 * Improved logging for Proctoring LTI 1.3 launch failure.
 
+9.5.1 - 2023-05-19
+------------------
+* Added gate to ensure the ACS scope is only added when using the LtiProctoringConsumer
+* Moved scope validation to a helper function
+
 9.5.0 - 2023-05-08
 ------------------
 * Return HTML message telling user that exam is ready to start on start assessment response to LTI proctoring launch.
