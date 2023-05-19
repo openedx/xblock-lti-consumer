@@ -1226,6 +1226,7 @@ class TestLtiProctoringConsumer(TestCase):
 
         # Check that the response has the ACS scope
         self.assertEqual(response.get('scope'), "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
+
     def test_access_token(self):
         """
         Ensure that the ACS scope is added based on the request to the access token endpoint
