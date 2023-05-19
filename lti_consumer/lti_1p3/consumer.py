@@ -16,6 +16,7 @@ from .constants import (
     LTI_BASE_MESSAGE,
     LTI_1P3_ACCESS_TOKEN_REQUIRED_CLAIMS,
     LTI_1P3_ACCESS_TOKEN_SCOPES,
+    LTI_1P3_ACS_SCOPE,
     LTI_1P3_CONTEXT_TYPE,
     LTI_PROCTORING_DATA_KEYS,
 )
@@ -31,6 +32,7 @@ class LtiConsumer1p3:
     """
     LTI 1.3 Consumer Implementation
     """
+
     def __init__(
             self,
             iss,
@@ -407,6 +409,19 @@ class LtiConsumer1p3:
         """
         return self.key_handler.get_public_jwk()
 
+    def _check_if_scope_is_valid(self, scope):
+        """
+        Helper function to return the list of valid scopes present in the
+        request to the access token endpoint.
+        """
+        # Currently there are no scopes, because there is no use for
+        # these access tokens until a tool needs to access the LMS.
+        # LTI Advantage extensions make use of this.
+        # TODO: Make this function should only return the NRPS and AGS scopes if those features are enabled.
+        if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
+            return True
+        return False
+
     def access_token(self, token_request_data):
         """
         Validate request and return JWT access token.
@@ -454,13 +469,14 @@ class LtiConsumer1p3:
         # Check scopes and only return valid and supported ones
         valid_scopes = []
         requested_scopes = token_request_data['scope'].split(' ')
-
         for scope in requested_scopes:
-            # Currently there are no scopes, because there is no use for
-            # these access tokens until a tool needs to access the LMS.
-            # LTI Advantage extensions make use of this.
-            if scope in LTI_1P3_ACCESS_TOKEN_SCOPES:
+            if self._check_if_scope_is_valid(scope):
                 valid_scopes.append(scope)
+            else:
+                log.warning(
+                    f'Scope: {scope} found in the request is not a valid '
+                    f'LTI 1.3 access token or ACS scope'
+                )
 
         # Scopes are space separated as described in
         # https://tools.ietf.org/html/rfc6749
@@ -544,6 +560,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
       Note: this is a partial implementation with read-only LineItems.
       Reference spec: https://www.imsglobal.org/spec/lti-ags/v2p0
     """
+
     def __init__(self, *args, **kwargs):
         """
         Override parent class and set up required LTI Advantage variables.
@@ -756,6 +773,7 @@ class LtiProctoringConsumer(LtiConsumer1p3):
     resource_link, etc. This information is provided to the consumer through the set_proctoring_data method, which
     is called from the consuming context to pass in necessary data.
     """
+
     def __init__(
         self,
         iss,
@@ -876,6 +894,15 @@ class LtiProctoringConsumer(LtiConsumer1p3):
             self.set_extra_claim(self.get_assessment_control_claim())
 
         return super().generate_launch_request(preflight_response)
+
+    def _check_if_scope_is_valid(self, scope):
+        """
+        Override of Lti1p3Consumer's _check_if_scope_is_valid
+        that accounts for the ACS scope for proctoring.
+        """
+        if scope in (LTI_1P3_ACCESS_TOKEN_SCOPES, LTI_1P3_ACS_SCOPE):
+            return True
+        return False
 
     def check_and_decode_token(self, token):
         """

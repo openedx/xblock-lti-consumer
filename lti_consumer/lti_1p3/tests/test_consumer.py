@@ -39,12 +39,26 @@ RSA_KEY_ID = "1"
 RSA_KEY = RSA.generate(2048).export_key('PEM')
 
 
+def _generate_token_request_data(token, scope):
+    """
+    Helper function to generate requests to the access_token endpoint
+    """
+    return {
+        # We don't actually care about these 2 first values
+        "grant_type": "client_credentials",
+        "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+        "client_assertion": token,
+        "scope": scope,
+    }
+
+
 # Test classes
 @ddt.ddt
 class TestLti1p3Consumer(TestCase):
     """
     Unit tests for LtiConsumer1p3
     """
+
     def setUp(self):
         super().setUp()
 
@@ -542,17 +556,30 @@ class TestLti1p3Consumer(TestCase):
         """
         Check if access token with invalid request data raises.
         """
-        request_data = {
-            "grant_type": "client_credentials",
-            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-            # This should be a valid JWT
-            "client_assertion": "invalid-jwt",
-            # Scope can be empty
-            "scope": "",
-        }
+        request_data = _generate_token_request_data("invalid_jwt", "")
 
         with self.assertRaises(exceptions.MalformedJwtToken):
             self.lti_consumer.access_token(request_data)
+
+    def test_access_token_no_acs(self):
+        """
+        Check that ACS does not work for the access token in the
+        default LTI 1.3 consumer
+        """
+        # Generate a dummy, but valid JWT
+        token = self.lti_consumer.key_handler.encode_and_sign(
+            {
+                "test": "test"
+            },
+            expiration=1000
+        )
+
+        request_data = _generate_token_request_data(token, "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
+
+        response = self.lti_consumer.access_token(request_data)
+
+        # Check no ACS scope present in returned token
+        self.assertEqual(response.get('scope'), '')
 
     def test_access_token(self):
         """
@@ -570,15 +597,7 @@ class TestLti1p3Consumer(TestCase):
             expiration=1000
         )
 
-        request_data = {
-            # We don't actually care about these 2 first values
-            "grant_type": "client_credentials",
-            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-            # This should be a valid JWT
-            "client_assertion": token,
-            # Scope can be empty
-            "scope": "",
-        }
+        request_data = _generate_token_request_data(token, "")
 
         response = self.lti_consumer.access_token(request_data)
 
@@ -656,6 +675,7 @@ class TestLtiAdvantageConsumer(TestCase):
     """
     Unit tests for LtiAdvantageConsumer
     """
+
     def setUp(self):
         super().setUp()
 
@@ -899,6 +919,7 @@ class TestLtiProctoringConsumer(TestCase):
     """
     Unit tests for LtiProctoringConsumer
     """
+
     def setUp(self):
         super().setUp()
 
@@ -1165,6 +1186,46 @@ class TestLtiProctoringConsumer(TestCase):
 
         with self.assertRaises(MissingRequiredClaim):
             self.lti_consumer.check_and_decode_token(encoded_token)
+
+    def test_access_token_no_valid_scopes(self):
+        """
+        Ensure that the no scopes are returned in the access token if the request scopes are invalid
+        """
+        # Generate a dummy, but valid JWT
+        token = self.lti_consumer.key_handler.encode_and_sign(
+            {
+                "test": "test"
+            },
+            expiration=1000
+        )
+
+        # This should be a valid JWT w/ the ACS scope
+        request_data = _generate_token_request_data(token, "invalid_scope")
+
+        response = self.lti_consumer.access_token(request_data)
+
+        # Check that the response has the ACS scope
+        self.assertEqual(response.get('scope'), "")
+
+    def test_access_token(self):
+        """
+        Ensure that the ACS scope is added based on the request to the access token endpoint
+        """
+        # Generate a dummy, but valid JWT
+        token = self.lti_consumer.key_handler.encode_and_sign(
+            {
+                "test": "test"
+            },
+            expiration=1000
+        )
+
+        # This should be a valid JWT w/ the ACS scope
+        request_data = _generate_token_request_data(token, "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
+
+        response = self.lti_consumer.access_token(request_data)
+
+        # Check that the response has the ACS scope
+        self.assertEqual(response.get('scope'), "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
 
     def test_valid_check_and_decode_token(self):
         """
