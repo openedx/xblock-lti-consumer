@@ -1187,6 +1187,45 @@ class TestLtiProctoringConsumer(TestCase):
         with self.assertRaises(MissingRequiredClaim):
             self.lti_consumer.check_and_decode_token(encoded_token)
 
+    def test_access_token_no_valid_scopes(self):
+        """
+        Ensure that the no scopes are returned in the access token if the request scopes are invalid
+        """
+        # Generate a dummy, but valid JWT
+        token = self.lti_consumer.key_handler.encode_and_sign(
+            {
+                "test": "test"
+            },
+            expiration=1000
+        )
+
+        # This should be a valid JWT w/ the ACS scope
+        request_data = _generate_token_request_data(token, "invalid_scope")
+
+        response = self.lti_consumer.access_token(request_data)
+
+        # Check that the response has the ACS scope
+        self.assertEqual(response.get('scope'), "")
+
+    def test_access_token(self):
+        """
+        Ensure that the ACS scope is added based on the request to the access token endpoint
+        """
+        # Generate a dummy, but valid JWT
+        token = self.lti_consumer.key_handler.encode_and_sign(
+            {
+                "test": "test"
+            },
+            expiration=1000
+        )
+
+        # This should be a valid JWT w/ the ACS scope
+        request_data = _generate_token_request_data(token, "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
+
+        response = self.lti_consumer.access_token(request_data)
+
+        # Check that the response has the ACS scope
+        self.assertEqual(response.get('scope'), "https://purl.imsglobal.org/spec/lti-ap/scope/control.all")
     def test_access_token(self):
         """
         Ensure that the ACS scope is added based on the request to the access token endpoint
