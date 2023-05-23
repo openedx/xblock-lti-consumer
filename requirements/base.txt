@@ -85,7 +85,7 @@ psutil==5.9.5
     # via edx-django-utils
 pycparser==2.21
     # via cffi
-pycryptodomex==3.17
+pycryptodomex==3.18.0
     # via
     #   -r requirements/base.in
     #   pyjwkest
@@ -104,7 +104,7 @@ pytz==2023.3
     #   xblock
 pyyaml==6.0
     # via xblock
-requests==2.30.0
+requests==2.31.0
     # via pyjwkest
 simplejson==3.19.1
     # via xblock-utils
@@ -120,7 +120,7 @@ stevedore==5.1.0
     # via
     #   edx-django-utils
     #   edx-opaque-keys
-urllib3==1.26.15
+urllib3==1.26.16
     # via
     #   -c requirements/constraints.txt
     #   requests
