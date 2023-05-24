@@ -728,6 +728,7 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @csrf_exempt
+@xframe_options_exempt
 @require_http_methods(['POST'])
 def start_proctoring_assessment_endpoint(request):
     """
