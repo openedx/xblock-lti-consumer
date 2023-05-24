@@ -26,9 +26,9 @@ bleach==6.0.0
     # via -r requirements/base.txt
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.135
+boto3==1.26.138
     # via fs-s3fs
-botocore==1.29.135
+botocore==1.29.138
     # via
     #   boto3
     #   s3transfer
@@ -191,7 +191,7 @@ pycparser==2.21
     # via
     #   -r requirements/base.txt
     #   cffi
-pycryptodomex==3.17
+pycryptodomex==3.18.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -208,7 +208,7 @@ pylint-celery==0.3
     # via edx-lint
 pylint-django==2.5.3
     # via edx-lint
-pylint-plugin-utils==0.8.1
+pylint-plugin-utils==0.8.2
     # via
     #   pylint-celery
     #   pylint-django
@@ -244,7 +244,7 @@ pyyaml==6.0
     #   code-annotations
     #   cookiecutter
     #   xblock
-requests==2.30.0
+requests==2.31.0
     # via
     #   -r requirements/base.txt
     #   cookiecutter
@@ -282,11 +282,11 @@ tomli==2.0.1
     # via pylint
 tomlkit==0.11.8
     # via pylint
-typing-extensions==4.5.0
+typing-extensions==4.6.0
     # via
     #   astroid
     #   pylint
-urllib3==1.26.15
+urllib3==1.26.16
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/base.txt

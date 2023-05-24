@@ -35,11 +35,11 @@ boto==2.49.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-boto3==1.26.135
+boto3==1.26.138
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.29.135
+botocore==1.29.138
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -51,6 +51,7 @@ certifi==2023.5.7
 cffi==1.15.1
     # via
     #   -r requirements/test.txt
+    #   cryptography
     #   pynacl
 chardet==5.1.0
     # via
@@ -86,6 +87,10 @@ coverage==6.5.0
     #   coveralls
 coveralls==3.3.1
     # via -r requirements/test.txt
+cryptography==40.0.2
+    # via
+    #   -r requirements/test.txt
+    #   secretstorage
 ddt==1.6.0
     # via -r requirements/test.txt
 dill==0.3.6
@@ -178,6 +183,10 @@ importlib-metadata==6.6.0
     #   -r requirements/test.txt
     #   keyring
     #   twine
+importlib-resources==5.12.0
+    # via
+    #   -r requirements/test.txt
+    #   keyring
 isort==5.12.0
     # via
     #   -r requirements/test.txt
@@ -186,6 +195,11 @@ jaraco-classes==3.2.3
     # via
     #   -r requirements/test.txt
     #   keyring
+jeepney==0.8.0
+    # via
+    #   -r requirements/test.txt
+    #   keyring
+    #   secretstorage
 jinja2==3.1.2
     # via
     #   -r requirements/test.txt
@@ -296,7 +310,7 @@ pycparser==2.21
     # via
     #   -r requirements/test.txt
     #   cffi
-pycryptodomex==3.17
+pycryptodomex==3.18.0
     # via
     #   -r requirements/test.txt
     #   pyjwkest
@@ -322,7 +336,7 @@ pylint-django==2.5.3
     # via
     #   -r requirements/test.txt
     #   edx-lint
-pylint-plugin-utils==0.8.1
+pylint-plugin-utils==0.8.2
     # via
     #   -r requirements/test.txt
     #   pylint-celery
@@ -366,7 +380,7 @@ readme-renderer==37.3
     # via
     #   -r requirements/test.txt
     #   twine
-requests==2.30.0
+requests==2.31.0
     # via
     #   -r requirements/test.txt
     #   cookiecutter
@@ -391,6 +405,10 @@ s3transfer==0.6.1
     # via
     #   -r requirements/test.txt
     #   boto3
+secretstorage==3.3.3
+    # via
+    #   -r requirements/test.txt
+    #   keyring
 simplejson==3.19.1
     # via
     #   -r requirements/test.txt
@@ -437,12 +455,13 @@ tox==3.28.0
     #   -r requirements/tox.txt
 twine==4.0.2
     # via -r requirements/test.txt
-typing-extensions==4.5.0
+typing-extensions==4.6.0
     # via
     #   -r requirements/test.txt
     #   astroid
     #   pylint
-urllib3==1.26.15
+    #   rich
+urllib3==1.26.16
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/test.txt
@@ -485,6 +504,7 @@ zipp==3.15.0
     # via
     #   -r requirements/test.txt
     #   importlib-metadata
+    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

@@ -128,7 +128,7 @@ pycparser==2.21
     # via
     #   -r requirements/base.txt
     #   cffi
-pycryptodomex==3.17
+pycryptodomex==3.18.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -157,7 +157,7 @@ pyyaml==6.0
     #   -r requirements/base.txt
     #   edx-i18n-tools
     #   xblock
-requests==2.30.0
+requests==2.31.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -181,7 +181,7 @@ stevedore==5.1.0
     #   -r requirements/base.txt
     #   edx-django-utils
     #   edx-opaque-keys
-urllib3==1.26.15
+urllib3==1.26.16
     # via
     #   -r requirements/base.txt
     #   requests

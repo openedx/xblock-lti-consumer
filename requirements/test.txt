@@ -28,9 +28,9 @@ bleach==6.0.0
     #   readme-renderer
 boto==2.49.0
     # via xblock-sdk
-boto3==1.26.135
+boto3==1.26.138
     # via fs-s3fs
-botocore==1.29.135
+botocore==1.29.138
     # via
     #   boto3
     #   s3transfer
@@ -41,6 +41,7 @@ certifi==2023.5.7
 cffi==1.15.1
     # via
     #   -r requirements/base.txt
+    #   cryptography
     #   pynacl
 chardet==5.1.0
     # via binaryornot
@@ -66,6 +67,8 @@ coverage==6.5.0
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
+cryptography==40.0.2
+    # via secretstorage
 ddt==1.6.0
     # via -r requirements/test.in
 dill==0.3.6
@@ -141,10 +144,16 @@ importlib-metadata==6.6.0
     # via
     #   keyring
     #   twine
+importlib-resources==5.12.0
+    # via keyring
 isort==5.12.0
     # via pylint
 jaraco-classes==3.2.3
     # via keyring
+jeepney==0.8.0
+    # via
+    #   keyring
+    #   secretstorage
 jinja2==3.1.2
     # via
     #   code-annotations
@@ -219,7 +228,7 @@ pycparser==2.21
     # via
     #   -r requirements/base.txt
     #   cffi
-pycryptodomex==3.17
+pycryptodomex==3.18.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -239,7 +248,7 @@ pylint-celery==0.3
     # via edx-lint
 pylint-django==2.5.3
     # via edx-lint
-pylint-plugin-utils==0.8.1
+pylint-plugin-utils==0.8.2
     # via
     #   pylint-celery
     #   pylint-django
@@ -279,7 +288,7 @@ readme-renderer==37.3
     # via
     #   -r requirements/test.in
     #   twine
-requests==2.30.0
+requests==2.31.0
     # via
     #   -r requirements/base.txt
     #   cookiecutter
@@ -296,6 +305,8 @@ rich==13.3.5
     # via twine
 s3transfer==0.6.1
     # via boto3
+secretstorage==3.3.3
+    # via keyring
 simplejson==3.19.1
     # via
     #   -r requirements/base.txt
@@ -328,11 +339,12 @@ tomlkit==0.11.8
     # via pylint
 twine==4.0.2
     # via -r requirements/test.in
-typing-extensions==4.5.0
+typing-extensions==4.6.0
     # via
     #   astroid
     #   pylint
-urllib3==1.26.15
+    #   rich
+urllib3==1.26.16
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/base.txt
@@ -366,7 +378,9 @@ xblock-sdk==0.5.4
 xblock-utils==3.0.0
     # via -r requirements/base.txt
 zipp==3.15.0
-    # via importlib-metadata
+    # via
+    #   importlib-metadata
+    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
