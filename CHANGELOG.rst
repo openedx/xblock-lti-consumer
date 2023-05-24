@@ -15,12 +15,16 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ~~~~~~~~~~
-* Improved logging for Proctoring LTI 1.3 launch failure.
+
+9.5.2 - 2023-05-24
+------------------
+* Allow start_proctoring_assessment_endpoint from an iframe during proctoring services launch.
 
 9.5.1 - 2023-05-19
 ------------------
 * Added gate to ensure the ACS scope is only added when using the LtiProctoringConsumer
 * Moved scope validation to a helper function
+* Improved logging for Proctoring LTI 1.3 launch failure.
 
 9.5.0 - 2023-05-08
 ------------------
