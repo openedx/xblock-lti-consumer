@@ -694,8 +694,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # a new LTI ID before they've added it to advanced settings, but we do want to warn them about it.
         # If we put this check in validate_field_data(), the settings editor wouldn't let them save changes.
         if self.lti_version == "lti_1p1" and self.lti_id:
-            lti_passport_ids = [lti_passport.split(':')[0] for lti_passport in self.course.lti_passports]
-            if self.lti_id not in lti_passport_ids:
+            lti_passport_ids = [lti_passport.split(':')[0].strip() for lti_passport in self.course.lti_passports]
+            if self.lti_id.strip() not in lti_passport_ids:
                 validation.add(ValidationMessage(ValidationMessage.WARNING, str(
                     _("The specified LTI ID is not configured in this course's Advanced Settings.")
                 )))
