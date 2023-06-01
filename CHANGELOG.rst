@@ -16,6 +16,8 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+* Show a warning in Studio if an LTI 1.1 consumer has an invalid `lti_id`.
+
 9.5.2 - 2023-05-24
 ------------------
 * Allow start_proctoring_assessment_endpoint from an iframe during proctoring services launch.
