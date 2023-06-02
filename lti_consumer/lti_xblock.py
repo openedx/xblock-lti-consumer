@@ -683,6 +683,24 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         elif data.lti_1p3_tool_key_mode == 'public_key':
             data.lti_1p3_tool_keyset_url = ''
 
+    def validate(self):
+        """
+        Validate this XBlock's configuration
+        """
+        validation = super().validate()
+        _ = self.runtime.service(self, "i18n").ugettext
+        # Check if lti_id exists in the LTI passports of the current course. (LTI 1.1 only)
+        # This validation is just for the Unit page in Studio; we don't want to block users from saving
+        # a new LTI ID before they've added it to advanced settings, but we do want to warn them about it.
+        # If we put this check in validate_field_data(), the settings editor wouldn't let them save changes.
+        if self.lti_version == "lti_1p1" and self.lti_id:
+            lti_passport_ids = [lti_passport.split(':')[0].strip() for lti_passport in self.course.lti_passports]
+            if self.lti_id.strip() not in lti_passport_ids:
+                validation.add(ValidationMessage(ValidationMessage.WARNING, str(
+                    _("The specified LTI ID is not configured in this course's Advanced Settings.")
+                )))
+        return validation
+
     def get_settings(self):
         """
         Get the XBlock settings bucket via the SettingsService.

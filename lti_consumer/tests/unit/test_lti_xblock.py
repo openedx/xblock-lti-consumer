@@ -146,6 +146,21 @@ class TestProperties(TestLtiConsumerXBlock):
         validation = self.xblock.validate()
         self.assertFalse(validation.empty)
 
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
+    def test_validate_lti_id(self, mock_course):
+        """
+        Test `lti_id` returns a warning if it's not set as an LTI passport in the course
+        """
+        valid_provider = 'lti_provider'
+        self.xblock.lti_id = valid_provider
+        type(mock_course).lti_passports = PropertyMock(return_value=[f"{valid_provider}:key:secret"])
+        validation = self.xblock.validate()
+        self.assertTrue(validation.empty)
+        # Now set lti_id to something invalid:
+        self.xblock.lti_id = "nonexistent"
+        validation = self.xblock.validate()
+        self.assertFalse(validation.empty)
+
     def test_role(self):
         """
         Test `role` returns the correct LTI role string
