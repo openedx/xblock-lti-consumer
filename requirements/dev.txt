@@ -67,7 +67,7 @@ djangorestframework==3.14.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-django-utils==5.4.0
+edx-django-utils==5.5.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
@@ -99,7 +99,7 @@ mako==1.2.4
     # via
     #   -r requirements/base.txt
     #   xblock-utils
-markupsafe==2.1.2
+markupsafe==2.1.3
     # via
     #   -r requirements/base.txt
     #   mako
@@ -181,7 +181,7 @@ stevedore==5.1.0
     #   -r requirements/base.txt
     #   edx-django-utils
     #   edx-opaque-keys
-typing-extensions==4.6.2
+typing-extensions==4.6.3
     # via
     #   -r requirements/base.txt
     #   asgiref
