@@ -336,7 +336,7 @@ file in this repo.
 Reporting Security Issues
 *************************
 
-Please do not report security issues in public. Please email security@tcril.org.
+Please do not report security issues in public. Please email security@openedx.org.
 
 .. |ci-badge| image:: https://github.com/openedx/xblock-lti-consumer/workflows/Python%20CI/badge.svg?branch=master
     :target: https://github.com/openedx/xblock-lti-consumer/actions?query=workflow%3A%22Python+CI%22
