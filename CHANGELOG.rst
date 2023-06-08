@@ -16,6 +16,9 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.5.3 - 2023-06-09
+------------------
+* Redirect to exam on same LTI proctoring launch tab once ready to start.
 * Show a warning in Studio if an LTI 1.1 consumer has an invalid `lti_id`.
 
 9.5.2 - 2023-05-24
