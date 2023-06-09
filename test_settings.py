@@ -28,3 +28,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 # Platform name for LTI 1.1 and 1.3 claims testing
 PLATFORM_NAME = "Your platform name here"
+
+# Learning MFE URL for start assessment testing
+LEARNING_MICROFRONTEND_URL = 'http://test.learning:2000'

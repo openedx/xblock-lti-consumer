@@ -4,6 +4,7 @@ LTI consumer plugin passthrough views
 import logging
 import urllib
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
@@ -835,4 +836,12 @@ def start_proctoring_assessment_endpoint(request):
         user_id=request.user.id,
     )
 
-    return render(request, 'html/lti_start_assessment.html', status=HTTP_200_OK)
+    context_url = "/".join([settings.LEARNING_MICROFRONTEND_URL, "course",
+                            launch_data.context_id,
+                            launch_data.context_label])
+    context = {}
+    context.update({
+        "context_url": context_url,
+    })
+
+    return render(request, 'html/lti_start_assessment.html', context, status=HTTP_200_OK)

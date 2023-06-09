@@ -85,6 +85,9 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
             config_id=self.lti_config.config_id,
             resource_link_id="resource_link_id",
             proctoring_launch_data=proctoring_launch_data,
+            context_id="course-v1:testU+DemoX+Demo_Course",
+            context_title="http://localhost:2000",
+            context_label="block-v1:testU+DemoX+Demo_Course+type@sequential+block@1234",
         )
 
         self.launch_data_key = get_cache_key(
@@ -293,4 +296,4 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('window.close', response.content.decode('utf-8'))
+        self.assertIn('Return to exam', response.content.decode('utf-8'))
