@@ -31,15 +31,11 @@ bleach==6.0.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto==2.49.0
-    # via
-    #   -r requirements/test.txt
-    #   xblock-sdk
-boto3==1.26.147
+boto3==1.26.152
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.29.147
+botocore==1.29.152
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -154,7 +150,7 @@ edx-lint==5.3.4
     # via -r requirements/test.txt
 edx-opaque-keys[django]==2.3.0
     # via -r requirements/test.txt
-filelock==3.12.0
+filelock==3.12.2
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -238,7 +234,7 @@ mako==1.2.4
     # via
     #   -r requirements/test.txt
     #   xblock-utils
-markdown-it-py==2.2.0
+markdown-it-py==3.0.0
     # via
     #   -r requirements/test.txt
     #   rich
@@ -286,7 +282,7 @@ pkginfo==1.9.6
     # via
     #   -r requirements/test.txt
     #   twine
-platformdirs==3.5.1
+platformdirs==3.5.3
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -397,7 +393,7 @@ rfc3986==2.0.0
     # via
     #   -r requirements/test.txt
     #   twine
-rich==13.4.1
+rich==13.4.2
     # via
     #   -r requirements/test.txt
     #   twine
@@ -497,7 +493,7 @@ xblock[django]==1.6.2
     #   -r requirements/test.txt
     #   xblock-sdk
     #   xblock-utils
-xblock-sdk==0.5.4
+xblock-sdk==0.6.0
     # via -r requirements/test.txt
 xblock-utils==3.1.0
     # via -r requirements/test.txt

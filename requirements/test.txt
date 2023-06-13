@@ -26,11 +26,9 @@ bleach==6.0.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto==2.49.0
-    # via xblock-sdk
-boto3==1.26.147
+boto3==1.26.152
     # via fs-s3fs
-botocore==1.29.147
+botocore==1.29.152
     # via
     #   boto3
     #   s3transfer
@@ -184,7 +182,7 @@ mako==1.2.4
     # via
     #   -r requirements/base.txt
     #   xblock-utils
-markdown-it-py==2.2.0
+markdown-it-py==3.0.0
     # via rich
 markupsafe==2.1.3
     # via
@@ -216,7 +214,7 @@ pbr==5.11.1
     #   stevedore
 pkginfo==1.9.6
     # via twine
-platformdirs==3.5.1
+platformdirs==3.5.3
     # via pylint
 psutil==5.9.5
     # via
@@ -301,7 +299,7 @@ requests-toolbelt==1.0.0
     # via twine
 rfc3986==2.0.0
     # via twine
-rich==13.4.1
+rich==13.4.2
     # via twine
 s3transfer==0.6.1
     # via boto3
@@ -375,7 +373,7 @@ xblock[django]==1.6.2
     #   -r requirements/base.txt
     #   xblock-sdk
     #   xblock-utils
-xblock-sdk==0.5.4
+xblock-sdk==0.6.0
     # via -r requirements/test.in
 xblock-utils==3.1.0
     # via -r requirements/base.txt

@@ -24,11 +24,9 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.0.0
     # via -r requirements/base.txt
-boto==2.49.0
-    # via xblock-sdk
-boto3==1.26.147
+boto3==1.26.152
     # via fs-s3fs
-botocore==1.29.147
+botocore==1.29.152
     # via
     #   boto3
     #   s3transfer
@@ -179,7 +177,7 @@ pbr==5.11.1
     # via
     #   -r requirements/base.txt
     #   stevedore
-platformdirs==3.5.1
+platformdirs==3.5.3
     # via pylint
 psutil==5.9.5
     # via
@@ -316,7 +314,7 @@ xblock[django]==1.6.2
     #   -r requirements/base.txt
     #   xblock-sdk
     #   xblock-utils
-xblock-sdk==0.5.4
+xblock-sdk==0.6.0
     # via -r requirements/quality.in
 xblock-utils==3.1.0
     # via -r requirements/base.txt
