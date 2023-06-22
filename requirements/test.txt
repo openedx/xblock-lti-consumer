@@ -26,9 +26,9 @@ bleach==6.0.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.26.152
+boto3==1.26.156
     # via fs-s3fs
-botocore==1.29.152
+botocore==1.29.156
     # via
     #   boto3
     #   s3transfer
@@ -138,7 +138,7 @@ idna==3.4
     # via
     #   -r requirements/base.txt
     #   requests
-importlib-metadata==6.6.0
+importlib-metadata==6.7.0
     # via
     #   keyring
     #   twine
@@ -165,7 +165,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via -r requirements/base.txt
-keyring==23.13.1
+keyring==24.0.0
     # via twine
 lazy==1.5
     # via
@@ -214,7 +214,7 @@ pbr==5.11.1
     #   stevedore
 pkginfo==1.9.6
     # via twine
-platformdirs==3.5.3
+platformdirs==3.6.0
     # via pylint
 psutil==5.9.5
     # via
@@ -282,7 +282,7 @@ pyyaml==6.0
     #   code-annotations
     #   cookiecutter
     #   xblock
-readme-renderer==37.3
+readme-renderer==40.0
     # via
     #   -r requirements/test.in
     #   twine
@@ -375,7 +375,7 @@ xblock[django]==1.6.2
     #   xblock-utils
 xblock-sdk==0.6.0
     # via -r requirements/test.in
-xblock-utils==3.1.0
+xblock-utils==3.2.0
     # via -r requirements/base.txt
 zipp==3.15.0
     # via
