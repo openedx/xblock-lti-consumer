@@ -11,7 +11,8 @@ from lti_consumer.plugin.views import (LtiAgsLineItemViewset,  # LTI Advantage U
                                        LtiNrpsContextMembershipViewSet, access_token_endpoint,
                                        deep_linking_content_endpoint, deep_linking_response_endpoint,
                                        launch_gate_endpoint, public_keyset_endpoint,
-                                       start_proctoring_assessment_endpoint)
+                                       start_proctoring_assessment_endpoint,
+                                       initiate_course_tool_launch_endpoint)
 
 # LTI 1.3 APIs router
 router = routers.SimpleRouter(trailing_slash=False)
@@ -21,6 +22,11 @@ router.register(r'memberships', LtiNrpsContextMembershipViewSet, basename='lti-n
 
 app_name = 'lti_consumer'
 urlpatterns = [
+    re_path(
+        rf'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/resource/{settings.USAGE_ID_PATTERN}/initiate_login',
+        initiate_course_tool_launch_endpoint,
+        name='lti_consumer.initiate_course_tool_launch_endpoint'
+    ),
     path(
         'lti_consumer/v1/public_keysets/<uuid:lti_config_id>',
         public_keyset_endpoint,

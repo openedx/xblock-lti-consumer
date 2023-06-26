@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import Http404, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils.crypto import get_random_string
 from django.views.decorators.clickjacking import xframe_options_exempt, xframe_options_sameorigin
 from django.views.decorators.csrf import csrf_exempt
@@ -18,7 +18,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from edx_django_utils.cache import TieredCache, get_cache_key
 from jwkest.jwt import JWT, BadSyntax
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import UsageKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -44,6 +44,7 @@ from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (LtiAgsLi
                                                                         LtiNrpsContextMembershipBasicSerializer,
                                                                         LtiNrpsContextMembershipPIISerializer)
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
+from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
 from lti_consumer.plugin import compat
 from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
@@ -81,6 +82,45 @@ def has_block_access(user, block, course_key):
     # Return True if the user has access to xblock and is enrolled in that specific course.
     return course_access and block_access
 
+
+@require_http_methods(["GET"])
+def initiate_course_tool_launch_endpoint(request, usage_id, lti_config_id):
+    """
+    Launch an LTI tool configured platform wide with a given course_id as the learning context.
+    """
+    try:
+        lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
+
+        if lti_config.version != lti_config.LTI_1P3:
+            raise LtiError(
+                "LTI Error: LTI 1.1 configurations not supported."
+            )
+    except (LtiError, ObjectDoesNotExist):
+        raise Http404 from exc
+
+    # Tools configured with a specific placement cannot be launched course wide
+    # Mostly a hack in place of properly modeling 'platform wide' configurations
+    if lti_config.location:
+        raise PermissionDenied
+
+    location = UsageKey.from_string(usage_id)
+    course_key = location.course_key
+
+    # Problem. How can we get the user's role for the passed in course/context?
+    # We have to use a compat layer to do this which gets messy because this isn't
+    # just needed in the LMS but also exams.
+    user_role = None
+
+    consumer = lti_config.get_lti_consumer()
+    launch_data = Lti1p3LaunchData(
+        user_id=request.user.id,
+        config_id=lti_config.config_id,
+        context_id=str(course_key),
+        resource_link_id=str(location),
+        user_role=user_role,
+    )
+
+    return redirect(consumer.prepare_preflight_url(launch_data))
 
 @require_http_methods(["GET"])
 def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
