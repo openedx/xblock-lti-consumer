@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.5.4 - 2023-06-28
+------------------
+* Allow basic LtiResourceLink launch for an LtiProctoringConsumer
+
 9.5.3 - 2023-06-09
 ------------------
 * Redirect to exam on same LTI proctoring launch tab once ready to start.

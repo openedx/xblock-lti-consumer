@@ -885,8 +885,13 @@ class LtiProctoringConsumer(LtiConsumer1p3):
                 self.set_extra_claim(self.get_assessment_control_claim())
         elif launch_data.message_type == "LtiEndAssessment":
             proctoring_claims = self.get_end_assessment_claims()
+        elif launch_data.message_type == "LtiResourceLinkRequest":
+            proctoring_claims = {}
         else:
-            raise ValueError('lti_message_hint must \"LtiStartProctoring\" or \"LtiEndAssessment\".')
+            raise ValueError(
+                'lti_message_hint must be \"LtiStartProctoring\" or \"LtiEndAssessment\"'
+                'or \"LtiResourceLinkRequest\"'
+            )
 
         self.set_extra_claim(proctoring_claims)
 

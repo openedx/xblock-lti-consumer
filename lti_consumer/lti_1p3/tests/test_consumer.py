@@ -1088,6 +1088,19 @@ class TestLtiProctoringConsumer(TestCase):
             self.assertIn(claim, decoded_token_claims)
 
     @patch('lti_consumer.lti_1p3.consumer.get_data_from_cache')
+    def test_generate_basic_launch_request(self, mock_get_data_from_cache):
+        mock_launch_data = self.get_launch_data(message_type="LtiResourceLinkRequest")
+        mock_get_data_from_cache.return_value = mock_launch_data
+
+        self._setup_proctoring()
+        token = self.lti_consumer.generate_launch_request(
+            self.preflight_response,
+        )['id_token']
+
+        # just check token is valid
+        self.lti_consumer.key_handler.validate_and_decode(token)
+
+    @patch('lti_consumer.lti_1p3.consumer.get_data_from_cache')
     def test_enable_assessment_control(self, mock_get_data_from_cache):
         """
         Ensure that the correct claims are included in LTI launch messages with an ACS url set.
@@ -1120,11 +1133,11 @@ class TestLtiProctoringConsumer(TestCase):
     @patch('lti_consumer.lti_1p3.consumer.get_data_from_cache')
     def test_generate_launch_request_invalid_message(self, mock_get_data_from_cache):
         """
-        Ensures that a ValueError is raised if the launch_data.message_type is not LtiStartProctoring or
-        LtiEndAssessment.
+        Ensures that a ValueError is raised if the launch_data.message_type is not LtiStartProctoring,
+        LtiEndAssessment, or LtiResourceLinkRequest.
         """
 
-        mock_launch_data = self.get_launch_data(message_type="LtiResourceLinkRequest")
+        mock_launch_data = self.get_launch_data(message_type="LtiDeepLinkingRequest")
         mock_get_data_from_cache.return_value = mock_launch_data
 
         self._setup_proctoring()
