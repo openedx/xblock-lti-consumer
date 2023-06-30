@@ -26,9 +26,9 @@ bleach==6.0.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.26.156
+boto3==1.26.161
     # via fs-s3fs
-botocore==1.29.156
+botocore==1.29.161
     # via
     #   boto3
     #   s3transfer
@@ -165,7 +165,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via -r requirements/base.txt
-keyring==24.0.0
+keyring==24.2.0
     # via twine
 lazy==1.5
     # via
@@ -198,7 +198,7 @@ mock==5.0.2
     # via -r requirements/test.in
 more-itertools==9.1.0
     # via jaraco-classes
-newrelic==8.8.0
+newrelic==8.8.1
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -214,7 +214,7 @@ pbr==5.11.1
     #   stevedore
 pkginfo==1.9.6
     # via twine
-platformdirs==3.6.0
+platformdirs==3.8.0
     # via pylint
 psutil==5.9.5
     # via
