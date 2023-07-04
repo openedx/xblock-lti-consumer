@@ -26,9 +26,9 @@ bleach==6.0.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.26.161
+boto3==1.27.0
     # via fs-s3fs
-botocore==1.29.161
+botocore==1.30.0
     # via
     #   boto3
     #   s3transfer
@@ -337,7 +337,7 @@ tomlkit==0.11.8
     # via pylint
 twine==4.0.2
     # via -r requirements/test.in
-typing-extensions==4.6.3
+typing-extensions==4.7.1
     # via
     #   -r requirements/base.txt
     #   asgiref
