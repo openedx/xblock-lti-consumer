@@ -13,6 +13,7 @@ xblock-utils
 pycryptodomex
 pyjwkest
 edx-opaque-keys[django]
+edx-ccx-keys                 # Opaque keys for Custom Courses.
 django-filter
 jsonfield
 django-config-models         # Configuration models for Django allowing config management with auditing
