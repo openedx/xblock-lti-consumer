@@ -83,6 +83,7 @@ class Lti1p3LaunchData:
     * proctoring_launch_data (conditionally required): An instance of the Lti1p3ProctoringLaunchData that contains
         data necessary and related to an LTI 1.3 proctoring launch. It is required if the message_type attribute is
         "LtiStartProctoring" or "LtiEndAssessment".
+    * custom_parameters (optional): The custom parameters claim values. It is a dictionary of custom parameters.
     """
     user_id = field()
     user_role = field()
@@ -104,3 +105,4 @@ class Lti1p3LaunchData:
         default=None,
         validator=validators.optional((validators.instance_of(Lti1p3ProctoringLaunchData))),
     )
+    custom_parameters = field(default={})

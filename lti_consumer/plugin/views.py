@@ -261,6 +261,10 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         # Set LTI Launch URL.
         context.update({'launch_url': preflight_response.get("redirect_uri")})
 
+        # Set LTI custom properties claim.
+        if launch_data.custom_parameters:
+            lti_consumer.set_custom_parameters(launch_data.custom_parameters)
+
         # Modify LTI Launch URL depending on launch type.
         # Deep Linking Launch - Configuration flow launched by
         # course creators to set up content.
