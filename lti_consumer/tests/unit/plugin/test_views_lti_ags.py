@@ -69,6 +69,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         self._compat_mock = compat_mock.start()
         self._compat_mock.get_user_from_external_user_id.return_value = self._mock_user
         self._compat_mock.load_block_as_user.return_value = self.xblock
+        self.consumer_dict = self.lti_config.get_lti_consumer().__dict__
 
     def _set_lti_token(self, scopes=None):
         """
@@ -170,6 +171,9 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         # Create LineItem
         line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
+            oidc_url=self.consumer_dict.get('oidc_url'),
+            client_id=self.consumer_dict.get('client_id'),
+            deployment_id=self.consumer_dict.get('deployment_id'),
             resource_id="test",
             resource_link_id=self.xblock.scope_ids.usage_id,
             label="test label",
@@ -208,6 +212,9 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         # Create LineItem
         line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
+            oidc_url=self.consumer_dict.get('oidc_url'),
+            client_id=self.consumer_dict.get('client_id'),
+            deployment_id=self.consumer_dict.get('deployment_id'),
             resource_id="test",
             resource_link_id=self.xblock.scope_ids.usage_id,
             label="test label",
@@ -317,6 +324,9 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         # Create LineItem
         self.line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
+            oidc_url=self.consumer_dict.get('oidc_url'),
+            client_id=self.consumer_dict.get('client_id'),
+            deployment_id=self.consumer_dict.get('deployment_id'),
             resource_id="test",
             resource_link_id=self.xblock.scope_ids.usage_id,
             label="test label",
@@ -849,6 +859,9 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
         # Create LineItem
         self.line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
+            oidc_url=self.consumer_dict.get('oidc_url'),
+            client_id=self.consumer_dict.get('client_id'),
+            deployment_id=self.consumer_dict.get('deployment_id'),
             resource_id="test",
             resource_link_id=self.xblock.scope_ids.usage_id,
             label="test label",

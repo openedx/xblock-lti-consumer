@@ -72,31 +72,31 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
      *
      *  new - Show all the LTI 1.1/1.3 config fields
      *  database - Do not show the LTI 1.1/1.3 config fields
-     *  external - Show only the External Config ID field
+     *  external - Show all LTI 1.3 config fields except LTI 1.3 tool fields
      */
     function getFieldsToHideForLtiConfigType() {
         const configType = $(element).find('#xb-field-edit-config_type').val();
-        const configFields = lti1P1FieldList.concat(lti1P3FieldList);
+        const databaseConfigHiddenFields = lti1P1FieldList.concat(lti1P3FieldList);
+        const externalConfigHiddenFields = lti1P1FieldList.concat([
+            'lti_1p3_tool_key_mode',
+            'lti_1p3_tool_keyset_url',
+            'lti_1p3_tool_public_key',
+        ]);
         const fieldsToHide = [];
 
         if (configType === "external") {
-            // Hide the lti_version field and all the LTI 1.1 and LTI 1.3 fields.
-            configFields.forEach(function (field) {
+            // Hide LTI 1.1 and LTI 1.3 tool fields.
+            externalConfigHiddenFields.forEach(function (field) {
                 fieldsToHide.push(field);
             })
-            fieldsToHide.push("lti_version");
         } else if (configType === "database") {
             // Hide the LTI 1.1 and LTI 1.3 fields. The XBlock will remain the source of truth for the lti_version,
             // so do not hide it and continue to allow editing it from the XBlock edit menu in Studio.
-            configFields.forEach(function (field) {
+            databaseConfigHiddenFields.forEach(function (field) {
                 fieldsToHide.push(field);
             })
         } else {
             // No fields should be hidden based on a config_type of 'new'.
-        }
-
-        if (configType === "external") {
-            fieldsToHide.push("external_config");
         }
 
         return fieldsToHide;

@@ -351,9 +351,6 @@ class LtiConfiguration(models.Model):
         """
         Return LTI 1.3 Advantage Assignment and Grade Services mode.
         """
-        if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_ags_mode
         else:
@@ -364,9 +361,6 @@ class LtiConfiguration(models.Model):
         """
         Return whether LTI 1.3 Advantage Deep Linking is enabled.
         """
-        if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_enabled
         else:
@@ -377,9 +371,6 @@ class LtiConfiguration(models.Model):
         """
         Return the LTI 1.3 Advantage Deep Linking launch URL.
         """
-        if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_launch_url
         else:
@@ -390,9 +381,6 @@ class LtiConfiguration(models.Model):
         """
         Return whether LTI 1.3 Advantage Names and Role Provisioning Services is enabled.
         """
-        if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError("CONFIG_EXTERNAL is not supported for LTI 1.3 Advantage services: %s")
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_enable_nrps
         else:
@@ -414,7 +402,32 @@ class LtiConfiguration(models.Model):
             log.info('LTI Advantage AGS is disabled for %s', self)
             return
 
-        lineitem = self.ltiagslineitem_set.first()
+        # We set the deployment ID to a default value of 1,
+        # this will be used on a configuration with a CONFIG_EXTERNAL config store
+        # if no deployment ID is set on the external configuration.
+        deployment_id = 1
+
+        # Get OIDC URL, Client ID and Deployment ID (On CONFIG_EXTERNAL)
+        # to use it to retrieve/save the tool deployment LineItem.
+        if self.config_store == self.CONFIG_ON_XBLOCK:
+            block = compat.load_enough_xblock(self.location)
+            oidc_url = block.lti_1p3_oidc_url
+            client_id = block.lti_1p3_client_id
+        elif self.config_store == self.CONFIG_EXTERNAL:
+            config = get_external_config_from_filter({}, self.external_id)
+            oidc_url = config.get('lti_1p3_oidc_url')
+            client_id = config.get('lti_1p3_client_id')
+            deployment_id = config.get('lti_1p3_deployment_id') or deployment_id
+        else:
+            oidc_url = self.lti_1p3_oidc_url
+            client_id = self.lti_1p3_client_id
+
+        lineitem = self.ltiagslineitem_set.filter(
+            oidc_url=oidc_url,
+            client_id=client_id,
+            deployment_id=deployment_id,
+        ).first()
+
         # If using the declarative approach, we should create a LineItem if it
         # doesn't exist. This is because on this mode the tool is not able to create
         # and manage lineitems using the AGS endpoints.
@@ -447,6 +460,9 @@ class LtiConfiguration(models.Model):
             lineitem = LtiAgsLineItem.objects.create(
                 lti_configuration=self,
                 resource_link_id=self.location,
+                oidc_url=oidc_url,
+                client_id=client_id,
+                deployment_id=deployment_id,
                 **default_values
             )
 
@@ -534,9 +550,30 @@ class LtiConfiguration(models.Model):
                 tool_key=self.lti_1p3_tool_public_key,
                 tool_keyset_url=self.lti_1p3_tool_keyset_url,
             )
+        elif self.config_store == self.CONFIG_EXTERNAL:
+            block = compat.load_enough_xblock(self.location)
+            external = get_external_config_from_filter({}, self.external_id)
+
+            consumer = consumer_class(
+                iss=get_lti_api_base(),
+                # Use the xblock values if lti_1p3_oidc_url or lti_1p3_launch_url
+                # is not set on the external configuration.
+                lti_oidc_url=block.lti_1p3_oidc_url or external.get('lti_1p3_oidc_url'),
+                lti_launch_url=block.lti_1p3_launch_url or external.get('lti_1p3_launch_url'),
+                client_id=external.get('lti_1p3_client_id'),
+                # Deployment ID hardcoded to 1 if no deployment ID is set
+                # on the external configuration.
+                deployment_id=external.get('lti_1p3_deployment_id') or '1',
+                rsa_key=external.get('lti_1p3_private_key'),
+                rsa_key_id=external.get('lti_1p3_private_key_id'),
+                # Registered redirect uris
+                redirect_uris=self.get_lti_1p3_redirect_uris(),
+                tool_key=external.get('lti_1p3_tool_public_key'),
+                tool_keyset_url=external.get('lti_1p3_tool_keyset_url'),
+            )
         else:
-            # This should not occur, but raise an error if self.config_store is not CONFIG_ON_XBLOCK
-            # or CONFIG_ON_DB.
+            # This should not occur, but raise an error if self.config_store is not
+            # CONFIG_ON_XBLOCK, CONFIG_ON_DB or CONFIG_EXTERNAL.
             raise NotImplementedError
 
         if isinstance(consumer, LtiAdvantageConsumer):
@@ -560,10 +597,14 @@ class LtiConfiguration(models.Model):
         Return pre-registered redirect uris or sensible defaults
         """
         if self.config_store == self.CONFIG_EXTERNAL:
-            # TODO: Add support for CONFIG_EXTERNAL for LTI 1.3.
-            raise NotImplementedError
-
-        if self.config_store == self.CONFIG_ON_DB:
+            block = compat.load_enough_xblock(self.location)
+            config = get_external_config_from_filter({}, self.external_id)
+            redirect_uris = config.get('lti_1p3_redirect_uris') or block.lti_1p3_redirect_uris
+            launch_url = config.get('lti_1p3_launch_url') or block.lti_1p3_launch_url
+            deep_link_launch_url = config.get(
+                'lti_advantage_deep_linking_launch_url',
+            ) or block.lti_advantage_deep_linking_launch_url
+        elif self.config_store == self.CONFIG_ON_DB:
             redirect_uris = self.lti_1p3_redirect_uris
             launch_url = self.lti_1p3_launch_url
             deep_link_launch_url = self.lti_advantage_deep_linking_launch_url
@@ -609,10 +650,6 @@ class LtiAgsLineItem(models.Model):
     LTI-AGS Specification: https://www.imsglobal.org/spec/lti-ags/v2p0
     The platform MUST NOT modify the 'resourceId', 'resourceLinkId' and 'tag' values.
 
-    Note: When implementing multi-tenancy support, this needs to be changed
-    and be tied to a deployment ID, because each deployment should isolate
-    it's resources.
-
     .. no_pii:
     """
     # LTI Configuration link
@@ -624,6 +661,24 @@ class LtiAgsLineItem(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True
+    )
+
+    # OIDC URL, Client ID and Deployment ID
+    # This allows us to isolate the LineItem per tool deployment
+    oidc_url = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    deployment_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
     )
 
     # Tool resource identifier, not used by the LMS.
@@ -663,9 +718,6 @@ class LtiAgsScore(models.Model):
     Model to store LineItem Score data for LTI Assignments and Grades service.
 
     LTI-AGS Specification: https://www.imsglobal.org/spec/lti-ags/v2p0
-    Note: When implementing multi-tenancy support, this needs to be changed
-    and be tied to a deployment ID, because each deployment should isolate
-    it's resources.
 
     .. no_pii:
     """

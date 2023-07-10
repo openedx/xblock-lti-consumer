@@ -556,19 +556,25 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
 
     def get_queryset(self):
         lti_configuration = self.request.lti_configuration
+        consumer_dict = lti_configuration.get_lti_consumer().__dict__
 
-        # Return all LineItems related to the LTI configuration.
-        # TODO:
-        # Note that each configuration currently maps 1:1
-        # to each resource link (block), and this filter needs
-        # improved once we start reusing LTI configurations.
         return LtiAgsLineItem.objects.filter(
-            lti_configuration=lti_configuration
+            lti_configuration=lti_configuration,
+            oidc_url=consumer_dict.get('oidc_url'),
+            client_id=consumer_dict.get('client_id'),
+            deployment_id=consumer_dict.get('deployment_id'),
         )
 
     def perform_create(self, serializer):
         lti_configuration = self.request.lti_configuration
-        serializer.save(lti_configuration=lti_configuration)
+        consumer_dict = lti_configuration.get_lti_consumer().__dict__
+
+        serializer.save(
+            lti_configuration=lti_configuration,
+            oidc_url=consumer_dict.get('oidc_url'),
+            client_id=consumer_dict.get('client_id'),
+            deployment_id=consumer_dict.get('deployment_id'),
+        )
 
     @action(
         detail=True,

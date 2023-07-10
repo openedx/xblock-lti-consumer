@@ -141,14 +141,32 @@ def get_lti_1p3_launch_info(
             deep_linking_content_items = [item.attributes for item in dl_content_items]
 
     config_id = lti_config.config_id
+    client_id = lti_config.lti_1p3_client_id
+    token_url = get_lms_lti_access_token_link(config_id)
+    keyset_url = get_lms_lti_keyset_link(config_id)
+    # We set the deployment ID to a default value of 1,
+    # this will be used on a configuration with a CONFIG_EXTERNAL config store
+    # if no deployment ID is set on the external configuration.
+    deployment_id = '1'
+
+    # Display LTI launch information from external configuration.
+    # if an external configuration is being used.
+    if lti_config.config_store == lti_config.CONFIG_EXTERNAL:
+        external_config = get_external_config_from_filter({}, lti_config.external_id)
+        client_id = external_config.get('lti_1p3_client_id')
+        token_url = external_config.get('lti_1p3_access_token_url')
+        keyset_url = external_config.get('lti_1p3_keyset_url')
+        # Show default harcoded deployment ID  if no deployment ID
+        # is set on the external configuration.
+        deployment_id = external_config.get('lti_1p3_deployment_id') or deployment_id
 
     # Return LTI launch information for end user configuration
     return {
-        'client_id': lti_config.lti_1p3_client_id,
-        'keyset_url': get_lms_lti_keyset_link(config_id),
-        'deployment_id': '1',
+        'client_id': client_id,
+        'keyset_url': keyset_url,
+        'deployment_id': deployment_id,
         'oidc_callback': get_lms_lti_launch_link(),
-        'token_url': get_lms_lti_access_token_link(config_id),
+        'token_url': token_url,
         'deep_linking_launch_url': deep_linking_launch_url,
         'deep_linking_content_items':
             json.dumps(deep_linking_content_items, indent=4) if deep_linking_content_items else None,
