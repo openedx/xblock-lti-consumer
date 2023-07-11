@@ -9,12 +9,12 @@ appdirs==1.4.4
     #   -r requirements/base.txt
     #   fs
 arrow==1.2.3
-    # via jinja2-time
+    # via cookiecutter
 asgiref==3.7.2
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.15.5
+astroid==2.15.6
     # via
     #   pylint
     #   pylint-celery
@@ -24,9 +24,9 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.0.0
     # via -r requirements/base.txt
-boto3==1.27.0
+boto3==1.28.2
     # via fs-s3fs
-botocore==1.30.0
+botocore==1.31.2
     # via
     #   boto3
     #   s3transfer
@@ -40,11 +40,11 @@ cffi==1.15.1
     #   pynacl
 chardet==5.1.0
     # via binaryornot
-charset-normalizer==3.1.0
+charset-normalizer==3.2.0
     # via
     #   -r requirements/base.txt
     #   requests
-click==8.1.3
+click==8.1.4
     # via
     #   -r requirements/base.txt
     #   click-log
@@ -56,7 +56,7 @@ click-log==0.4.0
     # via edx-lint
 code-annotations==1.3.0
     # via edx-lint
-cookiecutter==2.1.1
+cookiecutter==2.2.2
     # via xblock-sdk
 ddt==1.6.0
     # via -r requirements/quality.in
@@ -131,9 +131,6 @@ jinja2==3.1.2
     # via
     #   code-annotations
     #   cookiecutter
-    #   jinja2-time
-jinja2-time==0.2.0
-    # via cookiecutter
 jmespath==1.0.1
     # via
     #   boto3
@@ -146,7 +143,7 @@ lazy==1.5
     #   xblock
 lazy-object-proxy==1.9.0
     # via astroid
-lxml==4.9.2
+lxml==4.9.3
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -177,7 +174,7 @@ pbr==5.11.1
     # via
     #   -r requirements/base.txt
     #   stevedore
-platformdirs==3.8.0
+platformdirs==3.8.1
     # via pylint
 psutil==5.9.5
     # via
