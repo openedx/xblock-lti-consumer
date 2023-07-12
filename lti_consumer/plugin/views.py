@@ -159,6 +159,27 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
 
     # Validate the Lti1p3LaunchData.
+    from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
+    from uuid import UUID
+    launch_data = Lti1p3LaunchData(
+        user_id=3,
+        user_role='instructor',
+        config_id=UUID('d21dc4a0-6b96-4fb4-ab09-28743ace71d6'),
+        resource_link_id='block-v1:edX+LTI-xblock+consumer+type@lti_consumer+block@7f9f07d76ce440f39d892f7f0d312cf2',
+        preferred_username=None,
+        name=None,
+        email=None,
+        external_user_id='cd6fafb6-2bf7-4196-9b23-a1361c1bf0ef',
+        launch_presentation_document_target='iframe',
+        launch_presentation_return_url=None,
+        message_type='LtiStartProctoring',#'LtiResourceLinkRequest',
+        # context_id='course-v1:edX+LTI-xblock+consumer',
+        context_type=['potato'],#['course_offering'],
+        context_title='edx-LTI-xblock-thing - edX',
+        context_label='course-v1:edX+LTI-xblock+consumer',
+        deep_linking_content_item_id=None,
+        proctoring_launch_data=Lti1p3ProctoringLaunchData(attempt_number=1)#None
+    )
     is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
     if not is_valid:
         validation_message = " ".join(validation_messages)
