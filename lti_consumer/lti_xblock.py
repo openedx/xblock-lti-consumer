@@ -1235,9 +1235,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             role = LTI_1P1_ROLE_MAP.get(role, 'Student,Learner')
 
             result_sourcedid = self.lis_result_sourcedid
+        # Fails if extract_real_user_data() fails
         except LtiError:
             loader = ResourceLoader(__name__)
-            template = loader.render_django_template('/templates/html/lti_launch_error.html')
+            error_msg = 'Could not get user data for current request'
+            template = loader.render_django_template('/templates/html/lti_launch_error.html', context={"error_msg": error_msg})
             return Response(template, status=400, content_type='text/html')
 
         username = None
