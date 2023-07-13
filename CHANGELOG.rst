@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.5.5 - 2023-07-13
+------------------
+* Fix broken call to LMS `get_block_for_descriptor_internal` due to merge with `get_block_for_descriptor`.
+
 9.5.4 - 2023-06-28
 ------------------
 * Allow basic LtiResourceLink launch for an LtiProctoringConsumer
