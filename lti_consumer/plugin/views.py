@@ -138,12 +138,16 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     request_params = request.GET if request.method == 'GET' else request.POST
 
     lti_message_hint = request_params.get('lti_message_hint')
+    # ERROR TEST
+    # lti_message_hint = None
     if not lti_message_hint:
         error_msg = 'The lti_message_hint query param in the request is missing or empty.'
         log.info(error_msg)
         return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
 
     login_hint = request_params.get('login_hint')
+    # ERROR TEST
+    # login_hint = None
     if not login_hint:
         error_msg = 'The login_hint query param in the request is missing or empty.'
         log.info(error_msg)
@@ -151,35 +155,36 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
     launch_data = get_data_from_cache(lti_message_hint)
     if not launch_data:
-        error_msg = format(
+        error_msg = (
             f'There was a cache miss trying to fetch the launch data during an LTI 1.3 launch when using the cache'
             f' key {lti_message_hint}. The login hint is {login_hint}.'
         )
         log.warning(error_msg)
         return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
 
+    # ERROR TEST
     # Validate the Lti1p3LaunchData.
-    from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
-    from uuid import UUID
-    launch_data = Lti1p3LaunchData(
-        user_id=3,
-        user_role='instructor',
-        config_id=UUID('d21dc4a0-6b96-4fb4-ab09-28743ace71d6'),
-        resource_link_id='block-v1:edX+LTI-xblock+consumer+type@lti_consumer+block@7f9f07d76ce440f39d892f7f0d312cf2',
-        preferred_username=None,
-        name=None,
-        email=None,
-        external_user_id='cd6fafb6-2bf7-4196-9b23-a1361c1bf0ef',
-        launch_presentation_document_target='iframe',
-        launch_presentation_return_url=None,
-        message_type='LtiStartProctoring',#'LtiResourceLinkRequest',
-        # context_id='course-v1:edX+LTI-xblock+consumer',
-        context_type=['potato'],#['course_offering'],
-        context_title='edx-LTI-xblock-thing - edX',
-        context_label='course-v1:edX+LTI-xblock+consumer',
-        deep_linking_content_item_id=None,
-        proctoring_launch_data=Lti1p3ProctoringLaunchData(attempt_number=1)#None
-    )
+    # from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
+    # from uuid import UUID
+    # launch_data = Lti1p3LaunchData(
+    #     user_id=3,
+    #     user_role='instructor',
+    #     config_id=UUID('d21dc4a0-6b96-4fb4-ab09-28743ace71d6'),
+    #     resource_link_id='block-v1:edX+LTI-xblock+consumer+type@lti_consumer+block@7f9f07d76ce440f39d892f7f0d312cf2',
+    #     preferred_username=None,
+    #     name=None,
+    #     email=None,
+    #     external_user_id='cd6fafb6-2bf7-4196-9b23-a1361c1bf0ef',
+    #     launch_presentation_document_target='iframe',
+    #     launch_presentation_return_url=None,
+    #     message_type='LtiStartProctoring',#'LtiResourceLinkRequest',
+    #     # context_id='course-v1:edX+LTI-xblock+consumer',
+    #     context_type=['potato'],#['course_offering'],
+    #     context_title='edx-LTI-xblock-thing - edX',
+    #     context_label='course-v1:edX+LTI-xblock+consumer',
+    #     deep_linking_content_item_id=None,
+    #     proctoring_launch_data=Lti1p3ProctoringLaunchData(attempt_number=1)#None
+    # )
     is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
     if not is_valid:
         validation_message = " ".join(validation_messages)
@@ -196,8 +201,10 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         log.error("Invalid config_id '%s' for LTI 1.3 Launch callback", config_id)
         raise Http404 from exc
 
+    # ERROR TEST
+    # lti_config.version = 'potato'
     if lti_config.version != LtiConfiguration.LTI_1P3:
-        error_msg = "The LTI Version of configuration %s is not LTI 1.3", lti_config
+        error_msg = f"The LTI Version of the following configuration is not LTI 1.3: {lti_config}"
         log.error(error_msg)
         return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_404_NOT_FOUND)
 
@@ -232,11 +239,13 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
         if context_type:
             try:
+                # ERROR TEST
+                # context_type = ['potato']
                 context_types_claim = get_lti_1p3_context_types_claim(context_type)
             except ValueError:
-                error_msg = format(
-                    "The context_type key %s in the launch data does not represent a valid context_type.",
-                    context_type
+                error_msg = (
+                    f"The context_type key {context_type} in the launch "
+                    f"data does not represent a valid context_type."
                 )
                 log.error(error_msg)
                 return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
@@ -259,6 +268,10 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         # course creators to set up content.
         deep_linking_content_item_id = launch_data.deep_linking_content_item_id
 
+        # ERROR TEST
+        # launch_data.message_type = 'LtiDeepLinkingRequest'
+        # lti_consumer.dl = True
+        # user_role = 'potato'
         if launch_data.message_type == 'LtiDeepLinkingRequest' and lti_consumer.dl:
             # Check if the user is staff before LTI doing deep linking launch.
             # If not, raise exception and display error page
@@ -283,6 +296,9 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
                 url=dl_params.get('url'),
                 custom=dl_params.get('custom')
             )
+
+        # ERROR TEST
+        # raise Lti1p3Exception('This is a test Lti1p3Exception')
 
         if launch_data.message_type == 'LtiStartProctoring':
             # In the synchronizer token method of CSRF protection, the anti-CSRF token must be stored on the server.
@@ -327,13 +343,13 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         return render(request, 'html/lti_1p3_launch.html', context)
     except Lti1p3Exception as exc:
         resource_link_id = launch_data.resource_link_id
-        error_msg = format(
+        error_msg = f"Error preparing LTI 1.3 launch for resource with resource_link_id {resource_link_id}: {exc}"
+        log.warning(
             "Error preparing LTI 1.3 launch for resource with resource_link_id %r: %s",
             resource_link_id,
             exc,
             exc_info=True
         )
-        log.warning(error_msg)
         context.update({"error_msg": error_msg})
         return render(request, 'html/lti_launch_error.html', context, status=HTTP_400_BAD_REQUEST)
     except AssertionError as exc:

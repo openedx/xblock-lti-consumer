@@ -1227,6 +1227,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Sometimes, it is due to a web crawlers; other times, it is due to actual users of the platform. Regardless,
         # return a 400 response with an appropriate error template.
         try:
+            # ERROR TEST
+            # raise LtiError
             real_user_data = self.extract_real_user_data()
             user_id = self.get_lti_1p1_user_id()
             role = self.role
