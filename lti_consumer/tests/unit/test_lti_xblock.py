@@ -1682,7 +1682,11 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
     @patch.object(LtiConsumerXBlock, 'get_parameter_processors')
     @patch('lti_consumer.lti_xblock.resolve_custom_parameter_template')
-    def test_get_lti_1p3_custom_parameters(self, mock_resolve_custom_parameter_template, get_parameter_processors_mock):
+    def test_get_lti_1p3_custom_parameters(
+        self,
+        mock_resolve_custom_parameter_template,
+        get_parameter_processors_mock,
+    ):
         """
         Test that get_lti_1p3_custom_parameters returns an dictionary of custom parameters
         """
@@ -1697,6 +1701,33 @@ class TestLtiConsumer1p3XBlock(TestCase):
         )
         get_parameter_processors_mock.assert_called_once_with()
         processor_mock.assert_called_once_with(self.xblock)
+        mock_resolve_custom_parameter_template.assert_called_once_with(self.xblock, '${test}')
+
+    @patch.object(LtiConsumerXBlock, 'get_parameter_processors')
+    @patch('lti_consumer.lti_xblock.resolve_custom_parameter_template')
+    @patch('lti_consumer.lti_xblock.log.exception')
+    def test_get_lti_1p3_custom_parameters_with_invalid_processor(
+        self,
+        log_exception_mock,
+        mock_resolve_custom_parameter_template,
+        get_parameter_processors_mock,
+    ):
+        """
+        Test that get_lti_1p3_custom_parameters logs error when a paramater processor fails.
+        """
+        processor_mock = Mock(side_effect=Exception())
+        get_parameter_processors_mock.return_value = [processor_mock]
+        mock_resolve_custom_parameter_template.return_value = ''
+        self.xblock.custom_parameters = ['test1=test', 'test2=${test}']
+
+        self.assertDictEqual(
+            self.xblock.get_lti_1p3_custom_parameters(),
+            {'test1': 'test', 'test2': ''},
+        )
+        get_parameter_processors_mock.assert_called_once_with()
+        log_exception_mock.assert_called_once_with(
+            'Error in XBlock LTI parameter processor "%s"', processor_mock,
+        )
         mock_resolve_custom_parameter_template.assert_called_once_with(self.xblock, '${test}')
 
     @ddt.idata(product([True, False], [True, False], [True, False], [True, False]))
