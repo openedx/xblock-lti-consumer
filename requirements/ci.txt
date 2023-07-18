@@ -11,12 +11,12 @@ appdirs==1.4.4
 arrow==1.2.3
     # via
     #   -r requirements/test.txt
-    #   jinja2-time
+    #   cookiecutter
 asgiref==3.7.2
     # via
     #   -r requirements/test.txt
     #   django
-astroid==2.15.5
+astroid==2.15.6
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -31,11 +31,11 @@ bleach==6.0.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.27.0
+boto3==1.28.4
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.30.0
+botocore==1.31.4
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -53,11 +53,11 @@ chardet==5.1.0
     # via
     #   -r requirements/test.txt
     #   binaryornot
-charset-normalizer==3.1.0
+charset-normalizer==3.2.0
     # via
     #   -r requirements/test.txt
     #   requests
-click==8.1.3
+click==8.1.5
     # via
     #   -r requirements/test.txt
     #   click-log
@@ -73,7 +73,7 @@ code-annotations==1.3.0
     # via
     #   -r requirements/test.txt
     #   edx-lint
-cookiecutter==2.1.1
+cookiecutter==2.2.3
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
@@ -83,7 +83,7 @@ coverage==6.5.0
     #   coveralls
 coveralls==3.3.1
     # via -r requirements/test.txt
-cryptography==41.0.1
+cryptography==41.0.2
     # via
     #   -r requirements/test.txt
     #   secretstorage
@@ -93,7 +93,7 @@ dill==0.3.6
     # via
     #   -r requirements/test.txt
     #   pylint
-distlib==0.3.6
+distlib==0.3.7
     # via
     #   -r requirements/tox.txt
     #   virtualenv
@@ -174,12 +174,12 @@ idna==3.4
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==6.7.0
+importlib-metadata==6.8.0
     # via
     #   -r requirements/test.txt
     #   keyring
     #   twine
-importlib-resources==5.12.0
+importlib-resources==6.0.0
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -187,7 +187,7 @@ isort==5.12.0
     # via
     #   -r requirements/test.txt
     #   pylint
-jaraco-classes==3.2.3
+jaraco-classes==3.3.0
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -200,11 +200,6 @@ jinja2==3.1.2
     # via
     #   -r requirements/test.txt
     #   code-annotations
-    #   cookiecutter
-    #   jinja2-time
-jinja2-time==0.2.0
-    # via
-    #   -r requirements/test.txt
     #   cookiecutter
 jmespath==1.0.1
     # via
@@ -225,7 +220,7 @@ lazy-object-proxy==1.9.0
     # via
     #   -r requirements/test.txt
     #   astroid
-lxml==4.9.2
+lxml==4.9.3
     # via
     #   -r requirements/test.txt
     #   xblock
@@ -252,7 +247,7 @@ mdurl==0.1.2
     # via
     #   -r requirements/test.txt
     #   markdown-it-py
-mock==5.0.2
+mock==5.1.0
     # via -r requirements/test.txt
 more-itertools==9.1.0
     # via
@@ -264,7 +259,7 @@ newrelic==8.8.1
     #   edx-django-utils
 oauthlib==3.2.2
     # via -r requirements/test.txt
-openedx-django-pyfs==3.3.0
+openedx-django-pyfs==3.4.0
     # via
     #   -r requirements/test.txt
     #   xblock
@@ -282,7 +277,7 @@ pkginfo==1.9.6
     # via
     #   -r requirements/test.txt
     #   twine
-platformdirs==3.8.0
+platformdirs==3.9.1
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -366,7 +361,7 @@ pytz==2023.3
     #   django
     #   djangorestframework
     #   xblock
-pyyaml==6.0
+pyyaml==6.0.1
     # via
     #   -r requirements/test.txt
     #   code-annotations
@@ -465,7 +460,7 @@ urllib3==1.26.16
     #   botocore
     #   requests
     #   twine
-virtualenv==20.23.1
+virtualenv==20.24.0
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -497,7 +492,7 @@ xblock-sdk==0.6.0
     # via -r requirements/test.txt
 xblock-utils==3.2.0
     # via -r requirements/test.txt
-zipp==3.15.0
+zipp==3.16.2
     # via
     #   -r requirements/test.txt
     #   importlib-metadata
