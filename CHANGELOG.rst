@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.5.5 - 2023-07-20
+------------------
+* Added LTI launch error messages to the template returned when these errors occur. 
+
 9.5.4 - 2023-06-28
 ------------------
 * Allow basic LtiResourceLink launch for an LtiProctoringConsumer
