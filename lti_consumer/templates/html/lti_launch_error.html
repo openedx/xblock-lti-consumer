@@ -7,7 +7,10 @@
     </head>
     <body>
         <p>
-            <b>{% trans "There was an error while launching the LTI tool: " %}{% trans error_msg %}</b>
+            <b>{% trans "There was an error while launching the LTI tool: " %}</b>
+        </p>
+        <p>
+            {{error_msg}}
         </p>
         <p>
             {% trans "If you're seeing this on a live course, please contact the course staff." %}
