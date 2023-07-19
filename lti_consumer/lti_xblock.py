@@ -1227,8 +1227,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Sometimes, it is due to a web crawlers; other times, it is due to actual users of the platform. Regardless,
         # return a 400 response with an appropriate error template.
         try:
-            # ERROR TEST
-            # raise LtiError
             real_user_data = self.extract_real_user_data()
             user_id = self.get_lti_1p1_user_id()
             role = self.role
@@ -1241,7 +1239,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         except LtiError:
             loader = ResourceLoader(__name__)
             error_msg = 'Could not get user data for current request'
-            template = loader.render_django_template('/templates/html/lti_launch_error.html', context={"error_msg": error_msg})
+            template = loader.render_django_template('/templates/html/lti_launch_error.html',
+                                                     context={"error_msg": error_msg})
             return Response(template, status=400, content_type='text/html')
 
         username = None
