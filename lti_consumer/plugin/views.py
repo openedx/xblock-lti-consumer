@@ -138,20 +138,26 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     request_params = request.GET if request.method == 'GET' else request.POST
 
     lti_message_hint = request_params.get('lti_message_hint')
-    # ERROR TEST
-    # lti_message_hint = None
     if not lti_message_hint:
-        error_msg = 'The lti_message_hint query param in the request is missing or empty.'
+        error_msg = 'The lti_message_hint is missing or empty.'
         log.info(error_msg)
-        return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
+        return render(
+            request,
+            'html/lti_launch_error.html',
+            context={"error_msg": error_msg},
+            status=HTTP_400_BAD_REQUEST
+        )
 
     login_hint = request_params.get('login_hint')
-    # ERROR TEST
-    # login_hint = None
     if not login_hint:
-        error_msg = 'The login_hint query param in the request is missing or empty.'
+        error_msg = 'The login_hint is missing or empty.'
         log.info(error_msg)
-        return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
+        return render(
+            request,
+            'html/lti_launch_error.html',
+            context={"error_msg": error_msg},
+            status=HTTP_400_BAD_REQUEST
+        )
 
     launch_data = get_data_from_cache(lti_message_hint)
     if not launch_data:
@@ -159,37 +165,24 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             f'Unable to find record of an OIDC launch for the provided lti_message_hint: {lti_message_hint}'
         )
         log.warning(error_msg)
-        return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
+        return render(
+            request,
+            'html/lti_launch_error.html',
+            context={"error_msg": error_msg},
+            status=HTTP_400_BAD_REQUEST
+        )
 
-    # ERROR TEST
-    # Validate the Lti1p3LaunchData.
-    # from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
-    # from uuid import UUID
-    # launch_data = Lti1p3LaunchData(
-    #     user_id=3,
-    #     user_role='instructor',
-    #     config_id=UUID('d21dc4a0-6b96-4fb4-ab09-28743ace71d6'),
-    #     resource_link_id='block-v1:edX+LTI-xblock+consumer+type@lti_consumer+block@7f9f07d76ce440f39d892f7f0d312cf2',
-    #     preferred_username=None,
-    #     name=None,
-    #     email=None,
-    #     external_user_id='cd6fafb6-2bf7-4196-9b23-a1361c1bf0ef',
-    #     launch_presentation_document_target='iframe',
-    #     launch_presentation_return_url=None,
-    #     message_type='LtiStartProctoring',#'LtiResourceLinkRequest',
-    #     # context_id='course-v1:edX+LTI-xblock+consumer',
-    #     context_type=['potato'],#['course_offering'],
-    #     context_title='edx-LTI-xblock-thing - edX',
-    #     context_label='course-v1:edX+LTI-xblock+consumer',
-    #     deep_linking_content_item_id=None,
-    #     proctoring_launch_data=Lti1p3ProctoringLaunchData(attempt_number=1)#None
-    # )
     is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
     if not is_valid:
         validation_message = " ".join(validation_messages)
         error_msg = f"The Lti1p3LaunchData is not valid. {validation_message}"
         log.error(error_msg)
-        return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
+        return render(
+            request,
+            'html/lti_launch_error.html',
+            context={"error_msg": error_msg},
+            status=HTTP_400_BAD_REQUEST
+        )
 
     config_id = launch_data.config_id
     try:
@@ -200,12 +193,15 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         log.error("Invalid config_id '%s' for LTI 1.3 Launch callback", config_id)
         raise Http404 from exc
 
-    # ERROR TEST
-    # lti_config.version = 'potato'
     if lti_config.version != LtiConfiguration.LTI_1P3:
         error_msg = f"The LTI Version of the following configuration is not LTI 1.3: {lti_config}"
         log.error(error_msg)
-        return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_404_NOT_FOUND)
+        return render(
+            request,
+            'html/lti_launch_error.html',
+            context={"error_msg": error_msg},
+            status=HTTP_404_NOT_FOUND
+        )
 
     context = {}
 
@@ -238,8 +234,6 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
         if context_type:
             try:
-                # ERROR TEST
-                # context_type = ['potato']
                 context_types_claim = get_lti_1p3_context_types_claim(context_type)
             except ValueError:
                 error_msg = (
@@ -247,7 +241,12 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
                     f"data does not represent a valid context_type."
                 )
                 log.error(error_msg)
-                return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
+                return render(
+                    request,
+                    'html/lti_launch_error.html',
+                    context={"error_msg": error_msg},
+                    status=HTTP_400_BAD_REQUEST
+                )
 
         lti_consumer.set_context_claim(
             launch_data.context_id,
@@ -529,13 +528,23 @@ def deep_linking_content_endpoint(request, lti_config_id):
     if not launch_data_key:
         error_msg = 'The launch_data_key query param in the request is missing or empty.'
         log.info(error_msg)
-        return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
+        return render(
+            request,
+            'html/lti_launch_error.html',
+            context={"error_msg": error_msg},
+            status=HTTP_400_BAD_REQUEST
+        )
 
     launch_data = get_data_from_cache(launch_data_key)
     if not launch_data:
         error_msg = f'There was a cache miss during an LTI 1.3 launch when using the cache_key {launch_data_key}.'
         log.warning(error_msg)
-        return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
+        return render(
+            request,
+            'html/lti_launch_error.html',
+            context={"error_msg": error_msg},
+            status=HTTP_400_BAD_REQUEST
+        )
     try:
         # Get LTI Configuration
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
