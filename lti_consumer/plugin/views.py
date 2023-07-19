@@ -156,8 +156,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     launch_data = get_data_from_cache(lti_message_hint)
     if not launch_data:
         error_msg = (
-            f'There was a cache miss trying to fetch the launch data during an LTI 1.3 launch when using the cache'
-            f' key {lti_message_hint}. The login hint is {login_hint}.'
+            f'Unable to find record of an OIDC launch for the provided lti_message_hint: {lti_message_hint}'
         )
         log.warning(error_msg)
         return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=HTTP_400_BAD_REQUEST)
