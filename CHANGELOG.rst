@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.5.6 - 2023-07-25
+------------------
+* Added LTI launch error messages to the template returned when these errors occur.
+
 9.5.5 - 2023-07-13
 ------------------
 * Fix broken call to LMS `get_block_for_descriptor_internal` due to merge with `get_block_for_descriptor`.
