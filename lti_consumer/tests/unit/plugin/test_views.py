@@ -34,6 +34,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
     """
     Test `public_keyset_endpoint` method.
     """
+
     def setUp(self):
         super().setUp()
 
@@ -107,6 +108,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
     """
     Tests for the `launch_gate_endpoint` method.
     """
+
     def setUp(self):
         super().setUp()
 
@@ -207,20 +209,36 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint", "login_hint": "login_hint"})
         self.assertEqual(response.status_code, 400)
 
-    @patch('lti_consumer.api.validate_lti_1p3_launch_data')
-    @patch('lti_consumer.utils.get_data_from_cache')
-    def test_invalid_launch_data(self, mock_get_data_from_cache, mock_validate_launch_data):
+    @patch('lti_consumer.lti_1p1.consumer.log')
+    @patch('lti_consumer.plugin.views.validate_lti_1p3_launch_data')
+    @patch('lti_consumer.plugin.views.get_data_from_cache')
+    def test_invalid_launch_data(self, mock_get_data_from_cache, mock_validate_launch_data, mock_log):
         """
         Check that a 400 error is returned when the launch_data stored in the cache is not valid.
         """
         # Mock getting the launch_data from the cache.
-        mock_get_data_from_cache.return_value = {}
+        mock_get_data_from_cache.return_value = {"context_type": "invalid_context_type"}
 
         # Mock checking the launch_data for validity.
-        mock_validate_launch_data.return_value = (False, [])
+        mock_validate_launch_data.return_value = (False, [
+            'The context_id attribute is required in the launch data if any optional context properties are provided.',
+            'The proctoring_launch_data attribute is required if the message_type attribute is \'LtiStartProctoring\' '
+            'or \'LtiEndAssessment\'.'
+        ])
+
+        # expected_log = (
+        #     f'The Lti1p3LaunchData is not valid. '
+        #     f'The context_id attribute is required in the launch data if any optional context properties are provided.',
+        #     f'The proctoring_launch_data attribute is required if the message_type attribute is \'LtiStartProctoring\' '
+        #     f'or \'LtiEndAssessment\'.'
+        # )
 
         response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint", "login_hint": "login_hint"})
+        # assert mock_log.error.called
+        # mock_log.error.assert_called_with(expected_log)
         self.assertEqual(response.status_code, 400)
+        # TODO: Figure out VSCode's debugger/breakpoints. Use w/ pytest
+        # TODO: assert expected error msg in the HttpResponse somehow
 
     @patch('lti_consumer.api.validate_lti_1p3_launch_data')
     @patch('lti_consumer.utils.get_data_from_cache')
@@ -529,6 +547,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
     """
     Test `access_token_endpoint` method.
     """
+
     def setUp(self):
         super().setUp()
 

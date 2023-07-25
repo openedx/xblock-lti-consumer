@@ -31,3 +31,12 @@ PLATFORM_NAME = "Your platform name here"
 
 # Learning MFE URL for start assessment testing
 LEARNING_MICROFRONTEND_URL = 'http://test.learning:2000'
+
+# DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'
+DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(os.path.dirname(__file__), 'test.db'),
+            'TEST_NAME': os.path.join(os.path.dirname(__file__), 'test.db'),
+        }
+    }
