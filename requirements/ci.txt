@@ -31,16 +31,16 @@ bleach==6.0.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.28.4
+boto3==1.28.10
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.31.4
+botocore==1.31.10
     # via
     #   -r requirements/test.txt
     #   boto3
     #   s3transfer
-certifi==2023.5.7
+certifi==2023.7.22
     # via
     #   -r requirements/test.txt
     #   requests
@@ -57,7 +57,7 @@ charset-normalizer==3.2.0
     # via
     #   -r requirements/test.txt
     #   requests
-click==8.1.5
+click==8.1.6
     # via
     #   -r requirements/test.txt
     #   click-log
@@ -69,7 +69,7 @@ click-log==0.4.0
     # via
     #   -r requirements/test.txt
     #   edx-lint
-code-annotations==1.3.0
+code-annotations==1.5.0
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -89,7 +89,7 @@ cryptography==41.0.2
     #   secretstorage
 ddt==1.6.0
     # via -r requirements/test.txt
-dill==0.3.6
+dill==0.3.7
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -116,7 +116,7 @@ django-appconf==1.0.5
     # via
     #   -r requirements/test.txt
     #   django-statici18n
-django-config-models==2.3.0
+django-config-models==2.4.0
     # via -r requirements/test.txt
 django-crum==0.7.9
     # via
@@ -142,7 +142,7 @@ docutils==0.20.1
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-edx-django-utils==5.5.0
+edx-django-utils==5.6.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
@@ -249,7 +249,7 @@ mdurl==0.1.2
     #   markdown-it-py
 mock==5.1.0
     # via -r requirements/test.txt
-more-itertools==9.1.0
+more-itertools==10.0.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
@@ -263,7 +263,7 @@ openedx-django-pyfs==3.4.0
     # via
     #   -r requirements/test.txt
     #   xblock
-openedx-filters==1.3.0
+openedx-filters==1.4.0
     # via -r requirements/test.txt
 packaging==23.1
     # via
@@ -460,7 +460,7 @@ urllib3==1.26.16
     #   botocore
     #   requests
     #   twine
-virtualenv==20.24.0
+virtualenv==20.24.2
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -490,7 +490,7 @@ xblock[django]==1.6.2
     #   xblock-utils
 xblock-sdk==0.6.0
     # via -r requirements/test.txt
-xblock-utils==3.2.0
+xblock-utils==3.3.0
     # via -r requirements/test.txt
 zipp==3.16.2
     # via
