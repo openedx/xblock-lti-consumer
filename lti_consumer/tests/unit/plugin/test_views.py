@@ -34,6 +34,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
     """
     Test `public_keyset_endpoint` method.
     """
+
     def setUp(self):
         super().setUp()
 
@@ -107,6 +108,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
     """
     Tests for the `launch_gate_endpoint` method.
     """
+
     def setUp(self):
         super().setUp()
 
@@ -187,54 +189,107 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
 
     def test_missing_required_lti_message_hint_param(self):
         """
-        Check that a 400 error is returned when required lti_message_hint query parameter is not provided.
+        Check for the expected error message when required lti_message_hint query parameter is not provided.
         """
         response = self.client.post(self.url, {"login_hint": "login_hint"})
         self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            'The lti_message_hint is missing or empty.',
+            str(response.content)
+        )
 
     def test_missing_required_login_hint_param(self):
         """
-        Check that a 400 error is returned when required login_hint query parameter is not provided.
+        Check for the expected error message when required login_hint query parameter is not provided.
         """
         response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint"})
         self.assertEqual(response.status_code, 400)
 
-    def test_missing_launch_data(self):
+        # Assert expected error msg in the HttpResponse
+        self.assertIn(
+            'The login_hint is missing or empty.',
+            str(response.content)
+        )
+
+    @patch('lti_consumer.plugin.views.get_data_from_cache')
+    def test_missing_launch_data(self, mock_get_data_from_cache):
         """
-        Check that a 400 error is returned when required lti_message_hint query parameter is not associated with
-        launch_data in the cache.
+        Check that the expected error message returned when required lti_message_hint query parameter
+        is not associated with launch_data in the cache.
         """
+        # Mock getting the launch_data from the cache.
+        mock_get_data_from_cache.return_value = None
         response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint", "login_hint": "login_hint"})
         self.assertEqual(response.status_code, 400)
 
-    @patch('lti_consumer.api.validate_lti_1p3_launch_data')
-    @patch('lti_consumer.utils.get_data_from_cache')
+        # Assert expected error msg in the HttpResponse
+        self.assertIn(
+            'Unable to find record of an OIDC launch for the provided lti_message_hint:',
+            str(response.content)
+        )
+
+    @patch('lti_consumer.plugin.views.validate_lti_1p3_launch_data')
+    @patch('lti_consumer.plugin.views.get_data_from_cache')
     def test_invalid_launch_data(self, mock_get_data_from_cache, mock_validate_launch_data):
         """
         Check that a 400 error is returned when the launch_data stored in the cache is not valid.
         """
         # Mock getting the launch_data from the cache.
-        mock_get_data_from_cache.return_value = {}
+        mock_get_data_from_cache.return_value = {"context_type": "invalid_context_type"}
 
         # Mock checking the launch_data for validity.
-        mock_validate_launch_data.return_value = (False, [])
+        mock_validate_launch_data.return_value = (False, [
+            'The context_id attribute is required in the launch data if any optional context properties are provided.',
+        ])
 
         response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint", "login_hint": "login_hint"})
         self.assertEqual(response.status_code, 400)
 
-    @patch('lti_consumer.api.validate_lti_1p3_launch_data')
-    @patch('lti_consumer.utils.get_data_from_cache')
+        # Assert expected error msg in the HttpResponse
+        self.assertIn(
+            'The context_id attribute is required in the launch data if any optional context properties are provided.',
+            str(response.content)
+        )
+
+    @patch('lti_consumer.plugin.views.validate_lti_1p3_launch_data')
+    @patch('lti_consumer.plugin.views.get_data_from_cache')
     def test_invalid_context_type(self, mock_get_data_from_cache, mock_validate_launch_data):
         # Mock getting the launch_data from the cache.
-        mock_launch_data = Mock()
-        mock_launch_data.context_type = "invalid_context_type"
-        mock_get_data_from_cache.return_value = mock_launch_data
+        mock_get_data_from_cache.return_value = Lti1p3LaunchData(
+            user_id=3,
+            user_role='instructor',
+            config_id=self.config.config_id,
+            resource_link_id=(
+                'block-v1:edX+LTI-xblock+consumer+'
+                'type@lti_consumer+block@7f9f07d76ce440f39d892f7f0d312cf2'
+            ),
+            preferred_username=None,
+            name=None,
+            email=None,
+            external_user_id='cd6fafb6-2bf7-4196-9b23-a1361c1bf0ef',
+            launch_presentation_document_target='iframe',
+            launch_presentation_return_url=None,
+            message_type='LtiStartProctoring',  # 'LtiResourceLinkRequest',
+            # context_id='course-v1:edX+LTI-xblock+consumer',
+            context_type=['invalid_context_type'],  # ['course_offering'],
+            context_title='edx-LTI-xblock-thing - edX',
+            context_label='course-v1:edX+LTI-xblock+consumer',
+            deep_linking_content_item_id=None,
+            proctoring_launch_data=Lti1p3ProctoringLaunchData(attempt_number=1)  # None
+        )
 
         # Mock checking the launch_data for validity.
         mock_validate_launch_data.return_value = (True, [])
 
         response = self.client.post(self.url, {"lti_message_hint": "lti_message_hint", "login_hint": "login_hint"})
         self.assertEqual(response.status_code, 400)
+
+        # Assert expected error msg in the HttpResponse
+        self.assertIn(
+            # The error message in the HttpResponse contains a messy formatted string, so only test for part it.
+            'the launch data does not represent a valid context_type.',
+            str(response.content)
+        )
 
     def test_lti_launch_response(self):
         """
@@ -529,6 +584,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
     """
     Test `access_token_endpoint` method.
     """
+
     def setUp(self):
         super().setUp()
 
