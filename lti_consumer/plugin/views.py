@@ -266,10 +266,6 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         # course creators to set up content.
         deep_linking_content_item_id = launch_data.deep_linking_content_item_id
 
-        # ERROR TEST
-        # launch_data.message_type = 'LtiDeepLinkingRequest'
-        # lti_consumer.dl = True
-        # user_role = 'potato'
         if launch_data.message_type == 'LtiDeepLinkingRequest' and lti_consumer.dl:
             # Check if the user is staff before LTI doing deep linking launch.
             # If not, raise exception and display error page
@@ -294,9 +290,6 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
                 url=dl_params.get('url'),
                 custom=dl_params.get('custom')
             )
-
-        # ERROR TEST
-        # raise Lti1p3Exception('This is a test Lti1p3Exception')
 
         if launch_data.message_type == 'LtiStartProctoring':
             # In the synchronizer token method of CSRF protection, the anti-CSRF token must be stored on the server.
