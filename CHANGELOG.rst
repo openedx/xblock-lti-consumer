@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.5.6 - 2023-07-27
+------------------
+* Fixed ACS actions constant.
+
 9.5.6 - 2023-07-25
 ------------------
 * Added LTI launch error messages to the template returned when these errors occur.
