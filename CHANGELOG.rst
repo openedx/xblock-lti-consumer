@@ -16,7 +16,7 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
-9.5.6 - 2023-07-27
+9.5.7 - 2023-07-27
 ------------------
 * Fixed ACS actions constant.
 
