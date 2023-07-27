@@ -96,9 +96,9 @@ LTI_PROCTORING_DATA_KEYS = [
 ]
 
 LTI_PROCTORING_ASSESSMENT_CONTROL_ACTIONS = [
-    'pauseRequest',
-    'resumeRequest',
-    'terminateRequest',
+    'pause',
+    'resume',
+    'terminate',
     'update',
-    'flagRequest',
+    'flag',
 ]
