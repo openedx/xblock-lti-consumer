@@ -29,6 +29,7 @@ django==3.2.20
     #   django-crum
     #   django-filter
     #   django-statici18n
+    #   django-waffle
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
@@ -41,9 +42,9 @@ django-crum==0.7.9
     # via edx-django-utils
 django-filter==23.2
     # via -r requirements/base.in
-django-statici18n==2.3.1
+django-statici18n==2.4.0
     # via -r requirements/base.in
-django-waffle==3.0.0
+django-waffle==4.0.0
     # via edx-django-utils
 djangorestframework==3.14.0
     # via django-config-models
@@ -73,7 +74,7 @@ markupsafe==2.1.3
     # via
     #   mako
     #   xblock
-newrelic==8.8.1
+newrelic==8.9.0
     # via edx-django-utils
 oauthlib==3.2.2
     # via -r requirements/base.in

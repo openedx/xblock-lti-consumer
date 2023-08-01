@@ -31,11 +31,11 @@ bleach==6.0.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.28.10
+boto3==1.28.16
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.31.10
+botocore==1.31.16
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -106,6 +106,7 @@ django==3.2.20
     #   django-crum
     #   django-filter
     #   django-statici18n
+    #   django-waffle
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
@@ -124,9 +125,9 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==23.2
     # via -r requirements/test.txt
-django-statici18n==2.3.1
+django-statici18n==2.4.0
     # via -r requirements/test.txt
-django-waffle==3.0.0
+django-waffle==4.0.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -253,7 +254,7 @@ more-itertools==10.0.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
-newrelic==8.8.1
+newrelic==8.9.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -277,7 +278,7 @@ pkginfo==1.9.6
     # via
     #   -r requirements/test.txt
     #   twine
-platformdirs==3.9.1
+platformdirs==3.10.0
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -295,7 +296,7 @@ py==1.11.0
     # via
     #   -r requirements/tox.txt
     #   tox
-pycodestyle==2.10.0
+pycodestyle==2.11.0
     # via -r requirements/test.txt
 pycparser==2.21
     # via
@@ -312,7 +313,7 @@ pygments==2.15.1
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.17.4
+pylint==2.17.5
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -388,7 +389,7 @@ rfc3986==2.0.0
     # via
     #   -r requirements/test.txt
     #   twine
-rich==13.4.2
+rich==13.5.1
     # via
     #   -r requirements/test.txt
     #   twine
@@ -436,7 +437,7 @@ tomli==2.0.1
     #   -r requirements/tox.txt
     #   pylint
     #   tox
-tomlkit==0.11.8
+tomlkit==0.12.1
     # via
     #   -r requirements/test.txt
     #   pylint
