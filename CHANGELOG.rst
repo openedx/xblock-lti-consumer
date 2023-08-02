@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.6.0 - 2023-08-01
+------------------
+* Added support for Django 4.2
+
 9.5.7 - 2023-07-27
 ------------------
 * Fixed ACS actions constant.
