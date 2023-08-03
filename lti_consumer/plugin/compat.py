@@ -100,8 +100,7 @@ def load_block_as_user(location):  # pragma: nocover
     """
     # pylint: disable=import-error,import-outside-toplevel
     from crum import get_current_user, get_current_request
-    from lms.djangoapps.courseware.block_render import get_block_for_descriptor_internal
-    from openedx.core.lib.xblock_utils import request_token
+    from lms.djangoapps.courseware.block_render import get_block_for_descriptor
 
     # Retrieve block from modulestore
     block = load_enough_xblock(location)
@@ -114,13 +113,14 @@ def load_block_as_user(location):  # pragma: nocover
             return block
 
         # If not load this block to bind it onto the user
-        get_block_for_descriptor_internal(
+        get_block_for_descriptor(
             user=user,
             block=block,
             student_data=None,
-            course_id=location.course_key,
+            course_key=location.course_key,
             track_function=None,
-            request_token=request_token(request),
+            request=request,
+            field_data_cache=None,
         )
         return block
     else:
@@ -138,20 +138,22 @@ def _load_block_as_anonymous_user(location, block):  # pragma: nocover
     # pylint: disable=import-error,import-outside-toplevel
     from crum import impersonate
     from django.contrib.auth.models import AnonymousUser
-    from lms.djangoapps.courseware.block_render import get_block_for_descriptor_internal
+    from lms.djangoapps.courseware.block_render import get_block_for_descriptor
 
     # ensure `crum.get_current_user` returns AnonymousUser. It returns None when outside
     # of request scope which causes error during block loading.
     user = AnonymousUser()
     with impersonate(user):
         # Load block, attaching it to AnonymousUser
-        get_block_for_descriptor_internal(
+        get_block_for_descriptor(
             user=user,
             block=block,
             student_data=None,
-            course_id=location.course_key,
+            course_key=location.course_key,
             track_function=None,
             request_token="",
+            request=None,
+            field_data_cache=None,
         )
 
         return block

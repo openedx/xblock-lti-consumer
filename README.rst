@@ -151,6 +151,7 @@ Unit Testing
 * To run all of the unit tests at once, run `make test`
 * To run tests on individual files in development, run `python ./test.py -k=[name of test file without .py]`
 * For example, if you want to run the tests in test_permissions.py, run `python ./test.py -k=test_permissions`
+* To run a specific test in a file, run something like `python ./test.py -k=test_permissions.TestClass.test_function`
 
 Testing Against an LTI Provider
 ===============================

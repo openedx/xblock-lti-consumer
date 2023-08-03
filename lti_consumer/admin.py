@@ -14,6 +14,7 @@ from lti_consumer.models import (
 )
 
 
+@admin.register(LtiConfiguration)
 class LtiConfigurationAdmin(admin.ModelAdmin):
     """
     Admin view for LtiConfiguration models.
@@ -23,6 +24,7 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
     readonly_fields = ('location', 'config_id')
 
 
+@admin.register(CourseAllowPIISharingInLTIFlag)
 class CourseAllowPIISharingInLTIFlagAdmin(KeyedConfigurationModelAdmin):
     """
     Admin for enabling PII Sharing in LTI on course-by-course basis.
@@ -38,8 +40,6 @@ class CourseAllowPIISharingInLTIFlagAdmin(KeyedConfigurationModelAdmin):
     )
 
 
-admin.site.register(CourseAllowPIISharingInLTIFlag, CourseAllowPIISharingInLTIFlagAdmin)
-admin.site.register(LtiConfiguration, LtiConfigurationAdmin)
 admin.site.register(LtiAgsLineItem)
 admin.site.register(LtiAgsScore)
 admin.site.register(LtiDlContentItem)

@@ -919,7 +919,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.assertEqual(response.content_type, 'text/html')
 
         response_body = response.body.decode('utf-8')
-        self.assertIn("There was an error while launching the LTI tool.", response_body)
+        self.assertIn("There was an error while launching the LTI tool: ", response_body)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.anonymous_user_id', PropertyMock(return_value=FAKE_USER_ID))
