@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.6.1 - 2023-06-28
+------------------
+* Fix CCX LTI configuration compatibility
+
 9.6.0 - 2023-08-01
 ------------------
 * Added support for Django 4.2
