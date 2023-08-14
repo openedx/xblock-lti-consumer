@@ -26,10 +26,13 @@ bleach==6.0.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.28.16
-    # via fs-s3fs
-botocore==1.31.16
+boto3==1.28.25
     # via
+    #   -r requirements/base.txt
+    #   fs-s3fs
+botocore==1.31.25
+    # via
+    #   -r requirements/base.txt
     #   boto3
     #   s3transfer
 certifi==2023.7.22
@@ -39,9 +42,8 @@ certifi==2023.7.22
 cffi==1.15.1
     # via
     #   -r requirements/base.txt
-    #   cryptography
     #   pynacl
-chardet==5.1.0
+chardet==5.2.0
     # via binaryornot
 charset-normalizer==3.2.0
     # via
@@ -59,14 +61,12 @@ click-log==0.4.0
     # via edx-lint
 code-annotations==1.5.0
     # via edx-lint
-cookiecutter==2.2.3
+cookiecutter==2.3.0
     # via xblock-sdk
 coverage==6.5.0
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
-cryptography==41.0.2
-    # via secretstorage
 ddt==1.6.0
     # via -r requirements/test.in
 dill==0.3.7
@@ -90,7 +90,7 @@ django-appconf==1.0.5
     # via
     #   -r requirements/base.txt
     #   django-statici18n
-django-config-models==2.4.0
+django-config-models==2.5.0
     # via -r requirements/base.txt
 django-crum==0.7.9
     # via
@@ -113,13 +113,13 @@ docopt==0.6.2
     # via coveralls
 docutils==0.20.1
     # via readme-renderer
-edx-django-utils==5.6.0
+edx-django-utils==5.7.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
 edx-lint==5.3.4
     # via -r requirements/test.in
-edx-opaque-keys[django]==2.3.0
+edx-opaque-keys[django]==2.4.0
     # via -r requirements/base.txt
 fs==2.4.16
     # via
@@ -129,6 +129,7 @@ fs==2.4.16
     #   xblock
 fs-s3fs==1.1.1
     # via
+    #   -r requirements/base.txt
     #   openedx-django-pyfs
     #   xblock-sdk
 future==0.18.3
@@ -143,22 +144,19 @@ importlib-metadata==6.8.0
     # via
     #   keyring
     #   twine
-importlib-resources==6.0.0
+importlib-resources==6.0.1
     # via keyring
 isort==5.12.0
     # via pylint
 jaraco-classes==3.3.0
     # via keyring
-jeepney==0.8.0
-    # via
-    #   keyring
-    #   secretstorage
 jinja2==3.1.2
     # via
     #   code-annotations
     #   cookiecutter
 jmespath==1.0.1
     # via
+    #   -r requirements/base.txt
     #   boto3
     #   botocore
 jsonfield==3.1.0
@@ -166,9 +164,7 @@ jsonfield==3.1.0
 keyring==24.2.0
     # via twine
 lazy==1.5
-    # via
-    #   -r requirements/base.txt
-    #   xblock
+    # via -r requirements/base.txt
 lazy-object-proxy==1.9.0
     # via astroid
 lxml==4.9.3
@@ -194,17 +190,17 @@ mdurl==0.1.2
     # via markdown-it-py
 mock==5.1.0
     # via -r requirements/test.in
-more-itertools==10.0.0
+more-itertools==10.1.0
     # via jaraco-classes
-newrelic==8.9.0
+newrelic==8.10.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
 oauthlib==3.2.2
     # via -r requirements/base.txt
 openedx-django-pyfs==3.4.0
-    # via xblock
-openedx-filters==1.4.0
+    # via -r requirements/base.txt
+openedx-filters==1.5.0
     # via -r requirements/base.txt
 pbr==5.11.1
     # via
@@ -228,7 +224,7 @@ pycryptodomex==3.18.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-pygments==2.15.1
+pygments==2.16.1
     # via
     #   readme-renderer
     #   rich
@@ -297,12 +293,14 @@ requests-toolbelt==1.0.0
     # via twine
 rfc3986==2.0.0
     # via twine
-rich==13.5.1
-    # via twine
+rich==13.5.2
+    # via
+    #   cookiecutter
+    #   twine
 s3transfer==0.6.1
-    # via boto3
-secretstorage==3.3.3
-    # via keyring
+    # via
+    #   -r requirements/base.txt
+    #   boto3
 simplejson==3.19.1
     # via
     #   -r requirements/base.txt
@@ -349,7 +347,7 @@ urllib3==1.26.16
     #   botocore
     #   requests
     #   twine
-web-fragments==2.0.0
+web-fragments==2.1.0
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -366,14 +364,14 @@ webob==1.8.7
     #   xblock-sdk
 wrapt==1.15.0
     # via astroid
-xblock[django]==1.6.2
+xblock==1.7.0
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
     #   xblock-utils
-xblock-sdk==0.6.0
+xblock-sdk==0.7.0
     # via -r requirements/test.in
-xblock-utils==3.3.0
+xblock-utils==3.4.0
     # via -r requirements/base.txt
 zipp==3.16.2
     # via
