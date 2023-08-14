@@ -12,6 +12,12 @@ attrs==23.1.0
     # via -r requirements/base.in
 bleach==6.0.0
     # via -r requirements/base.in
+boto3==1.28.25
+    # via fs-s3fs
+botocore==1.31.25
+    # via
+    #   boto3
+    #   s3transfer
 certifi==2023.7.22
     # via requests
 cffi==1.15.1
@@ -33,6 +39,7 @@ django==3.2.20
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
+    #   openedx-django-pyfs
     #   openedx-filters
 django-appconf==1.0.5
     # via django-statici18n
@@ -53,11 +60,20 @@ edx-django-utils==5.7.0
 edx-opaque-keys[django]==2.4.0
     # via -r requirements/base.in
 fs==2.4.16
-    # via xblock
+    # via
+    #   fs-s3fs
+    #   openedx-django-pyfs
+    #   xblock
+fs-s3fs==1.1.1
+    # via openedx-django-pyfs
 future==0.18.3
     # via pyjwkest
 idna==3.4
     # via requests
+jmespath==1.0.1
+    # via
+    #   boto3
+    #   botocore
 jsonfield==3.1.0
     # via -r requirements/base.in
 lazy==1.5
@@ -74,9 +90,11 @@ markupsafe==2.1.3
     # via
     #   mako
     #   xblock
-newrelic==8.9.0
+newrelic==8.10.0
     # via edx-django-utils
 oauthlib==3.2.2
+    # via -r requirements/base.in
+openedx-django-pyfs==3.4.0
     # via -r requirements/base.in
 openedx-filters==1.5.0
     # via -r requirements/base.in
@@ -97,7 +115,9 @@ pymongo==3.13.0
 pynacl==1.5.0
     # via edx-django-utils
 python-dateutil==2.8.2
-    # via xblock
+    # via
+    #   botocore
+    #   xblock
 pytz==2023.3
     # via
     #   django
@@ -107,12 +127,15 @@ pyyaml==6.0.1
     # via xblock
 requests==2.31.0
     # via pyjwkest
+s3transfer==0.6.1
+    # via boto3
 simplejson==3.19.1
     # via xblock-utils
 six==1.16.0
     # via
     #   bleach
     #   fs
+    #   fs-s3fs
     #   pyjwkest
     #   python-dateutil
 sqlparse==0.4.4
@@ -126,6 +149,7 @@ typing-extensions==4.7.1
 urllib3==1.26.16
     # via
     #   -c requirements/constraints.txt
+    #   botocore
     #   requests
 web-fragments==2.1.0
     # via

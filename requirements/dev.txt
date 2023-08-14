@@ -16,6 +16,15 @@ attrs==23.1.0
     # via -r requirements/base.txt
 bleach==6.0.0
     # via -r requirements/base.txt
+boto3==1.28.25
+    # via
+    #   -r requirements/base.txt
+    #   fs-s3fs
+botocore==1.31.25
+    # via
+    #   -r requirements/base.txt
+    #   boto3
+    #   s3transfer
 certifi==2023.7.22
     # via
     #   -r requirements/base.txt
@@ -45,6 +54,7 @@ django==3.2.20
     #   edx-django-utils
     #   edx-i18n-tools
     #   jsonfield
+    #   openedx-django-pyfs
     #   openedx-filters
 django-appconf==1.0.5
     # via
@@ -79,7 +89,13 @@ edx-opaque-keys[django]==2.4.0
 fs==2.4.16
     # via
     #   -r requirements/base.txt
+    #   fs-s3fs
+    #   openedx-django-pyfs
     #   xblock
+fs-s3fs==1.1.1
+    # via
+    #   -r requirements/base.txt
+    #   openedx-django-pyfs
 future==0.18.3
     # via
     #   -r requirements/base.txt
@@ -88,6 +104,11 @@ idna==3.4
     # via
     #   -r requirements/base.txt
     #   requests
+jmespath==1.0.1
+    # via
+    #   -r requirements/base.txt
+    #   boto3
+    #   botocore
 jsonfield==3.1.0
     # via -r requirements/base.txt
 lazy==1.5
@@ -105,11 +126,13 @@ markupsafe==2.1.3
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==8.9.0
+newrelic==8.10.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
 oauthlib==3.2.2
+    # via -r requirements/base.txt
+openedx-django-pyfs==3.4.0
     # via -r requirements/base.txt
 openedx-filters==1.5.0
     # via -r requirements/base.txt
@@ -146,6 +169,7 @@ pynacl==1.5.0
 python-dateutil==2.8.2
     # via
     #   -r requirements/base.txt
+    #   botocore
     #   xblock
 pytz==2023.3
     # via
@@ -162,6 +186,10 @@ requests==2.31.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
+s3transfer==0.6.1
+    # via
+    #   -r requirements/base.txt
+    #   boto3
 simplejson==3.19.1
     # via
     #   -r requirements/base.txt
@@ -171,6 +199,7 @@ six==1.16.0
     #   -r requirements/base.txt
     #   bleach
     #   fs
+    #   fs-s3fs
     #   pyjwkest
     #   python-dateutil
 sqlparse==0.4.4
@@ -189,6 +218,7 @@ typing-extensions==4.7.1
 urllib3==1.26.16
     # via
     #   -r requirements/base.txt
+    #   botocore
     #   requests
 web-fragments==2.1.0
     # via

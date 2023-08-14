@@ -26,10 +26,13 @@ bleach==6.0.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.28.21
-    # via fs-s3fs
-botocore==1.31.21
+boto3==1.28.25
     # via
+    #   -r requirements/base.txt
+    #   fs-s3fs
+botocore==1.31.25
+    # via
+    #   -r requirements/base.txt
     #   boto3
     #   s3transfer
 certifi==2023.7.22
@@ -39,7 +42,6 @@ certifi==2023.7.22
 cffi==1.15.1
     # via
     #   -r requirements/base.txt
-    #   cryptography
     #   pynacl
 chardet==5.2.0
     # via binaryornot
@@ -65,8 +67,6 @@ coverage==6.5.0
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
-cryptography==41.0.3
-    # via secretstorage
 ddt==1.6.0
     # via -r requirements/test.in
 dill==0.3.7
@@ -83,6 +83,7 @@ dill==0.3.7
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
+    #   openedx-django-pyfs
     #   openedx-filters
     #   xblock-sdk
 django-appconf==1.0.5
@@ -124,9 +125,13 @@ fs==2.4.16
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
+    #   openedx-django-pyfs
     #   xblock
 fs-s3fs==1.1.1
-    # via xblock-sdk
+    # via
+    #   -r requirements/base.txt
+    #   openedx-django-pyfs
+    #   xblock-sdk
 future==0.18.3
     # via
     #   -r requirements/base.txt
@@ -145,16 +150,13 @@ isort==5.12.0
     # via pylint
 jaraco-classes==3.3.0
     # via keyring
-jeepney==0.8.0
-    # via
-    #   keyring
-    #   secretstorage
 jinja2==3.1.2
     # via
     #   code-annotations
     #   cookiecutter
 jmespath==1.0.1
     # via
+    #   -r requirements/base.txt
     #   boto3
     #   botocore
 jsonfield==3.1.0
@@ -190,11 +192,13 @@ mock==5.1.0
     # via -r requirements/test.in
 more-itertools==10.1.0
     # via jaraco-classes
-newrelic==8.9.0
+newrelic==8.10.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
 oauthlib==3.2.2
+    # via -r requirements/base.txt
+openedx-django-pyfs==3.4.0
     # via -r requirements/base.txt
 openedx-filters==1.5.0
     # via -r requirements/base.txt
@@ -294,9 +298,9 @@ rich==13.5.2
     #   cookiecutter
     #   twine
 s3transfer==0.6.1
-    # via boto3
-secretstorage==3.3.3
-    # via keyring
+    # via
+    #   -r requirements/base.txt
+    #   boto3
 simplejson==3.19.1
     # via
     #   -r requirements/base.txt
