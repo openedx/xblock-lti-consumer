@@ -78,6 +78,8 @@ djangorestframework==3.14.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
+edx-ccx-keys==1.2.1
+    # via -r requirements/base.txt
 edx-django-utils==5.7.0
     # via
     #   -r requirements/base.txt
@@ -202,6 +204,7 @@ six==1.16.0
     # via
     #   -r requirements/base.txt
     #   bleach
+    #   edx-ccx-keys
     #   fs
     #   fs-s3fs
     #   pyjwkest

@@ -55,6 +55,8 @@ django-waffle==4.0.0
     # via edx-django-utils
 djangorestframework==3.14.0
     # via django-config-models
+edx-ccx-keys==1.2.1
+    # via -r requirements/base.in
 edx-django-utils==5.7.0
     # via django-config-models
 edx-opaque-keys[django]==2.4.0
@@ -138,6 +140,7 @@ simplejson==3.19.1
 six==1.16.0
     # via
     #   bleach
+    #   edx-ccx-keys
     #   fs
     #   fs-s3fs
     #   pyjwkest

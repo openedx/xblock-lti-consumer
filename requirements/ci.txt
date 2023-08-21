@@ -143,6 +143,8 @@ docutils==0.20.1
     # via
     #   -r requirements/test.txt
     #   readme-renderer
+edx-ccx-keys==1.2.1
+    # via -r requirements/test.txt
 edx-django-utils==5.7.0
     # via
     #   -r requirements/test.txt
@@ -412,6 +414,7 @@ six==1.16.0
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
     #   bleach
+    #   edx-ccx-keys
     #   edx-lint
     #   fs
     #   fs-s3fs

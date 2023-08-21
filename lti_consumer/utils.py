@@ -1,6 +1,7 @@
 """
 Utility functions for LTI Consumer block
 """
+import copy
 import logging
 from importlib import import_module
 from urllib.parse import urlencode
@@ -332,3 +333,27 @@ def check_token_claim(token, claim_key, expected_value=None, invalid_claim_error
     if expected_value and claim_value != expected_value:
         msg = invalid_claim_error_msg if invalid_claim_error_msg else f"The claim {claim_key} value is invalid."
         raise InvalidClaimValue(msg)
+
+
+def model_to_dict(model_object, exclude=None):
+    """
+    Get dictionary from model object.
+
+    This function will create a copy of a model object in a dictionary,
+    with all private and excluded fields removed.
+    """
+    if not exclude:
+        exclude = []
+
+    try:
+        # Copy model object fields.
+        object_fields = copy.deepcopy(model_object.__dict__)
+
+        # Remove private and excluded fields.
+        for key in list(object_fields):
+            if key.startswith('_') or key in exclude:
+                object_fields.pop(key, None)
+
+        return object_fields
+    except (AttributeError, TypeError):
+        return {}
