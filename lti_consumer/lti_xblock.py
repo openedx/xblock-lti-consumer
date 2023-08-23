@@ -100,7 +100,13 @@ LTI_1P1_ROLE_MAP = {
     'staff': 'Administrator',
     'instructor': 'Instructor',
 }
-CUSTOM_PARAMETER_TEMPLATE_TAGS = ('${', '}')
+CUSTOM_PARAMETER_SEPARATOR = '='
+# Allow a key-pair key and value to contain any character except "=".
+CUSTOM_PARAMETER_REGEX = re.compile(
+    rf'^([^{CUSTOM_PARAMETER_SEPARATOR}]+{CUSTOM_PARAMETER_SEPARATOR}[^{CUSTOM_PARAMETER_SEPARATOR}]+)$',
+)
+# Catch a value enclosed by ${}, the value enclosed can contain any charater except "=".
+CUSTOM_PARAMETER_TEMPLATE_REGEX = re.compile(r'^(\${[^%s]+})$' % CUSTOM_PARAMETER_SEPARATOR)
 
 
 def parse_handler_suffix(suffix):
@@ -671,10 +677,18 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return None
 
     def validate_field_data(self, validation, data):
+        # Validate custom parameters is a list.
         if not isinstance(data.custom_parameters, list):
             _ = self.runtime.service(self, "i18n").ugettext
             validation.add(ValidationMessage(ValidationMessage.ERROR, str(
                 _("Custom Parameters must be a list")
+            )))
+
+        # Validate custom parameters format.
+        if not all(map(CUSTOM_PARAMETER_REGEX.match, data.custom_parameters)):
+            _ = self.runtime.service(self, 'i18n').ugettext
+            validation.add(ValidationMessage(ValidationMessage.ERROR, str(
+                _('Custom Parameters should be strings in "x=y" format.'),
             )))
 
         # keyset URL and public key are mutually exclusive
@@ -1045,8 +1059,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 if param_name not in LTI_PARAMETERS:
                     param_name = 'custom_' + param_name
 
-                if (param_value.startswith(CUSTOM_PARAMETER_TEMPLATE_TAGS[0]) and
-                        param_value.endswith(CUSTOM_PARAMETER_TEMPLATE_TAGS[1])):
+                if CUSTOM_PARAMETER_TEMPLATE_REGEX.match(param_value):
                     param_value = resolve_custom_parameter_template(self, param_value)
 
                 custom_parameters[param_name] = param_value
@@ -1552,6 +1565,40 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         return launch_url
 
+    def get_lti_1p3_custom_parameters(self):
+        """
+        Parses XBlock custom_parameters field values to use on LTI 1.3 launch data.
+        This allows us to transform the list items on the custom_parameters field into a dictionary of
+        custom parameters, it will also resolve any dynamic custom parameter present on the field.
+        Returns:
+            dict: Parsed custom_parameters dictionary
+        """
+        custom_parameters = {}
+
+        # Get site-wide extra parameters from processor functions.
+        for processor in self.get_parameter_processors():
+            try:
+                default_params = getattr(processor, 'lti_xblock_default_params', {})
+                custom_parameters.update(default_params)
+                custom_parameters.update(processor(self) or {})
+            except Exception:  # pylint: disable=broad-except
+                # Log the error without causing a 500-error.
+                # Useful for catching casual runtime errors in the processors.
+                log.exception('Error in XBlock LTI parameter processor "%s"', processor)
+
+        # Get custom parameters from XBlock settings.
+        for parameter in self.custom_parameters:
+            # Split parameter into key, value and remove leading, trailing spaces.
+            key, value = map(str.strip, parameter.split(CUSTOM_PARAMETER_SEPARATOR, 1))
+
+            # Resolve custom parameter template value.
+            if CUSTOM_PARAMETER_TEMPLATE_REGEX.match(value):
+                value = resolve_custom_parameter_template(self, value)
+
+            custom_parameters.update({key: value})
+
+        return custom_parameters
+
     def get_lti_1p3_launch_data(self):
         """
         Return an instance of Lti1p3LaunchData, containing necessary data for an LTI 1.3 launch.
@@ -1595,6 +1642,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             context_type=["course_offering"],
             context_title=self.get_context_title(),
             context_label=course_key,
+            custom_parameters=self.get_lti_1p3_custom_parameters(),
         )
 
         return launch_data

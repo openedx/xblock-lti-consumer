@@ -16,6 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.6.2 - 2023-08-22
+------------------
+* Fix extra claims and custom parameters for LTI 1.3.
+* Add validation to custom_parameters xblock field.
+
 9.6.1 - 2023-06-28
 ------------------
 * Fix CCX LTI configuration compatibility

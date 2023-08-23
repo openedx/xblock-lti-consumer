@@ -15,6 +15,7 @@ from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
 from jwkest.jwk import RSAKey, KEYS
+from xblock.validation import Validation
 
 from lti_consumer.exceptions import LtiError
 
@@ -87,6 +88,7 @@ class TestIndexibility(TestCase):
         )
 
 
+@ddt.ddt
 class TestProperties(TestLtiConsumerXBlock):
     """
     Unit tests for LtiConsumerXBlock properties
@@ -138,13 +140,48 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         self.assertEqual(self.xblock.context_id, str(self.xblock.scope_ids.usage_id.context_key))
 
-    def test_validate(self):
+    @ddt.data(
+        ['x=y'], [' x x = y y '], ['x= '], [' =y'], [' = '],
+        ['x=y', ' x x = y y ', 'x= ', ' =y', ' = '],
+    )
+    def test_validate_with_valid_custom_parameters(self, custom_parameters):
         """
-        Test that if custom_parameters is empty string, a validation error is added
+        Test if all custom_parameters item are valid
         """
-        self.xblock.custom_parameters = ''
+        self.xblock.custom_parameters = custom_parameters
         validation = self.xblock.validate()
-        self.assertFalse(validation.empty)
+        self.assertEqual(validation.messages, [])
+
+    @patch('lti_consumer.lti_xblock.ValidationMessage')
+    @patch.object(Validation, 'add')
+    def test_validate_with_empty_custom_parameters(self, add_mock, mock_validation_message):
+        """
+        Test if custom_parameters is not a list, a validation error is added
+        """
+        mock_validation_message.ERROR.return_value = 'error'
+        self.xblock.custom_parameters = ''
+
+        self.xblock.validate()
+
+        add_mock.assert_called_once_with(
+            mock_validation_message('error', 'Custom Parameters must be a list'),
+        )
+
+    @ddt.data(['x'], ['x='], ['=y'], ['x==y'], ['x', 'x=', '=y', 'x==y'])
+    @patch('lti_consumer.lti_xblock.ValidationMessage')
+    @patch.object(Validation, 'add')
+    def test_validate_with_invalid_custom_parameters(self, custom_parameters, add_mock, mock_validation_message):
+        """
+        Test if a custom_parameters item is not valid, a validation error is added
+        """
+        mock_validation_message.ERROR.return_value = 'error'
+        self.xblock.custom_parameters = custom_parameters
+
+        self.xblock.validate()
+
+        add_mock.assert_called_once_with(
+            mock_validation_message('error', 'Custom Parameters should be strings in "x=y" format.'),
+        )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     def test_validate_lti_id(self, mock_course):
@@ -1643,6 +1680,56 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.addCleanup(self.mock_filter_enabled_patcher.stop)
         self.addCleanup(self.mock_database_config_enabled_patcher.stop)
 
+    @patch.object(LtiConsumerXBlock, 'get_parameter_processors')
+    @patch('lti_consumer.lti_xblock.resolve_custom_parameter_template')
+    def test_get_lti_1p3_custom_parameters(
+        self,
+        mock_resolve_custom_parameter_template,
+        get_parameter_processors_mock,
+    ):
+        """
+        Test that get_lti_1p3_custom_parameters returns an dictionary of custom parameters
+        """
+        processor_mock = Mock(return_value={'test3': 'test'}, lti_xblock_default_params={})
+        get_parameter_processors_mock.return_value = [processor_mock]
+        mock_resolve_custom_parameter_template.return_value = ''
+        self.xblock.custom_parameters = ['test1=test', 'test2=${test}']
+
+        self.assertDictEqual(
+            self.xblock.get_lti_1p3_custom_parameters(),
+            {'test1': 'test', 'test2': '', 'test3': 'test'},
+        )
+        get_parameter_processors_mock.assert_called_once_with()
+        processor_mock.assert_called_once_with(self.xblock)
+        mock_resolve_custom_parameter_template.assert_called_once_with(self.xblock, '${test}')
+
+    @patch.object(LtiConsumerXBlock, 'get_parameter_processors')
+    @patch('lti_consumer.lti_xblock.resolve_custom_parameter_template')
+    @patch('lti_consumer.lti_xblock.log.exception')
+    def test_get_lti_1p3_custom_parameters_with_invalid_processor(
+        self,
+        log_exception_mock,
+        mock_resolve_custom_parameter_template,
+        get_parameter_processors_mock,
+    ):
+        """
+        Test that get_lti_1p3_custom_parameters logs error when a paramater processor fails.
+        """
+        processor_mock = Mock(side_effect=Exception())
+        get_parameter_processors_mock.return_value = [processor_mock]
+        mock_resolve_custom_parameter_template.return_value = ''
+        self.xblock.custom_parameters = ['test1=test', 'test2=${test}']
+
+        self.assertDictEqual(
+            self.xblock.get_lti_1p3_custom_parameters(),
+            {'test1': 'test', 'test2': ''},
+        )
+        get_parameter_processors_mock.assert_called_once_with()
+        log_exception_mock.assert_called_once_with(
+            'Error in XBlock LTI parameter processor "%s"', processor_mock,
+        )
+        mock_resolve_custom_parameter_template.assert_called_once_with(self.xblock, '${test}')
+
     @ddt.idata(product([True, False], [True, False], [True, False], [True, False]))
     @ddt.unpack
     def test_get_lti_1p3_launch_data(
@@ -1685,6 +1772,9 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Mock out get_pii_sharing_enabled to reduce the amount of mocking we have to do.
         self.xblock.get_pii_sharing_enabled = Mock(return_value=pii_sharing_enabled)
 
+        # Mock custom_parameters property.
+        self.xblock.get_lti_1p3_custom_parameters = Mock(return_value={})
+
         launch_data = self.xblock.get_lti_1p3_launch_data()
 
         course_key = str(self.xblock.scope_ids.usage_id.course_key)
@@ -1701,6 +1791,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "context_type": ["course_offering"],
             "context_title": "context_title",
             "context_label": course_key,
+            'custom_parameters': {},
         }
 
         if pii_sharing_enabled:
@@ -1721,6 +1812,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             launch_data,
             expected_launch_data
         )
+        self.xblock.get_lti_1p3_custom_parameters.assert_called_once_with()
 
     @patch('lti_consumer.plugin.compat.get_course_by_id')
     def test_get_context_title(self, mock_get_course_by_id):

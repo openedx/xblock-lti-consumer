@@ -579,6 +579,46 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         # Check response
         self.assertEqual(response.status_code, 200)
 
+    @patch('lti_consumer.lti_1p3.consumer.LtiConsumer1p3.set_custom_parameters')
+    def test_launch_existing_custom_parameters(self, mock_set_custom_parameters):
+        """
+        Check custom parameters are set if they exist on XBlock configuration.
+        """
+        self.launch_data.custom_parameters = ['test=test']
+        params = {
+            'client_id': self.config.lti_1p3_client_id,
+            'redirect_uri': 'http://tool.example/launch',
+            'state': 'state_test_123',
+            'nonce': 'nonce',
+            'login_hint': self.launch_data.user_id,
+            'lti_message_hint': self.launch_data_key,
+        }
+
+        response = self.client.get(self.url, params)
+
+        self.assertEqual(response.status_code, 200)
+        mock_set_custom_parameters.assert_called_once_with(self.launch_data.custom_parameters)
+
+    @patch('lti_consumer.lti_1p3.consumer.LtiConsumer1p3.set_custom_parameters')
+    def test_launch_non_existing_custom_parameters(self, mock_set_custom_parameters):
+        """
+        Check custom parameters are not set if they don't exist on XBlock configuration.
+        """
+        self.launch_data.custom_parameters = {}
+        params = {
+            'client_id': self.config.lti_1p3_client_id,
+            'redirect_uri': 'http://tool.example/launch',
+            'state': 'state_test_123',
+            'nonce': 'nonce',
+            'login_hint': self.launch_data.user_id,
+            'lti_message_hint': self.launch_data_key,
+        }
+
+        response = self.client.get(self.url, params)
+
+        self.assertEqual(response.status_code, 200)
+        mock_set_custom_parameters.assert_not_called()
+
 
 class TestLti1p3AccessTokenEndpoint(TestCase):
     """
