@@ -690,7 +690,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             validation.add(ValidationMessage(ValidationMessage.ERROR, str(
                 _('Custom Parameters should be strings in "x=y" format.'),
             )))
-            
+
         # Validate external config ID is not missing.
         if data.config_type == 'external' and not data.external_config:
             _ = self.runtime.service(self, 'i18n').ugettext

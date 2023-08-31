@@ -469,7 +469,7 @@ class TestLtiConfigurationModel(TestCase):
         self.assertEqual(self.lti_1p3_config_external.get_lti_1p3_redirect_uris(), None)
         get_external_config_from_filter_mock.assert_called_once_with({}, self.lti_1p3_config_external.external_id)
         choose_lti_1p3_redirect_uris.assert_called_once_with(redirect_uris, LAUNCH_URL, DEEP_LINK_URL)
-        
+
     @patch.object(LtiConfiguration, 'sync_configurations')
     def test_save(self, sync_configurations_mock):
         """Test save method."""
