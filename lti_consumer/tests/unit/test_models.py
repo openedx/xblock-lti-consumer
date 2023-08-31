@@ -414,34 +414,60 @@ class TestLtiConfigurationModel(TestCase):
         """
         Test get_redirect_uris with external configuration.
         """
-        get_external_config_from_filter_mock.return_value = {
-            'lti_1p3_redirect_uris': [],
+        external_config = {
+            'lti_1p3_redirect_uris': ['external-redirect-uris'],
             'lti_1p3_launch_url': LAUNCH_URL,
             'lti_advantage_deep_linking_launch_url': DEEP_LINK_URL,
         }
+        get_external_config_from_filter_mock.return_value = external_config
 
         self.assertEqual(self.lti_1p3_config_external.get_lti_1p3_redirect_uris(), None)
         get_external_config_from_filter_mock.assert_called_once_with({}, self.lti_1p3_config_external.external_id)
-        choose_lti_1p3_redirect_uris.assert_called_once_with([], LAUNCH_URL, DEEP_LINK_URL)
+        choose_lti_1p3_redirect_uris.assert_called_once_with(
+            external_config['lti_1p3_redirect_uris'],
+            external_config['lti_1p3_launch_url'],
+            external_config['lti_advantage_deep_linking_launch_url'],
+        )
 
     @patch('lti_consumer.models.choose_lti_1p3_redirect_uris', return_value=None)
     @patch('lti_consumer.models.get_external_config_from_filter')
-    def test_get_redirect_uris_with_empty_external_config(
+    def test_get_redirect_uris_with_external_config_and_xblock_override(
         self,
         get_external_config_from_filter_mock,
         choose_lti_1p3_redirect_uris,
     ):
         """
-        Test get_redirect_uris with empty external configuration.
+        Test get_redirect_uris with external configuration and XBlock override.
         """
+        redirect_uris = ['xblock-redirect-uris']
         get_external_config_from_filter_mock.return_value = {}
-        self.xblock.lti_1p3_redirect_uris = []
+        self.xblock.lti_1p3_redirect_uris = redirect_uris
         self.xblock.lti_1p3_launch_url = LAUNCH_URL
         self.xblock.lti_advantage_deep_linking_launch_url = DEEP_LINK_URL
 
         self.assertEqual(self.lti_1p3_config_external.get_lti_1p3_redirect_uris(), None)
         get_external_config_from_filter_mock.assert_called_once_with({}, self.lti_1p3_config_external.external_id)
-        choose_lti_1p3_redirect_uris.assert_called_once_with([], LAUNCH_URL, DEEP_LINK_URL)
+        choose_lti_1p3_redirect_uris.assert_called_once_with(redirect_uris, LAUNCH_URL, DEEP_LINK_URL)
+
+    @patch('lti_consumer.models.choose_lti_1p3_redirect_uris', return_value=None)
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_get_redirect_uris_with_external_config_and_db_override(
+        self,
+        get_external_config_from_filter_mock,
+        choose_lti_1p3_redirect_uris,
+    ):
+        """
+        Test get_redirect_uris with external configuration and DB override.
+        """
+        redirect_uris = ['db-redirect-uris']
+        get_external_config_from_filter_mock.return_value = {}
+        self.lti_1p3_config_external.lti_1p3_redirect_uris = redirect_uris
+        self.lti_1p3_config_external.lti_1p3_launch_url = LAUNCH_URL
+        self.lti_1p3_config_external.lti_advantage_deep_linking_launch_url = DEEP_LINK_URL
+
+        self.assertEqual(self.lti_1p3_config_external.get_lti_1p3_redirect_uris(), None)
+        get_external_config_from_filter_mock.assert_called_once_with({}, self.lti_1p3_config_external.external_id)
+        choose_lti_1p3_redirect_uris.assert_called_once_with(redirect_uris, LAUNCH_URL, DEEP_LINK_URL)
 
 
 class TestLtiAgsLineItemModel(TestCase):

@@ -373,6 +373,15 @@ class LtiConfiguration(models.Model):
         """
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_launch_url
+        elif self.config_store == self.CONFIG_EXTERNAL:
+            block = compat.load_enough_xblock(self.location)
+            config = get_external_config_from_filter({}, self.external_id)
+            return (
+                # Use the deep linking launch URL set in XBlock or DB has a fallback.
+                block.lti_advantage_deep_linking_launch_url or
+                self.lti_advantage_deep_linking_launch_url or
+                config.get('lti_advantage_deep_linking_launch_url')
+            )
         else:
             block = compat.load_enough_xblock(self.location)
             return block.lti_advantage_deep_linking_launch_url
@@ -405,7 +414,7 @@ class LtiConfiguration(models.Model):
         # We set the deployment ID to a default value of 1,
         # this will be used on a configuration with a CONFIG_EXTERNAL config store
         # if no deployment ID is set on the external configuration.
-        deployment_id = 1
+        deployment_id = '1'
 
         # Get OIDC URL, Client ID and Deployment ID (On CONFIG_EXTERNAL)
         # to use it to retrieve/save the tool deployment LineItem.
@@ -414,9 +423,17 @@ class LtiConfiguration(models.Model):
             oidc_url = block.lti_1p3_oidc_url
             client_id = block.lti_1p3_client_id
         elif self.config_store == self.CONFIG_EXTERNAL:
+            block = compat.load_enough_xblock(self.location)
             config = get_external_config_from_filter({}, self.external_id)
-            oidc_url = config.get('lti_1p3_oidc_url')
+            # Use the OIDC URL set in XBlock or DB has a fallback.
+            oidc_url = (
+                block.lti_1p3_oidc_url or
+                self.lti_1p3_oidc_url or
+                config.get('lti_1p3_oidc_url')
+            )
             client_id = config.get('lti_1p3_client_id')
+            # Deployment ID hardcoded to 1 if no deployment ID is set
+            # on the external configuration.
             deployment_id = config.get('lti_1p3_deployment_id') or deployment_id
         else:
             oidc_url = self.lti_1p3_oidc_url
@@ -556,10 +573,18 @@ class LtiConfiguration(models.Model):
 
             consumer = consumer_class(
                 iss=get_lti_api_base(),
-                # Use the xblock values if lti_1p3_oidc_url or lti_1p3_launch_url
-                # is not set on the external configuration.
-                lti_oidc_url=block.lti_1p3_oidc_url or external.get('lti_1p3_oidc_url'),
-                lti_launch_url=block.lti_1p3_launch_url or external.get('lti_1p3_launch_url'),
+                # Use the OIDC URL set in XBlock or DB has a fallback.
+                lti_oidc_url=(
+                    block.lti_1p3_oidc_url or
+                    self.lti_1p3_oidc_url or
+                    external.get('lti_1p3_oidc_url')
+                ),
+                # Use the launch URL set in XBlock or DB has a fallback.
+                lti_launch_url=(
+                    block.lti_1p3_launch_url or
+                    self.lti_1p3_launch_url or
+                    external.get('lti_1p3_launch_url')
+                ),
                 client_id=external.get('lti_1p3_client_id'),
                 # Deployment ID hardcoded to 1 if no deployment ID is set
                 # on the external configuration.
@@ -599,11 +624,21 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_EXTERNAL:
             block = compat.load_enough_xblock(self.location)
             config = get_external_config_from_filter({}, self.external_id)
-            redirect_uris = config.get('lti_1p3_redirect_uris') or block.lti_1p3_redirect_uris
-            launch_url = config.get('lti_1p3_launch_url') or block.lti_1p3_launch_url
-            deep_link_launch_url = config.get(
-                'lti_advantage_deep_linking_launch_url',
-            ) or block.lti_advantage_deep_linking_launch_url
+            redirect_uris = (
+                block.lti_1p3_redirect_uris or
+                self.lti_1p3_redirect_uris or
+                config.get('lti_1p3_redirect_uris')
+            )
+            launch_url = (
+                block.lti_1p3_launch_url or
+                self.lti_1p3_launch_url or
+                config.get('lti_1p3_launch_url')
+            )
+            deep_link_launch_url = (
+                block.lti_advantage_deep_linking_launch_url or
+                self.lti_advantage_deep_linking_launch_url or
+                config.get('lti_advantage_deep_linking_launch_url')
+            )
         elif self.config_store == self.CONFIG_ON_DB:
             redirect_uris = self.lti_1p3_redirect_uris
             launch_url = self.lti_1p3_launch_url
