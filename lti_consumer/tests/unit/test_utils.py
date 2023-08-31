@@ -13,6 +13,7 @@ from lti_consumer.utils import (
     get_lti_1p3_launch_data_cache_key,
     cache_lti_1p3_launch_data,
     get_data_from_cache,
+    model_to_dict,
 )
 
 LAUNCH_URL = "http://tool.launch"
@@ -137,3 +138,37 @@ class TestCacheUtilities(TestCase):
         )
 
         assert result == expected
+
+
+class TestModelToDict(TestCase):
+    """
+    Tests for the model_to_dict function.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.model_object = Mock()
+
+    @patch('lti_consumer.utils.copy.deepcopy', return_value={'test': 'test', '_test': 'test'})
+    def test_with_exclude_argument(self, deepcopy_mock):
+        """
+        Test model_to_dict function with exclude argument.
+        """
+        self.assertEqual(model_to_dict(self.model_object, ['test']), {})
+        deepcopy_mock.assert_called_once_with(self.model_object.__dict__)
+
+    @patch('lti_consumer.utils.copy.deepcopy', side_effect=AttributeError())
+    def test_with_attribute_error(self, deepcopy_mock):
+        """
+        Test model_to_dict function with AttributeError exception.
+        """
+        self.assertEqual(model_to_dict(self.model_object), {})
+        deepcopy_mock.assert_called_once_with(self.model_object.__dict__)
+
+    @patch('lti_consumer.utils.copy.deepcopy', side_effect=TypeError())
+    def test_with_type_error(self, deepcopy_mock):
+        """
+        Test model_to_dict function with TypeError exception.
+        """
+        self.assertEqual(model_to_dict(self.model_object), {})
+        deepcopy_mock.assert_called_once_with(self.model_object.__dict__)

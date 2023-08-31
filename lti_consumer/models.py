@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 
 from jsonfield import JSONField
 from Cryptodome.PublicKey import RSA
+from ccx_keys.locator import CCXBlockUsageLocator
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from opaque_keys.edx.keys import CourseKey
 from config_models.models import ConfigurationModel
@@ -29,6 +30,7 @@ from lti_consumer.utils import (
     get_lti_deeplinking_response_url,
     get_lti_nrps_context_membership_url,
     choose_lti_1p3_redirect_uris,
+    model_to_dict,
 )
 
 log = logging.getLogger(__name__)
@@ -269,6 +271,42 @@ class LtiConfiguration(models.Model):
             consumer = None
         if consumer is None:
             raise ValidationError(_("Invalid LTI configuration."))
+
+    def sync_configurations(self):
+        """Syncronize main/children configurations.
+
+        This method will synchronize the field values of main/children configurations.
+        On a configuration with a CCX location, it will copy the values from the main course configuration,
+        otherwise, it will try to query any children configuration and update their fields using
+        the current configuration values.
+        """
+        EXCLUDED_FIELDS = ['id', 'config_id', 'location']
+
+        if isinstance(self.location, CCXBlockUsageLocator):
+            # Query main configuration using main location.
+            main_config = LtiConfiguration.objects.filter(location=self.location.to_block_locator()).first()
+            # Copy fields from main configuration.
+            for field in model_to_dict(main_config, EXCLUDED_FIELDS).items():
+                setattr(self, field[0], field[1])
+        else:
+            try:
+                # Query child CCX configurations using location block ID and CCX namespace.
+                child_configs = LtiConfiguration.objects.filter(
+                    location__endswith=str(self.location).split('@')[-1],
+                ).filter(
+                    location__startswith=CCXBlockUsageLocator.CANONICAL_NAMESPACE,
+                ).exclude(id=self.pk)
+                # Copy fields to child CCX configurations.
+                child_configs.update(**model_to_dict(self, EXCLUDED_FIELDS))
+            except IndexError:
+                log.exception(
+                    f'Failed to query children CCX LTI configurations: '
+                    f'Failed to parse main LTI configuration location: {self.location}',
+                )
+
+    def save(self, *args, **kwargs):
+        self.sync_configurations()
+        super().save(*args, **kwargs)
 
     def _generate_lti_1p3_keys_if_missing(self):
         """

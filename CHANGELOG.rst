@@ -16,6 +16,31 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.6.2 - 2023-08-22
+------------------
+* Fix extra claims and custom parameters for LTI 1.3.
+* Add validation to custom_parameters xblock field.
+
+9.6.1 - 2023-06-28
+------------------
+* Fix CCX LTI configuration compatibility
+
+9.6.0 - 2023-08-01
+------------------
+* Added support for Django 4.2
+
+9.5.7 - 2023-07-27
+------------------
+* Fixed ACS actions constant.
+
+9.5.6 - 2023-07-25
+------------------
+* Added LTI launch error messages to the template returned when these errors occur.
+
+9.5.5 - 2023-07-13
+------------------
+* Fix broken call to LMS `get_block_for_descriptor_internal` due to merge with `get_block_for_descriptor`.
+
 9.5.4 - 2023-06-28
 ------------------
 * Allow basic LtiResourceLink launch for an LtiProctoringConsumer

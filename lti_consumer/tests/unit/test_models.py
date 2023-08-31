@@ -3,7 +3,7 @@ Unit tests for LTI models.
 """
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import patch, call
 
 import ddt
 from Cryptodome.PublicKey import RSA
@@ -12,6 +12,7 @@ from django.test.testcases import TestCase
 from django.utils import timezone
 from edx_django_utils.cache import RequestCache
 from jwkest.jwk import RSAKey
+from ccx_keys.locator import CCXBlockUsageLocator
 from opaque_keys.edx.locator import CourseLocator
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
@@ -468,6 +469,80 @@ class TestLtiConfigurationModel(TestCase):
         self.assertEqual(self.lti_1p3_config_external.get_lti_1p3_redirect_uris(), None)
         get_external_config_from_filter_mock.assert_called_once_with({}, self.lti_1p3_config_external.external_id)
         choose_lti_1p3_redirect_uris.assert_called_once_with(redirect_uris, LAUNCH_URL, DEEP_LINK_URL)
+        
+    @patch.object(LtiConfiguration, 'sync_configurations')
+    def test_save(self, sync_configurations_mock):
+        """Test save method."""
+        self.assertEqual(self.lti_1p3_config.save(), None)
+        sync_configurations_mock.assert_called_once_with()
+
+    @patch('lti_consumer.models.isinstance', return_value=True)
+    @patch.object(LtiConfiguration.objects, 'filter')
+    @patch('lti_consumer.models.model_to_dict')
+    @patch('lti_consumer.models.setattr')
+    def test_sync_configurations_with_ccx_location(
+        self,
+        setattr_mock,
+        model_to_dict_mock,
+        filter_mock,
+        isinstance_mock,
+    ):
+        """
+        Test sync_configurations method with CCX location.
+        """
+        model_to_dict_mock.return_value = {'test': 'test'}
+        self.lti_1p3_config.location = 'ccx-block-v1:course+test+2020+ccx@1+type@problem+block@test'
+
+        self.assertEqual(self.lti_1p3_config.sync_configurations(), None)
+        isinstance_mock.assert_called_once_with(self.lti_1p3_config.location, CCXBlockUsageLocator)
+        filter_mock.assert_has_calls([
+            call(location=self.lti_1p3_config.location.to_block_locator()),
+            call().first(),
+        ])
+        model_to_dict_mock.assert_called_once_with(filter_mock.return_value.first(), ['id', 'config_id', 'location'])
+        setattr_mock.assert_called_once_with(self.lti_1p3_config, 'test', 'test')
+
+    @patch('lti_consumer.models.isinstance', return_value=False)
+    @patch.object(LtiConfiguration.objects, 'filter')
+    @patch('lti_consumer.models.model_to_dict')
+    def test_sync_configurations_with_location(
+        self,
+        model_to_dict_mock,
+        filter_mock,
+        isinstance_mock,
+    ):
+        """
+        Test sync_configurations method with location.
+        """
+        self.assertEqual(self.lti_1p3_config.sync_configurations(), None)
+        isinstance_mock.assert_called_once_with(self.lti_1p3_config.location, CCXBlockUsageLocator)
+        filter_mock.assert_has_calls([
+            call(location__endswith=str(self.lti_1p3_config.location).split('@')[-1]),
+            call().filter(location__startswith=CCXBlockUsageLocator.CANONICAL_NAMESPACE),
+            call().filter().exclude(id=self.lti_1p3_config.pk),
+            call().filter().exclude().update(**model_to_dict_mock),
+        ])
+        model_to_dict_mock.assert_called_once_with(self.lti_1p3_config, ['id', 'config_id', 'location'])
+
+    @patch('lti_consumer.models.isinstance', return_value=False)
+    @patch.object(LtiConfiguration.objects, 'filter', side_effect=IndexError())
+    @patch('lti_consumer.models.log.exception')
+    def test_sync_configurations_with_invalid_location(
+        self,
+        log_exception_mock,
+        filter_mock,
+        isinstance_mock,
+    ):
+        """
+        Test sync_configurations method with invalid location.
+        """
+        self.assertEqual(self.lti_1p3_config.sync_configurations(), None)
+        isinstance_mock.assert_called_once_with(self.lti_1p3_config.location, CCXBlockUsageLocator)
+        filter_mock.assert_called_once_with(location__endswith=str(self.lti_1p3_config.location).split('@')[-1])
+        log_exception_mock.assert_called_once_with(
+            f'Failed to query children CCX LTI configurations: '
+            f'Failed to parse main LTI configuration location: {self.lti_1p3_config.location}'
+        )
 
 
 class TestLtiAgsLineItemModel(TestCase):
