@@ -31,11 +31,11 @@ bleach==6.0.0
     # via
     #   -r requirements/test.txt
     #   readme-renderer
-boto3==1.28.26
+boto3==1.28.36
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.31.26
+botocore==1.31.36
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -57,7 +57,7 @@ charset-normalizer==3.2.0
     # via
     #   -r requirements/test.txt
     #   requests
-click==8.1.6
+click==8.1.7
     # via
     #   -r requirements/test.txt
     #   click-log
@@ -151,9 +151,11 @@ edx-django-utils==5.7.0
     #   django-config-models
 edx-lint==5.3.4
     # via -r requirements/test.txt
-edx-opaque-keys[django]==2.4.0
-    # via -r requirements/test.txt
-filelock==3.12.2
+edx-opaque-keys[django]==2.5.0
+    # via
+    #   -r requirements/test.txt
+    #   edx-ccx-keys
+filelock==3.12.3
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -256,7 +258,7 @@ more-itertools==10.1.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
-newrelic==8.10.0
+newrelic==9.0.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -266,7 +268,7 @@ openedx-django-pyfs==3.4.0
     # via
     #   -r requirements/test.txt
     #   xblock
-openedx-filters==1.5.0
+openedx-filters==1.6.0
     # via -r requirements/test.txt
 packaging==23.1
     # via
@@ -286,7 +288,7 @@ platformdirs==3.10.0
     #   -r requirements/tox.txt
     #   pylint
     #   virtualenv
-pluggy==1.2.0
+pluggy==1.3.0
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -370,7 +372,7 @@ pyyaml==6.0.1
     #   code-annotations
     #   cookiecutter
     #   xblock
-readme-renderer==40.0
+readme-renderer==41.0
     # via
     #   -r requirements/test.txt
     #   twine
@@ -396,7 +398,7 @@ rich==13.5.2
     #   -r requirements/test.txt
     #   cookiecutter
     #   twine
-s3transfer==0.6.1
+s3transfer==0.6.2
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -454,8 +456,11 @@ twine==4.0.2
 typing-extensions==4.7.1
     # via
     #   -r requirements/test.txt
+    #   -r requirements/tox.txt
     #   asgiref
     #   astroid
+    #   edx-opaque-keys
+    #   filelock
     #   pylint
     #   rich
 urllib3==1.26.16
