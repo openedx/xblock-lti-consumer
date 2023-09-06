@@ -31,6 +31,11 @@ urlpatterns = [
         public_keyset_endpoint,
         name='lti_consumer.public_keyset_endpoint_via_location'
     ),
+    path(
+        'lti_consumer/v1/public_keysets/<str:external_app>/<slug:external_slug>',
+        public_keyset_endpoint,
+        name='lti_consumer.public_keyset_endpoint_via_external_id'
+    ),
     re_path(
         'lti_consumer/v1/launch/(?:/(?P<suffix>.*))?$',
         launch_gate_endpoint,
@@ -45,6 +50,11 @@ urlpatterns = [
         f'lti_consumer/v1/token/{settings.USAGE_ID_PATTERN}$',
         access_token_endpoint,
         name='lti_consumer.access_token_via_location'
+    ),
+    path(
+        'lti_consumer/v1/token/<str:external_app>/<slug:external_slug>',
+        access_token_endpoint,
+        name='lti_consumer.access_token_via_external_id'
     ),
     re_path(
         r'lti_consumer/v1/lti/(?P<lti_config_id>[-\w]+)/lti-dl/response',

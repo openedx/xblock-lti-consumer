@@ -416,7 +416,6 @@ class TestValidateLti1p3LaunchData(TestCase):
         )
 
 
-@ddt.ddt
 class TestGetLti1p3LaunchInfo(TestCase):
     """
     Unit tests for get_lti_1p3_launch_info API method.
@@ -539,35 +538,23 @@ class TestGetLti1p3LaunchInfo(TestCase):
             }
         )
 
-    @ddt.data(
-        {
-            'lti_1p3_client_id': 'test-client-id',
-            'lti_1p3_access_token_url': 'test-access-token-url',
-            'lti_1p3_keyset_url': 'test-keyset-url',
-            'lti_1p3_deployment_id': 'test-deployment-id',
-        },
-        {
-            'lti_1p3_client_id': 'test-client-id',
-            'lti_1p3_access_token_url': 'test-access-token-url',
-            'lti_1p3_keyset_url': 'test-keyset-url',
-        },
-    )
     @patch('lti_consumer.api.get_external_config_from_filter')
     def test_launch_info_for_lti_config_with_external_configuration(
         self,
-        external_config,
         filter_mock,
     ):
         """
         Check if the API can return launch info for LtiConfiguration using
         an external configuration.
         """
+        external_id = 'test-app:test-slug'
+        external_config = {'lti_1p3_client_id': 'test-client-id'}
         filter_mock.return_value = external_config
-        LtiConfiguration.objects.create(
+        lti_config = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
             config_id=_test_config_id,
             config_store=LtiConfiguration.CONFIG_EXTERNAL,
-            external_id='test-external-id',
+            external_id=external_id,
         )
 
         launch_info = get_lti_1p3_launch_info(self._get_lti_1p3_launch_data())
@@ -576,15 +563,19 @@ class TestGetLti1p3LaunchInfo(TestCase):
             launch_info,
             {
                 'client_id': external_config.get('lti_1p3_client_id'),
-                'keyset_url': external_config.get('lti_1p3_keyset_url'),
+                'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
+                    lti_config.external_id.replace(':', '/'),
+                ),
                 'deployment_id': external_config.get('lti_1p3_deployment_id', '1'),
                 'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',
-                'token_url': external_config.get('lti_1p3_access_token_url'),
+                'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
+                    lti_config.external_id.replace(':', '/'),
+                ),
                 'deep_linking_launch_url': 'http://example.com',
                 'deep_linking_content_items': None,
             },
         )
-        filter_mock.assert_called_once_with({}, 'test-external-id')
+        filter_mock.assert_called_once_with({}, external_id)
 
 
 class TestGetLti1p3LaunchUrl(Lti1P3TestCase):

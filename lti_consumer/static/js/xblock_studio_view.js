@@ -78,9 +78,12 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
         const configType = $(element).find('#xb-field-edit-config_type').val();
         const databaseConfigHiddenFields = lti1P1FieldList.concat(lti1P3FieldList);
         const externalConfigHiddenFields = lti1P1FieldList.concat([
+            'lti_1p3_oidc_url',
+            'lti_1p3_launch_url',
             'lti_1p3_tool_key_mode',
             'lti_1p3_tool_keyset_url',
             'lti_1p3_tool_public_key',
+            'lti_advantage_deep_linking_launch_url',
         ]);
         const fieldsToHide = [];
 
