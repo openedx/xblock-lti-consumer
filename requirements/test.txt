@@ -26,11 +26,11 @@ bleach==6.0.0
     # via
     #   -r requirements/base.txt
     #   readme-renderer
-boto3==1.28.36
+boto3==1.28.40
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.36
+botocore==1.31.40
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -279,7 +279,7 @@ python-slugify==8.0.1
     # via
     #   code-annotations
     #   cookiecutter
-pytz==2023.3
+pytz==2023.3.post1
     # via
     #   -r requirements/base.txt
     #   django

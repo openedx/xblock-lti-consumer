@@ -28,5 +28,5 @@ tox==3.28.0
     #   -r requirements/tox.in
 typing-extensions==4.7.1
     # via filelock
-virtualenv==20.24.3
+virtualenv==20.24.4
     # via tox
