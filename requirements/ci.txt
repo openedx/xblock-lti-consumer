@@ -28,14 +28,12 @@ binaryornot==0.4.4
     #   -r requirements/test.txt
     #   cookiecutter
 bleach==6.0.0
-    # via
-    #   -r requirements/test.txt
-    #   readme-renderer
-boto3==1.28.40
+    # via -r requirements/test.txt
+boto3==1.28.45
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.31.40
+botocore==1.31.45
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -262,6 +260,10 @@ newrelic==9.0.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
+nh3==0.2.14
+    # via
+    #   -r requirements/test.txt
+    #   readme-renderer
 oauthlib==3.2.2
     # via -r requirements/test.txt
 openedx-django-pyfs==3.4.0
@@ -372,7 +374,7 @@ pyyaml==6.0.1
     #   code-annotations
     #   cookiecutter
     #   xblock
-readme-renderer==41.0
+readme-renderer==42.0
     # via
     #   -r requirements/test.txt
     #   twine
@@ -470,7 +472,7 @@ urllib3==1.26.16
     #   botocore
     #   requests
     #   twine
-virtualenv==20.24.4
+virtualenv==20.24.5
     # via
     #   -r requirements/tox.txt
     #   tox
