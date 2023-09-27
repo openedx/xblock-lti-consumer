@@ -1,12 +1,12 @@
 """
 Unit tests for LtiConsumerXBlock
 """
-
 import json
 import logging
+import string
 from datetime import timedelta
 from itertools import product
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch, call
 
 import ddt
 from Cryptodome.PublicKey import RSA
@@ -185,8 +185,9 @@ class TestProperties(TestLtiConsumerXBlock):
 
     def test_validate_external_config_with_external_config_type(self):
         """Test external config ID with external config type."""
+        slug = f'{string.digits}{string.ascii_letters}_-'
         self.xblock.config_type = 'external'
-        self.xblock.external_config = '1'
+        self.xblock.external_config = f'{slug}:{slug}'
 
         validation = self.xblock.validate()
 
@@ -219,10 +220,37 @@ class TestProperties(TestLtiConsumerXBlock):
 
         self.xblock.validate()
 
+        add_mock.assert_has_calls([
+            call(mock_validation_message(
+                'error',
+                'Reusable configuration ID must be set when using external config.',
+            )),
+            call(mock_validation_message(
+                'error',
+                'Reusable configuration ID should be a string in "x:y" format.',
+            )),
+        ])
+
+    @ddt.data('apptest', 'app:', ':test', 'app::test', f'{string.punctuation}:{string.punctuation}')
+    @patch('lti_consumer.lti_xblock.ValidationMessage')
+    @patch.object(Validation, 'add')
+    def test_validate_invalid_external_config_with_external_config_type(
+        self,
+        external_id,
+        add_mock,
+        mock_validation_message,
+    ):
+        """Test with invalid external config ID using an external config type."""
+        mock_validation_message.ERROR.return_value = 'error'
+        self.xblock.config_type = 'external'
+        self.xblock.external_config = external_id
+
+        self.xblock.validate()
+
         add_mock.assert_called_once_with(
             mock_validation_message(
                 'error',
-                'Reusable configuration ID must be set when using external config.',
+                'Reusable configuration ID should be a string in "x:y" format.',
             ),
         )
 

@@ -25,7 +25,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
-from lti_consumer.exceptions import LtiError
+from lti_consumer.exceptions import LtiError, ExternalConfigurationNotFound
 from lti_consumer.lti_1p3.consumer import LtiConsumer1p3, LtiProctoringConsumer
 from lti_consumer.lti_1p3.exceptions import (BadJwtSignature, InvalidClaimValue, Lti1p3Exception,
                                              LtiDeepLinkingContentTypeNotSupported, MalformedJwtToken,
@@ -122,7 +122,7 @@ def public_keyset_endpoint(
             lti_config = get_external_config_from_filter({}, external_id)
 
             if not lti_config:
-                raise ValueError("External LTI configuration not found")
+                raise ExternalConfigurationNotFound("External LTI configuration not found")
 
             version = lti_config.get("version")
             public_jwk = lti_config.get("lti_1p3_public_jwk", {})
@@ -138,7 +138,7 @@ def public_keyset_endpoint(
         response = JsonResponse(public_jwk)
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
-    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ValueError, LtiError) as exc:
+    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ExternalConfigurationNotFound, LtiError) as exc:
         log.info(
             "Error while retrieving keyset for ID %s: %s",
             usage_id or lti_config_id or external_id,
@@ -431,7 +431,7 @@ def access_token_endpoint(
             lti_config = get_external_config_from_filter({}, external_id)
 
             if not lti_config:
-                raise ValueError("External LTI configuration not found")
+                raise ExternalConfigurationNotFound("External LTI configuration not found")
 
             version = lti_config.get("version")
             # External LTI configurations don't have a get_lti_consumer method
@@ -448,7 +448,7 @@ def access_token_endpoint(
                 tool_key=lti_config.get("lti_1p3_tool_public_key"),
                 tool_keyset_url=lti_config.get("lti_1p3_tool_keyset_url"),
             )
-    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ValueError) as exc:
+    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ExternalConfigurationNotFound) as exc:
         log.info(
             "Error while retrieving access token for ID %s: %s",
             usage_id or lti_config_id or external_id,

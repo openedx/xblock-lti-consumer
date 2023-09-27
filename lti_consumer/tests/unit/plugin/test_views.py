@@ -81,7 +81,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
         ('lti_consumer:lti_consumer.public_keyset_endpoint_via_external_id', ['x', 'x']),
     )
     @ddt.unpack
-    def test_non_existant_configuration(self, url, args):
+    def test_nonexistent_configuration(self, url, args):
         """
         Check that 404 is returned when there is no configuration found.
         """
@@ -206,7 +206,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.config.version = LtiConfiguration.LTI_1P3
         self.config.save()
 
-    def test_non_existant_lti_config(self):
+    def test_nonexistent_lti_config(self):
         """
         Check that a 404 is returned when LtiConfiguration for a location doesn't exist
         """
@@ -775,7 +775,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         ('lti_consumer:lti_consumer.access_token_via_external_id', ['x', 'x']),
     )
     @ddt.unpack
-    def test_non_existant_configuration(self, url, args):
+    def test_nonexistent_configuration(self, url, args):
         """
         Check that 404 is returned when there is no configuration found.
         """

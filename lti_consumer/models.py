@@ -251,6 +251,10 @@ class LtiConfiguration(models.Model):
             raise ValidationError({
                 "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
             })
+        if self.config_store == self.CONFIG_EXTERNAL and self.external_id is None:
+            raise ValidationError({
+                "config_store": _("LTI Configuration using reusable configuration needs a external ID set."),
+            })
         if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
             if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
                 raise ValidationError({
@@ -391,6 +395,9 @@ class LtiConfiguration(models.Model):
         """
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_ags_mode
+        elif self.config_store == self.CONFIG_EXTERNAL:
+            config = get_external_config_from_filter({}, self.external_id)
+            return config.get('lti_advantage_ags_mode')
         else:
             block = compat.load_enough_xblock(self.location)
             return block.lti_advantage_ags_mode
@@ -401,6 +408,9 @@ class LtiConfiguration(models.Model):
         """
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_enabled
+        elif self.config_store == self.CONFIG_EXTERNAL:
+            config = get_external_config_from_filter({}, self.external_id)
+            return config.get('lti_advantage_deep_linking_enabled')
         else:
             block = compat.load_enough_xblock(self.location)
             return block.lti_advantage_deep_linking_enabled
@@ -424,6 +434,9 @@ class LtiConfiguration(models.Model):
         """
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_enable_nrps
+        elif self.config_store == self.CONFIG_EXTERNAL:
+            config = get_external_config_from_filter({}, self.external_id)
+            return config.get('lti_advantage_enable_nrps')
         else:
             block = compat.load_enough_xblock(self.location)
             return block.lti_1p3_enable_nrps

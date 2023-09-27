@@ -107,6 +107,8 @@ CUSTOM_PARAMETER_REGEX = re.compile(
 )
 # Catch a value enclosed by ${}, the value enclosed can contain any charater except "=".
 CUSTOM_PARAMETER_TEMPLATE_REGEX = re.compile(r'^(\${[^%s]+})$' % CUSTOM_PARAMETER_SEPARATOR)
+SLUG_CHARACTER_CLASS = '[-a-zA-Z0-9_]'
+EXTERNAL_ID_REGEX = re.compile(rf'^({SLUG_CHARACTER_CLASS}+:{SLUG_CHARACTER_CLASS}+)$')
 
 
 def parse_handler_suffix(suffix):
@@ -696,6 +698,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             _ = self.runtime.service(self, 'i18n').ugettext
             validation.add(ValidationMessage(ValidationMessage.ERROR, str(
                 _('Reusable configuration ID must be set when using external config.'),
+            )))
+
+        # Validate external config ID format.
+        if data.config_type == 'external' and not EXTERNAL_ID_REGEX.match(str(data.external_config)):
+            _ = self.runtime.service(self, 'i18n').ugettext
+            validation.add(ValidationMessage(ValidationMessage.ERROR, str(
+                _('Reusable configuration ID should be a string in "x:y" format.'),
             )))
 
         # keyset URL and public key are mutually exclusive

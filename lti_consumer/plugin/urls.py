@@ -31,8 +31,10 @@ urlpatterns = [
         public_keyset_endpoint,
         name='lti_consumer.public_keyset_endpoint_via_location'
     ),
+    # The external ID is split into slashes to make the URL more readable
+    # and avoid clashing with USAGE_ID_PATTERN.
     path(
-        'lti_consumer/v1/public_keysets/<str:external_app>/<slug:external_slug>',
+        'lti_consumer/v1/public_keysets/<slug:external_app>/<slug:external_slug>',
         public_keyset_endpoint,
         name='lti_consumer.public_keyset_endpoint_via_external_id'
     ),
@@ -51,8 +53,10 @@ urlpatterns = [
         access_token_endpoint,
         name='lti_consumer.access_token_via_location'
     ),
+    # The external ID is split into slashes to make the URL more readable
+    # and avoid clashing with USAGE_ID_PATTERN.
     path(
-        'lti_consumer/v1/token/<str:external_app>/<slug:external_slug>',
+        'lti_consumer/v1/token/<slug:external_app>/<slug:external_slug>',
         access_token_endpoint,
         name='lti_consumer.access_token_via_external_id'
     ),
