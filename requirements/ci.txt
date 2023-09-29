@@ -16,7 +16,7 @@ asgiref==3.7.2
     # via
     #   -r requirements/test.txt
     #   django
-astroid==2.15.6
+astroid==2.15.8
     # via
     #   -r requirements/test.txt
     #   pylint
@@ -29,11 +29,11 @@ binaryornot==0.4.4
     #   cookiecutter
 bleach==6.0.0
     # via -r requirements/test.txt
-boto3==1.28.50
+boto3==1.28.54
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.31.50
+botocore==1.31.54
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -71,7 +71,7 @@ code-annotations==1.5.0
     # via
     #   -r requirements/test.txt
     #   edx-lint
-cookiecutter==2.3.0
+cookiecutter==2.3.1
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
@@ -81,7 +81,7 @@ coverage==6.5.0
     #   coveralls
 coveralls==3.3.1
     # via -r requirements/test.txt
-cryptography==41.0.3
+cryptography==41.0.4
     # via
     #   -r requirements/test.txt
     #   secretstorage
@@ -115,7 +115,7 @@ django-appconf==1.0.5
     # via
     #   -r requirements/test.txt
     #   django-statici18n
-django-config-models==2.5.0
+django-config-models==2.5.1
     # via -r requirements/test.txt
 django-crum==0.7.9
     # via
@@ -149,7 +149,7 @@ edx-django-utils==5.7.0
     #   django-config-models
 edx-lint==5.3.4
     # via -r requirements/test.txt
-edx-opaque-keys[django]==2.5.0
+edx-opaque-keys[django]==2.5.1
     # via
     #   -r requirements/test.txt
     #   edx-ccx-keys
@@ -182,7 +182,7 @@ importlib-metadata==6.8.0
     #   -r requirements/test.txt
     #   keyring
     #   twine
-importlib-resources==6.0.1
+importlib-resources==6.1.0
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -256,7 +256,7 @@ more-itertools==10.1.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
-newrelic==9.0.0
+newrelic==9.1.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -319,7 +319,7 @@ pygments==2.16.1
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==2.17.5
+pylint==2.17.6
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -493,7 +493,7 @@ wrapt==1.15.0
     # via
     #   -r requirements/test.txt
     #   astroid
-xblock[django]==1.7.0
+xblock[django]==1.8.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
