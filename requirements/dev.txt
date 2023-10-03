@@ -16,11 +16,11 @@ attrs==23.1.0
     # via -r requirements/base.txt
 bleach==6.0.0
     # via -r requirements/base.txt
-boto3==1.28.54
+boto3==1.28.58
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.54
+botocore==1.31.58
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -29,11 +29,11 @@ certifi==2023.7.22
     # via
     #   -r requirements/base.txt
     #   requests
-cffi==1.15.1
+cffi==1.16.0
     # via
     #   -r requirements/base.txt
     #   pynacl
-charset-normalizer==3.2.0
+charset-normalizer==3.3.0
     # via
     #   -r requirements/base.txt
     #   requests
@@ -194,7 +194,7 @@ requests==2.31.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-s3transfer==0.6.2
+s3transfer==0.7.0
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -225,7 +225,7 @@ typing-extensions==4.8.0
     #   -r requirements/base.txt
     #   asgiref
     #   edx-opaque-keys
-urllib3==1.26.16
+urllib3==1.26.17
     # via
     #   -r requirements/base.txt
     #   botocore

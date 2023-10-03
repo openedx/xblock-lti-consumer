@@ -12,17 +12,17 @@ attrs==23.1.0
     # via -r requirements/base.in
 bleach==6.0.0
     # via -r requirements/base.in
-boto3==1.28.54
+boto3==1.28.58
     # via fs-s3fs
-botocore==1.31.54
+botocore==1.31.58
     # via
     #   boto3
     #   s3transfer
 certifi==2023.7.22
     # via requests
-cffi==1.15.1
+cffi==1.16.0
     # via pynacl
-charset-normalizer==3.2.0
+charset-normalizer==3.3.0
     # via requests
 click==8.1.7
     # via edx-django-utils
@@ -135,7 +135,7 @@ pyyaml==6.0.1
     # via xblock
 requests==2.31.0
     # via pyjwkest
-s3transfer==0.6.2
+s3transfer==0.7.0
     # via boto3
 simplejson==3.19.1
     # via xblock-utils
@@ -157,7 +157,7 @@ typing-extensions==4.8.0
     # via
     #   asgiref
     #   edx-opaque-keys
-urllib3==1.26.16
+urllib3==1.26.17
     # via
     #   -c requirements/constraints.txt
     #   botocore
