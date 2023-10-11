@@ -6,7 +6,7 @@ import logging
 import string
 from datetime import timedelta
 from itertools import product
-from unittest.mock import Mock, PropertyMock, patch, call
+from unittest.mock import Mock, PropertyMock, patch
 
 import ddt
 from Cryptodome.PublicKey import RSA
@@ -220,16 +220,12 @@ class TestProperties(TestLtiConsumerXBlock):
 
         self.xblock.validate()
 
-        add_mock.assert_has_calls([
-            call(mock_validation_message(
+        add_mock.assert_called_once_with(
+            mock_validation_message(
                 'error',
-                'Reusable configuration ID must be set when using external config.',
-            )),
-            call(mock_validation_message(
-                'error',
-                'Reusable configuration ID should be a string in "x:y" format.',
-            )),
-        ])
+                'Reusable configuration ID must be set when using external config (Example: "x:y").',
+            ),
+        )
 
     @ddt.data('apptest', 'app:', ':test', 'app::test', f'{string.punctuation}:{string.punctuation}')
     @patch('lti_consumer.lti_xblock.ValidationMessage')
@@ -250,7 +246,7 @@ class TestProperties(TestLtiConsumerXBlock):
         add_mock.assert_called_once_with(
             mock_validation_message(
                 'error',
-                'Reusable configuration ID should be a string in "x:y" format.',
+                'Reusable configuration ID must be set when using external config (Example: "x:y").',
             ),
         )
 

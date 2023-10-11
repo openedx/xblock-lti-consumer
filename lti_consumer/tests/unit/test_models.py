@@ -377,6 +377,11 @@ class TestLtiConfigurationModel(TestCase):
         with self.assertRaises(ValidationError):
             self.lti_1p3_config.clean()
 
+        self.lti_1p3_config.external_id = 'invalid-external-id'
+
+        with self.assertRaises(ValidationError):
+            self.lti_1p3_config.clean()
+
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
 
         self.lti_1p3_config_db.lti_1p3_tool_keyset_url = ''

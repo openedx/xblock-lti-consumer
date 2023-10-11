@@ -15,6 +15,7 @@ from ccx_keys.locator import CCXBlockUsageLocator
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from opaque_keys.edx.keys import CourseKey
 from config_models.models import ConfigurationModel
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from lti_consumer.filters import get_external_config_from_filter
 
@@ -31,6 +32,7 @@ from lti_consumer.utils import (
     get_lti_nrps_context_membership_url,
     choose_lti_1p3_redirect_uris,
     model_to_dict,
+    EXTERNAL_ID_REGEX,
 )
 
 log = logging.getLogger(__name__)
@@ -251,9 +253,11 @@ class LtiConfiguration(models.Model):
             raise ValidationError({
                 "config_store": _("LTI Configuration stores on XBlock needs a block location set."),
             })
-        if self.config_store == self.CONFIG_EXTERNAL and self.external_id is None:
+        if self.config_store == self.CONFIG_EXTERNAL and not EXTERNAL_ID_REGEX.match(str(self.external_id)):
             raise ValidationError({
-                "config_store": _("LTI Configuration using reusable configuration needs a external ID set."),
+                "config_store": _(
+                    'LTI Configuration using reusable configuration needs a external ID in "x:y" format.',
+                ),
             })
         if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
             if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
@@ -368,6 +372,13 @@ class LtiConfiguration(models.Model):
         self._generate_lti_1p3_keys_if_missing()
         return json.loads(self.lti_1p3_internal_public_jwk)
 
+    @cached_property
+    def external_config(self):
+        """
+        Return the external resuable configuration.
+        """
+        return get_external_config_from_filter({}, self.external_id)
+
     def _get_lti_1p1_consumer(self):
         """
         Return a class of LTI 1.1 consumer.
@@ -378,10 +389,9 @@ class LtiConfiguration(models.Model):
             key, secret = block.lti_provider_key_secret
             launch_url = block.launch_url
         elif self.config_store == self.CONFIG_EXTERNAL:
-            config = get_external_config_from_filter({}, self.external_id)
-            key = config.get("lti_1p1_client_key")
-            secret = config.get("lti_1p1_client_secret")
-            launch_url = config.get("lti_1p1_launch_url")
+            key = self.external_config.get("lti_1p1_client_key")
+            secret = self.external_config.get("lti_1p1_client_secret")
+            launch_url = self.external_config.get("lti_1p1_launch_url")
         else:
             key = self.lti_1p1_client_key
             secret = self.lti_1p1_client_secret
@@ -396,8 +406,7 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_ags_mode
         elif self.config_store == self.CONFIG_EXTERNAL:
-            config = get_external_config_from_filter({}, self.external_id)
-            return config.get('lti_advantage_ags_mode')
+            return self.external_config.get('lti_advantage_ags_mode')
         else:
             block = compat.load_enough_xblock(self.location)
             return block.lti_advantage_ags_mode
@@ -409,8 +418,7 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_enabled
         elif self.config_store == self.CONFIG_EXTERNAL:
-            config = get_external_config_from_filter({}, self.external_id)
-            return config.get('lti_advantage_deep_linking_enabled')
+            return self.external_config.get('lti_advantage_deep_linking_enabled')
         else:
             block = compat.load_enough_xblock(self.location)
             return block.lti_advantage_deep_linking_enabled
@@ -422,8 +430,7 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_deep_linking_launch_url
         elif self.config_store == self.CONFIG_EXTERNAL:
-            config = get_external_config_from_filter({}, self.external_id)
-            return config.get('lti_advantage_deep_linking_launch_url')
+            return self.external_config.get('lti_advantage_deep_linking_launch_url')
         else:
             block = compat.load_enough_xblock(self.location)
             return block.lti_advantage_deep_linking_launch_url
@@ -435,8 +442,7 @@ class LtiConfiguration(models.Model):
         if self.config_store == self.CONFIG_ON_DB:
             return self.lti_advantage_enable_nrps
         elif self.config_store == self.CONFIG_EXTERNAL:
-            config = get_external_config_from_filter({}, self.external_id)
-            return config.get('lti_advantage_enable_nrps')
+            return self.external_config.get('lti_advantage_enable_nrps')
         else:
             block = compat.load_enough_xblock(self.location)
             return block.lti_1p3_enable_nrps
@@ -578,22 +584,20 @@ class LtiConfiguration(models.Model):
                 tool_keyset_url=self.lti_1p3_tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_EXTERNAL:
-            config = get_external_config_from_filter({}, self.external_id)
-
             consumer = consumer_class(
                 iss=get_lti_api_base(),
-                lti_oidc_url=config.get('lti_1p3_oidc_url'),
-                lti_launch_url=config.get('lti_1p3_launch_url'),
-                client_id=config.get('lti_1p3_client_id'),
+                lti_oidc_url=self.external_config.get('lti_1p3_oidc_url'),
+                lti_launch_url=self.external_config.get('lti_1p3_launch_url'),
+                client_id=self.external_config.get('lti_1p3_client_id'),
                 # Deployment ID hardcoded to 1 since
                 # we're not using multi-tenancy.
                 deployment_id='1',
-                rsa_key=config.get('lti_1p3_private_key'),
-                rsa_key_id=config.get('lti_1p3_private_key_id'),
+                rsa_key=self.external_config.get('lti_1p3_private_key'),
+                rsa_key_id=self.external_config.get('lti_1p3_private_key_id'),
                 # Registered redirect uris
                 redirect_uris=self.get_lti_1p3_redirect_uris(),
-                tool_key=config.get('lti_1p3_tool_public_key'),
-                tool_keyset_url=config.get('lti_1p3_tool_keyset_url'),
+                tool_key=self.external_config.get('lti_1p3_tool_public_key'),
+                tool_keyset_url=self.external_config.get('lti_1p3_tool_keyset_url'),
             )
         else:
             # This should not occur, but raise an error if self.config_store is not
@@ -621,10 +625,9 @@ class LtiConfiguration(models.Model):
         Return pre-registered redirect uris or sensible defaults
         """
         if self.config_store == self.CONFIG_EXTERNAL:
-            config = get_external_config_from_filter({}, self.external_id)
-            redirect_uris = config.get('lti_1p3_redirect_uris')
-            launch_url = config.get('lti_1p3_launch_url')
-            deep_link_launch_url = config.get('lti_advantage_deep_linking_launch_url')
+            redirect_uris = self.external_config.get('lti_1p3_redirect_uris')
+            launch_url = self.external_config.get('lti_1p3_launch_url')
+            deep_link_launch_url = self.external_config.get('lti_advantage_deep_linking_launch_url')
         elif self.config_store == self.CONFIG_ON_DB:
             redirect_uris = self.lti_1p3_redirect_uris
             launch_url = self.lti_1p3_launch_url

@@ -82,6 +82,7 @@ from .utils import (
     external_config_filter_enabled,
     external_user_id_1p1_launches_enabled,
     database_config_enabled,
+    EXTERNAL_ID_REGEX,
 )
 
 log = logging.getLogger(__name__)
@@ -107,8 +108,6 @@ CUSTOM_PARAMETER_REGEX = re.compile(
 )
 # Catch a value enclosed by ${}, the value enclosed can contain any charater except "=".
 CUSTOM_PARAMETER_TEMPLATE_REGEX = re.compile(r'^(\${[^%s]+})$' % CUSTOM_PARAMETER_SEPARATOR)
-SLUG_CHARACTER_CLASS = '[-a-zA-Z0-9_]'
-EXTERNAL_ID_REGEX = re.compile(rf'^({SLUG_CHARACTER_CLASS}+:{SLUG_CHARACTER_CLASS}+)$')
 
 
 def parse_handler_suffix(suffix):
@@ -693,18 +692,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 _('Custom Parameters should be strings in "x=y" format.'),
             )))
 
-        # Validate external config ID is not missing.
-        if data.config_type == 'external' and not data.external_config:
+        # Validate the external config ID.
+        if (
+            data.config_type == 'external' and not
+            (data.external_config and EXTERNAL_ID_REGEX.match(str(data.external_config)))
+        ):
             _ = self.runtime.service(self, 'i18n').ugettext
             validation.add(ValidationMessage(ValidationMessage.ERROR, str(
-                _('Reusable configuration ID must be set when using external config.'),
-            )))
-
-        # Validate external config ID format.
-        if data.config_type == 'external' and not EXTERNAL_ID_REGEX.match(str(data.external_config)):
-            _ = self.runtime.service(self, 'i18n').ugettext
-            validation.add(ValidationMessage(ValidationMessage.ERROR, str(
-                _('Reusable configuration ID should be a string in "x:y" format.'),
+                _('Reusable configuration ID must be set when using external config (Example: "x:y").'),
             )))
 
         # keyset URL and public key are mutually exclusive
