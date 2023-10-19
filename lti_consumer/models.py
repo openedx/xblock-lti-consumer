@@ -288,7 +288,7 @@ class LtiConfiguration(models.Model):
         otherwise, it will try to query any children configuration and update their fields using
         the current configuration values.
         """
-        EXCLUDED_FIELDS = ['id', 'config_id', 'location']
+        EXCLUDED_FIELDS = ['id', 'config_id', 'location', 'external_config']
 
         if isinstance(self.location, CCXBlockUsageLocator):
             # Query main configuration using main location.

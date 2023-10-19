@@ -485,7 +485,10 @@ class TestLtiConfigurationModel(TestCase):
             call(location=self.lti_1p3_config.location.to_block_locator()),
             call().first(),
         ])
-        model_to_dict_mock.assert_called_once_with(filter_mock.return_value.first(), ['id', 'config_id', 'location'])
+        model_to_dict_mock.assert_called_once_with(
+            filter_mock.return_value.first(),
+            ['id', 'config_id', 'location', 'external_config'],
+        )
         setattr_mock.assert_called_once_with(self.lti_1p3_config, 'test', 'test')
 
     @patch('lti_consumer.models.isinstance', return_value=False)
@@ -508,7 +511,10 @@ class TestLtiConfigurationModel(TestCase):
             call().filter().exclude(id=self.lti_1p3_config.pk),
             call().filter().exclude().update(**model_to_dict_mock),
         ])
-        model_to_dict_mock.assert_called_once_with(self.lti_1p3_config, ['id', 'config_id', 'location'])
+        model_to_dict_mock.assert_called_once_with(
+            self.lti_1p3_config,
+            ['id', 'config_id', 'location', 'external_config'],
+        )
 
     @patch('lti_consumer.models.isinstance', return_value=False)
     @patch.object(LtiConfiguration.objects, 'filter', side_effect=IndexError())

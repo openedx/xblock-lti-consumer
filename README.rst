@@ -275,6 +275,30 @@ This XBlock supports `LTI 2.0 Result Service 2.0 <https://www.imsglobal.org/lti/
 Please see the `LTI 2.0 Result Service 2.0 instructions <https://github.com/openedx/xblock-lti-consumer/tree/master/docs/result_service.rst>`_
 for testing the LTI 2.0 Result Service 2.0 implementation.
 
+LTI Reusable configuration
+**************************
+
+The LTI Consumer XBlock supports configuration reusability via plugins.
+It is compatible with both LTI 1.1 and LTI 1.3.
+All values (including the access token and keyset URL for LTI 1.3)
+are shared across the XBlocks with the same external configuration ID.
+This eliminates the need to have a tool deployment for each XBlock.
+
+How to Setup
+============
+
+1. Install and setup the openedx-ltistore plugin on the LMS and studio
+   (https://github.com/open-craft/openedx-ltistore):
+2. Go to LMS admin > WAFFLE_UTILS > Waffle flag course override
+   (http://localhost:18010/admin/waffle_utils/waffleflagcourseoverridemodel/).
+3. Create a waffle flag course override with these values:
+    - Waffle flag: lti_consumer.enable_external_config_filter
+    - Course id: <your course id>
+    - Override choice: Force On
+    - Enabled: True
+4. Create a new external LTI configuration and use it on the XBlock.
+   (This is explaioned on the README of the openedx-ltistore repository).
+
 Getting Help
 ************
 
