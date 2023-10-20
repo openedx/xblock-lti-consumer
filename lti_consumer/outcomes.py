@@ -10,7 +10,10 @@ from xml.sax.saxutils import escape
 from urllib.parse import unquote
 
 from lxml import etree
-from xblockutils.resources import ResourceLoader
+try:
+    from xblock.utils.resources import ResourceLoader
+except ModuleNotFoundError:  # For backward compatibility with releases older than Quince.
+    from xblockutils.resources import ResourceLoader
 
 from .exceptions import LtiError
 from .lti_1p1.oauth import verify_oauth_body_signature

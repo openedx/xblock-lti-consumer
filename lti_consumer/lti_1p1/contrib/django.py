@@ -3,7 +3,10 @@ This module provides functionality for rendering an LTI embed without an XBlock.
 """
 
 # See comment in docstring for explanation of the usage of ResourceLoader
-from xblockutils.resources import ResourceLoader
+try:
+    from xblock.utils.resources import ResourceLoader
+except ModuleNotFoundError:  # For backward compatibility with releases older than Quince.
+    from xblockutils.resources import ResourceLoader
 
 from lti_consumer.track import track_event
 
@@ -44,7 +47,7 @@ def lti_embed(
     generate any response to encapsulate this content. The caller of this method
     must render the HTML on their own.
 
-    Note: This method uses xblockutils.resources.ResourceLoader to load the HTML
+    Note: This method uses xblock.utils.resources.ResourceLoader to load the HTML
     template used. The rationale for this is that ResourceLoader is agnostic
     to XBlock code and functionality. It is recommended that this remain in use
     until LTI1.3 support is merged, or a better means of loading the template is

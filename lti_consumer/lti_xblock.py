@@ -66,8 +66,12 @@ from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.validation import ValidationMessage
-from xblockutils.resources import ResourceLoader
-from xblockutils.studio_editable import StudioEditableXBlockMixin
+try:
+    from xblock.utils.resources import ResourceLoader
+    from xblock.utils.studio_editable import StudioEditableXBlockMixin
+except ModuleNotFoundError:  # For backward compatibility with releases older than Quince.
+    from xblockutils.resources import ResourceLoader
+    from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .data import Lti1p3LaunchData
 from .exceptions import LtiError
