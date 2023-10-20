@@ -22,13 +22,13 @@ attrs==23.1.0
     # via -r requirements/base.txt
 binaryornot==0.4.4
     # via cookiecutter
-bleach==6.0.0
+bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.28.58
+boto3==1.28.64
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.58
+botocore==1.31.64
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -65,7 +65,7 @@ ddt==1.6.0
     # via -r requirements/quality.in
 dill==0.3.7
     # via pylint
-django==3.2.21
+django==3.2.22
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.txt
@@ -115,6 +115,7 @@ edx-opaque-keys[django]==2.5.1
     # via
     #   -r requirements/base.txt
     #   edx-ccx-keys
+    #   edx-opaque-keys
 fs==2.4.16
     # via
     #   -r requirements/base.txt
@@ -161,6 +162,7 @@ lxml==4.9.3
 mako==1.2.4
     # via
     #   -r requirements/base.txt
+    #   xblock
     #   xblock-utils
 markdown-it-py==3.0.0
     # via rich
@@ -192,11 +194,11 @@ pbr==5.11.1
     #   stevedore
 platformdirs==3.11.0
     # via pylint
-psutil==5.9.5
+psutil==5.9.6
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-pycodestyle==2.11.0
+pycodestyle==2.11.1
     # via -r requirements/quality.in
 pycparser==2.21
     # via
@@ -269,9 +271,10 @@ s3transfer==0.7.0
     # via
     #   -r requirements/base.txt
     #   boto3
-simplejson==3.19.1
+simplejson==3.19.2
     # via
     #   -r requirements/base.txt
+    #   xblock
     #   xblock-sdk
     #   xblock-utils
 six==1.16.0
@@ -333,14 +336,15 @@ webob==1.8.7
     #   xblock-sdk
 wrapt==1.15.0
     # via astroid
-xblock[django]==1.8.0
+xblock[django]==1.8.1
     # via
     #   -r requirements/base.txt
+    #   xblock
     #   xblock-sdk
     #   xblock-utils
 xblock-sdk==0.7.0
     # via -r requirements/quality.in
-xblock-utils==3.4.1
+xblock-utils==4.0.0
     # via -r requirements/base.txt
 
 # The following packages are considered to be unsafe in a requirements file:
