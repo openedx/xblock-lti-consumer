@@ -287,17 +287,18 @@ This eliminates the need to have a tool deployment for each XBlock.
 How to Setup
 ============
 
-1. Install and setup the openedx-ltistore plugin on the LMS and studio
-   (https://github.com/open-craft/openedx-ltistore):
-2. Go to LMS admin > WAFFLE_UTILS > Waffle flag course override
-   (http://localhost:18010/admin/waffle_utils/waffleflagcourseoverridemodel/).
+1. Install and setup the `openedx-ltistore`_ plugin on the LMS and Studio.
+2. Go to LMS admin -> WAFFLE_UTILS -> Waffle flag course override
+   (http://localhost:18000/admin/waffle_utils/waffleflagcourseoverridemodel/).
 3. Create a waffle flag course override with these values:
     - Waffle flag: lti_consumer.enable_external_config_filter
     - Course id: <your course id>
     - Override choice: Force On
     - Enabled: True
-4. Create a new external LTI configuration and use it on the XBlock.
-   (This is explaioned on the README of the openedx-ltistore repository).
+4. Create a new external LTI configuration and use it in the XBlock.
+   This is explained in the README of the `openedx-ltistore`_ repository.
+
+.. _openedx-ltistore: https://github.com/open-craft/openedx-ltistore
 
 Getting Help
 ************

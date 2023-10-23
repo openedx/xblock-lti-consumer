@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.7.0 - 2023-10-23
+------------------
+* Added LTI 1.3 reusable configuration compatibility.
+
 9.6.2 - 2023-08-22
 ------------------
 * Fix extra claims and custom parameters for LTI 1.3.
