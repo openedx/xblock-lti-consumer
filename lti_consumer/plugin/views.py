@@ -6,7 +6,7 @@ import urllib
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
@@ -25,8 +25,8 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
-from lti_consumer.exceptions import LtiError
-from lti_consumer.lti_1p3.consumer import LtiProctoringConsumer
+from lti_consumer.exceptions import LtiError, ExternalConfigurationNotFound
+from lti_consumer.lti_1p3.consumer import LtiConsumer1p3, LtiProctoringConsumer
 from lti_consumer.lti_1p3.exceptions import (BadJwtSignature, InvalidClaimValue, Lti1p3Exception,
                                              LtiDeepLinkingContentTypeNotSupported, MalformedJwtToken,
                                              MissingRequiredClaim, NoSuitableKeys, TokenSignatureExpired,
@@ -48,7 +48,8 @@ from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentIt
 from lti_consumer.plugin import compat
 from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
 from lti_consumer.track import track_event
-from lti_consumer.utils import _, get_data_from_cache, get_lti_1p3_context_types_claim
+from lti_consumer.utils import _, get_data_from_cache, get_lti_1p3_context_types_claim, get_lti_api_base
+from lti_consumer.filters import get_external_config_from_filter
 
 log = logging.getLogger(__name__)
 
@@ -83,21 +84,50 @@ def has_block_access(user, block, course_key):
 
 
 @require_http_methods(["GET"])
-def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
+def public_keyset_endpoint(
+    request,
+    usage_id=None,
+    lti_config_id=None,
+    external_app=None,
+    external_slug=None,
+):
     """
     Gate endpoint to fetch public keysets from a problem
 
     This is basically a passthrough function that uses the
     OIDC response parameter `login_hint` to locate the block
     and run the proper handler.
+
+    Arguments:
+        lti_config_id (UUID): config_id of the LtiConfiguration
+        usage_id (UsageKey): location of the Block
+        external_app (str): App name of the external LTI configuration
+        external_slug (str): Slug of the external LTI configuration.
+
+    Returns:
+        JsonResponse or Http404
     """
+    external_id = f"{external_app}:{external_slug}"
+
     try:
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
+            version = lti_config.version
+            public_jwk = lti_config.lti_1p3_public_jwk
         elif lti_config_id:
             lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
+            version = lti_config.version
+            public_jwk = lti_config.lti_1p3_public_jwk
+        elif external_app and external_slug:
+            lti_config = get_external_config_from_filter({}, external_id)
 
-        if lti_config.version != lti_config.LTI_1P3:
+            if not lti_config:
+                raise ExternalConfigurationNotFound("External LTI configuration not found")
+
+            version = lti_config.get("version")
+            public_jwk = lti_config.get("lti_1p3_public_jwk", {})
+
+        if version != LtiConfiguration.LTI_1P3:
             raise LtiError(
                 "LTI Error: LTI 1.1 blocks do not have a public keyset endpoint."
             )
@@ -105,14 +135,13 @@ def public_keyset_endpoint(request, usage_id=None, lti_config_id=None):
         # Retrieve block's Public JWK
         # The underlying method will generate a new Private-Public Pair if one does
         # not exist, and retrieve the values.
-        response = JsonResponse(lti_config.lti_1p3_public_jwk)
+        response = JsonResponse(public_jwk)
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
-    except (LtiError, InvalidKeyError, ObjectDoesNotExist) as exc:
+    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ExternalConfigurationNotFound, LtiError) as exc:
         log.info(
-            "Error while retrieving keyset for usage_id (%r) or lit_config_id (%s): %s",
-            usage_id,
-            lti_config_id,
+            "Error while retrieving keyset for ID %s: %s",
+            usage_id or lti_config_id or external_id,
             exc,
             exc_info=True,
         )
@@ -362,7 +391,13 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 @csrf_exempt
 @xframe_options_sameorigin
 @require_http_methods(["POST"])
-def access_token_endpoint(request, lti_config_id=None, usage_id=None):
+def access_token_endpoint(
+    request,
+    lti_config_id=None,
+    usage_id=None,
+    external_app=None,
+    external_slug=None,
+):
     """
     Gate endpoint to enable tools to retrieve access tokens for the LTI 1.3 tool.
 
@@ -371,6 +406,8 @@ def access_token_endpoint(request, lti_config_id=None, usage_id=None):
     Arguments:
         lti_config_id (UUID): config_id of the LtiConfiguration
         usage_id (UsageKey): location of the Block
+        external_app (str): App name of the external LTI configuration
+        external_slug (str): Slug of the external LTI configuration.
 
     Returns:
         JsonResponse or Http404
@@ -379,21 +416,50 @@ def access_token_endpoint(request, lti_config_id=None, usage_id=None):
         Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
         Failure: https://tools.ietf.org/html/rfc6749#section-5.2
     """
+    external_id = f"{external_app}:{external_slug}"
 
     try:
-        if lti_config_id:
+        if usage_id:
+            lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
+            version = lti_config.version
+            lti_consumer = lti_config.get_lti_consumer()
+        elif lti_config_id:
             lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
-        else:
-            usage_key = UsageKey.from_string(usage_id)
-            lti_config = LtiConfiguration.objects.get(location=usage_key)
-    except LtiConfiguration.DoesNotExist as exc:
-        log.warning("Error getting the LTI configuration with id %r: %s", lti_config_id, exc, exc_info=True)
+            version = lti_config.version
+            lti_consumer = lti_config.get_lti_consumer()
+        elif external_app and external_slug:
+            lti_config = get_external_config_from_filter({}, external_id)
+
+            if not lti_config:
+                raise ExternalConfigurationNotFound("External LTI configuration not found")
+
+            version = lti_config.get("version")
+            # External LTI configurations don't have a get_lti_consumer method
+            # so we initialize the LtiConsumer1p3 class using the external config data.
+            lti_consumer = LtiConsumer1p3(
+                iss=get_lti_api_base(),
+                lti_oidc_url=None,
+                lti_launch_url=None,
+                client_id=lti_config.get("lti_1p3_client_id"),
+                deployment_id=None,
+                rsa_key=lti_config.get("lti_1p3_private_key"),
+                rsa_key_id=lti_config.get("lti_1p3_private_key_id"),
+                redirect_uris=None,
+                tool_key=lti_config.get("lti_1p3_tool_public_key"),
+                tool_keyset_url=lti_config.get("lti_1p3_tool_keyset_url"),
+            )
+    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ExternalConfigurationNotFound) as exc:
+        log.info(
+            "Error while retrieving access token for ID %s: %s",
+            usage_id or lti_config_id or external_id,
+            exc,
+            exc_info=True,
+        )
         raise Http404 from exc
 
-    if lti_config.version != lti_config.LTI_1P3:
+    if version != LtiConfiguration.LTI_1P3:
         return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
 
-    lti_consumer = lti_config.get_lti_consumer()
     try:
         token = lti_consumer.access_token(
             dict(urllib.parse.parse_qsl(

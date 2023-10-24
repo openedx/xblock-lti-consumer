@@ -141,10 +141,18 @@ def get_lti_1p3_launch_info(
             deep_linking_content_items = [item.attributes for item in dl_content_items]
 
     config_id = lti_config.config_id
+    client_id = lti_config.lti_1p3_client_id
+
+    # Display LTI launch information from external configuration.
+    # if an external configuration is being used.
+    if lti_config.config_store == lti_config.CONFIG_EXTERNAL:
+        external_config = get_external_config_from_filter({}, lti_config.external_id)
+        config_id = lti_config.external_id.replace(':', '/')
+        client_id = external_config.get('lti_1p3_client_id')
 
     # Return LTI launch information for end user configuration
     return {
-        'client_id': lti_config.lti_1p3_client_id,
+        'client_id': client_id,
         'keyset_url': get_lms_lti_keyset_link(config_id),
         'deployment_id': '1',
         'oidc_callback': get_lms_lti_launch_link(),
