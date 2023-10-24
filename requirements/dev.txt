@@ -16,11 +16,11 @@ attrs==23.1.0
     # via -r requirements/base.txt
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.28.64
+boto3==1.28.69
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.64
+botocore==1.31.69
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -33,7 +33,7 @@ cffi==1.16.0
     # via
     #   -r requirements/base.txt
     #   pynacl
-charset-normalizer==3.3.0
+charset-normalizer==3.3.1
     # via
     #   -r requirements/base.txt
     #   requests
@@ -135,7 +135,7 @@ markupsafe==2.1.3
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==9.1.0
+newrelic==9.1.1
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -229,7 +229,7 @@ typing-extensions==4.8.0
     #   -r requirements/base.txt
     #   asgiref
     #   edx-opaque-keys
-urllib3==1.26.17
+urllib3==1.26.18
     # via
     #   -r requirements/base.txt
     #   botocore

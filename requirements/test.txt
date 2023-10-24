@@ -14,7 +14,7 @@ asgiref==3.7.2
     # via
     #   -r requirements/base.txt
     #   django
-astroid==2.15.8
+astroid==3.0.1
     # via
     #   pylint
     #   pylint-celery
@@ -24,11 +24,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.28.64
+boto3==1.28.69
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.64
+botocore==1.31.69
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -44,7 +44,7 @@ cffi==1.16.0
     #   pynacl
 chardet==5.2.0
     # via binaryornot
-charset-normalizer==3.3.0
+charset-normalizer==3.3.1
     # via
     #   -r requirements/base.txt
     #   requests
@@ -120,7 +120,7 @@ edx-django-utils==5.7.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-lint==5.3.4
+edx-lint==5.3.6
     # via -r requirements/test.in
 edx-opaque-keys[django]==2.5.1
     # via
@@ -177,8 +177,6 @@ lazy==1.6
     # via
     #   -r requirements/base.txt
     #   xblock
-lazy-object-proxy==1.9.0
-    # via astroid
 lxml==4.9.3
     # via
     #   -r requirements/base.txt
@@ -205,7 +203,7 @@ mock==5.1.0
     # via -r requirements/test.in
 more-itertools==10.1.0
     # via jaraco-classes
-newrelic==9.1.0
+newrelic==9.1.1
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -247,7 +245,7 @@ pygments==2.16.1
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==2.17.7
+pylint==3.0.2
     # via
     #   edx-lint
     #   pylint-celery
@@ -255,7 +253,7 @@ pylint==2.17.7
     #   pylint-plugin-utils
 pylint-celery==0.3
     # via edx-lint
-pylint-django==2.5.3
+pylint-django==2.5.5
     # via edx-lint
 pylint-plugin-utils==0.8.2
     # via
@@ -364,7 +362,7 @@ typing-extensions==4.8.0
     #   edx-opaque-keys
     #   pylint
     #   rich
-urllib3==1.26.17
+urllib3==1.26.18
     # via
     #   -c requirements/constraints.txt
     #   -r requirements/base.txt
@@ -386,8 +384,6 @@ webob==1.8.7
     #   -r requirements/base.txt
     #   xblock
     #   xblock-sdk
-wrapt==1.15.0
-    # via astroid
 xblock[django]==1.8.1
     # via
     #   -r requirements/base.txt
