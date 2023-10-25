@@ -9,6 +9,7 @@ import json
 
 from opaque_keys.edx.keys import CourseKey
 
+from lti_consumer.exceptions import ExternalConfigurationNotFound
 from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
 from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
 from .utils import (
@@ -69,10 +70,13 @@ def _get_lti_config_for_block(block):
             LtiConfiguration.CONFIG_ON_DB,
         )
     elif block.config_type == 'external':
-        config = get_external_config_from_filter(
-            {"course_key": block.scope_ids.usage_id.context_key},
-            block.external_config
-        )
+        config = get_external_config_from_filter({}, block.external_config)
+
+        if not config:
+            raise ExternalConfigurationNotFound(
+                f"External LTI configuration with ID {block.external_config}, not found.",
+            )
+
         lti_config = _get_or_create_local_lti_config(
             config.get("version"),
             block.scope_ids.usage_id,
