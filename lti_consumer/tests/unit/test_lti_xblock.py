@@ -1,9 +1,9 @@
 """
 Unit tests for LtiConsumerXBlock
 """
-
 import json
 import logging
+import string
 from datetime import timedelta
 from itertools import product
 from unittest.mock import Mock, PropertyMock, patch
@@ -181,6 +181,73 @@ class TestProperties(TestLtiConsumerXBlock):
 
         add_mock.assert_called_once_with(
             mock_validation_message('error', 'Custom Parameters should be strings in "x=y" format.'),
+        )
+
+    def test_validate_external_config_with_external_config_type(self):
+        """Test external config ID with external config type."""
+        slug = f'{string.digits}{string.ascii_letters}_-'
+        self.xblock.config_type = 'external'
+        self.xblock.external_config = f'{slug}:{slug}'
+
+        validation = self.xblock.validate()
+
+        self.assertEqual(validation.messages, [])
+
+    @ddt.data('new', 'database')
+    def test_validate_external_config_without_external_config_type(
+        self,
+        config_type,
+    ):
+        """Test with external config ID without using an external config type."""
+        self.xblock.config_type = config_type
+        self.xblock.external_config = None
+
+        validation = self.xblock.validate()
+
+        self.assertEqual(validation.messages, [])
+
+    @patch('lti_consumer.lti_xblock.ValidationMessage')
+    @patch.object(Validation, 'add')
+    def test_validate_empty_external_config_with_external_config_type(
+        self,
+        add_mock,
+        mock_validation_message,
+    ):
+        """Test with empty external config ID using an external config type."""
+        mock_validation_message.ERROR.return_value = 'error'
+        self.xblock.config_type = 'external'
+        self.xblock.external_config = None
+
+        self.xblock.validate()
+
+        add_mock.assert_called_once_with(
+            mock_validation_message(
+                'error',
+                'Reusable configuration ID must be set when using external config (Example: "x:y").',
+            ),
+        )
+
+    @ddt.data('apptest', 'app:', ':test', 'app::test', f'{string.punctuation}:{string.punctuation}')
+    @patch('lti_consumer.lti_xblock.ValidationMessage')
+    @patch.object(Validation, 'add')
+    def test_validate_invalid_external_config_with_external_config_type(
+        self,
+        external_id,
+        add_mock,
+        mock_validation_message,
+    ):
+        """Test with invalid external config ID using an external config type."""
+        mock_validation_message.ERROR.return_value = 'error'
+        self.xblock.config_type = 'external'
+        self.xblock.external_config = external_id
+
+        self.xblock.validate()
+
+        add_mock.assert_called_once_with(
+            mock_validation_message(
+                'error',
+                'Reusable configuration ID must be set when using external config (Example: "x:y").',
+            ),
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')

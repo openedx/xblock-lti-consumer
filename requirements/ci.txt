@@ -29,11 +29,11 @@ binaryornot==0.4.4
     #   cookiecutter
 bleach==6.1.0
     # via -r requirements/test.txt
-boto3==1.28.68
+boto3==1.28.69
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.31.68
+botocore==1.31.69
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -147,7 +147,7 @@ edx-django-utils==5.7.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
-edx-lint==5.3.4
+edx-lint==5.3.6
     # via -r requirements/test.txt
 edx-opaque-keys[django]==2.5.1
     # via
@@ -328,7 +328,7 @@ pylint-celery==0.3
     # via
     #   -r requirements/test.txt
     #   edx-lint
-pylint-django==2.5.4
+pylint-django==2.5.5
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -473,7 +473,7 @@ urllib3==1.26.18
     #   botocore
     #   requests
     #   twine
-virtualenv==20.24.5
+virtualenv==20.24.6
     # via
     #   -r requirements/tox.txt
     #   tox

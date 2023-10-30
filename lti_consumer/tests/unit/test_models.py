@@ -154,11 +154,17 @@ class TestLtiConfigurationModel(TestCase):
             f"[CONFIG_ON_XBLOCK] lti_1p3 - {dummy_location}"
         )
 
-    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB)
-    def test_lti_consumer_ags_enabled(self, config_store):
+    @ddt.data(
+        LtiConfiguration.CONFIG_ON_XBLOCK,
+        LtiConfiguration.CONFIG_ON_DB,
+        LtiConfiguration.CONFIG_EXTERNAL,
+    )
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_lti_consumer_ags_enabled(self, config_store, filter_mock):
         """
         Check if LTI AGS is properly included when block is graded.
         """
+        filter_mock.return_value = {'lti_advantage_ags_mode': 'programmatic'}
         config = self._get_1p3_config(
             config_store=config_store,
             lti_advantage_ags_mode='programmatic'
@@ -186,28 +192,32 @@ class TestLtiConfigurationModel(TestCase):
     @ddt.data(
         {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': 'XBlock'},
         {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': 'disabled'},
-        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
+        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': 'external'},
     )
     @ddt.unpack
-    def test_get_lti_advantage_ags_mode(self, config_store, expected_value):
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_get_lti_advantage_ags_mode(self, filter_mock, config_store, expected_value):
         """
         Check if LTI AGS is properly returned.
         """
+        filter_mock.return_value = {'lti_advantage_ags_mode': 'external'}
         config = self._get_1p3_config(config_store=config_store, lti_advantage_ags_mode='disabled')
 
         self.xblock.lti_advantage_ags_mode = 'XBlock'
 
-        if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
-            self.assertEqual(config.get_lti_advantage_ags_mode(), expected_value)
-        else:
-            with self.assertRaises(NotImplementedError):
-                config.get_lti_advantage_ags_mode()
+        self.assertEqual(config.get_lti_advantage_ags_mode(), expected_value)
 
-    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB)
-    def test_lti_consumer_ags_declarative(self, config_store):
+    @ddt.data(
+        LtiConfiguration.CONFIG_ON_XBLOCK,
+        LtiConfiguration.CONFIG_ON_DB,
+        LtiConfiguration.CONFIG_EXTERNAL,
+    )
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_lti_consumer_ags_declarative(self, config_store, filter_mock):
         """
         Check that a LineItem is created if AGS is set to the declarative mode.
         """
+        filter_mock.return_value = {'lti_advantage_ags_mode': 'declarative'}
         self.xblock.lti_advantage_ags_mode = 'declarative'
 
         # Include `start` and `due` dates
@@ -236,11 +246,17 @@ class TestLtiConfigurationModel(TestCase):
             ags_claim.get('scope')
         )
 
-    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB)
-    def test_lti_consumer_deep_linking_enabled(self, config_store):
+    @ddt.data(
+        LtiConfiguration.CONFIG_ON_XBLOCK,
+        LtiConfiguration.CONFIG_ON_DB,
+        LtiConfiguration.CONFIG_EXTERNAL,
+    )
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_lti_consumer_deep_linking_enabled(self, config_store, filter_mock):
         """
         Check if LTI DL is properly instanced when configured.
         """
+        filter_mock.return_value = {'lti_advantage_deep_linking_enabled': True}
         config = self._get_1p3_config(
             config_store=config_store,
             lti_advantage_deep_linking_enabled=True
@@ -255,62 +271,56 @@ class TestLtiConfigurationModel(TestCase):
     @ddt.data(
         {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': False},
         {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': True},
-        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
+        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': True},
     )
     @ddt.unpack
-    def test_get_lti_advantage_deep_linking_enabled(self, config_store, expected_value):
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_get_lti_advantage_deep_linking_enabled(self, filter_mock, config_store, expected_value):
         """
         Check if LTI Deep Linking enabled is properly returned.
         """
+        filter_mock.return_value = {'lti_advantage_deep_linking_enabled': True}
         config = self._get_1p3_config(config_store=config_store, lti_advantage_deep_linking_enabled=True)
 
         self.xblock.lti_advantage_deep_linking_enabled = False
 
-        if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
-            self.assertEqual(config.get_lti_advantage_deep_linking_enabled(), expected_value)
-        else:
-            with self.assertRaises(NotImplementedError):
-                config.get_lti_advantage_deep_linking_enabled()
+        self.assertEqual(config.get_lti_advantage_deep_linking_enabled(), expected_value)
 
     @ddt.data(
         {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': 'XBlock'},
         {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': 'database'},
-        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
+        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': 'external'},
     )
     @ddt.unpack
-    def test_get_lti_advantage_deep_linking_launch_url(self, config_store, expected_value):
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_get_lti_advantage_deep_linking_launch_url(self, filter_mock, config_store, expected_value):
         """
         Check if LTI Deep Linking launch URL is properly returned.
         """
+        filter_mock.return_value = {'lti_advantage_deep_linking_launch_url': 'external'}
         config = self._get_1p3_config(config_store=config_store, lti_advantage_deep_linking_launch_url='database')
 
         self.xblock.lti_advantage_deep_linking_launch_url = 'XBlock'
 
-        if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
-            self.assertEqual(config.get_lti_advantage_deep_linking_launch_url(), expected_value)
-        else:
-            with self.assertRaises(NotImplementedError):
-                config.get_lti_advantage_deep_linking_launch_url()
+        self.assertEqual(config.get_lti_advantage_deep_linking_launch_url(), expected_value)
 
     @ddt.data(
         {'config_store': LtiConfiguration.CONFIG_ON_XBLOCK, 'expected_value': False},
         {'config_store': LtiConfiguration.CONFIG_ON_DB, 'expected_value': True},
-        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': None},
+        {'config_store': LtiConfiguration.CONFIG_EXTERNAL, 'expected_value': True},
     )
     @ddt.unpack
-    def test_get_lti_advantage_nrps_enabled(self, config_store, expected_value):
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_get_lti_advantage_nrps_enabled(self, filter_mock, config_store, expected_value):
         """
         Check if LTI Deep Linking launch URL is properly returned.
         """
+        filter_mock.return_value = {'lti_advantage_enable_nrps': True}
         config = self._get_1p3_config(config_store=config_store, lti_advantage_enable_nrps=True)
 
         self.xblock.lti_advantage_enable_nrps = False
 
-        if config_store in (LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB):
-            self.assertEqual(config.get_lti_advantage_nrps_enabled(), expected_value)
-        else:
-            with self.assertRaises(NotImplementedError):
-                config.get_lti_advantage_nrps_enabled()
+        self.assertEqual(config.get_lti_advantage_nrps_enabled(), expected_value)
 
     def test_generate_private_key(self):
         """
@@ -361,6 +371,17 @@ class TestLtiConfigurationModel(TestCase):
         with self.assertRaises(ValidationError):
             self.lti_1p3_config.clean()
 
+        self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_EXTERNAL
+        self.lti_1p3_config.external_id = None
+
+        with self.assertRaises(ValidationError):
+            self.lti_1p3_config.clean()
+
+        self.lti_1p3_config.external_id = 'invalid-external-id'
+
+        with self.assertRaises(ValidationError):
+            self.lti_1p3_config.clean()
+
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
 
         self.lti_1p3_config_db.lti_1p3_tool_keyset_url = ''
@@ -370,18 +391,12 @@ class TestLtiConfigurationModel(TestCase):
             self.lti_1p3_config_db.clean()
 
         self.lti_1p3_config.lti_1p3_proctoring_enabled = True
+        self.lti_1p3_config.external_id = 'test_id'
 
         for config_store in [self.lti_1p3_config.CONFIG_ON_XBLOCK, self.lti_1p3_config.CONFIG_EXTERNAL]:
             self.lti_1p3_config.config_store = config_store
             with self.assertRaises(ValidationError):
                 self.lti_1p3_config.clean()
-
-    def test_get_redirect_uris_raises_error_for_external_config(self):
-        """
-        An external config raises NotImplementedError
-        """
-        with self.assertRaises(NotImplementedError):
-            self.lti_1p3_config_external.get_lti_1p3_redirect_uris()
 
     @ddt.data(
         (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
@@ -416,6 +431,31 @@ class TestLtiConfigurationModel(TestCase):
 
         assert self.lti_1p3_config_db.get_lti_1p3_redirect_uris() == expected
 
+    @patch('lti_consumer.models.choose_lti_1p3_redirect_uris', return_value=None)
+    @patch('lti_consumer.models.get_external_config_from_filter')
+    def test_get_redirect_uris_with_external_config(
+        self,
+        get_external_config_from_filter_mock,
+        choose_lti_1p3_redirect_uris,
+    ):
+        """
+        Test get_redirect_uris with external configuration.
+        """
+        external_config = {
+            'lti_1p3_redirect_uris': ['external-redirect-uris'],
+            'lti_1p3_launch_url': LAUNCH_URL,
+            'lti_advantage_deep_linking_launch_url': DEEP_LINK_URL,
+        }
+        get_external_config_from_filter_mock.return_value = external_config
+
+        self.assertEqual(self.lti_1p3_config_external.get_lti_1p3_redirect_uris(), None)
+        get_external_config_from_filter_mock.assert_called_once_with({}, self.lti_1p3_config_external.external_id)
+        choose_lti_1p3_redirect_uris.assert_called_once_with(
+            external_config['lti_1p3_redirect_uris'],
+            external_config['lti_1p3_launch_url'],
+            external_config['lti_advantage_deep_linking_launch_url'],
+        )
+
     @patch.object(LtiConfiguration, 'sync_configurations')
     def test_save(self, sync_configurations_mock):
         """Test save method."""
@@ -445,7 +485,10 @@ class TestLtiConfigurationModel(TestCase):
             call(location=self.lti_1p3_config.location.to_block_locator()),
             call().first(),
         ])
-        model_to_dict_mock.assert_called_once_with(filter_mock.return_value.first(), ['id', 'config_id', 'location'])
+        model_to_dict_mock.assert_called_once_with(
+            filter_mock.return_value.first(),
+            ['id', 'config_id', 'location', 'external_config'],
+        )
         setattr_mock.assert_called_once_with(self.lti_1p3_config, 'test', 'test')
 
     @patch('lti_consumer.models.isinstance', return_value=False)
@@ -468,7 +511,10 @@ class TestLtiConfigurationModel(TestCase):
             call().filter().exclude(id=self.lti_1p3_config.pk),
             call().filter().exclude().update(**model_to_dict_mock),
         ])
-        model_to_dict_mock.assert_called_once_with(self.lti_1p3_config, ['id', 'config_id', 'location'])
+        model_to_dict_mock.assert_called_once_with(
+            self.lti_1p3_config,
+            ['id', 'config_id', 'location', 'external_config'],
+        )
 
     @patch('lti_consumer.models.isinstance', return_value=False)
     @patch.object(LtiConfiguration.objects, 'filter', side_effect=IndexError())

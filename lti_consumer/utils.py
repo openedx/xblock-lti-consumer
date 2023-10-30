@@ -3,6 +3,7 @@ Utility functions for LTI Consumer block
 """
 import copy
 import logging
+import re
 from importlib import import_module
 from urllib.parse import urlencode
 
@@ -18,6 +19,9 @@ from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
 
 log = logging.getLogger(__name__)
+
+SLUG_CHARACTER_CLASS = '[-a-zA-Z0-9_]'
+EXTERNAL_ID_REGEX = re.compile(rf'^({SLUG_CHARACTER_CLASS}+:{SLUG_CHARACTER_CLASS}+)$')
 
 
 def _(text):

@@ -82,6 +82,7 @@ from .utils import (
     external_config_filter_enabled,
     external_user_id_1p1_launches_enabled,
     database_config_enabled,
+    EXTERNAL_ID_REGEX,
 )
 
 log = logging.getLogger(__name__)
@@ -689,6 +690,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             _ = self.runtime.service(self, 'i18n').ugettext
             validation.add(ValidationMessage(ValidationMessage.ERROR, str(
                 _('Custom Parameters should be strings in "x=y" format.'),
+            )))
+
+        # Validate the external config ID.
+        if (
+            data.config_type == 'external' and not
+            (data.external_config and EXTERNAL_ID_REGEX.match(str(data.external_config)))
+        ):
+            _ = self.runtime.service(self, 'i18n').ugettext
+            validation.add(ValidationMessage(ValidationMessage.ERROR, str(
+                _('Reusable configuration ID must be set when using external config (Example: "x:y").'),
             )))
 
         # keyset URL and public key are mutually exclusive
@@ -1664,10 +1675,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Return the LTI block launch handler.
         """
-        # The "external" config_type is not supported for LTI 1.3, only LTI 1.1. Therefore, ensure that we define
-        # the lti_block_launch_handler using LTI 1.1 logic for "external" config_types.
-        # TODO: This needs to change when the LTI 1.3 support is added to the external config_type in the future.
-        if self.lti_version == 'lti_1p1' or self.config_type == "external":
+        if self.lti_version == 'lti_1p1':
             lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
         else:
             launch_data = self.get_lti_1p3_launch_data()
@@ -1687,10 +1695,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         lti_1p3_launch_url = self.lti_1p3_launch_url.strip()
 
-        # The "external" config_type is not supported for LTI 1.3, only LTI 1.1. Therefore, ensure that we define
-        # the lti_1p3_launch_url using the LTI 1.3 consumer only for config_types that support LTI 1.3.
-        # TODO: This needs to change when the LTI 1.3 support is added to the external config_type in the future.
-        if consumer and self.lti_version == "lti_1p3" and self.config_type == "database":
+        # Get LTI launch URL from consumer if using database or external configuration type.
+        if consumer and self.lti_version == 'lti_1p3' and self.config_type in ('database', 'external'):
             lti_1p3_launch_url = consumer.launch_url
 
         return lti_1p3_launch_url

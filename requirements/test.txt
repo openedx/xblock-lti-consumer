@@ -24,11 +24,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.28.68
+boto3==1.28.69
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.68
+botocore==1.31.69
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -120,7 +120,7 @@ edx-django-utils==5.7.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-lint==5.3.4
+edx-lint==5.3.6
     # via -r requirements/test.in
 edx-opaque-keys[django]==2.5.1
     # via
@@ -253,7 +253,7 @@ pylint==3.0.2
     #   pylint-plugin-utils
 pylint-celery==0.3
     # via edx-lint
-pylint-django==2.5.4
+pylint-django==2.5.5
     # via edx-lint
 pylint-plugin-utils==0.8.2
     # via
