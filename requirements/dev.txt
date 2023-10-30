@@ -16,11 +16,11 @@ attrs==23.1.0
     # via -r requirements/base.txt
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.28.74
+boto3==1.28.78
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.74
+botocore==1.31.78
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -33,7 +33,7 @@ cffi==1.16.0
     # via
     #   -r requirements/base.txt
     #   pynacl
-charset-normalizer==3.3.1
+charset-normalizer==3.3.2
     # via
     #   -r requirements/base.txt
     #   requests
@@ -41,7 +41,7 @@ click==8.1.7
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-django==3.2.22
+django==3.2.23
     # via
     #   -r requirements/base.txt
     #   django-appconf
@@ -80,7 +80,7 @@ djangorestframework==3.14.0
     #   django-config-models
 edx-ccx-keys==1.2.1
     # via -r requirements/base.txt
-edx-django-utils==5.7.0
+edx-django-utils==5.8.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
@@ -117,9 +117,7 @@ jmespath==1.0.1
 jsonfield==3.1.0
     # via -r requirements/base.txt
 lazy==1.6
-    # via
-    #   -r requirements/base.txt
-    #   xblock
+    # via -r requirements/base.txt
 lxml==4.9.3
     # via
     #   -r requirements/base.txt
@@ -129,7 +127,6 @@ mako==1.2.4
     # via
     #   -r requirements/base.txt
     #   xblock
-    #   xblock-utils
 markupsafe==2.1.3
     # via
     #   -r requirements/base.txt
@@ -142,9 +139,7 @@ newrelic==9.1.1
 oauthlib==3.2.2
     # via -r requirements/base.txt
 openedx-django-pyfs==3.4.0
-    # via
-    #   -r requirements/base.txt
-    #   xblock
+    # via -r requirements/base.txt
 openedx-filters==1.6.0
     # via -r requirements/base.txt
 path==16.7.1
@@ -205,7 +200,6 @@ simplejson==3.19.2
     # via
     #   -r requirements/base.txt
     #   xblock
-    #   xblock-utils
 six==1.16.0
     # via
     #   -r requirements/base.txt
@@ -238,7 +232,6 @@ web-fragments==2.1.0
     # via
     #   -r requirements/base.txt
     #   xblock
-    #   xblock-utils
 webencodings==0.5.1
     # via
     #   -r requirements/base.txt
@@ -247,12 +240,7 @@ webob==1.8.7
     # via
     #   -r requirements/base.txt
     #   xblock
-xblock[django]==1.8.1
-    # via
-    #   -r requirements/base.txt
-    #   xblock
-    #   xblock-utils
-xblock-utils==4.0.0
+xblock==1.8.1
     # via -r requirements/base.txt
 
 # The following packages are considered to be unsafe in a requirements file:
