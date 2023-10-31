@@ -29,11 +29,11 @@ binaryornot==0.4.4
     #   cookiecutter
 bleach==6.1.0
     # via -r requirements/test.txt
-boto3==1.28.69
+boto3==1.28.74
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.31.69
+botocore==1.31.74
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -81,7 +81,7 @@ coverage==6.5.0
     #   coveralls
 coveralls==3.3.1
     # via -r requirements/test.txt
-cryptography==41.0.4
+cryptography==41.0.5
     # via
     #   -r requirements/test.txt
     #   secretstorage
@@ -154,7 +154,7 @@ edx-opaque-keys[django]==2.5.1
     #   -r requirements/test.txt
     #   edx-ccx-keys
     #   edx-opaque-keys
-filelock==3.12.4
+filelock==3.13.1
     # via
     #   -r requirements/tox.txt
     #   tox
