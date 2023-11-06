@@ -919,7 +919,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     def get_icon_class(self):
         """ Returns the icon class """
-        if self.graded and self.has_score:  # pylint: disable=no-member
+        if self.graded and self.has_score:
             return 'problem'
         return 'other'
 
