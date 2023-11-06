@@ -125,14 +125,14 @@ class TestLti1p3Consumer(TestCase):
         for i in range(len(keyset)):
             try:
                 message = jwt.decode(
-                                token,
-                                key=keyset[i].key,
-                                algorithms=['RS256', 'RS512'],
-                                options={
-                                    'verify_signature': True,
-                                    'verify_aud': False
-                                }
-                            )
+                    token,
+                    key=keyset[i].key,
+                    algorithms=['RS256', 'RS512'],
+                    options={
+                        'verify_signature': True,
+                        'verify_aud': False
+                    }
+                )
                 return message
             except Exception as token_error:
                 if i < len(keyset) - 1:

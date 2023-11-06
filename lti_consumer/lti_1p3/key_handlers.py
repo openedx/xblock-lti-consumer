@@ -112,11 +112,11 @@ class ToolKeyHandler:
             for i in range(len(key_set)):
                 try:
                     message = jwt.decode(
-                            token,
-                            key=key_set[i],
-                            algorithms=['RS256', 'RS512',],
-                            options={'verify_signature': True}
-                        )
+                        token,
+                        key=key_set[i],
+                        algorithms=['RS256', 'RS512',],
+                        options={'verify_signature': True}
+                    )
                     return message
                 except Exception:
                     if i == len(key_set) - 1:
@@ -201,16 +201,16 @@ class PlatformKeyHandler:
             raise exceptions.RsaKeyNotSet()
         try:
             message = jwt.decode(
-                            token,
-                            key=self.key.public_key(),
-                            audience=aud,
-                            issuer=iss,
-                            algorithms=['RS256', 'RS512'],
-                            options={
-                                'verify_signature': True,
-                                'verify_aud': True if aud else False
-                            }
-                        )
+                token,
+                key=self.key.public_key(),
+                audience=aud,
+                issuer=iss,
+                algorithms=['RS256', 'RS512'],
+                options={
+                    'verify_signature': True,
+                    'verify_aud': True if aud else False
+                }
+            )
             return message
 
         except Exception as token_error:
