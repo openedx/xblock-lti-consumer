@@ -12,9 +12,9 @@ attrs==23.1.0
     # via -r requirements/base.in
 bleach==6.1.0
     # via -r requirements/base.in
-boto3==1.28.74
+boto3==1.28.78
     # via fs-s3fs
-botocore==1.31.74
+botocore==1.31.78
     # via
     #   boto3
     #   s3transfer
@@ -22,11 +22,11 @@ certifi==2023.7.22
     # via requests
 cffi==1.16.0
     # via pynacl
-charset-normalizer==3.3.1
+charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via edx-django-utils
-django==3.2.22
+django==3.2.23
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
@@ -57,7 +57,7 @@ djangorestframework==3.14.0
     # via django-config-models
 edx-ccx-keys==1.2.1
     # via -r requirements/base.in
-edx-django-utils==5.7.0
+edx-django-utils==5.8.0
     # via django-config-models
 edx-opaque-keys[django]==2.5.1
     # via
@@ -81,9 +81,7 @@ jmespath==1.0.1
 jsonfield==3.1.0
     # via -r requirements/base.in
 lazy==1.6
-    # via
-    #   -r requirements/base.in
-    #   xblock
+    # via -r requirements/base.in
 lxml==4.9.3
     # via
     #   -r requirements/base.in
@@ -92,7 +90,6 @@ mako==1.2.4
     # via
     #   -r requirements/base.in
     #   xblock
-    #   xblock-utils
 markupsafe==2.1.3
     # via
     #   mako
@@ -102,9 +99,7 @@ newrelic==9.1.1
 oauthlib==3.2.2
     # via -r requirements/base.in
 openedx-django-pyfs==3.4.0
-    # via
-    #   -r requirements/base.in
-    #   xblock
+    # via -r requirements/base.in
 openedx-filters==1.6.0
     # via -r requirements/base.in
 pbr==5.11.1
@@ -139,9 +134,7 @@ requests==2.31.0
 s3transfer==0.7.0
     # via boto3
 simplejson==3.19.2
-    # via
-    #   xblock
-    #   xblock-utils
+    # via xblock
 six==1.16.0
     # via
     #   bleach
@@ -166,18 +159,12 @@ urllib3==1.26.18
     #   botocore
     #   requests
 web-fragments==2.1.0
-    # via
-    #   xblock
-    #   xblock-utils
+    # via xblock
 webencodings==0.5.1
     # via bleach
 webob==1.8.7
     # via xblock
-xblock[django]==1.8.1
-    # via
-    #   -r requirements/base.in
-    #   xblock-utils
-xblock-utils==4.0.0
+xblock==1.8.1
     # via -r requirements/base.in
 
 # The following packages are considered to be unsafe in a requirements file:
