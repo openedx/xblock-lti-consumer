@@ -29,11 +29,11 @@ binaryornot==0.4.4
     #   cookiecutter
 bleach==6.1.0
     # via -r requirements/test.txt
-boto3==1.28.78
+boto3==1.28.79
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.31.78
+botocore==1.31.79
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -183,7 +183,7 @@ importlib-metadata==6.8.0
     #   -r requirements/test.txt
     #   keyring
     #   twine
-importlib-resources==6.1.0
+importlib-resources==6.1.1
     # via
     #   -r requirements/test.txt
     #   keyring

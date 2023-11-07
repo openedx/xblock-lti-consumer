@@ -24,11 +24,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.28.78
+boto3==1.28.79
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.78
+botocore==1.31.79
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -150,7 +150,7 @@ importlib-metadata==6.8.0
     # via
     #   keyring
     #   twine
-importlib-resources==6.1.0
+importlib-resources==6.1.1
     # via keyring
 isort==5.12.0
     # via pylint
