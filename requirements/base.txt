@@ -12,9 +12,9 @@ attrs==23.1.0
     # via -r requirements/base.in
 bleach==6.1.0
     # via -r requirements/base.in
-boto3==1.28.78
+boto3==1.28.79
     # via fs-s3fs
-botocore==1.31.78
+botocore==1.31.79
     # via
     #   boto3
     #   s3transfer
