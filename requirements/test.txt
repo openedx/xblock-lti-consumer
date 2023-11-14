@@ -24,11 +24,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.28.79
+boto3==1.28.85
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.31.79
+botocore==1.31.85
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -68,7 +68,7 @@ coveralls==3.3.1
     # via -r requirements/test.in
 cryptography==41.0.5
     # via secretstorage
-ddt==1.6.0
+ddt==1.7.0
     # via -r requirements/test.in
 dill==0.3.7
     # via pylint
@@ -171,7 +171,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via -r requirements/base.txt
-keyring==24.2.0
+keyring==24.3.0
     # via twine
 lazy==1.6
     # via -r requirements/base.txt
@@ -180,7 +180,7 @@ lxml==4.9.3
     #   -r requirements/base.txt
     #   xblock
     #   xblock-sdk
-mako==1.2.4
+mako==1.3.0
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -200,7 +200,7 @@ mock==5.1.0
     # via -r requirements/test.in
 more-itertools==10.1.0
     # via jaraco-classes
-newrelic==9.1.1
+newrelic==9.1.2
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -212,14 +212,16 @@ openedx-django-pyfs==3.4.0
     # via -r requirements/base.txt
 openedx-filters==1.6.0
     # via -r requirements/base.txt
-pbr==5.11.1
+pbr==6.0.0
     # via
     #   -r requirements/base.txt
     #   stevedore
 pkginfo==1.9.6
     # via twine
 platformdirs==3.11.0
-    # via pylint
+    # via
+    #   -c requirements/common_constraints.txt
+    #   pylint
 psutil==5.9.6
     # via
     #   -r requirements/base.txt

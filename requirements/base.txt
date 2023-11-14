@@ -12,9 +12,9 @@ attrs==23.1.0
     # via -r requirements/base.in
 bleach==6.1.0
     # via -r requirements/base.in
-boto3==1.28.79
+boto3==1.28.85
     # via fs-s3fs
-botocore==1.31.79
+botocore==1.31.85
     # via
     #   boto3
     #   s3transfer
@@ -86,7 +86,7 @@ lxml==4.9.3
     # via
     #   -r requirements/base.in
     #   xblock
-mako==1.2.4
+mako==1.3.0
     # via
     #   -r requirements/base.in
     #   xblock
@@ -94,7 +94,7 @@ markupsafe==2.1.3
     # via
     #   mako
     #   xblock
-newrelic==9.1.1
+newrelic==9.1.2
     # via edx-django-utils
 oauthlib==3.2.2
     # via -r requirements/base.in
@@ -102,7 +102,7 @@ openedx-django-pyfs==3.4.0
     # via -r requirements/base.in
 openedx-filters==1.6.0
     # via -r requirements/base.in
-pbr==5.11.1
+pbr==6.0.0
     # via stevedore
 psutil==5.9.6
     # via edx-django-utils
