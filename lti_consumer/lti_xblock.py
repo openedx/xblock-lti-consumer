@@ -106,10 +106,7 @@ LTI_1P1_ROLE_MAP = {
     'instructor': 'Instructor',
 }
 CUSTOM_PARAMETER_SEPARATOR = '='
-# Allow a key-pair key and value to contain any character except "=".
-CUSTOM_PARAMETER_REGEX = re.compile(
-    rf'^([^{CUSTOM_PARAMETER_SEPARATOR}]+{CUSTOM_PARAMETER_SEPARATOR}[^{CUSTOM_PARAMETER_SEPARATOR}]+)$',
-)
+CUSTOM_PARAMETER_REGEX = re.compile(rf'^(.+{CUSTOM_PARAMETER_SEPARATOR}.+)$')
 # Catch a value enclosed by ${}, the value enclosed can contain any charater except "=".
 CUSTOM_PARAMETER_TEMPLATE_REGEX = re.compile(r'^(\${[^%s]+})$' % CUSTOM_PARAMETER_SEPARATOR)
 

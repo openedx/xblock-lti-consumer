@@ -141,8 +141,8 @@ class TestProperties(TestLtiConsumerXBlock):
         self.assertEqual(self.xblock.context_id, str(self.xblock.scope_ids.usage_id.context_key))
 
     @ddt.data(
-        ['x=y'], [' x x = y y '], ['x= '], [' =y'], [' = '],
-        ['x=y', ' x x = y y ', 'x= ', ' =y', ' = '],
+        ['x=y'], [' x x = y y '], ['x= '], [' =y'], [' = '], [' x = = y = z '],
+        ['x=y', ' x x = y y ', 'x= ', ' =y', ' = ', ' x = = y = z '],
     )
     def test_validate_with_valid_custom_parameters(self, custom_parameters):
         """
@@ -167,7 +167,7 @@ class TestProperties(TestLtiConsumerXBlock):
             mock_validation_message('error', 'Custom Parameters must be a list'),
         )
 
-    @ddt.data(['x'], ['x='], ['=y'], ['x==y'], ['x', 'x=', '=y', 'x==y'])
+    @ddt.data(['x'], ['x='], ['=y'], ['x', 'x=', '=y'])
     @patch('lti_consumer.lti_xblock.ValidationMessage')
     @patch.object(Validation, 'add')
     def test_validate_with_invalid_custom_parameters(self, custom_parameters, add_mock, mock_validation_message):
