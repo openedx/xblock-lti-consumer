@@ -12,9 +12,9 @@ attrs==23.1.0
     # via -r requirements/base.in
 bleach==6.1.0
     # via -r requirements/base.in
-boto3==1.29.4
+boto3==1.33.1
     # via fs-s3fs
-botocore==1.32.4
+botocore==1.33.1
     # via
     #   boto3
     #   s3transfer
@@ -57,7 +57,7 @@ djangorestframework==3.14.0
     # via django-config-models
 edx-ccx-keys==1.2.1
     # via -r requirements/base.in
-edx-django-utils==5.8.0
+edx-django-utils==5.9.0
     # via django-config-models
 edx-opaque-keys[django]==2.5.1
     # via
@@ -72,7 +72,7 @@ fs-s3fs==1.1.1
     # via openedx-django-pyfs
 future==0.18.3
     # via pyjwkest
-idna==3.4
+idna==3.6
     # via requests
 jmespath==1.0.1
     # via
@@ -131,7 +131,7 @@ pyyaml==6.0.1
     # via xblock
 requests==2.31.0
     # via pyjwkest
-s3transfer==0.7.0
+s3transfer==0.8.0
     # via boto3
 simplejson==3.19.2
     # via xblock

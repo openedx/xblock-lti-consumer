@@ -24,11 +24,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.29.4
+boto3==1.33.1
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.32.4
+botocore==1.33.1
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -60,13 +60,13 @@ click-log==0.4.0
     # via edx-lint
 code-annotations==1.5.0
     # via edx-lint
-cookiecutter==2.4.0
+cookiecutter==2.5.0
     # via xblock-sdk
 coverage==6.5.0
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
-cryptography==41.0.5
+cryptography==41.0.7
     # via secretstorage
 ddt==1.7.0
     # via -r requirements/test.in
@@ -116,7 +116,7 @@ docutils==0.20.1
     # via readme-renderer
 edx-ccx-keys==1.2.1
     # via -r requirements/base.txt
-edx-django-utils==5.8.0
+edx-django-utils==5.9.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
@@ -142,7 +142,7 @@ future==0.18.3
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-idna==3.4
+idna==3.6
     # via
     #   -r requirements/base.txt
     #   requests
@@ -236,7 +236,7 @@ pycryptodomex==3.19.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-pygments==2.17.1
+pygments==2.17.2
     # via
     #   readme-renderer
     #   rich
@@ -309,7 +309,7 @@ rich==13.7.0
     # via
     #   cookiecutter
     #   twine
-s3transfer==0.7.0
+s3transfer==0.8.0
     # via
     #   -r requirements/base.txt
     #   boto3
