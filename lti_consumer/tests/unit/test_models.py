@@ -11,7 +11,6 @@ from django.core.exceptions import ValidationError
 from django.test.testcases import TestCase
 from django.utils import timezone
 from edx_django_utils.cache import RequestCache
-from jwkest.jwk import RSAKey
 from ccx_keys.locator import CCXBlockUsageLocator
 from opaque_keys.edx.locator import CourseLocator
 
@@ -32,13 +31,8 @@ class TestLtiConfigurationModel(TestCase):
     def setUp(self):
         super().setUp()
 
-        self.rsa_key_id = "1"
         # Generate RSA and save exports
         rsa_key = RSA.generate(2048)
-        self.key = RSAKey(
-            key=rsa_key,
-            kid=self.rsa_key_id
-        )
         self.public_key = rsa_key.publickey().export_key()
 
         self.xblock_attributes = {

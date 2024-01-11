@@ -7,13 +7,13 @@ access token with LTI scopes.
 import copy
 import json
 import math
-import time
 import sys
+import time
 import logging
 
 import jwt
-from Cryptodome.PublicKey import RSA
 from edx_django_utils.monitoring import function_trace
+from jwt.api_jwk import PyJWK
 
 from . import exceptions
 
@@ -52,7 +52,9 @@ class ToolKeyHandler:
             try:
                 # Import Key and save to internal state
                 algo_obj = jwt.get_algorithm_by_name('RS256')
-                self.public_key = algo_obj.prepare_key(public_key)
+                public_key = algo_obj.prepare_key(public_key)
+                public_jwk = json.loads(algo_obj.to_jwk(public_key))
+                self.public_key = PyJWK.from_dict(public_jwk)
             except ValueError as err:
                 log.warning(
                     'An error was encountered while loading the LTI tool\'s key from the public key. '
@@ -82,15 +84,16 @@ class ToolKeyHandler:
                     'The RSA keys could not be loaded.'
                 )
                 raise exceptions.NoSuitableKeys() from err
-            keyset.extend(keys)
+            keyset.extend(keys.keys)
+
+        if self.public_key and kid:
+            # Fill in key id of stored key.
+            # This is needed because if the JWS is signed with a
+            # key with a kid, pyjwkest doesn't match them with
+            # keys without kid (kid=None) and fails verification
+            self.public_key.kid = kid
 
         if self.public_key:
-            if kid:
-                # Fill in key id of stored key.
-                # This is needed because if the JWS is signed with a
-                # key with a kid, pyjwkest doesn't match them with
-                # keys without kid (kid=None) and fails verification
-                self.public_key.kid = kid
             # Add to keyset
             keyset.append(self.public_key)
 
@@ -105,25 +108,29 @@ class ToolKeyHandler:
         The authorization server decodes the JWT and MUST validate the values for the
         iss, sub, exp, aud and jti claims.
         """
-        try:
-            key_set = self._get_keyset()
-            if not key_set:
-                raise exceptions.NoSuitableKeys()
-            for i in range(len(key_set)):
-                try:
-                    message = jwt.decode(
-                        token,
-                        key=key_set[i],
-                        algorithms=['RS256', 'RS512',],
-                        options={'verify_signature': True}
-                    )
-                    return message
-                except Exception:
-                    if i == len(key_set) - 1:
-                        raise
-        except Exception as token_error:
-            exc_info = sys.exc_info()
-            raise jwt.InvalidTokenError(exc_info[2]) from token_error
+        key_set = self._get_keyset()
+
+        for i, obj in enumerate(key_set):
+            try:
+                if hasattr(obj.key, 'public_key'):
+                    key = obj.key.public_key()
+                else:
+                    key = obj.key
+                message = jwt.decode(
+                    token,
+                    key,
+                    algorithms=['RS256', 'RS512',],
+                    options={
+                        'verify_signature': True,
+                        'verify_aud': False
+                    }
+                )
+                return message
+            except Exception:  # pylint: disable=broad-except
+                if i == len(key_set) - 1:
+                    raise
+
+        raise exceptions.NoSuitableKeys()
 
 
 class PlatformKeyHandler:
@@ -144,7 +151,10 @@ class PlatformKeyHandler:
             # Import JWK from RSA key
             try:
                 algo = jwt.get_algorithm_by_name('RS256')
-                self.key = algo.prepare_key(key_pem)
+                private_key = algo.prepare_key(key_pem)
+                private_jwk = json.loads(algo.to_jwk(private_key))
+                private_jwk['kid'] = kid
+                self.key = PyJWK.from_dict(private_jwk)
             except ValueError as err:
                 log.warning(
                     'An error was encountered while loading the LTI platform\'s key. '
@@ -175,7 +185,7 @@ class PlatformKeyHandler:
 
         # The class instance that sets up the signing operation
         # An RS 256 key is required for LTI 1.3
-        return jwt.encode(_message, self.key, algorithm="RS256")
+        return jwt.encode(_message, self.key.key, algorithm="RS256")
 
     def get_public_jwk(self):
         """
@@ -186,11 +196,11 @@ class PlatformKeyHandler:
         # Only append to keyset if a key exists
         if self.key:
             algo_obj = jwt.get_algorithm_by_name('RS256')
-            public_key = algo_obj.prepare_key(self.key).public_key()
+            public_key = algo_obj.prepare_key(self.key.key).public_key()
             jwk['keys'].append(json.loads(algo_obj.to_jwk(public_key)))
         return jwk
 
-    def validate_and_decode(self, token, iss=None, aud=None):
+    def validate_and_decode(self, token, iss=None, aud=None, exp=True):
         """
         Check if a platform token is valid, and return allowed scopes.
 
@@ -202,13 +212,15 @@ class PlatformKeyHandler:
         try:
             message = jwt.decode(
                 token,
-                key=self.key.public_key(),
+                key=self.key.key.public_key(),
                 audience=aud,
                 issuer=iss,
                 algorithms=['RS256', 'RS512'],
                 options={
                     'verify_signature': True,
-                    'verify_aud': True if aud else False
+                    'verify_exp': bool(exp),
+                    'verify_iss': bool(iss),
+                    'verify_aud': bool(aud)
                 }
             )
             return message

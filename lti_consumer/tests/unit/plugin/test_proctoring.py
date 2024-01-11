@@ -9,8 +9,6 @@ from Cryptodome.PublicKey import RSA
 from django.contrib.auth import get_user_model
 from django.test.testcases import TestCase
 from edx_django_utils.cache import TieredCache, get_cache_key
-from jwkest.jwk import RSAKey
-from jwkest.jwt import BadSyntax
 
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
 from lti_consumer.lti_1p3.exceptions import (BadJwtSignature, InvalidClaimValue, MalformedJwtToken,
@@ -45,10 +43,6 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
         # Set up a public key - private key pair that allows encoding and decoding a Tool JWT.
         self.rsa_key_id = str(uuid.uuid4())
         self.private_key = RSA.generate(2048)
-        self.key = RSAKey(
-            key=self.private_key,
-            kid=self.rsa_key_id
-        )
         self.public_key = self.private_key.publickey().export_key().decode()
 
         self.lti_config.lti_1p3_tool_public_key = self.public_key
