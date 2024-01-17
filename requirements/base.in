@@ -9,6 +9,7 @@ oauthlib
 mako
 lazy
 XBlock
+pyjwt
 pycryptodomex
 pyjwkest
 edx-opaque-keys[django]

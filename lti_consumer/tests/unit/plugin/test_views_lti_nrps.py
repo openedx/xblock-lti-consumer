@@ -3,7 +3,6 @@ Tests for LTI Names and Role Provisioning Service views.
 """
 from unittest.mock import Mock, patch
 from Cryptodome.PublicKey import RSA
-from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
 from rest_framework.reverse import reverse
 
@@ -113,12 +112,7 @@ class LtiNrpsTestCase(APITransactionTestCase):
         super().setUp()
 
         # Create custom LTI Block
-        self.rsa_key_id = "1"
         rsa_key = RSA.generate(2048)
-        self.key = RSAKey(
-            key=rsa_key,
-            kid=self.rsa_key_id
-        )
         self.public_key = rsa_key.publickey().export_key()
 
         self.xblock_attributes = {

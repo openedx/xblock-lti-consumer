@@ -9,12 +9,12 @@ from itertools import product
 from unittest.mock import Mock, PropertyMock, patch
 
 import ddt
+import jwt
 from Cryptodome.PublicKey import RSA
 from django.conf import settings as dj_settings
 from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
-from jwkest.jwk import RSAKey, KEYS
 from xblock.validation import Validation
 
 from lti_consumer.exceptions import LtiError
@@ -1934,11 +1934,10 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self.rsa_key_id = "1"
         # Generate RSA and save exports
         rsa_key = RSA.generate(2048)
-        self.key = RSAKey(
-            key=rsa_key,
-            kid=self.rsa_key_id
-        )
-        self.public_key = rsa_key.publickey().export_key()
+        pem = rsa_key.export_key('PEM')
+        algo_obj = jwt.get_algorithm_by_name('RS256')
+        self.key = algo_obj.prepare_key(pem)
+        self.public_key = rsa_key.public_key().export_key('PEM')
 
         self.xblock_attributes = {
             'lti_version': 'lti_1p3',
@@ -2018,8 +2017,8 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self.xblock.lti_1p3_tool_public_key = ''
         self.xblock.save()
 
-        jwt = create_jwt(self.key, {})
-        request = make_jwt_request(jwt)
+        jwt_token = create_jwt(self.key, {})
+        request = make_jwt_request(jwt_token)
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 400)
         self.assertJSONEqual(response.content, {'error': 'invalid_client'})
@@ -2028,8 +2027,8 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         """
         Test request with valid JWT.
         """
-        jwt = create_jwt(self.key, {})
-        request = make_jwt_request(jwt)
+        jwt_token = create_jwt(self.key, {})
+        request = make_jwt_request(jwt_token)
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 200)
 
@@ -2122,10 +2121,12 @@ class TestLti1p3AccessTokenJWK(TestCase):
             'lti_1p3_tool_keyset_url': "http://tool.example/keyset",
         })
 
-        self.key = RSAKey(key=RSA.generate(2048), kid="1")
+        rsa_key = RSA.generate(2048).export_key('PEM')
+        self.algo_obj = jwt.get_algorithm_by_name('RS256')
+        self.key = self.algo_obj.prepare_key(rsa_key)
 
-        jwt = create_jwt(self.key, {})
-        self.request = make_jwt_request(jwt)
+        jwt_token = create_jwt(self.key, {})
+        self.request = make_jwt_request(jwt_token)
 
         patcher = patch(
             'lti_consumer.plugin.compat.load_enough_xblock',
@@ -2138,37 +2139,44 @@ class TestLti1p3AccessTokenJWK(TestCase):
         """
         Builds a keyset object with the given keys.
         """
-        jwks = KEYS()
-        jwks._keys = keys  # pylint: disable=protected-access
+        jwks = []
+
+        for key in keys:
+            key_data = self.algo_obj.prepare_key(key.public_key())
+            rsa_jwk = json.loads(self.algo_obj.to_jwk(key_data))
+            rsa_jwk['kid'] = 'test_id'
+            jwks.append(jwt.PyJWK.from_dict(rsa_jwk))
+
         return jwks
 
-    @patch("lti_consumer.lti_1p3.key_handlers.load_jwks_from_url")
-    def test_access_token_using_keyset_url(self, load_jwks_from_url):
+    @patch("lti_consumer.lti_1p3.key_handlers.jwt.PyJWKClient.get_jwk_set")
+    def test_access_token_using_keyset_url(self, get_jwk_set):
         """
         Test request using the provider's keyset URL instead of a public key.
         """
-        load_jwks_from_url.return_value = self.make_keyset([self.key])
+        get_jwk_set.return_value = self.make_keyset([self.key])
         response = self.xblock.lti_1p3_access_token(self.request)
-        load_jwks_from_url.assert_called_once_with("http://tool.example/keyset")
+        get_jwk_set.assert_called_once()
         self.assertEqual(response.status_code, 200)
 
-    @patch("lti_consumer.lti_1p3.key_handlers.load_jwks_from_url")
-    def test_access_token_using_keyset_url_with_empty_keys(self, load_jwks_from_url):
+    @patch("lti_consumer.lti_1p3.key_handlers.jwt.PyJWKClient.get_jwk_set")
+    def test_access_token_using_keyset_url_with_empty_keys(self, get_jwk_set):
         """
         Test request where the provider's keyset URL returns an empty list of keys.
         """
-        load_jwks_from_url.return_value = self.make_keyset([])
+        get_jwk_set.return_value = self.make_keyset([])
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
         self.assertJSONEqual(response.content, {"error": "invalid_client"})
 
-    @patch("lti_consumer.lti_1p3.key_handlers.load_jwks_from_url")
-    def test_access_token_using_keyset_url_with_wrong_keys(self, load_jwks_from_url):
+    @patch("lti_consumer.lti_1p3.key_handlers.jwt.PyJWKClient.get_jwk_set")
+    def test_access_token_using_keyset_url_with_wrong_keys(self, get_jwk_set):
         """
         Test request where the provider's keyset URL returns wrong keys.
         """
-        key = RSAKey(key=RSA.generate(2048), kid="2")
-        load_jwks_from_url.return_value = self.make_keyset([key])
+        rsa_key = RSA.generate(2048).export_key('PEM')
+        key = self.algo_obj.prepare_key(rsa_key)
+        get_jwk_set.return_value = self.make_keyset([key])
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
         self.assertJSONEqual(response.content, {"error": "invalid_client"})
