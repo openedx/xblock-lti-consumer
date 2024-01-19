@@ -15,6 +15,9 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ~~~~~~~~~~
+9.8.2 - 2024-01-19
+------------------
+* Add NewRelic traces to functions suspected of causing performance issues.
 
 9.8.1 - 2023-11-17
 ------------------
