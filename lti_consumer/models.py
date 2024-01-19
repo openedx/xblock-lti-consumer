@@ -613,6 +613,7 @@ class LtiConfiguration(models.Model):
 
         return consumer
 
+    @function_trace('lti_consumer.models.LtiConfiguration.get_lti_consumer')
     def get_lti_consumer(self):
         """
         Returns an instanced class of LTI 1.1 or 1.3 consumer.
