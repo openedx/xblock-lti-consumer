@@ -8,7 +8,6 @@ return plaintext to allow easy testing/mocking.
 import json
 
 from opaque_keys.edx.keys import CourseKey
-from edx_django_utils.monitoring import function_traceyy
 
 from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
 from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
@@ -97,7 +96,7 @@ def config_id_for_block(block):
     config = _get_lti_config_for_block(block)
     return config.config_id
 
-@function_trace('lti_consumer.api.get_lti_consumer')
+
 def get_lti_consumer(config_id):
     """
     Retrieves an LTI Consumer instance for a given configuration.
