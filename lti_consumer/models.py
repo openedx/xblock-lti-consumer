@@ -17,6 +17,7 @@ from opaque_keys.edx.keys import CourseKey
 from config_models.models import ConfigurationModel
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from edx_django_utils.monitoring import function_trace
 from lti_consumer.filters import get_external_config_from_filter
 
 # LTI 1.1
@@ -280,6 +281,7 @@ class LtiConfiguration(models.Model):
         if consumer is None:
             raise ValidationError(_("Invalid LTI configuration."))
 
+    @function_trace('lti_consumer.models.LtiConfiguration.sync_configurations')
     def sync_configurations(self):
         """Syncronize main/children configurations.
 
