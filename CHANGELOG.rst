@@ -16,6 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+Version 9.9.0 (2024-01-20)
+---------------------------
+
+* XBlockI18NService js translations support
+
 9.8.1 - 2023-11-17
 ------------------
 * Fix custom_parameters xblock field validation.
