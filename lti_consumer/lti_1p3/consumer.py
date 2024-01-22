@@ -5,6 +5,7 @@ import logging
 from urllib.parse import urlencode
 import uuid
 
+from edx_django_utils.monitoring import function_trace
 from django.conf import settings
 
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue
@@ -103,6 +104,7 @@ class LtiConsumer1p3:
 
         return list(lti_user_roles)
 
+    @function_trace('lti_consumer.lti_1p3.consumer.prepare_preflight_url')
     def prepare_preflight_url(
             self,
             launch_data,
