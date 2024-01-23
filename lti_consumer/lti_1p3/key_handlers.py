@@ -11,6 +11,7 @@ import json
 import logging
 
 from Cryptodome.PublicKey import RSA
+from edx_django_utils.monitoring import function_trace
 from jwkest import BadSignature, BadSyntax, WrongNumberOfParts, jwk
 from jwkest.jwk import RSAKey, load_jwks_from_url
 from jwkest.jws import JWS, NoSuitableSigningKeys, UnknownAlgorithm
@@ -32,6 +33,7 @@ class ToolKeyHandler:
     in order to validate the JWT Signature of messages
     signed with the tools signature.
     """
+    @function_trace('lti_consumer.key_handlers.ToolKeyHandler.__init__')
     def __init__(self, public_key=None, keyset_url=None):
         """
         Instance message validator
@@ -162,6 +164,7 @@ class PlatformKeyHandler:
     This class loads the platform key and is responsible for
     encoding JWT messages and exporting public keys.
     """
+    @function_trace('lti_consumer.key_handlers.PlatformKeyHandler.__init__')
     def __init__(self, key_pem, kid=None):
         """
         Import Key when instancing class if a key is present.
