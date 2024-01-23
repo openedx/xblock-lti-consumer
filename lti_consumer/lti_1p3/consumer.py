@@ -34,6 +34,7 @@ class LtiConsumer1p3:
     LTI 1.3 Consumer Implementation
     """
 
+    @function_trace('lti_consumer.lti_1p3.consumer.LtiConsumer1p3.__init__')
     def __init__(
             self,
             iss,
