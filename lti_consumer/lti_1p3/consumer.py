@@ -716,7 +716,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
         # Check the response is a Deep Linking response type
         message_type = deep_link_response.get("https://purl.imsglobal.org/spec/lti/claim/message_type")
-        if not message_type == "LtiDeepLinkingResponse":
+        if not (isinstance(message_type, str) and message_type.lower() == "ltideeplinkingresponse"):
             raise exceptions.InvalidClaimValue("Token isn't a Deep Linking Response message.")
 
         # Check if supported contentitems were returned
