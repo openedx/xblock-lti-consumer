@@ -16,11 +16,11 @@ attrs==23.2.0
     # via -r requirements/base.txt
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.34.35
+boto3==1.34.45
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.34.35
+botocore==1.34.45
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -90,7 +90,6 @@ edx-opaque-keys[django]==2.5.1
     # via
     #   -r requirements/base.txt
     #   edx-ccx-keys
-    #   edx-opaque-keys
 fs==2.4.16
     # via
     #   -r requirements/base.txt
@@ -138,7 +137,7 @@ newrelic==9.6.0
     #   edx-django-utils
 oauthlib==3.2.2
     # via -r requirements/base.txt
-openedx-django-pyfs==3.4.1
+openedx-django-pyfs==3.5.0
     # via -r requirements/base.txt
 openedx-filters==1.6.0
     # via -r requirements/base.txt
