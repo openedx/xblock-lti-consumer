@@ -15,6 +15,16 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ~~~~~~~~~~
+9.10.0 - 2024-02-29
+------------------
+* Remove Transifex calls and bundled translation files for the OEP-58 proposal.
+* BREAKING CHANGE: This version breaks translations with Quince and earlier releases.
+* Adding python 3.12 support. Dropping django32 support.
+
+9.9.0 (2024-01-24)
+---------------------------
+* XBlockI18NService js translations support
+
 9.8.3 - 2024-01-23
 ------------------
 * Additional NewRelic traces to functions suspected of causing performance issues.

@@ -14,13 +14,17 @@ asgiref==3.7.2
     #   django
 attrs==23.2.0
     # via -r requirements/base.txt
+backports-zoneinfo==0.2.1 ; python_version < "3.9"
+    # via
+    #   -r requirements/base.txt
+    #   django
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.34.45
+boto3==1.34.52
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.34.45
+botocore==1.34.52
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -41,7 +45,7 @@ click==8.1.7
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-django==3.2.24
+django==4.2.10
     # via
     #   -r requirements/base.txt
     #   django-appconf
@@ -100,7 +104,7 @@ fs-s3fs==1.1.1
     # via
     #   -r requirements/base.txt
     #   openedx-django-pyfs
-future==0.18.3
+future==1.0.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -131,7 +135,7 @@ markupsafe==2.1.5
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==9.6.0
+newrelic==9.7.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -179,7 +183,6 @@ python-dateutil==2.8.2
 pytz==2024.1
     # via
     #   -r requirements/base.txt
-    #   django
     #   djangorestframework
     #   xblock
 pyyaml==6.0.1
@@ -212,12 +215,12 @@ sqlparse==0.4.4
     # via
     #   -r requirements/base.txt
     #   django
-stevedore==5.1.0
+stevedore==5.2.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
     #   edx-opaque-keys
-typing-extensions==4.9.0
+typing-extensions==4.10.0
     # via
     #   -r requirements/base.txt
     #   asgiref
