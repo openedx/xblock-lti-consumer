@@ -87,6 +87,7 @@ from .utils import (
     external_user_id_1p1_launches_enabled,
     database_config_enabled,
     EXTERNAL_ID_REGEX,
+    DummyTranslationService,
 )
 
 log = logging.getLogger(__name__)
@@ -257,6 +258,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     block_settings_key = 'lti_consumer'
+    i18n_js_namespace = 'XBlockLtiConsumerI18N'
 
     display_name = String(
         display_name=_("Display Name"),
@@ -663,10 +665,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return scenarios
 
     @staticmethod
-    def _get_statici18n_js_url(loader):  # pragma: no cover
+    def _get_deprecated_i18n_js_url(loader):
         """
-        Returns the Javascript translation file for the currently selected language, if any found by
+        Returns the deprecated JavaScript translation file for the currently selected language, if any found by
         `pkg_resources`
+
+        This method returns pre-OEP-58 i18n files and is deprecated in favor
+        of `get_javascript_i18n_catalog_url`.
         """
         lang_code = translation.get_language()
         if not lang_code:
@@ -676,6 +681,19 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         for code in (translation.to_locale(lang_code), lang_code, country_code):
             if pkg_resources.resource_exists(loader.module_name, text_js.format(lang_code=code)):
                 return text_js.format(lang_code=code)
+        return None
+
+    def _get_statici18n_js_url(self, loader):
+        """
+        Return the JavaScript translation file provided by the XBlockI18NService.
+        """
+        if url_getter_func := getattr(self.i18n_service, 'get_javascript_i18n_catalog_url', None):
+            if javascript_url := url_getter_func(self):
+                return javascript_url
+
+        if deprecated_url := self._get_deprecated_i18n_js_url(loader):
+            return self.runtime.local_resource_url(self, deprecated_url)
+
         return None
 
     def validate_field_data(self, validation, data):
@@ -775,6 +793,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         #       the CourseAllowPIISharingInLTIFlag does not control PII sharing in the author_view or student_view,
         #       because the service is not defined in those contexts.
         return True
+
+    @property
+    def i18n_service(self):
+        """ Obtains translation service """
+        i18n_service = self.runtime.service(self, "i18n")
+        if i18n_service:
+            return i18n_service
+        else:
+            return DummyTranslationService()
 
     @property
     def editable_fields(self):
@@ -1226,7 +1253,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
         statici18n_js_url = self._get_statici18n_js_url(loader)
         if statici18n_js_url:
-            fragment.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
+            fragment.add_javascript_url(statici18n_js_url)
         fragment.initialize_js('LtiConsumerXBlock')
         return fragment
 
