@@ -15,6 +15,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ~~~~~~~~~~
+9.9.0 - 2024-01-15
+------------------
+* Fix Data too long for column 'resource_id'. Increase column size to 255.
+
 9.8.3 - 2024-01-23
 ------------------
 * Additional NewRelic traces to functions suspected of causing performance issues.
