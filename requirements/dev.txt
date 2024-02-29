@@ -14,7 +14,7 @@ asgiref==3.7.2
     #   django
 attrs==23.2.0
     # via -r requirements/base.txt
-backports-zoneinfo==0.2.1
+backports-zoneinfo==0.2.1 ; python_version < "3.9"
     # via
     #   -r requirements/base.txt
     #   django
