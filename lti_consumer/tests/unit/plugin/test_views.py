@@ -2,7 +2,7 @@
 Tests for LTI 1.3 endpoint views.
 """
 import json
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, MagicMock
 
 import ddt
 
@@ -173,7 +173,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         compat_patcher = patch("lti_consumer.plugin.views.compat")
         self.addCleanup(compat_patcher.stop)
         self.compat = compat_patcher.start()
-        course = MagicMagicMagicMock(name="course")
+        course = MagicMock(name="course")
         course.display_name_with_default = "course_display_name"
         course.display_org_with_default = "course_display_org"
         self.compat.get_course_by_id.return_value = course
@@ -667,7 +667,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         self.config.save()
         self.url = reverse('lti_consumer:lti_consumer.access_token', args=[str(self.config.config_id)])
         # Patch settings calls to LMS method
-        self.mock_client = MagicMagicMock()
+        self.mock_client = MagicMock()
         get_lti_consumer_patcher = patch(
             'lti_consumer.plugin.views.LtiConfiguration.get_lti_consumer',
             return_value=self.mock_client
