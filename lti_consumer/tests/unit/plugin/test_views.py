@@ -2,7 +2,7 @@
 Tests for LTI 1.3 endpoint views.
 """
 import json
-from unittest.mock import patch, Mock
+from unittest.mock import patch, MagicMock
 
 import ddt
 
@@ -173,7 +173,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         compat_patcher = patch("lti_consumer.plugin.views.compat")
         self.addCleanup(compat_patcher.stop)
         self.compat = compat_patcher.start()
-        course = Mock(name="course")
+        course = MagicMock(name="course")
         course.display_name_with_default = "course_display_name"
         course.display_org_with_default = "course_display_org"
         self.compat.get_course_by_id.return_value = course
@@ -379,7 +379,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.config.save()
 
         self.compat.get_user_role.return_value = user_role
-        mock_user_service = Mock()
+        mock_user_service = MagicMock()
         mock_user_service.get_external_user_id.return_value = 2
         self.xblock.runtime.service.return_value = mock_user_service
 
@@ -513,7 +513,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("http://tool.example/launch", content)
 
-    @ddt.data(Mock(), None)
+    @ddt.data(MagicMock(), None)
     @patch('lti_consumer.api.get_deep_linking_data')
     def test_callback_endpoint_dl_content_launch_database_config(self, dl_value, mock_lti_dl):
         self._setup_deep_linking(user_role="staff")
@@ -667,7 +667,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         self.config.save()
         self.url = reverse('lti_consumer:lti_consumer.access_token', args=[str(self.config.config_id)])
         # Patch settings calls to LMS method
-        self.mock_client = Mock()
+        self.mock_client = MagicMock()
         get_lti_consumer_patcher = patch(
             'lti_consumer.plugin.views.LtiConfiguration.get_lti_consumer',
             return_value=self.mock_client
@@ -699,7 +699,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         body = self.get_body(create_jwt(self.key, {}))
         response = self.client.post(self.url, data=body)
 
-        self.mock_client.access_token.called_once_with(body)
+        self.mock_client.access_token.assert_called_once_with(body)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), token)
 
@@ -801,7 +801,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         """
         Check that 400 is returned when required attributes are missing in the request
         """
-        self.mock_client.access_token = Mock(side_effect=MissingRequiredClaim())
+        self.mock_client.access_token = MagicMock(side_effect=MissingRequiredClaim())
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_request'})
@@ -810,12 +810,12 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         """
         Check invalid_grant error is returned when the token is invalid
         """
-        self.mock_client.access_token = Mock(side_effect=MalformedJwtToken())
+        self.mock_client.access_token = MagicMock(side_effect=MalformedJwtToken())
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_grant'})
 
-        self.mock_client.access_token = Mock(side_effect=TokenSignatureExpired())
+        self.mock_client.access_token = MagicMock(side_effect=TokenSignatureExpired())
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_grant'})
@@ -824,12 +824,12 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         """
         Check invalid_client error is returned when the client credentials are wrong
         """
-        self.mock_client.access_token = Mock(side_effect=NoSuitableKeys())
+        self.mock_client.access_token = MagicMock(side_effect=NoSuitableKeys())
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_client'})
 
-        self.mock_client.access_token = Mock(side_effect=UnknownClientId())
+        self.mock_client.access_token = MagicMock(side_effect=UnknownClientId())
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'invalid_client'})
@@ -838,7 +838,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         """
         Check unsupported_grant_type is returned when the grant type is wrong
         """
-        self.mock_client.access_token = Mock(side_effect=UnsupportedGrantType())
+        self.mock_client.access_token = MagicMock(side_effect=UnsupportedGrantType())
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'error': 'unsupported_grant_type'})
