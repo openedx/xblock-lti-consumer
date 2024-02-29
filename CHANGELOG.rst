@@ -15,6 +15,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ~~~~~~~~~~
+9.9.0 - 2024-02-29
+------------------
+* Adding python 3.12 support. Dropping django32 support.
+
 9.8.3 - 2024-01-23
 ------------------
 * Additional NewRelic traces to functions suspected of causing performance issues.
