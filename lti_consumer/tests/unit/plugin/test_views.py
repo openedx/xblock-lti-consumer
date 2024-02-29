@@ -699,7 +699,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         body = self.get_body(create_jwt(self.key, {}))
         response = self.client.post(self.url, data=body)
 
-        self.mock_client.access_token.called_once_with(body)
+        self.mock_client.access_token.assert_called_once_with(body)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), token)
 
