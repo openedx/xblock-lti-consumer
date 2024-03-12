@@ -16,29 +16,33 @@ asgiref==3.7.2
     # via
     #   -r requirements/test.txt
     #   django
-astroid==3.0.3
+astroid==3.1.0
     # via
     #   -r requirements/test.txt
     #   pylint
     #   pylint-celery
 attrs==23.2.0
     # via -r requirements/test.txt
+backports-zoneinfo==0.2.1
+    # via
+    #   -r requirements/test.txt
+    #   django
 binaryornot==0.4.4
     # via
     #   -r requirements/test.txt
     #   cookiecutter
 bleach==6.1.0
     # via -r requirements/test.txt
-boto3==1.34.45
+boto3==1.34.60
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.34.45
+botocore==1.34.60
     # via
     #   -r requirements/test.txt
     #   boto3
     #   s3transfer
-cachetools==5.3.2
+cachetools==5.3.3
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -81,7 +85,7 @@ colorama==0.4.6
     # via
     #   -r requirements/tox.txt
     #   tox
-cookiecutter==2.5.0
+cookiecutter==2.6.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
@@ -91,11 +95,11 @@ coverage==6.5.0
     #   coveralls
 coveralls==3.3.1
     # via -r requirements/test.txt
-cryptography==42.0.3
+cryptography==42.0.5
     # via
     #   -r requirements/test.txt
     #   secretstorage
-ddt==1.7.1
+ddt==1.7.2
     # via -r requirements/test.txt
 dill==0.3.8
     # via
@@ -105,7 +109,7 @@ distlib==0.3.8
     # via
     #   -r requirements/tox.txt
     #   virtualenv
-django==3.2.24
+django==4.2.11
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/test.txt
@@ -131,7 +135,7 @@ django-crum==0.7.9
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
-django-filter==23.5
+django-filter==24.1
     # via -r requirements/test.txt
 django-statici18n==2.4.0
     # via -r requirements/test.txt
@@ -153,7 +157,7 @@ docutils==0.20.1
     #   readme-renderer
 edx-ccx-keys==1.2.1
     # via -r requirements/test.txt
-edx-django-utils==5.10.1
+edx-django-utils==5.11.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
@@ -179,7 +183,7 @@ fs-s3fs==1.1.1
     #   -r requirements/test.txt
     #   openedx-django-pyfs
     #   xblock-sdk
-future==0.18.3
+future==1.0.0
     # via
     #   -r requirements/test.txt
     #   pyjwkest
@@ -187,12 +191,12 @@ idna==3.6
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==7.0.1
+importlib-metadata==7.0.2
     # via
     #   -r requirements/test.txt
     #   keyring
     #   twine
-importlib-resources==6.1.1
+importlib-resources==6.1.3
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -221,7 +225,7 @@ jmespath==1.0.1
     #   botocore
 jsonfield==3.1.0
     # via -r requirements/test.txt
-keyring==24.3.0
+keyring==24.3.1
     # via
     #   -r requirements/test.txt
     #   twine
@@ -260,7 +264,7 @@ more-itertools==10.2.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
-newrelic==9.6.0
+newrelic==9.7.1
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -274,7 +278,7 @@ openedx-django-pyfs==3.5.0
     # via -r requirements/test.txt
 openedx-filters==1.6.0
     # via -r requirements/test.txt
-packaging==23.2
+packaging==24.0
     # via
     #   -r requirements/tox.txt
     #   pyproject-api
@@ -283,7 +287,7 @@ pbr==6.0.0
     # via
     #   -r requirements/test.txt
     #   stevedore
-pkginfo==1.9.6
+pkginfo==1.10.0
     # via
     #   -r requirements/test.txt
     #   twine
@@ -319,7 +323,7 @@ pygments==2.17.2
     #   rich
 pyjwkest==1.4.2
     # via -r requirements/test.txt
-pylint==3.0.3
+pylint==3.1.0
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -355,7 +359,7 @@ pyproject-api==1.6.1
     # via
     #   -r requirements/tox.txt
     #   tox
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
     # via
     #   -r requirements/test.txt
     #   arrow
@@ -369,7 +373,6 @@ python-slugify==8.0.4
 pytz==2024.1
     # via
     #   -r requirements/test.txt
-    #   django
     #   djangorestframework
     #   xblock
 pyyaml==6.0.1
@@ -378,7 +381,7 @@ pyyaml==6.0.1
     #   code-annotations
     #   cookiecutter
     #   xblock
-readme-renderer==42.0
+readme-renderer==43.0
     # via
     #   -r requirements/test.txt
     #   twine
@@ -399,7 +402,7 @@ rfc3986==2.0.0
     # via
     #   -r requirements/test.txt
     #   twine
-rich==13.7.0
+rich==13.7.1
     # via
     #   -r requirements/test.txt
     #   cookiecutter
@@ -431,7 +434,7 @@ sqlparse==0.4.4
     # via
     #   -r requirements/test.txt
     #   django
-stevedore==5.1.0
+stevedore==5.2.0
     # via
     #   -r requirements/test.txt
     #   code-annotations
@@ -448,19 +451,19 @@ tomli==2.0.1
     #   pylint
     #   pyproject-api
     #   tox
-tomlkit==0.12.3
+tomlkit==0.12.4
     # via
     #   -r requirements/test.txt
     #   pylint
-tox==4.13.0
+tox==4.14.1
     # via -r requirements/tox.txt
 twine==5.0.0
     # via -r requirements/test.txt
-types-python-dateutil==2.8.19.20240106
+types-python-dateutil==2.8.19.20240311
     # via
     #   -r requirements/test.txt
     #   arrow
-typing-extensions==4.9.0
+typing-extensions==4.10.0
     # via
     #   -r requirements/test.txt
     #   asgiref
@@ -475,7 +478,7 @@ urllib3==1.26.18
     #   botocore
     #   requests
     #   twine
-virtualenv==20.25.0
+virtualenv==20.25.1
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -493,7 +496,7 @@ webob==1.8.7
     #   -r requirements/test.txt
     #   xblock
     #   xblock-sdk
-xblock==1.10.0
+xblock==2.0.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
