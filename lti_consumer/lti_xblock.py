@@ -55,11 +55,10 @@ import re
 import urllib.parse
 from collections import namedtuple
 from importlib import import_module
-import pkg_resources
 
 import bleach
 from django.conf import settings
-from django.utils import timezone, translation
+from django.utils import timezone
 from web_fragments.fragment import Fragment
 
 from webob import Response
@@ -257,6 +256,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     block_settings_key = 'lti_consumer'
+    i18n_js_namespace = 'XBlockLtiConsumerI18N'
 
     display_name = String(
         display_name=_("Display Name"),
@@ -662,20 +662,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         ]
         return scenarios
 
-    @staticmethod
-    def _get_statici18n_js_url(loader):  # pragma: no cover
+    def _get_statici18n_js_url(self):
         """
-        Returns the Javascript translation file for the currently selected language, if any found by
-        `pkg_resources`
+        Return the JavaScript translation file provided by the XBlockI18NService.
         """
-        lang_code = translation.get_language()
-        if not lang_code:
-            return None
-        text_js = 'public/js/translations/{lang_code}/text.js'
-        country_code = lang_code.split('-')[0]
-        for code in (translation.to_locale(lang_code), lang_code, country_code):
-            if pkg_resources.resource_exists(loader.module_name, text_js.format(lang_code=code)):
-                return text_js.format(lang_code=code)
+        if i18n_service := self.runtime.service(self, 'i18n'):
+            if url_getter_func := getattr(i18n_service, 'get_javascript_i18n_catalog_url', None):
+                if javascript_url := url_getter_func(self):
+                    return javascript_url
+
         return None
 
     def validate_field_data(self, validation, data):
@@ -1197,9 +1192,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         )
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
-        statici18n_js_url = self._get_statici18n_js_url(loader)
+        statici18n_js_url = self._get_statici18n_js_url()
         if statici18n_js_url:
-            fragment.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
+            fragment.add_javascript_url(statici18n_js_url)
         fragment.initialize_js('LtiConsumerXBlock')
         return fragment
 
@@ -1224,9 +1219,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
-        statici18n_js_url = self._get_statici18n_js_url(loader)
+        statici18n_js_url = self._get_statici18n_js_url()
         if statici18n_js_url:
-            fragment.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
+            fragment.add_javascript_url(statici18n_js_url)
         fragment.initialize_js('LtiConsumerXBlock')
         return fragment
 
