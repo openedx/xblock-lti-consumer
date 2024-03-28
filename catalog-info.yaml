@@ -16,5 +16,5 @@ metadata:
 spec:
   type: XBlock
   lifecycle: production
-  owner: masters-devs-cosmonauts
+  owner: ~
   subcomponentOf: LTI
