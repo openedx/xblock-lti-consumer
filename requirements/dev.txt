@@ -8,19 +8,24 @@ appdirs==1.4.4
     # via
     #   -r requirements/base.txt
     #   fs
-asgiref==3.7.2
+asgiref==3.8.1
     # via
     #   -r requirements/base.txt
     #   django
 attrs==23.2.0
     # via -r requirements/base.txt
+backports-zoneinfo==0.2.1
+    # via
+    #   -r requirements/base.txt
+    #   django
+    #   djangorestframework
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.34.45
+boto3==1.34.75
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.34.45
+botocore==1.34.75
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -41,7 +46,7 @@ click==8.1.7
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-django==3.2.24
+django==4.2.11
     # via
     #   -r requirements/base.txt
     #   django-appconf
@@ -66,7 +71,7 @@ django-crum==0.7.9
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-django-filter==23.5
+django-filter==24.2
     # via -r requirements/base.txt
 django-statici18n==2.4.0
     # via -r requirements/base.txt
@@ -74,13 +79,13 @@ django-waffle==4.1.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-djangorestframework==3.14.0
+djangorestframework==3.15.1
     # via
     #   -r requirements/base.txt
     #   django-config-models
 edx-ccx-keys==1.2.1
     # via -r requirements/base.txt
-edx-django-utils==5.10.1
+edx-django-utils==5.12.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
@@ -100,7 +105,7 @@ fs-s3fs==1.1.1
     # via
     #   -r requirements/base.txt
     #   openedx-django-pyfs
-future==0.18.3
+future==1.0.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -117,7 +122,7 @@ jsonfield==3.1.0
     # via -r requirements/base.txt
 lazy==1.6
     # via -r requirements/base.txt
-lxml==5.1.0
+lxml==5.2.0
     # via
     #   -r requirements/base.txt
     #   edx-i18n-tools
@@ -131,13 +136,13 @@ markupsafe==2.1.5
     #   -r requirements/base.txt
     #   mako
     #   xblock
-newrelic==9.6.0
+newrelic==9.8.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
 oauthlib==3.2.2
     # via -r requirements/base.txt
-openedx-django-pyfs==3.5.0
+openedx-django-pyfs==3.6.0
     # via -r requirements/base.txt
 openedx-filters==1.6.0
     # via -r requirements/base.txt
@@ -153,7 +158,7 @@ psutil==5.9.8
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-pycparser==2.21
+pycparser==2.22
     # via
     #   -r requirements/base.txt
     #   cffi
@@ -171,7 +176,7 @@ pynacl==1.5.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
     # via
     #   -r requirements/base.txt
     #   botocore
@@ -179,8 +184,6 @@ python-dateutil==2.8.2
 pytz==2024.1
     # via
     #   -r requirements/base.txt
-    #   django
-    #   djangorestframework
     #   xblock
 pyyaml==6.0.1
     # via
@@ -191,7 +194,7 @@ requests==2.31.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-s3transfer==0.10.0
+s3transfer==0.10.1
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -212,12 +215,12 @@ sqlparse==0.4.4
     # via
     #   -r requirements/base.txt
     #   django
-stevedore==5.1.0
+stevedore==5.2.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
     #   edx-opaque-keys
-typing-extensions==4.9.0
+typing-extensions==4.10.0
     # via
     #   -r requirements/base.txt
     #   asgiref
@@ -239,7 +242,7 @@ webob==1.8.7
     # via
     #   -r requirements/base.txt
     #   xblock
-xblock==1.10.0
+xblock==3.0.0
     # via -r requirements/base.txt
 
 # The following packages are considered to be unsafe in a requirements file:
