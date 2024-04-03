@@ -19,7 +19,7 @@ Unreleased
 ------------------
 * Remove Transifex calls and bundled translation files for the OEP-58 proposal.
 * BREAKING CHANGE: This version breaks translations with Quince and earlier releases.
-* Adding python 3.12 support. Dropping django32 support.
+* Adding python 3.11 support. Dropping django32 support.
 
 9.9.0 (2024-01-24)
 ---------------------------
