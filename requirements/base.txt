@@ -17,9 +17,9 @@ backports-zoneinfo==0.2.1 ; python_version < "3.9"
     #   djangorestframework
 bleach==6.1.0
     # via -r requirements/base.in
-boto3==1.34.82
+boto3==1.34.83
     # via fs-s3fs
-botocore==1.34.82
+botocore==1.34.83
     # via
     #   boto3
     #   s3transfer
@@ -87,8 +87,9 @@ jsonfield==3.1.0
     # via -r requirements/base.in
 lazy==1.6
     # via -r requirements/base.in
-lxml==5.2.1
+lxml==4.9.4
     # via
+    #   -c requirements/constraints.txt
     #   -r requirements/base.in
     #   xblock
 mako==1.3.3
