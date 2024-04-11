@@ -332,7 +332,7 @@ xblock==3.1.0
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
-xblock-sdk==0.1.0
+xblock-sdk==0.10.0
     # via -r requirements/quality.in
 
 # The following packages are considered to be unsafe in a requirements file:
