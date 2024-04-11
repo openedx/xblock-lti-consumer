@@ -11,4 +11,4 @@ mock
 pycodestyle
 readme-renderer
 twine
-xblock-sdk
+xblock-sdk>0.10.0
