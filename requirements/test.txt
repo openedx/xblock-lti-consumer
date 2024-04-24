@@ -385,7 +385,7 @@ xblock==4.0.0
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
-xblock-sdk==0.7.0
+xblock-sdk==0.11.0
     # via -r requirements/test.in
 zipp==3.18.1
     # via
