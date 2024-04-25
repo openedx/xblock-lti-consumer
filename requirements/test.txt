@@ -20,7 +20,7 @@ astroid==3.1.0
     #   pylint-celery
 attrs==23.2.0
     # via -r requirements/base.txt
-backports-tarfile==1.0.0
+backports-tarfile==1.1.1
     # via jaraco-context
 backports-zoneinfo==0.2.1 ; python_version < "3.9"
     # via
@@ -32,11 +32,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.1.0
     # via -r requirements/base.txt
-boto3==1.34.83
+boto3==1.34.90
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.34.83
+botocore==1.34.90
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -48,7 +48,6 @@ certifi==2024.2.2
 cffi==1.16.0
     # via
     #   -r requirements/base.txt
-    #   cryptography
     #   pynacl
 chardet==5.2.0
     # via binaryornot
@@ -74,8 +73,6 @@ coverage==6.5.0
     # via coveralls
 coveralls==3.3.1
     # via -r requirements/test.in
-cryptography==42.0.5
-    # via secretstorage
 ddt==1.7.2
     # via -r requirements/test.in
 dill==0.3.8
@@ -108,7 +105,7 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==24.2
     # via -r requirements/base.txt
-django-statici18n==2.4.0
+django-statici18n==2.5.0
     # via -r requirements/base.txt
 django-waffle==4.1.0
     # via
@@ -123,7 +120,7 @@ docopt==0.6.2
     # via coveralls
 docutils==0.20.1
     # via readme-renderer
-edx-ccx-keys==1.2.1
+edx-ccx-keys==1.3.0
     # via -r requirements/base.txt
 edx-django-utils==5.12.0
     # via
@@ -131,7 +128,7 @@ edx-django-utils==5.12.0
     #   django-config-models
 edx-lint==5.3.6
     # via -r requirements/test.in
-edx-opaque-keys[django]==2.5.1
+edx-opaque-keys[django]==2.8.0
     # via
     #   -r requirements/base.txt
     #   edx-ccx-keys
@@ -167,12 +164,8 @@ jaraco-classes==3.4.0
     # via keyring
 jaraco-context==5.3.0
     # via keyring
-jaraco-functools==4.0.0
+jaraco-functools==4.0.1
     # via keyring
-jeepney==0.8.0
-    # via
-    #   keyring
-    #   secretstorage
 jinja2==3.1.3
     # via
     #   code-annotations
@@ -188,9 +181,8 @@ keyring==25.1.0
     # via twine
 lazy==1.6
     # via -r requirements/base.txt
-lxml==4.9.4
+lxml==5.2.1
     # via
-    #   -c requirements/constraints.txt
     #   -r requirements/base.txt
     #   xblock
     #   xblock-sdk
@@ -216,7 +208,7 @@ more-itertools==10.2.0
     # via
     #   jaraco-classes
     #   jaraco-functools
-newrelic==9.8.0
+newrelic==9.9.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -226,7 +218,7 @@ oauthlib==3.2.2
     # via -r requirements/base.txt
 openedx-django-pyfs==3.6.0
     # via -r requirements/base.txt
-openedx-filters==1.6.0
+openedx-filters==1.8.1
     # via -r requirements/base.txt
 pbr==6.0.0
     # via
@@ -234,7 +226,7 @@ pbr==6.0.0
     #   stevedore
 pkginfo==1.10.0
     # via twine
-platformdirs==4.2.0
+platformdirs==4.2.1
     # via pylint
 psutil==5.9.8
     # via
@@ -325,8 +317,6 @@ s3transfer==0.10.1
     # via
     #   -r requirements/base.txt
     #   boto3
-secretstorage==3.3.3
-    # via keyring
 simplejson==3.19.2
     # via
     #   -r requirements/base.txt
@@ -342,7 +332,7 @@ six==1.16.0
     #   fs-s3fs
     #   pyjwkest
     #   python-dateutil
-sqlparse==0.4.4
+sqlparse==0.5.0
     # via
     #   -r requirements/base.txt
     #   django
@@ -391,11 +381,11 @@ webob==1.8.7
     #   -r requirements/base.txt
     #   xblock
     #   xblock-sdk
-xblock==3.1.0
+xblock==4.0.0
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
-xblock-sdk==0.10.0
+xblock-sdk==0.11.0
     # via -r requirements/test.in
 zipp==3.18.1
     # via

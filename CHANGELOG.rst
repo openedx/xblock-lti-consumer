@@ -16,6 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.11.0 - 2024-04-24
+-------------------
+* Remove lxml pin
+
+
 9.10.0 - 2024-02-29
 ------------------
 * Remove Transifex calls and bundled translation files for the OEP-58 proposal.
