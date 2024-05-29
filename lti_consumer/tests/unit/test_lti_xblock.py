@@ -957,7 +957,8 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         fake_user_email = 'abc@example.com'
         fake_user.emails = [fake_user_email]
 
-        full_name_mock = PropertyMock(return_value='fake_full_name')
+        fake_name = 'fáke fǔll ñamë'
+        full_name_mock = PropertyMock(return_value=fake_name)
         type(fake_user).full_name = full_name_mock
 
         fake_username = 'fake'
@@ -1077,7 +1078,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
 
         set_user_data_kwargs['person_sourcedid'] = 'fake' if pii_sharing_enabled and ask_to_send_username else None
         set_user_data_kwargs['person_name_full'] = (
-            'fake_full_name' if pii_sharing_enabled and ask_to_send_full_name else None
+            'fáke fǔll ñamë'.encode() if pii_sharing_enabled and ask_to_send_full_name else None
         )
         set_user_data_kwargs['person_contact_email_primary'] = (
             'abc@example.com' if pii_sharing_enabled and ask_to_send_email else None
@@ -1814,7 +1815,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         fake_user_email = 'fake_email@example.com'
         fake_username = 'fake_username'
 
-        fake_name = 'fake_full_name'
+        fake_name = 'fáke fǔll ñamë'
         full_name_mock = PropertyMock(return_value=fake_name)
         type(fake_user).full_name = full_name_mock
 
@@ -1866,7 +1867,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
                 expected_launch_data_kwargs["preferred_username"] = fake_username
 
             if ask_to_send_full_name:
-                expected_launch_data_kwargs["name"] = fake_name
+                expected_launch_data_kwargs["name"] = fake_name.encode()
 
             if ask_to_send_email:
                 expected_launch_data_kwargs["email"] = fake_user_email
