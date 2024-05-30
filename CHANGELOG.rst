@@ -16,10 +16,13 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.11.1 - 2024-04-24
+-------------------
+* Add utf-8 encoding for user full name
+
 9.11.0 - 2024-04-24
 -------------------
 * Remove lxml pin
-
 
 9.10.0 - 2024-02-29
 ------------------
