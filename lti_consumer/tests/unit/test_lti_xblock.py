@@ -1078,7 +1078,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
 
         set_user_data_kwargs['person_sourcedid'] = 'fake' if pii_sharing_enabled and ask_to_send_username else None
         set_user_data_kwargs['person_name_full'] = (
-            'fáke fǔll ñamë'.encode() if pii_sharing_enabled and ask_to_send_full_name else None
+            'fáke fǔll ñamë' if pii_sharing_enabled and ask_to_send_full_name else None
         )
         set_user_data_kwargs['person_contact_email_primary'] = (
             'abc@example.com' if pii_sharing_enabled and ask_to_send_email else None
@@ -1867,7 +1867,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
                 expected_launch_data_kwargs["preferred_username"] = fake_username
 
             if ask_to_send_full_name:
-                expected_launch_data_kwargs["name"] = fake_name.encode()
+                expected_launch_data_kwargs["name"] = fake_name
 
             if ask_to_send_email:
                 expected_launch_data_kwargs["email"] = fake_user_email

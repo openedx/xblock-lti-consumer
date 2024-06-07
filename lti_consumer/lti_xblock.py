@@ -1130,7 +1130,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         user_data = {
             'user_email': None,
             'user_username': None,
-            'user_full_name': user.full_name.encode(),
+            'user_full_name': user.full_name,
             'user_language': None,
         }
 

@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.11.3 - 2024-05-30
+-------------------
+* Remove utf-8 encoding for user full name
+
 9.11.2 - 2024-05-30
 -------------------
 * Update python version for pypi publish workflow
