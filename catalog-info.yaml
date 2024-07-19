@@ -16,5 +16,5 @@ metadata:
 spec:
   type: XBlock
   lifecycle: production
-  owner: ~
+  owner: "group:openedx-unmaintained"
   subcomponentOf: LTI
