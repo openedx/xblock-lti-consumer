@@ -16,6 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+
+9.12.0 - 2024-07-16
+-------------------
+* Fix Data too long for column 'resource_id'. Increase column size to 255.
+
 9.11.3 - 2024-05-30
 -------------------
 * Remove utf-8 encoding for user full name
@@ -38,7 +43,7 @@ Unreleased
 * BREAKING CHANGE: This version breaks translations with Quince and earlier releases.
 * Adding python 3.11 support. Dropping django32 support.
 
-9.9.0 (2024-01-24)
+9.9.0 - 2024-01-24
 ---------------------------
 * XBlockI18NService js translations support
 
