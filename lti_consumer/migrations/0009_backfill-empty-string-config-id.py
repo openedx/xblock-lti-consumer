@@ -27,7 +27,7 @@ SELECT
 FROM
     lti_consumer_lticonfiguration
 WHERE
-    config_id = ""
+    config_id = '00000000-0000-0000-0000-000000000000'
 ;\
 """
 
