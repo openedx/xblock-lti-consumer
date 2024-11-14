@@ -72,7 +72,7 @@ One Time Setup
   cd xblock-lti-consumer
 
   # Set up a virtualenv using virtualenvwrapper with the same name as the repo and activate it
-  mkvirtualenv -p python3.8 xblock-lti-consumer
+  mkvirtualenv -p python3.11 xblock-lti-consumer
 
 
 Every time you develop something in this repo
