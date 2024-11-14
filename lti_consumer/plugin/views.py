@@ -110,6 +110,8 @@ def public_keyset_endpoint(
     external_id = f"{external_app}:{external_slug}"
 
     try:
+        version = None
+        public_jwk = {}
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
             version = lti_config.version
@@ -127,7 +129,7 @@ def public_keyset_endpoint(
             version = lti_config.get("version")
             public_jwk = lti_config.get("lti_1p3_public_jwk", {})
 
-        if version != LtiConfiguration.LTI_1P3:
+        if version is None or version != LtiConfiguration.LTI_1P3:
             raise LtiError(
                 "LTI Error: LTI 1.1 blocks do not have a public keyset endpoint."
             )
@@ -413,12 +415,14 @@ def access_token_endpoint(
         JsonResponse or Http404
 
     References:
-        Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
+        Success: https://tools.ietf.org/html/rfc6749#section-4.4.3
         Failure: https://tools.ietf.org/html/rfc6749#section-5.2
     """
     external_id = f"{external_app}:{external_slug}"
 
     try:
+        version = None
+        lti_consumer = None
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
             version = lti_config.version
@@ -457,8 +461,11 @@ def access_token_endpoint(
         )
         raise Http404 from exc
 
-    if version != LtiConfiguration.LTI_1P3:
+    if version is None or version != LtiConfiguration.LTI_1P3:
         return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
+
+    if lti_consumer is None:
+        return JsonResponse({"error": "lti_consumer_not_initialized"}, status=HTTP_404_NOT_FOUND)
 
     try:
         token = lti_consumer.access_token(
@@ -471,10 +478,10 @@ def access_token_endpoint(
 
     # Handle errors and return a proper response
     except MissingRequiredClaim:
-        # Missing request attibutes
+        # Missing request attributes
         return JsonResponse({"error": "invalid_request"}, status=HTTP_400_BAD_REQUEST)
     except (MalformedJwtToken, TokenSignatureExpired):
-        # Triggered when a invalid grant token is used
+        # Triggered when an invalid grant token is used
         return JsonResponse({"error": "invalid_grant"}, status=HTTP_400_BAD_REQUEST)
     except (NoSuitableKeys, UnknownClientId):
         # Client ID is not registered in the block or

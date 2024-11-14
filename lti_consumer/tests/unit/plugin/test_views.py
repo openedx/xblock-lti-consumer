@@ -697,9 +697,13 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         self.mock_client.access_token.return_value = token
 
         body = self.get_body(create_jwt(self.key, {}))
-        response = self.client.post(self.url, data=body)
+        response = self.client.post(self.url, data=json.dumps(body), content_type='application/json')
+        self.mock_client.access_token.assert_called_once()
+        called_args = self.mock_client.access_token.call_args[0]
+        actual_arg = called_args[0]
+        actual_dict = json.loads(next(iter(actual_arg.keys())))
 
-        self.mock_client.access_token.called_once_with(body)
+        self.assertEqual(actual_dict, body)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), token)
 
@@ -715,9 +719,14 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
             args=[str(self.config.location)]
         )
         body = self.get_body(create_jwt(self.key, {}))
-        response = self.client.post(url, data=body)
+        response = self.client.post(url, data=json.dumps(body), content_type='application/json')
 
-        self.mock_client.access_token.called_once_with(body)
+        self.mock_client.access_token.assert_called_once()
+        called_args = self.mock_client.access_token.call_args[0]
+        actual_arg = called_args[0]
+        actual_dict = json.loads(next(iter(actual_arg.keys())))
+
+        self.assertEqual(actual_dict, body)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), token)
 
@@ -748,7 +757,8 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         body = self.get_body(create_jwt(self.key, {}))
         response = self.client.post(
             reverse('lti_consumer:lti_consumer.access_token_via_external_id', args=['x', 'x']),
-            data=body,
+            data=json.dumps(body),
+            content_type='application/json'
         )
 
         get_external_config_from_filter.assert_called_once_with({}, 'x:x')
@@ -765,7 +775,12 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
             tool_key=external_config['lti_1p3_tool_public_key'],
             tool_keyset_url=external_config['lti_1p3_tool_keyset_url'],
         )
-        lti_consumer().access_token.called_once_with(body)
+        lti_consumer().access_token.assert_called_once()
+        called_args = lti_consumer().access_token.call_args[0]
+        actual_arg = called_args[0]
+        actual_dict = json.loads(next(iter(actual_arg.keys())))
+
+        self.assertEqual(actual_dict, body)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), token)
 
