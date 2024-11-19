@@ -26,11 +26,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.2.0
     # via -r requirements/base.txt
-boto3==1.35.60
+boto3==1.35.64
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.35.60
+botocore==1.35.64
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -42,6 +42,7 @@ certifi==2024.8.30
 cffi==1.17.1
     # via
     #   -r requirements/base.txt
+    #   cryptography
     #   pynacl
 chardet==5.2.0
     # via binaryornot
@@ -59,14 +60,16 @@ click==8.1.7
     #   edx-lint
 click-log==0.4.0
     # via edx-lint
-code-annotations==1.8.0
+code-annotations==1.8.1
     # via edx-lint
 cookiecutter==2.6.0
     # via xblock-sdk
-coverage[toml]==7.6.4
+coverage[toml]==7.6.7
     # via coveralls
 coveralls==4.0.1
     # via -r requirements/test.in
+cryptography==43.0.3
+    # via secretstorage
 ddt==1.7.2
     # via -r requirements/test.in
 dill==0.3.9
@@ -101,7 +104,7 @@ django-filter==24.3
     # via -r requirements/base.txt
 django-statici18n==2.5.0
     # via -r requirements/base.txt
-django-waffle==4.1.0
+django-waffle==4.2.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -161,6 +164,10 @@ jaraco-context==6.0.1
     # via keyring
 jaraco-functools==4.1.0
     # via keyring
+jeepney==0.8.0
+    # via
+    #   keyring
+    #   secretstorage
 jinja2==3.1.4
     # via
     #   code-annotations
@@ -203,7 +210,7 @@ more-itertools==10.5.0
     # via
     #   jaraco-classes
     #   jaraco-functools
-newrelic==10.2.0
+newrelic==10.3.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -312,6 +319,8 @@ s3transfer==0.10.3
     # via
     #   -r requirements/base.txt
     #   boto3
+secretstorage==3.3.3
+    # via keyring
 simplejson==3.19.3
     # via
     #   -r requirements/base.txt

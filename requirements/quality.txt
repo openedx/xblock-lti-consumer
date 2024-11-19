@@ -24,11 +24,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.2.0
     # via -r requirements/base.txt
-boto3==1.35.60
+boto3==1.35.64
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.35.60
+botocore==1.35.64
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -57,7 +57,7 @@ click==8.1.7
     #   edx-lint
 click-log==0.4.0
     # via edx-lint
-code-annotations==1.8.0
+code-annotations==1.8.1
     # via edx-lint
 cookiecutter==2.6.0
     # via xblock-sdk
@@ -95,7 +95,7 @@ django-filter==24.3
     # via -r requirements/base.txt
 django-statici18n==2.5.0
     # via -r requirements/base.txt
-django-waffle==4.1.0
+django-waffle==4.2.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -174,7 +174,7 @@ mccabe==0.7.0
     # via pylint
 mdurl==0.1.2
     # via markdown-it-py
-newrelic==10.2.0
+newrelic==10.3.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
