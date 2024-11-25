@@ -824,6 +824,8 @@ class LtiDlContentItem(models.Model):
     LTI-DL Specification: https://www.imsglobal.org/spec/lti-dl/v2p0
     Content items are resources selected by instructor that should
     be displayed to students.
+
+    .. no_pii:
     """
     # LTI Configuration link
     # This ties the LineItem to each tool configuration
