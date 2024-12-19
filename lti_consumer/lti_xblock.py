@@ -646,7 +646,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                         ask_to_send_email="False"
                         enable_processors="True"
                         launch_target="new_window"
-                        launch_url="https://lti.tools/saltire/tp" />
+                        launch_url="https://saltire.lti.app/tool?norefresh" />
 
                     <lti_consumer
                         display_name="LTI Consumer - IFrame"
@@ -656,7 +656,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                         enable_processors="True"
                         description=""
                         launch_target="iframe"
-                        launch_url="https://lti.tools/saltire/tp" />
+                        launch_url="https://saltire.lti.app/tool?norefresh" />
                 </sequence_demo>
              '''),
         ]

@@ -160,7 +160,11 @@ http://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/lat
    as seen above).  Make a unit, select "Advanced", then "LTI Consumer".
 3. Click edit and fill in the following fields:
    ``LTI ID``: "test"
-   ``LTI URL``: "https://lti.tools/saltire/tp"
+   ``LTI URL``: "https://saltire.lti.app/tool"
+   **Note:** If you are using more than one same LTI xblocks in the same unit, 
+   please append the `norefresh` parameter to the LTI URL to avoid any 
+   potential failures. Then LTI URL will look like this: 
+   `https://saltire.lti.app/tool?norefresh`.
 4. Click save.  The unit should refresh and you should see "Passed" in the "Verification" field of
    the message tab in the LTI Tool Provider emulator.
 5. Click the "Publish" button.
