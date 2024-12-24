@@ -12,9 +12,9 @@ attrs==24.3.0
     # via -r requirements/base.in
 bleach==6.2.0
     # via -r requirements/base.in
-boto3==1.35.82
+boto3==1.35.87
     # via fs-s3fs
-botocore==1.35.82
+botocore==1.35.87
     # via
     #   boto3
     #   s3transfer
@@ -24,7 +24,7 @@ cffi==1.17.1
     # via pynacl
 charset-normalizer==3.4.0
     # via requests
-click==8.1.7
+click==8.1.8
     # via edx-django-utils
 django==4.2.17
     # via
@@ -106,7 +106,7 @@ openedx-filters==1.12.0
     # via -r requirements/base.in
 pbr==6.1.0
     # via stevedore
-psutil==6.1.0
+psutil==6.1.1
     # via edx-django-utils
 pycparser==2.22
     # via cffi
