@@ -24,6 +24,10 @@ Unreleased
 -------------------
 * Removed pyjwkset package and replace with pyjwt package
 
+9.12.1 - 2024-12-19
+-------------------
+* Update lti_url in readme for testing LTI 1.1/1.2.
+
 9.12.0 - 2024-11-14
 -------------------
 * Dropped support for Python 3.8 and added support for Python 3.12.
