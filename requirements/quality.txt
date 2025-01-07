@@ -14,7 +14,7 @@ asgiref==3.8.1
     # via
     #   -r requirements/base.txt
     #   django
-astroid==3.3.6
+astroid==3.3.8
     # via
     #   pylint
     #   pylint-celery
@@ -24,11 +24,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.2.0
     # via -r requirements/base.txt
-boto3==1.35.82
+boto3==1.35.93
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.35.82
+botocore==1.35.93
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -43,11 +43,11 @@ cffi==1.17.1
     #   pynacl
 chardet==5.2.0
     # via binaryornot
-charset-normalizer==3.4.0
+charset-normalizer==3.4.1
     # via
     #   -r requirements/base.txt
     #   requests
-click==8.1.7
+click==8.1.8
     # via
     #   -r requirements/base.txt
     #   click-log
@@ -140,7 +140,7 @@ idna==3.10
     #   requests
 isort==5.13.2
     # via pylint
-jinja2==3.1.4
+jinja2==3.1.5
     # via
     #   code-annotations
     #   cookiecutter
@@ -190,7 +190,7 @@ pbr==6.1.0
     #   stevedore
 platformdirs==4.3.6
     # via pylint
-psutil==6.1.0
+psutil==6.1.1
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -204,11 +204,11 @@ pycryptodomex==3.21.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
-pygments==2.18.0
+pygments==2.19.1
     # via rich
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pylint==3.3.2
+pylint==3.3.3
     # via
     #   -r requirements/quality.in
     #   edx-lint
@@ -301,6 +301,7 @@ typing-extensions==4.12.2
     #   edx-opaque-keys
 urllib3==1.26.20
     # via
+    #   -c requirements/common_constraints.txt
     #   -c requirements/constraints.txt
     #   -r requirements/base.txt
     #   botocore
