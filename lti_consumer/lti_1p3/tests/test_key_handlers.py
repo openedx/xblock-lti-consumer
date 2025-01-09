@@ -3,15 +3,16 @@ Unit tests for LTI 1.3 consumer implementation
 """
 
 import json
+import math
+import time
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import ddt
+import jwt
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
-from jwkest import BadSignature
-from jwkest.jwk import RSAKey, load_jwks
-from jwkest.jws import JWS, NoSuitableSigningKeys, UnknownAlgorithm
-
+from jwt.api_jwk import PyJWK
 
 from lti_consumer.lti_1p3 import exceptions
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler, ToolKeyHandler
@@ -36,16 +37,13 @@ class TestPlatformKeyHandler(TestCase):
             kid=self.rsa_key_id
         )
 
-    def _decode_token(self, token):
+    def _decode_token(self, token, exp=True):
         """
-        Checks for a valid signarute and decodes JWT signed LTI message
+        Checks for a valid signature and decodes JWT signed LTI message
 
         This also touches the public keyset method.
         """
-        public_keyset = self.key_handler.get_public_jwk()
-        key_set = load_jwks(json.dumps(public_keyset))
-
-        return JWS().verify_compact(token, keys=key_set)
+        return self.key_handler.validate_and_decode(token, exp=exp)
 
     def test_encode_and_sign(self):
         """
@@ -56,7 +54,7 @@ class TestPlatformKeyHandler(TestCase):
         }
         signed_token = self.key_handler.encode_and_sign(message)
         self.assertEqual(
-            self._decode_token(signed_token),
+            self._decode_token(signed_token, exp=False),
             message
         )
 
@@ -69,10 +67,10 @@ class TestPlatformKeyHandler(TestCase):
         message = {
             "test": "test"
         }
-
+        expiration = int(datetime.now(tz=timezone.utc).timestamp())
         signed_token = self.key_handler.encode_and_sign(
             message,
-            expiration=1000
+            expiration=expiration
         )
 
         self.assertEqual(
@@ -80,33 +78,9 @@ class TestPlatformKeyHandler(TestCase):
             {
                 "test": "test",
                 "iat": 1000,
-                "exp": 2000
+                "exp": expiration + 1000
             }
         )
-
-    def test_encode_and_sign_no_suitable_keys(self):
-        """
-        Test if an exception is raised when there are no suitable keys when signing the JWT.
-        """
-        message = {
-            "test": "test"
-        }
-
-        with patch('lti_consumer.lti_1p3.key_handlers.JWS.sign_compact', side_effect=NoSuitableSigningKeys):
-            with self.assertRaises(exceptions.NoSuitableKeys):
-                self.key_handler.encode_and_sign(message)
-
-    def test_encode_and_sign_unknown_algorithm(self):
-        """
-        Test if an exception is raised when the signing algorithm is unknown when signing the JWT.
-        """
-        message = {
-            "test": "test"
-        }
-
-        with patch('lti_consumer.lti_1p3.key_handlers.JWS.sign_compact', side_effect=UnknownAlgorithm):
-            with self.assertRaises(exceptions.MalformedJwtToken):
-                self.key_handler.encode_and_sign(message)
 
     def test_invalid_rsa_key(self):
         """
@@ -131,18 +105,17 @@ class TestPlatformKeyHandler(TestCase):
             {'keys': []}
         )
 
-    # pylint: disable=unused-argument
-    @patch('time.time', return_value=1000)
-    def test_validate_and_decode(self, mock_time):
+    def test_validate_and_decode(self):
         """
         Test validate and decode with all parameters.
         """
+        expiration = 1000
         signed_token = self.key_handler.encode_and_sign(
             {
                 "iss": "test-issuer",
                 "aud": "test-aud",
             },
-            expiration=1000
+            expiration=expiration
         )
 
         self.assertEqual(
@@ -150,14 +123,12 @@ class TestPlatformKeyHandler(TestCase):
             {
                 "iss": "test-issuer",
                 "aud": "test-aud",
-                "iat": 1000,
-                "exp": 2000
+                "iat": int(math.floor(time.time())),
+                "exp": int(math.floor(time.time()) + expiration),
             }
         )
 
-    # pylint: disable=unused-argument
-    @patch('time.time', return_value=1000)
-    def test_validate_and_decode_expired(self, mock_time):
+    def test_validate_and_decode_expired(self):
         """
         Test validate and decode with all parameters.
         """
@@ -166,7 +137,7 @@ class TestPlatformKeyHandler(TestCase):
             expiration=-10
         )
 
-        with self.assertRaises(exceptions.TokenSignatureExpired):
+        with self.assertRaises(jwt.InvalidTokenError):
             self.key_handler.validate_and_decode(signed_token)
 
     def test_validate_and_decode_invalid_iss(self):
@@ -175,7 +146,7 @@ class TestPlatformKeyHandler(TestCase):
         """
         signed_token = self.key_handler.encode_and_sign({"iss": "wrong"})
 
-        with self.assertRaises(exceptions.InvalidClaimValue):
+        with self.assertRaises(jwt.InvalidTokenError):
             self.key_handler.validate_and_decode(signed_token, iss="right")
 
     def test_validate_and_decode_invalid_aud(self):
@@ -184,14 +155,14 @@ class TestPlatformKeyHandler(TestCase):
         """
         signed_token = self.key_handler.encode_and_sign({"aud": "wrong"})
 
-        with self.assertRaises(exceptions.InvalidClaimValue):
+        with self.assertRaises(jwt.InvalidTokenError):
             self.key_handler.validate_and_decode(signed_token, aud="right")
 
     def test_validate_and_decode_no_jwt(self):
         """
         Test validate and decode with invalid JWT.
         """
-        with self.assertRaises(exceptions.MalformedJwtToken):
+        with self.assertRaises(jwt.InvalidTokenError):
             self.key_handler.validate_and_decode("1.2.3")
 
     def test_validate_and_decode_no_keys(self):
@@ -199,10 +170,10 @@ class TestPlatformKeyHandler(TestCase):
         Test validate and decode when no keys are available.
         """
         signed_token = self.key_handler.encode_and_sign({})
-        # Changing the KID so it doesn't match
-        self.key_handler.key.kid = "invalid_kid"
 
-        with self.assertRaises(exceptions.NoSuitableKeys):
+        self.key_handler.key = None
+
+        with self.assertRaises(exceptions.RsaKeyNotSet):
             self.key_handler.validate_and_decode(signed_token)
 
 
@@ -218,10 +189,12 @@ class TestToolKeyHandler(TestCase):
 
         # Generate RSA and save exports
         rsa_key = RSA.generate(2048)
-        self.key = RSAKey(
-            key=rsa_key,
-            kid=self.rsa_key_id
-        )
+        algo_obj = jwt.get_algorithm_by_name('RS256')
+        private_key = algo_obj.prepare_key(rsa_key.export_key())
+        private_jwk = json.loads(algo_obj.to_jwk(private_key))
+        private_jwk['kid'] = self.rsa_key_id
+        self.key = PyJWK.from_dict(private_jwk)
+
         self.public_key = rsa_key.publickey().export_key()
 
         # Key handler
@@ -272,9 +245,7 @@ class TestToolKeyHandler(TestCase):
             self.rsa_key_id
         )
 
-    # pylint: disable=unused-argument
-    @patch('time.time', return_value=1000)
-    def test_validate_and_decode(self, mock_time):
+    def test_validate_and_decode(self):
         """
         Check that the validate and decode works.
         """
@@ -283,7 +254,7 @@ class TestToolKeyHandler(TestCase):
         message = {
             "test": "test_message",
             "iat": 1000,
-            "exp": 1200,
+            "exp": int(math.floor(time.time()) + 1000),
         }
         signed = create_jwt(self.key, message)
 
@@ -291,9 +262,7 @@ class TestToolKeyHandler(TestCase):
         decoded_message = self.key_handler.validate_and_decode(signed)
         self.assertEqual(decoded_message, message)
 
-    # pylint: disable=unused-argument
-    @patch('time.time', return_value=1000)
-    def test_validate_and_decode_expired(self, mock_time):
+    def test_validate_and_decode_expired(self):
         """
         Check that the validate and decode raises when signature expires.
         """
@@ -307,7 +276,7 @@ class TestToolKeyHandler(TestCase):
         signed = create_jwt(self.key, message)
 
         # Decode and check results
-        with self.assertRaises(exceptions.TokenSignatureExpired):
+        with self.assertRaises(jwt.InvalidTokenError):
             self.key_handler.validate_and_decode(signed)
 
     def test_validate_and_decode_no_keys(self):
@@ -325,21 +294,4 @@ class TestToolKeyHandler(TestCase):
 
         # Decode and check results
         with self.assertRaises(exceptions.NoSuitableKeys):
-            key_handler.validate_and_decode(signed)
-
-    @patch("lti_consumer.lti_1p3.key_handlers.JWS.verify_compact")
-    def test_validate_and_decode_bad_signature(self, mock_verify_compact):
-        mock_verify_compact.side_effect = BadSignature()
-
-        key_handler = ToolKeyHandler()
-
-        message = {
-            "test": "test_message",
-            "iat": 1000,
-            "exp": 1200,
-        }
-        signed = create_jwt(self.key, message)
-
-        # Decode and check results
-        with self.assertRaises(exceptions.BadJwtSignature):
             key_handler.validate_and_decode(signed)

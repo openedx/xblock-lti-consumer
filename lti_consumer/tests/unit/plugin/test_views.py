@@ -5,13 +5,13 @@ import json
 from unittest.mock import patch, Mock
 
 import ddt
-
+import jwt
 from django.test.testcases import TestCase
 from django.urls import reverse
 from edx_django_utils.cache import TieredCache, get_cache_key
+from jwt.api_jwk import PyJWK
 
 from Cryptodome.PublicKey import RSA
-from jwkest.jwk import RSAKey
 from opaque_keys.edx.keys import UsageKey
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
@@ -674,8 +674,14 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
         )
         self.addCleanup(get_lti_consumer_patcher.stop)
         self._mock_xblock_handler = get_lti_consumer_patcher.start()
-        # Generate RSA
-        self.key = RSAKey(key=RSA.generate(2048), kid="1")
+        # Generate RSA and save exports
+        rsa_key = RSA.generate(2048)
+        algo_obj = jwt.get_algorithm_by_name('RS256')
+        private_key = algo_obj.prepare_key(rsa_key.export_key())
+        private_jwk = json.loads(algo_obj.to_jwk(private_key))
+        private_jwk['kid'] = 1
+        self.key = PyJWK.from_dict(private_jwk)
+        self.public_key = rsa_key.public_key().export_key('PEM')
 
     def get_body(self, token, **overrides):
         """

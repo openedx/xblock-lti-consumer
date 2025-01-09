@@ -2,18 +2,17 @@
 Unit tests for LTI 1.3 consumer implementation
 """
 
-import json
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 import uuid
 
 import ddt
+import jwt
 from Cryptodome.PublicKey import RSA
 from django.conf import settings
 from django.test.testcases import TestCase
 from edx_django_utils.cache import get_cache_key, TieredCache
-from jwkest.jwk import load_jwks
-from jwkest.jws import JWS
+from jwt.api_jwk import PyJWKSet
 
 from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_1p3 import exceptions
@@ -36,7 +35,9 @@ NONCE = "1234"
 STATE = "ABCD"
 # Consider storing a fixed key
 RSA_KEY_ID = "1"
-RSA_KEY = RSA.generate(2048).export_key('PEM')
+RSA_KEY = RSA.generate(2048)
+RSA_PRIVATE_KEY = RSA_KEY.export_key('PEM')
+RSA_PUBLIC_KEY = RSA_KEY.public_key().export_key('PEM')
 
 
 def _generate_token_request_data(token, scope):
@@ -69,11 +70,11 @@ class TestLti1p3Consumer(TestCase):
             lti_launch_url=LAUNCH_URL,
             client_id=CLIENT_ID,
             deployment_id=DEPLOYMENT_ID,
-            rsa_key=RSA_KEY,
+            rsa_key=RSA_PRIVATE_KEY,
             rsa_key_id=RSA_KEY_ID,
             redirect_uris=REDIRECT_URIS,
             # Use the same key for testing purposes
-            tool_key=RSA_KEY
+            tool_key=RSA_PUBLIC_KEY
         )
 
     def _setup_lti_launch_data(self):
@@ -113,14 +114,26 @@ class TestLti1p3Consumer(TestCase):
 
     def _decode_token(self, token):
         """
-        Checks for a valid signarute and decodes JWT signed LTI message
+        Checks for a valid signature and decodes JWT signed LTI message
 
         This also tests the public keyset function.
         """
         public_keyset = self.lti_consumer.get_public_keyset()
-        key_set = load_jwks(json.dumps(public_keyset))
+        keyset = PyJWKSet.from_dict(public_keyset).keys
 
-        return JWS().verify_compact(token, keys=key_set)
+        for obj in keyset:
+            message = jwt.decode(
+                token,
+                key=obj.key,
+                algorithms=['RS256', 'RS512'],
+                options={
+                    'verify_signature': True,
+                    'verify_aud': False
+                }
+            )
+            return message
+
+        return exceptions.NoSuitableKeys()
 
     @ddt.data(
         ({"client_id": CLIENT_ID, "redirect_uri": LAUNCH_URL, "nonce": STATE, "state": STATE}, True),
@@ -558,7 +571,7 @@ class TestLti1p3Consumer(TestCase):
         """
         request_data = _generate_token_request_data("invalid_jwt", "")
 
-        with self.assertRaises(exceptions.MalformedJwtToken):
+        with self.assertRaises(jwt.exceptions.InvalidTokenError):
             self.lti_consumer.access_token(request_data)
 
     def test_access_token_no_acs(self):
@@ -686,11 +699,11 @@ class TestLtiAdvantageConsumer(TestCase):
             lti_launch_url=LAUNCH_URL,
             client_id=CLIENT_ID,
             deployment_id=DEPLOYMENT_ID,
-            rsa_key=RSA_KEY,
+            rsa_key=RSA_PRIVATE_KEY,
             rsa_key_id=RSA_KEY_ID,
             redirect_uris=REDIRECT_URIS,
             # Use the same key for testing purposes
-            tool_key=RSA_KEY
+            tool_key=RSA_PUBLIC_KEY
         )
 
         self.preflight_response = {}
@@ -930,11 +943,11 @@ class TestLtiProctoringConsumer(TestCase):
             lti_launch_url=LAUNCH_URL,
             client_id=CLIENT_ID,
             deployment_id=DEPLOYMENT_ID,
-            rsa_key=RSA_KEY,
+            rsa_key=RSA_PRIVATE_KEY,
             rsa_key_id=RSA_KEY_ID,
             redirect_uris=REDIRECT_URIS,
             # Use the same key for testing purposes
-            tool_key=RSA_KEY
+            tool_key=RSA_PUBLIC_KEY
         )
 
         self.preflight_response = {}

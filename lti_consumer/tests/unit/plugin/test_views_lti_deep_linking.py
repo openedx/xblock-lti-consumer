@@ -6,7 +6,6 @@ from unittest.mock import patch, Mock
 import re
 import ddt
 from Cryptodome.PublicKey import RSA
-from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
 from rest_framework.exceptions import ValidationError
 
@@ -37,14 +36,6 @@ class LtiDeepLinkingTestCase(APITransactionTestCase):
 
         # Create custom LTI Block
         rsa_key = RSA.import_key(self.lti_config.lti_1p3_private_key)
-        self.key = RSAKey(
-            # Using the same key ID as client id
-            # This way we can easily serve multiple public
-            # keys on the same endpoint and keep all
-            # LTI 1.3 blocks working
-            kid=self.lti_config.lti_1p3_private_key_id,
-            key=rsa_key
-        )
         self.public_key = rsa_key.publickey().export_key()
 
         self.xblock_attributes = {

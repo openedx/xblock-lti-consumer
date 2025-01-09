@@ -9,7 +9,6 @@ from Cryptodome.PublicKey import RSA
 import ddt
 from django.urls import reverse
 from django.utils import timezone
-from jwkest.jwk import RSAKey
 from rest_framework.test import APITransactionTestCase
 
 
@@ -26,12 +25,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
         super().setUp()
 
         # Create custom LTI Block
-        self.rsa_key_id = "1"
         rsa_key = RSA.generate(2048)
-        self.key = RSAKey(
-            key=rsa_key,
-            kid=self.rsa_key_id
-        )
         self.public_key = rsa_key.publickey().export_key()
 
         self.xblock_attributes = {
