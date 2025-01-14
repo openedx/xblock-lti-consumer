@@ -16,11 +16,11 @@ attrs==24.3.0
     # via -r requirements/base.txt
 bleach==6.2.0
     # via -r requirements/base.txt
-boto3==1.35.82
+boto3==1.35.98
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.35.82
+botocore==1.35.98
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -33,15 +33,15 @@ cffi==1.17.1
     # via
     #   -r requirements/base.txt
     #   pynacl
-charset-normalizer==3.4.0
+charset-normalizer==3.4.1
     # via
     #   -r requirements/base.txt
     #   requests
-click==8.1.7
+click==8.1.8
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-django==4.2.17
+django==4.2.18
     # via
     #   -r requirements/base.txt
     #   django-appconf
@@ -156,7 +156,7 @@ pbr==6.1.0
     #   stevedore
 polib==1.2.0
     # via edx-i18n-tools
-psutil==6.1.0
+psutil==6.1.1
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -170,7 +170,7 @@ pycryptodomex==3.21.0
     #   pyjwkest
 pyjwkest==1.4.2
     # via -r requirements/base.txt
-pyjwt==2.6.0
+pyjwt==2.10.1
     # via -r requirements/base.txt
 pymongo==4.10.1
     # via
