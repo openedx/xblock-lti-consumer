@@ -27,7 +27,7 @@ SELECT
 FROM
     lti_consumer_lticonfiguration
 WHERE
-    lti_config = ""
+    lti_config = ''
 ;\
 """
 
