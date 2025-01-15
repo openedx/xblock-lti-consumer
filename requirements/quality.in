@@ -1,8 +1,9 @@
 # Requirements for Quality runs
 -c constraints.txt
 
--r base.txt 
+-r base.txt
 
+cryptography
 pycodestyle
 pylint
 edx_lint

@@ -4,6 +4,7 @@
 -r base.txt               # Core dependencies for the cookiecutter
 
 coveralls
+cryptography
 ddt
 djangorestframework
 edx_lint
