@@ -479,7 +479,6 @@ def access_token_endpoint(
     except Exception:  # pylint: disable=broad-except
         exc_info = sys.exc_info()
 
-        # import pdb; pdb.set_trace()
         # Handle errors and return a proper response
         if exc_info[0] == MissingRequiredClaim:
             # Missing request attributes

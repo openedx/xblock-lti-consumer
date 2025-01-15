@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.13.1 - 2025-01-15
+-------------------
+* Fix broken LTI 1.3 launch by adding a `kid` field to both the JWT header and data returned by the public keyset endpoint.
+
 9.13.0 - 2025-01-08
 -------------------
 * Removed pyjwkset package and replace with pyjwt package

@@ -122,6 +122,7 @@ class TestLti1p3Consumer(TestCase):
         keyset = PyJWKSet.from_dict(public_keyset).keys
 
         for obj in keyset:
+            self.assertEqual(obj.key_id, RSA_KEY_ID)
             message = jwt.decode(
                 token,
                 key=obj.key,

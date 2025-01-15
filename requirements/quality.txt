@@ -61,6 +61,8 @@ code-annotations==2.1.0
     # via edx-lint
 cookiecutter==2.6.0
     # via xblock-sdk
+cryptography==44.0.0
+    # via -r requirements/quality.in
 ddt==1.7.2
     # via -r requirements/quality.in
 dill==0.3.9
