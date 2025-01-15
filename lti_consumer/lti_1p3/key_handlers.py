@@ -62,7 +62,7 @@ class ToolKeyHandler:
                 )
                 raise exceptions.InvalidRsaKey() from err
 
-    def _get_keyset(self, kid=None):
+    def _get_keyset(self):
         """
         Get keyset from available sources.
 
@@ -85,13 +85,6 @@ class ToolKeyHandler:
                 )
                 raise exceptions.NoSuitableKeys() from err
             keyset.extend(keys.keys)
-
-        if self.public_key and kid:
-            # Fill in key id of stored key.
-            # This is needed because if the JWS is signed with a
-            # key with a kid, pyjwkest doesn't match them with
-            # keys without kid (kid=None) and fails verification
-            self.public_key.kid = kid
 
         if self.public_key:
             # Add to keyset
@@ -185,7 +178,7 @@ class PlatformKeyHandler:
 
         # The class instance that sets up the signing operation
         # An RS 256 key is required for LTI 1.3
-        return jwt.encode(_message, self.key.key, algorithm="RS256")
+        return jwt.encode(_message, self.key.key, algorithm="RS256", headers={"kid": self.key.key_id})
 
     def get_public_jwk(self):
         """
@@ -197,7 +190,9 @@ class PlatformKeyHandler:
         if self.key:
             algo_obj = jwt.get_algorithm_by_name('RS256')
             public_key = algo_obj.prepare_key(self.key.key).public_key()
-            jwk['keys'].append(json.loads(algo_obj.to_jwk(public_key)))
+            public_jwk = json.loads(algo_obj.to_jwk(public_key))
+            public_jwk['kid'] = self.key.key_id
+            jwk['keys'].append(public_jwk)
         return jwk
 
     def validate_and_decode(self, token, iss=None, aud=None, exp=True):

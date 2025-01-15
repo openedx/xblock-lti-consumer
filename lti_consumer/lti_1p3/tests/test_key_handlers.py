@@ -11,6 +11,7 @@ from unittest.mock import patch
 import ddt
 import jwt
 from Cryptodome.PublicKey import RSA
+from cryptography.hazmat.primitives import serialization
 from django.test.testcases import TestCase
 from jwt.api_jwk import PyJWK
 
@@ -56,6 +57,11 @@ class TestPlatformKeyHandler(TestCase):
         self.assertEqual(
             self._decode_token(signed_token, exp=False),
             message
+        )
+
+        self.assertEqual(
+            jwt.get_unverified_header(signed_token)['kid'],
+            self.rsa_key_id
         )
 
     # pylint: disable=unused-argument
@@ -233,16 +239,20 @@ class TestToolKeyHandler(TestCase):
 
     def test_get_keyset_with_pub_key(self):
         """
-        Check that getting a keyset from a RSA key.
+        Check that if there is a public key, it is returned in the keyset.
         """
         self._setup_key_handler()
 
         # pylint: disable=protected-access
-        keyset = self.key_handler._get_keyset(kid=self.rsa_key_id)
+        keyset = self.key_handler._get_keyset()
         self.assertEqual(len(keyset), 1)
+        public_key = keyset[0].key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )[:-1]
         self.assertEqual(
-            keyset[0].kid,
-            self.rsa_key_id
+            public_key,
+            self.public_key
         )
 
     def test_validate_and_decode(self):
