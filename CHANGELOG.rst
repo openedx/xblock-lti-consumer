@@ -18,7 +18,7 @@ Unreleased
 
 9.13.1 - 2025-01-15
 -------------------
-* Fix broken LTI 1.3 launch
+* Fix broken LTI 1.3 launch by adding a `kid` field to both the JWT header and data returned by the public keyset endpoint.
 
 9.13.0 - 2025-01-08
 -------------------
