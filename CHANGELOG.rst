@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.13.2 - 2025-01-21
+-------------------
+* Fix Data too long for column 'resource_id'. Increase column size to 255.
+
 9.13.1 - 2025-01-15
 -------------------
 * Fix broken LTI 1.3 launch by adding a `kid` field to both the JWT header and data returned by the public keyset endpoint.
@@ -23,6 +27,10 @@ Unreleased
 9.13.0 - 2025-01-08
 -------------------
 * Removed pyjwkset package and replace with pyjwt package
+
+9.12.1 - 2024-12-19
+-------------------
+* Update lti_url in readme for testing LTI 1.1/1.2.
 
 9.12.0 - 2024-11-14
 -------------------
@@ -53,7 +61,7 @@ Unreleased
 * BREAKING CHANGE: This version breaks translations with Quince and earlier releases.
 * Adding python 3.11 support. Dropping django32 support.
 
-9.9.0 (2024-01-24)
+9.9.0 - 2024-01-24
 ---------------------------
 * XBlockI18NService js translations support
 

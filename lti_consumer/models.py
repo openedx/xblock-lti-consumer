@@ -695,7 +695,7 @@ class LtiAgsLineItem(models.Model):
     )
 
     # Tool resource identifier, not used by the LMS.
-    resource_id = models.CharField(max_length=100, blank=True)
+    resource_id = models.CharField(max_length=255, blank=True)
 
     # LMS Resource link
     # Must be the same as the one sent in the tool's LTI launch.
