@@ -1076,7 +1076,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         custom_parameters['custom_component_display_name'] = str(self.display_name)
 
-        if self.due:
+        if getattr(self, 'due', None):
             custom_parameters.update({
                 'custom_component_due_date': self.due.strftime('%Y-%m-%d %H:%M:%S')
             })
@@ -1218,6 +1218,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         fragment = Fragment()
         loader = ResourceLoader(__name__)
+        context = context or {}
         context.update(self._get_context_for_template())
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
         fragment.add_css(loader.load_unicode('static/css/student.css'))
@@ -1734,7 +1735,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'launch_url': launch_url.strip(),
             'lti_1p3_launch_url': lti_1p3_launch_url,
             'element_id': self.scope_ids.usage_id.html_id(),
-            'element_class': self.category,
+            'element_class': getattr(self, 'category', ''),
             'launch_target': self.launch_target,
             'display_name': self.display_name,
             'form_url': lti_block_launch_handler,
