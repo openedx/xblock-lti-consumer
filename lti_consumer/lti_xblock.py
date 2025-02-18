@@ -714,8 +714,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # This validation is just for the Unit page in Studio; we don't want to block users from saving
         # a new LTI ID before they've added it to advanced settings, but we do want to warn them about it.
         # If we put this check in validate_field_data(), the settings editor wouldn't let them save changes.
-        if self.lti_version == "lti_1p1" and self.lti_id:
-            lti_passport_ids = [lti_passport.split(':')[0].strip() for lti_passport in self.course.lti_passports]
+        course = self.course
+        if course and self.lti_version == "lti_1p1" and self.lti_id:
+            lti_passport_ids = [lti_passport.split(':')[0].strip() for lti_passport in course.lti_passports]
             if self.lti_id.strip() not in lti_passport_ids:
                 validation.add(ValidationMessage(ValidationMessage.WARNING, str(
                     _("The specified LTI ID is not configured in this course's Advanced Settings.")
@@ -856,14 +857,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Return course by course id.
         """
-        return self.runtime.modulestore.get_course(self.scope_ids.usage_id.context_key)
+        return compat.get_course_by_id(self.scope_ids.usage_id.context_key)
 
     @property
     def lti_provider_key_secret(self):
         """
         Obtains client_key and client_secret credentials from current course.
         """
-        for lti_passport in self.course.lti_passports:
+        course = self.course
+        lti_passports = course.lti_passports if course else []
+        for lti_passport in lti_passports:
             try:
                 # NOTE While unpacking the lti_passport by using ":" as delimiter, first item will be lti_id,
                 #  last item will be client_secret and the rest are considered as client_key.
@@ -1285,10 +1288,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             person_name_full=full_name,
         )
 
+        course = self.course
         lti_consumer.set_context_data(
             self.context_id,
-            self.course.display_name_with_default,
-            self.course.display_org_with_default
+            course.display_name_with_default if course else "",
+            course.display_org_with_default if course else "",
         )
 
         if self.has_score:
@@ -1659,12 +1663,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Return the title attribute of the context_claim for LTI 1.3 launches. This information is included in the
         launch_data query or form parameter of the LTI 1.3 third-party login initiation request.
         """
-        course_key = self.scope_ids.usage_id.context_key
-        course = compat.get_course_by_id(course_key)
-
+        course = self.course
         return " - ".join([
-            course.display_name_with_default,
-            course.display_org_with_default
+            course.display_name_with_default if course else "",
+            course.display_org_with_default if course else "",
         ])
 
     def _get_lti_block_launch_handler(self):

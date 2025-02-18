@@ -89,9 +89,13 @@ def load_enough_xblock(location):  # pragma: nocover
     """
     # pylint: disable=import-error,import-outside-toplevel
     from xmodule.modulestore.django import modulestore
+    from openedx.core.djangoapps.xblock import api as xblock_api
 
     # Retrieve block from modulestore
-    return modulestore().get_item(location)
+    if isinstance(location.context_key, CourseKey):
+        return modulestore().get_item(location)
+    else:
+        return xblock_api.load_block(location, None)
 
 
 def load_block_as_user(location):  # pragma: nocover
@@ -233,7 +237,10 @@ def get_course_by_id(course_key):  # pragma: nocover
         from openedx.core.lib.courses import get_course_by_id as lms_get_course_by_id
     except ImportError:
         from lms.djangoapps.courseware.courses import get_course_by_id as lms_get_course_by_id
-    return lms_get_course_by_id(course_key)
+
+    if isinstance(course_key, CourseKey):
+        return lms_get_course_by_id(course_key)
+    return None
 
 
 def user_course_access(*args, **kwargs):  # pragma: nocover
