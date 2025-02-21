@@ -180,6 +180,13 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.compat.get_user_role.return_value = "student"
         self.compat.get_external_id_for_user.return_value = "12345"
 
+        block_compat_patcher = patch("lti_consumer.lti_xblock.compat")
+        self.addCleanup(block_compat_patcher.stop)
+        block_compat = block_compat_patcher.start()
+        block_compat.get_course_by_id.return_value = course
+        block_compat.get_user_role.return_value = "student"
+        block_compat.get_external_id_for_user.return_value = "12345"
+
         model_compat_patcher = patch("lti_consumer.models.compat")
         self.addCleanup(model_compat_patcher.stop)
         model_compat = model_compat_patcher.start()

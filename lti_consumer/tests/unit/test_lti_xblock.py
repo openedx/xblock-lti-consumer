@@ -62,6 +62,17 @@ class TestLtiConsumerXBlock(TestCase):
         self.addCleanup(track_event_patcher.stop)
         track_event_patcher.start()
 
+        # Patch calls to lms/openedx compatibility layer
+        compat_patcher = patch("lti_consumer.lti_xblock.compat")
+        self.addCleanup(compat_patcher.stop)
+        self.compat = compat_patcher.start()
+        course = Mock(name="course")
+        course.display_name_with_default = "course_display_name"
+        course.display_org_with_default = "course_display_org"
+        self.compat.get_course_by_id.return_value = course
+        self.compat.get_user_role.return_value = "student"
+        self.compat.get_external_id_for_user.return_value = "12345"
+
 
 class TestIndexibility(TestCase):
     """
@@ -308,13 +319,12 @@ class TestProperties(TestLtiConsumerXBlock):
 
     def test_course(self):
         """
-        Test `course` calls modulestore.get_course
+        Test `course` calls compat.get_course_by_id
         """
-        mock_get_course = self.xblock.runtime.modulestore.get_course
-        mock_get_course.return_value = None
+        self.compat.get_course_by_id.return_value = None
         course = self.xblock.course
 
-        self.assertTrue(mock_get_course.called)
+        self.assertTrue(self.compat.get_course_by_id.called)
         self.assertIsNone(course)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
