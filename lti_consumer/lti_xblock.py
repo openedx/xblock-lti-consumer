@@ -847,10 +847,21 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Get system user role.
         """
         user = self.runtime.service(self, 'user').get_current_user()
-        if not user.opt_attrs["edx-platform.is_authenticated"]:
+        if not user.opt_attrs.get("edx-platform.is_authenticated"):
             raise LtiError(self.ugettext("Could not get user data for current request"))
 
         return user.opt_attrs.get('edx-platform.user_role', 'student')
+
+    @property
+    def user_is_staff(self):
+        """
+        Get system user's is_staff flag.
+        """
+        user = self.runtime.service(self, "user").get_current_user()
+        return (
+            user.opt_attrs.get("edx-platform.is_authenticated", False) and
+            user.opt_attrs.get("edx-platform.user_is_staff", False)
+        )
 
     @property
     def course(self):
@@ -1127,7 +1138,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         user = self.runtime.service(self, 'user').get_current_user()
 
-        if not user.opt_attrs["edx-platform.is_authenticated"]:
+        if not user.opt_attrs.get("edx-platform.is_authenticated"):
             raise LtiError(self.ugettext("Could not get user data for current request"))
 
         user_data = {
@@ -1146,6 +1157,38 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         user_data['user_language'] = user.opt_attrs.get("edx-platform.user_preferences", {}).get("pref-lang", None)
 
         return user_data
+
+    def _add_author_view(self, context, loader, fragment):
+        """
+        Adds the "author view" content to the given fragment.
+
+        Assumes that the CSS/JS will be added by the caller.
+        """
+        # Runtime import since this will only run in the
+        # Open edX LMS/Studio environments.
+        # pylint: disable=import-outside-toplevel
+        from lti_consumer.api import get_lti_1p3_launch_info
+
+        if not context:
+            context = {}
+
+        # Retrieve LTI 1.3 Launch information
+        launch_data = self.get_lti_1p3_launch_data()
+        context.update(
+            get_lti_1p3_launch_info(
+                launch_data,
+            )
+        )
+
+        # Render template
+        fragment.add_content(
+            loader.render_django_template(
+                '/templates/html/lti_1p3_studio.html',
+                context,
+                i18n_service=self.runtime.service(self, 'i18n')
+            ),
+        )
+        return fragment
 
     def studio_view(self, context):
         """
@@ -1170,29 +1213,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if self.lti_version == "lti_1p1":
             return self.student_view(context)
 
-        # Runtime import since this will only run in the
-        # Open edX LMS/Studio environments.
-        # pylint: disable=import-outside-toplevel
-        from lti_consumer.api import get_lti_1p3_launch_info
-
-        # Retrieve LTI 1.3 Launch information
-        launch_data = self.get_lti_1p3_launch_data()
-        context.update(
-            get_lti_1p3_launch_info(
-                launch_data,
-            )
-        )
-
         # Render template
         fragment = Fragment()
         loader = ResourceLoader(__name__)
-        fragment.add_content(
-            loader.render_django_template(
-                '/templates/html/lti_1p3_studio.html',
-                context,
-                i18n_service=self.runtime.service(self, 'i18n')
-            ),
-        )
+        self._add_author_view(context, loader, fragment)
+
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
         statici18n_js_url = self._get_statici18n_js_url()
@@ -1220,7 +1245,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         loader = ResourceLoader(__name__)
         context = context or {}
         context.update(self._get_context_for_template())
+
+        # Prepend the author view for LTI1.3 when rendering student view to staff users
+        # This is needed so course staff can see the author view parameters when configuring within Libraries v2
+        if self.lti_version == "lti_1p3" and self.user_is_staff:
+            self._add_author_view(context, loader, fragment)
+
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
+
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
         statici18n_js_url = self._get_statici18n_js_url()
