@@ -92,7 +92,7 @@ class TestPlatformKeyHandler(TestCase):
         """
         Check that class raises when trying to import invalid RSA Key.
         """
-        with self.assertRaises(exceptions.InvalidRsaKey):
+        with self.assertRaises(jwt.exceptions.InvalidKeyError):
             PlatformKeyHandler(key_pem="invalid PEM input")
 
     def test_empty_rsa_key(self):
@@ -222,7 +222,7 @@ class TestToolKeyHandler(TestCase):
         """
         Check if the class errors out when using a invalid RSA key.
         """
-        with self.assertRaises(exceptions.InvalidRsaKey):
+        with self.assertRaises(jwt.exceptions.InvalidKeyError):
             ToolKeyHandler(public_key="invalid-key")
 
     def test_get_empty_keyset(self):
