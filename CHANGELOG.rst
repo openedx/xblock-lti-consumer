@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+10.0.0 - 2025-02-27
+-------------------
+* fix: update tests after pyjwt version upgrade
+
 9.13.2 - 2025-01-21
 -------------------
 * Fix Data too long for column 'resource_id'. Increase column size to 255.
