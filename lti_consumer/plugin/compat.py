@@ -91,9 +91,10 @@ def load_enough_xblock(location):  # pragma: nocover
     from xmodule.modulestore.django import modulestore
     from openedx.core.djangoapps.xblock import api as xblock_api
 
-    # Retrieve block from modulestore
+    # Retrieve course block from modulestore
     if isinstance(location.context_key, CourseKey):
         return modulestore().get_item(location)
+    # Retrieve library block from the XBlock API
     else:
         return xblock_api.load_block(location, None)
 
