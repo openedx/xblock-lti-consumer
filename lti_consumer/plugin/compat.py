@@ -89,9 +89,14 @@ def load_enough_xblock(location):  # pragma: nocover
     """
     # pylint: disable=import-error,import-outside-toplevel
     from xmodule.modulestore.django import modulestore
+    from openedx.core.djangoapps.xblock import api as xblock_api
 
-    # Retrieve block from modulestore
-    return modulestore().get_item(location)
+    # Retrieve course block from modulestore
+    if isinstance(location.context_key, CourseKey):
+        return modulestore().get_item(location)
+    # Retrieve library block from the XBlock API
+    else:
+        return xblock_api.load_block(location, None)
 
 
 def load_block_as_user(location):  # pragma: nocover
@@ -223,17 +228,14 @@ def get_course_by_id(course_key):  # pragma: nocover
     """
     Import and run `get_course_by_id` from LMS
 
-    TODO: Once the LMS has fully switched over to this new path [1],
-    we can remove the legacy (LMS) import support here.
-
-    - [1] https://github.com/openedx/edx-platform/pull/27289
+    Returns None if the provided key is not a CourseKey,
+    e.g the block is used in a library learning context.
     """
-    # pylint: disable=import-outside-toplevel
-    try:
-        from openedx.core.lib.courses import get_course_by_id as lms_get_course_by_id
-    except ImportError:
-        from lms.djangoapps.courseware.courses import get_course_by_id as lms_get_course_by_id
-    return lms_get_course_by_id(course_key)
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.lib.courses import get_course_by_id as lms_get_course_by_id
+    if isinstance(course_key, CourseKey):
+        return lms_get_course_by_id(course_key)
+    return None
 
 
 def user_course_access(*args, **kwargs):  # pragma: nocover

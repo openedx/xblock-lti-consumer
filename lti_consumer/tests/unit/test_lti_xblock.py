@@ -62,6 +62,17 @@ class TestLtiConsumerXBlock(TestCase):
         self.addCleanup(track_event_patcher.stop)
         track_event_patcher.start()
 
+        # Patch calls to lms/openedx compatibility layer
+        compat_patcher = patch("lti_consumer.lti_xblock.compat")
+        self.addCleanup(compat_patcher.stop)
+        self.compat = compat_patcher.start()
+        course = Mock(name="course")
+        course.display_name_with_default = "course_display_name"
+        course.display_org_with_default = "course_display_org"
+        self.compat.get_course_by_id.return_value = course
+        self.compat.get_user_role.return_value = "student"
+        self.compat.get_external_id_for_user.return_value = "12345"
+
 
 class TestIndexibility(TestCase):
     """
@@ -306,15 +317,43 @@ class TestProperties(TestLtiConsumerXBlock):
         with self.assertRaises(LtiError):
             _ = self.xblock.role
 
+    def test_user_is_staff(self):
+        """
+        Test `user_is_staff` returns the correct status from the user service
+        """
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_is_staff': True,
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertTrue(self.xblock.user_is_staff)
+
+        fake_user.opt_attrs = {
+            'edx-platform.user_is_staff': False,
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertFalse(self.xblock.user_is_staff)
+
+        fake_user.opt_attrs = {
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertFalse(self.xblock.user_is_staff)
+
+        fake_user.opt_attrs = {}
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertFalse(self.xblock.user_is_staff)
+
     def test_course(self):
         """
-        Test `course` calls modulestore.get_course
+        Test `course` calls compat.get_course_by_id
         """
-        mock_get_course = self.xblock.runtime.modulestore.get_course
-        mock_get_course.return_value = None
+        self.compat.get_course_by_id.return_value = None
         course = self.xblock.course
 
-        self.assertTrue(mock_get_course.called)
+        self.assertTrue(self.compat.get_course_by_id.called)
         self.assertIsNone(course)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
@@ -1921,6 +1960,87 @@ class TestLtiConsumer1p3XBlock(TestCase):
         self.xblock.runtime.service.return_value = None
         response = self.xblock.author_view({})
 
+        self.assertIn("mock-client_id", response.content)
+        self.assertIn("mock-keyset_url", response.content)
+        self.assertIn("mock-token_url", response.content)
+
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data')
+    @patch('lti_consumer.api.get_lti_1p3_content_url')
+    def test_student_view(self, mock_get_lti_1p3_content_url, mock_get_lti_1p3_launch_data):
+        """
+        Test that the student view is displayed as expected
+        """
+        # Mock lti data, i18n, and user services before rendering
+        mock_get_lti_1p3_content_url.return_value = 'lti_1p3_content_url'
+        mock_get_lti_1p3_launch_data.return_value = None
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.is_authenticated': True,
+        }
+        fake_user.emails = ['student@example.com']
+        fake_service = Mock()
+        fake_service.get_current_user = Mock(return_value=fake_user)
+
+        def mock_service(_runtime, service_name):
+            """
+            Mock the user and i18n services
+            """
+            if service_name == 'user':
+                return fake_service
+            return None
+
+        self.xblock.runtime.service = Mock(side_effect=mock_service)
+
+        response = self.xblock.student_view({})
+        self.assertEqual(response.js_init_fn, 'LtiConsumerXBlock')
+        self.assertNotIn("LTI 1.3 Launches can only be performed from the LMS", response.content)
+
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data')
+    @patch('lti_consumer.api.get_lti_1p3_launch_info')
+    @patch('lti_consumer.api.get_lti_1p3_content_url')
+    def test_student_view_for_staff(
+        self,
+        mock_get_lti_1p3_content_url,
+        mock_get_launch_info,
+        mock_get_lti_1p3_launch_data,
+    ):
+        """
+        Test that the author view content is displayed with the student view when viewed by a staff user.
+        """
+        # Mock lti data, i18n, and user services before rendering
+        mock_get_lti_1p3_content_url.return_value = 'lti_1p3_content_url'
+        mock_get_lti_1p3_launch_data.return_value = None
+        mock_get_launch_info.return_value = {
+            'config_id': "mock-config_id",
+            'client_id': "mock-client_id",
+            'keyset_url': "mock-keyset_url",
+            'deployment_id': '1',
+            'oidc_callback': "mock-oidc_callback",
+            'token_url': "mock-token_url",
+        }
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_is_staff': True,
+            'edx-platform.is_authenticated': True,
+        }
+        fake_user.emails = ['staff@example.com']
+        fake_service = Mock()
+        fake_service.get_current_user = Mock(return_value=fake_user)
+
+        def mock_service(_runtime, service_name):
+            """
+            Mock the user and i18n services
+            """
+            if service_name == 'user':
+                return fake_service
+            return None
+
+        self.xblock.runtime.service = Mock(side_effect=mock_service)
+
+        # Student view with staff user shows author params
+        response = self.xblock.student_view({})
+        self.assertEqual(response.js_init_fn, 'LtiConsumerXBlock')
+        self.assertIn("LTI 1.3 Launches can only be performed from the LMS", response.content)
         self.assertIn("mock-client_id", response.content)
         self.assertIn("mock-keyset_url", response.content)
         self.assertIn("mock-token_url", response.content)

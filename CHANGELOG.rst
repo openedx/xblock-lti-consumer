@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.13.3 - 2025-03-12
+-------------------
+* Allows LTI Consumer blocks to be used in Libraries v2 learning context
+
 9.13.2 - 2025-01-21
 -------------------
 * Fix Data too long for column 'resource_id'. Increase column size to 255.
