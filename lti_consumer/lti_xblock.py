@@ -1246,9 +1246,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context = context or {}
         context.update(self._get_context_for_template())
 
-        # Prepend the author view for LTI1.3 when rendering student view to staff users
+        # Prepend the author view for LTI1.3 when rendering student view to staff users in Studio.
         # This is needed so course staff can see the author view parameters when configuring within Libraries v2
-        if self.lti_version == "lti_1p3" and self.user_is_staff:
+        if settings.SERVICE_VARIANT != 'lms' and self.lti_version == "lti_1p3" and self.user_is_staff:
             self._add_author_view(context, loader, fragment)
 
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))

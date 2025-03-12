@@ -31,3 +31,6 @@ PLATFORM_NAME = "Your platform name here"
 
 # Learning MFE URL for start assessment testing
 LEARNING_MICROFRONTEND_URL = 'http://test.learning:2000'
+
+# Mimic running in Studio
+SERVICE_VARIANT = 'cms'
