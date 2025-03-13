@@ -18,7 +18,7 @@ Installation
 
 For details regarding how to deploy this or any other XBlock in the lms instance, see the `installing-the-xblock`_ documentation.
 
-.. _installing-the-xblock: https://edx.readthedocs.io/projects/xblock-tutorial/en/latest/edx_platform/devstack.html#installing-the-xblock
+.. _installing-the-xblock: https://docs.tutor.edly.io/configuration.html#installing-extra-xblocks-and-requirements
 
 Installing in Docker Devstack
 -----------------------------
@@ -152,7 +152,7 @@ http://lti.tools/saltire/ provides a "Test Tool Provider" service that allows
 you to see messages sent by an LTI consumer.
 
 We have some useful documentation on how to set this up here:
-http://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/latest/exercises_tools/lti_component.html#lti-authentication-information
+https://docs.openedx.org/en/latest/educators/how-tos/course_development/exercise_tools/set_up_lti_1_1_component.html
 
 1. In Studio Advanced settings, set the value of the "LTI Passports" field to "test:test:secret" -
    this will set the OAuth client key and secret used to send a message to the test LTI provider.
@@ -224,6 +224,8 @@ Instructions:
 
 #. Publish block, log into LMS and navigate to the LTI block page.
 #. Click ``Send Request`` and verify that the LTI launch was successful.
+
+See also https://docs.openedx.org/en/latest/educators/how-tos/course_development/exercise_tools/set_up_lti_1_3_component.html
 
 
 LTI Advantage Features
