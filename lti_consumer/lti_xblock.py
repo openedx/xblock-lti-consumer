@@ -94,8 +94,7 @@ DOCS_ANCHOR_TAG_OPEN = (
     "<a "
     "target='_blank' "
     "href='"
-    "http://edx.readthedocs.org"
-    "/projects/open-edx-building-and-running-a-course/en/latest/exercises_tools/lti_component.html"
+    "https://docs.openedx.org/en/latest/educators/concepts/exercise_tools/about_lti_component.html"
     "'>"
 )
 RESULT_SERVICE_SUFFIX_PARSER = re.compile(r"^user/(?P<anon_id>[\w-]+)", re.UNICODE)
