@@ -55,7 +55,7 @@ class ToolKeyHandler:
                 public_key = algo_obj.prepare_key(public_key)
                 public_jwk = json.loads(algo_obj.to_jwk(public_key))
                 self.public_key = PyJWK.from_dict(public_jwk)
-            except ValueError as err:
+            except jwt.exceptions.InvalidKeyError as err:
                 log.warning(
                     'An error was encountered while loading the LTI tool\'s key from the public key. '
                     'The RSA key could not parsed.'
@@ -148,7 +148,7 @@ class PlatformKeyHandler:
                 private_jwk = json.loads(algo.to_jwk(private_key))
                 private_jwk['kid'] = kid
                 self.key = PyJWK.from_dict(private_jwk)
-            except ValueError as err:
+            except jwt.exceptions.InvalidKeyError as err:
                 log.warning(
                     'An error was encountered while loading the LTI platform\'s key. '
                     'The RSA key could not be loaded.'
