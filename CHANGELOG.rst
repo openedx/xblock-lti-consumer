@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.13.4 - 2025-03-21
+-------------------
+* fix: update tests after pyjwt version upgrade
+
 9.13.3 - 2025-03-12
 -------------------
 * Allows LTI Consumer blocks to be used in Libraries v2 learning context
