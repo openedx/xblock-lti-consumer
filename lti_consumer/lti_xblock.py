@@ -389,19 +389,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         scope=Scope.settings
     )
 
-    # DEPRECATED - These variables were moved to the LtiConfiguration Model
-    lti_1p3_client_id = String(
-        display_name=_("LTI 1.3 Block Client ID - DEPRECATED"),
-        default='',
-        scope=Scope.settings,
-        help=_("DEPRECATED - This is now stored in the LtiConfiguration model."),
-    )
-    lti_1p3_block_key = String(
-        display_name=_("LTI 1.3 Block Key - DEPRECATED"),
-        default='',
-        scope=Scope.settings
-    )
-
     # Switch to enable/disable the LTI Advantage Deep linking service
     lti_advantage_deep_linking_enabled = Boolean(
         display_name=_("Deep linking"),
