@@ -53,12 +53,12 @@ What is supported:
 import logging
 import re
 import urllib.parse
+from datetime import datetime, timezone
 from collections import namedtuple
 from importlib import import_module
 
 import bleach
 from django.conf import settings
-from django.utils import timezone
 from web_fragments.fragment import Fragment
 
 from webob import Response
@@ -1093,7 +1093,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             close_date = due_date + self.graceperiod
         else:
             close_date = due_date
-        return close_date is not None and timezone.now() > close_date
+        return close_date is not None and datetime.now(timezone.utc) > close_date
 
     def _get_lti_consumer(self):
         """

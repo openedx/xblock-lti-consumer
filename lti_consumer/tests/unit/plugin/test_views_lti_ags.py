@@ -2,13 +2,12 @@
 Tests for LTI Advantage Assignments and Grades Service views.
 """
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, Mock
 
 from Cryptodome.PublicKey import RSA
 import ddt
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework.test import APITransactionTestCase
 
 
@@ -37,7 +36,7 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
             'lti_1p3_tool_public_key': self.public_key,
             'lti_advantage_ags_mode': 'programmatic',
             # xblock due date related attributes
-            'due': timezone.now(),
+            'due': datetime.now(timezone.utc),
             'graceperiod': timedelta(days=2),
             'accept_grades_past_due': False,
         }
@@ -497,7 +496,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         Test grade publish after due date. Grade shouldn't publish
         """
         self.xblock.set_user_module_score = Mock()
-        timezone_patcher.now.return_value = timezone.now() + timedelta(days=30)
+        timezone_patcher.now.return_value = datetime.now(timezone.utc) + timedelta(days=30)
 
         self._post_lti_score()
 
@@ -506,8 +505,8 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self._compat_mock.get_user_from_external_user_id.assert_not_called()
         self.xblock.set_user_module_score.assert_not_called()
 
-    @patch('lti_consumer.lti_xblock.timezone')
-    def test_xblock_grade_publish_accept_passed_due_date(self, timezone_patcher):
+    @patch('lti_consumer.lti_xblock.datetime')
+    def test_xblock_grade_publish_accept_passed_due_date(self, mock_datetime):
         """
         Test grade publish after due date when accept_grades_past_due is True. Grade should publish.
         """
@@ -521,7 +520,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.xblock.accept_grades_past_due = True
 
         # Try sending grade after due date
-        timezone_patcher.now.return_value = timezone.now() + timedelta(days=30)
+        mock_datetime.now.return_value = datetime.now(timezone.utc) + timedelta(days=30)
         self._post_lti_score()
 
         # Check that the grade is published
