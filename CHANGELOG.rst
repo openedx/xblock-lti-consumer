@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.14.0 - 2025-04-14
+--------------------
+* Added support for Django 5.2
+
 9.13.4 - 2025-03-21
 -------------------
 * fix: update tests after pyjwt version upgrade
