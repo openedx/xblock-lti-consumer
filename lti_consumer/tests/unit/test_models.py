@@ -2,14 +2,13 @@
 Unit tests for LTI models.
 """
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, call
 
 import ddt
 from Cryptodome.PublicKey import RSA
 from django.core.exceptions import ValidationError
 from django.test.testcases import TestCase
-from django.utils import timezone
 from edx_django_utils.cache import RequestCache
 from ccx_keys.locator import CCXBlockUsageLocator
 from opaque_keys.edx.locator import CourseLocator

@@ -1,7 +1,7 @@
 """
 Serializers for LTI-related endpoints
 """
-from django.utils import timezone
+from datetime import timezone
 from rest_framework import serializers, ISO_8601
 from rest_framework.reverse import reverse
 from opaque_keys import InvalidKeyError

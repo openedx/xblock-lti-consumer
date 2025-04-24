@@ -17,7 +17,7 @@ jobs:
         python-version:
         - '3.11'
         - '3.12'
-        toxenv: [django42, quality]
+        toxenv: [django42, django52, quality]
 
     steps:
     - uses: actions/checkout@v2
@@ -38,8 +38,8 @@ jobs:
       run: tox
 
     - name: Run Coverage
-      if: matrix.python-version == '3.11' && matrix.toxenv=='py311-django42'
-      uses: codecov/codecov-action@v1
+      if: matrix.python-version == '3.12' && matrix.toxenv=='django52'
+      uses: codecov/codecov-action@v5
       with:
         flags: unittests
         fail_ci_if_error: true
