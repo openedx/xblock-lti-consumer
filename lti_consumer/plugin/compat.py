@@ -56,6 +56,16 @@ ENABLE_EXTERNAL_USER_ID_1P1_LAUNCHES = 'enable_external_user_id_1p1_launches'
 # .. toggle_warning: None.
 ENABLE_DATABASE_CONFIG = 'enable_database_config'
 
+# .. toggle_name: lti_consumer.enable_external_multiple_launch_urls
+# .. toggle_implementation: CourseWaffleFlag
+# .. toggle_default: False
+# .. toggle_description: Enables support for multiple external launch URLs in LTI configurations.
+# .. toggle_use_cases: open_edx
+# .. toggle_creation_date: 2025-04-04
+# .. toggle_tickets: None
+# .. toggle_warning: None.
+ENABLE_EXTERNAL_MULTIPLE_LAUNCH_URLS = 'enable_external_multiple_launch_urls'
+
 
 def get_external_config_waffle_flag():
     """
@@ -79,6 +89,15 @@ def get_database_config_waffle_flag():
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
     return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_DATABASE_CONFIG}', __name__)
+
+
+def get_external_multiple_launch_urls_waffle_flag():  # pragma: nocover
+    """
+    Import and return Waffle flag for enabling multiple launch URLs with the external LTI configurations.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
+    return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_EXTERNAL_MULTIPLE_LAUNCH_URLS}', __name__)
 
 
 def load_enough_xblock(location):  # pragma: nocover

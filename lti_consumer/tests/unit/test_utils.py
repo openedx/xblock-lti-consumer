@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 import ddt
 from django.test.testcases import TestCase
 
+from opaque_keys.edx.locator import CourseLocator
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.utils import (
     choose_lti_1p3_redirect_uris,
@@ -14,6 +15,7 @@ from lti_consumer.utils import (
     cache_lti_1p3_launch_data,
     get_data_from_cache,
     model_to_dict,
+    external_multiple_launch_urls_enabled,
 )
 
 LAUNCH_URL = "http://tool.launch"
@@ -172,3 +174,34 @@ class TestModelToDict(TestCase):
         """
         self.assertEqual(model_to_dict(self.model_object), {})
         deepcopy_mock.assert_called_once_with(self.model_object.__dict__)
+
+
+class TestExternalMultipleLaunchUrlsEnabled(TestCase):
+    """
+    Tests for the external_multiple_launch_urls_enabled function.
+    """
+
+    @patch("lti_consumer.utils.get_external_multiple_launch_urls_waffle_flag")
+    def test_flag_enabled(self, mock_waffle_flag):
+        """
+        Test that the function returns True when the waffle flag is enabled.
+        """
+        mock_waffle_flag.return_value.is_enabled.return_value = True
+        course_key = CourseLocator(org="test_org", course="test_course", run="test_run")
+
+        result = external_multiple_launch_urls_enabled(course_key)
+
+        self.assertTrue(result)
+        mock_waffle_flag.return_value.is_enabled.assert_called_once_with(course_key)
+
+    @patch("lti_consumer.utils.get_external_multiple_launch_urls_waffle_flag")
+    def test_flag_disabled(self, mock_waffle_flag):
+        """
+        Test that the function returns False when the waffle flag is disabled.
+        """
+        mock_waffle_flag.return_value.is_enabled.return_value = False
+        course_key = CourseLocator(org="test_org", course="test_course", run="test_run")
+        result = external_multiple_launch_urls_enabled(course_key)
+
+        self.assertFalse(result)
+        mock_waffle_flag.return_value.is_enabled.assert_called_once_with(course_key)
