@@ -14,6 +14,7 @@ from lti_consumer.plugin.compat import (
     get_external_config_waffle_flag,
     get_external_user_id_1p1_launches_waffle_flag,
     get_database_config_waffle_flag,
+    get_external_multiple_launch_urls_waffle_flag,
 )
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
@@ -228,6 +229,19 @@ def database_config_enabled(course_key):
     return False if it is not enabled.
     """
     return get_database_config_waffle_flag().is_enabled(course_key)
+
+
+def external_multiple_launch_urls_enabled(course_key):
+    """
+    Check if the external multiple launch URLs feature is enabled.
+
+    Return whether the `lti_consumer.enable_external_multiple_launch_urls WaffleFlag` is enabled. Return True if it is
+    enabled; return False if it is not enabled.
+
+    Arguments:
+        course_key (opaque_keys.edx.locator.CourseLocator): Course Key
+    """
+    return get_external_multiple_launch_urls_waffle_flag().is_enabled(course_key)
 
 
 def get_lti_1p3_context_types_claim(context_types):

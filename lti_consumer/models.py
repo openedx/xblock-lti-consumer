@@ -34,6 +34,7 @@ from lti_consumer.utils import (
     choose_lti_1p3_redirect_uris,
     model_to_dict,
     EXTERNAL_ID_REGEX,
+    external_multiple_launch_urls_enabled,
 )
 
 log = logging.getLogger(__name__)
@@ -586,10 +587,17 @@ class LtiConfiguration(models.Model):
                 tool_keyset_url=self.lti_1p3_tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_EXTERNAL:
+            lti_launch_url = self.external_config.get('lti_1p3_launch_url')
+
+            if external_multiple_launch_urls_enabled(self.location.course_key):
+                block = compat.load_enough_xblock(self.location)
+
+                lti_launch_url = block.lti_1p3_launch_url or lti_launch_url
+
             consumer = consumer_class(
                 iss=get_lti_api_base(),
                 lti_oidc_url=self.external_config.get('lti_1p3_oidc_url'),
-                lti_launch_url=self.external_config.get('lti_1p3_launch_url'),
+                lti_launch_url=lti_launch_url,
                 client_id=self.external_config.get('lti_1p3_client_id'),
                 # Deployment ID hardcoded to 1 since
                 # we're not using multi-tenancy.

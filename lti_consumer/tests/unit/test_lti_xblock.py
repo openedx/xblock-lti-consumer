@@ -1783,10 +1783,15 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         self.mock_filter_enabled_patcher = patch("lti_consumer.lti_xblock.external_config_filter_enabled")
         self.mock_database_config_enabled_patcher = patch("lti_consumer.lti_xblock.database_config_enabled")
+        self.mock_external_multiple_launch_urls_enabled = patch(
+            "lti_consumer.lti_xblock.external_multiple_launch_urls_enabled"
+        )
         self.mock_filter_enabled = self.mock_filter_enabled_patcher.start()
         self.mock_database_config_enabled = self.mock_database_config_enabled_patcher.start()
+        self.mock_external_multiple_launch_urls_enabled.start()
         self.addCleanup(self.mock_filter_enabled_patcher.stop)
         self.addCleanup(self.mock_database_config_enabled_patcher.stop)
+        self.addCleanup(self.mock_external_multiple_launch_urls_enabled.stop)
 
     @patch.object(LtiConsumerXBlock, 'get_parameter_processors')
     @patch('lti_consumer.lti_xblock.resolve_custom_parameter_template')

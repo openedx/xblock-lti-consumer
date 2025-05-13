@@ -293,6 +293,9 @@ How to Setup
 4. Create a new external LTI configuration and use it in the XBlock.
    This is explained in the README of the `openedx-ltistore`_ repository.
 
+5. (Optional) Allows overriding of the `lti_1p3_launch_url` per block:
+   - Waffle flag: `lti_consumer.enable_external_multiple_launch_urls`
+
 .. _openedx-ltistore: https://github.com/open-craft/openedx-ltistore
 
 Getting Help
