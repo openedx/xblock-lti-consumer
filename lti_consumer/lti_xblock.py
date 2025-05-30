@@ -86,6 +86,7 @@ from .utils import (
     external_user_id_1p1_launches_enabled,
     database_config_enabled,
     EXTERNAL_ID_REGEX,
+    external_multiple_launch_urls_enabled,
 )
 
 log = logging.getLogger(__name__)
@@ -1184,7 +1185,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment = super().studio_view(context)
 
         fragment.add_javascript(loader.load_unicode("static/js/xblock_studio_view.js"))
-        fragment.initialize_js('LtiConsumerXBlockInitStudio')
+        js_context = {
+            "EXTERNAL_MULTIPLE_LAUNCH_URLS_ENABLED": external_multiple_launch_urls_enabled(
+                self.scope_ids.usage_id.course_key
+            )
+        }
+        fragment.initialize_js('LtiConsumerXBlockInitStudio', js_context)
 
         return fragment
 

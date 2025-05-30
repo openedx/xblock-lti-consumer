@@ -16,6 +16,12 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.14.1 - 2025-05-12
+-------------------
+* Add new flag `lti_consumer.enable_external_multiple_launch_urls`.
+* Update logic for retrieving `lti_1p3_launch_url` from `LtiConfiguration` model.
+* Make `lti_1p3_launch_url` field visible in studio settings when the feature course flag is enabled.
+
 9.14.0 - 2025-04-14
 --------------------
 * Added support for Django 5.2

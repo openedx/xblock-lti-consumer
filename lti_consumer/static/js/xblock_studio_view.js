@@ -1,7 +1,7 @@
 /**
  * Javascript for LTI Consumer Studio View.
 */
-function LtiConsumerXBlockInitStudio(runtime, element) {
+function LtiConsumerXBlockInitStudio(runtime, element, data) {
     // Run parent function to set up studio view base JS
     StudioEditableXBlockMixin(runtime, element);
 
@@ -85,6 +85,13 @@ function LtiConsumerXBlockInitStudio(runtime, element) {
             externalConfigHiddenFields.forEach(function (field) {
                 fieldsToHide.push(field);
             })
+            // Conditionally show the LTI 1.3 launch URL field if external multiple launch URLs are enabled.
+            if (data.EXTERNAL_MULTIPLE_LAUNCH_URLS_ENABLED) {
+                const index = fieldsToHide.indexOf("lti_1p3_launch_url");
+                if (index > -1) {
+                    fieldsToHide.splice(index, 1);
+                }
+            }
         } else if (configType === "database") {
             // Hide the LTI 1.1 and LTI 1.3 fields. The XBlock will remain the source of truth for the lti_version,
             // so do not hide it and continue to allow editing it from the XBlock edit menu in Studio.
