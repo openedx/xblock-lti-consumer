@@ -14,7 +14,7 @@ asgiref==3.8.1
     # via
     #   -r requirements/base.txt
     #   django
-astroid==3.3.9
+astroid==3.3.10
     # via
     #   pylint
     #   pylint-celery
@@ -26,16 +26,16 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.2.0
     # via -r requirements/base.txt
-boto3==1.37.33
+boto3==1.38.28
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.37.33
+botocore==1.38.28
     # via
     #   -r requirements/base.txt
     #   boto3
     #   s3transfer
-certifi==2025.1.31
+certifi==2025.4.26
     # via
     #   -r requirements/base.txt
     #   requests
@@ -46,11 +46,11 @@ cffi==1.17.1
     #   pynacl
 chardet==5.2.0
     # via binaryornot
-charset-normalizer==3.4.1
+charset-normalizer==3.4.2
     # via
     #   -r requirements/base.txt
     #   requests
-click==8.1.8
+click==8.2.1
     # via
     #   -r requirements/base.txt
     #   click-log
@@ -64,15 +64,17 @@ code-annotations==2.3.0
     # via edx-lint
 cookiecutter==2.6.0
     # via xblock-sdk
-coverage[toml]==7.8.0
+coverage[toml]==7.8.2
     # via coveralls
 coveralls==4.0.1
     # via -r requirements/test.in
-cryptography==44.0.2
-    # via -r requirements/test.in
+cryptography==45.0.3
+    # via
+    #   -r requirements/test.in
+    #   secretstorage
 ddt==1.7.2
     # via -r requirements/test.in
-dill==0.3.9
+dill==0.4.0
     # via pylint
     # via
     #   -c requirements/common_constraints.txt
@@ -122,13 +124,13 @@ docutils==0.21.2
     # via readme-renderer
 edx-ccx-keys==2.0.2
     # via -r requirements/base.txt
-edx-django-utils==7.4.0
+edx-django-utils==8.0.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
 edx-lint==5.6.0
     # via -r requirements/test.in
-edx-opaque-keys[django]==2.12.0
+edx-opaque-keys[django]==3.0.0
     # via
     #   -r requirements/base.txt
     #   edx-ccx-keys
@@ -154,7 +156,7 @@ idna==3.10
     # via
     #   -r requirements/base.txt
     #   requests
-importlib-metadata==8.6.1
+importlib-metadata==8.7.0
     # via keyring
 isort==6.0.1
     # via pylint
@@ -164,6 +166,10 @@ jaraco-context==6.0.1
     # via keyring
 jaraco-functools==4.1.0
     # via keyring
+jeepney==0.9.0
+    # via
+    #   keyring
+    #   secretstorage
 jinja2==3.1.6
     # via
     #   code-annotations
@@ -179,7 +185,7 @@ keyring==25.6.0
     # via twine
 lazy==1.6
     # via -r requirements/base.txt
-lxml==5.3.2
+lxml==5.4.0
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -202,29 +208,25 @@ mdurl==0.1.2
     # via markdown-it-py
 mock==5.2.0
     # via -r requirements/test.in
-more-itertools==10.6.0
+more-itertools==10.7.0
     # via
     #   jaraco-classes
     #   jaraco-functools
-newrelic==10.9.0
-    # via
-    #   -r requirements/base.txt
-    #   edx-django-utils
 nh3==0.2.21
     # via readme-renderer
 oauthlib==3.2.2
     # via -r requirements/base.txt
-openedx-django-pyfs==3.7.0
+openedx-django-pyfs==3.8.0
     # via -r requirements/base.txt
-openedx-filters==2.0.1
+openedx-filters==2.1.0
     # via -r requirements/base.txt
-packaging==24.2
+packaging==25.0
     # via twine
 pbr==6.1.1
     # via
     #   -r requirements/base.txt
     #   stevedore
-platformdirs==4.3.7
+platformdirs==4.3.8
     # via pylint
 psutil==7.0.0
     # via
@@ -236,7 +238,7 @@ pycparser==2.22
     # via
     #   -r requirements/base.txt
     #   cffi
-pycryptodomex==3.22.0
+pycryptodomex==3.23.0
     # via
     #   -r requirements/base.txt
     #   pyjwkest
@@ -248,7 +250,7 @@ pyjwkest==1.4.2
     # via -r requirements/base.txt
 pyjwt==2.10.1
     # via -r requirements/base.txt
-pylint==3.3.6
+pylint==3.3.7
     # via
     #   edx-lint
     #   pylint-celery
@@ -262,7 +264,7 @@ pylint-plugin-utils==0.8.2
     # via
     #   pylint-celery
     #   pylint-django
-pymongo==4.12.0
+pymongo==4.13.0
     # via
     #   -r requirements/base.txt
     #   edx-opaque-keys
@@ -314,10 +316,12 @@ rich==14.0.0
     # via
     #   cookiecutter
     #   twine
-s3transfer==0.11.4
+s3transfer==0.13.0
     # via
     #   -r requirements/base.txt
     #   boto3
+secretstorage==3.3.3
+    # via keyring
 simplejson==3.20.1
     # via
     #   -r requirements/base.txt
@@ -348,9 +352,9 @@ tomlkit==0.13.2
     # via pylint
 twine==6.1.0
     # via -r requirements/test.in
-types-python-dateutil==2.9.0.20241206
+types-python-dateutil==2.9.0.20250516
     # via arrow
-typing-extensions==4.13.2
+typing-extensions==4.14.0
     # via
     #   -r requirements/base.txt
     #   edx-opaque-keys
@@ -362,7 +366,7 @@ urllib3==1.26.20
     #   botocore
     #   requests
     #   twine
-web-fragments==3.0.0
+web-fragments==3.1.0
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -382,7 +386,7 @@ xblock==5.2.0
     #   xblock-sdk
 xblock-sdk==0.13.0
     # via -r requirements/test.in
-zipp==3.21.0
+zipp==3.22.0
     # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
