@@ -6,53 +6,53 @@
 #
 appdirs==1.4.4
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   fs
 arrow==1.3.0
     # via cookiecutter
 asgiref==3.8.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django
 astroid==3.3.9
     # via
     #   pylint
     #   pylint-celery
 attrs==25.3.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 backports-tarfile==1.2.0
     # via jaraco-context
 binaryornot==0.4.4
     # via cookiecutter
 bleach==6.2.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 boto3==1.37.33
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   fs-s3fs
 botocore==1.37.33
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   boto3
     #   s3transfer
 certifi==2025.1.31
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   requests
 cffi==1.17.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   cryptography
     #   pynacl
 chardet==5.2.0
     # via binaryornot
 charset-normalizer==3.4.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   requests
 click==8.1.8
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   click-log
     #   code-annotations
     #   cookiecutter
@@ -67,16 +67,16 @@ cookiecutter==2.6.0
 coverage[toml]==7.8.0
     # via coveralls
 coveralls==4.0.1
-    # via -r requirements/test.in
+    # via -r test.in
 cryptography==44.0.2
-    # via -r requirements/test.in
+    # via -r test.in
 ddt==1.7.2
-    # via -r requirements/test.in
+    # via -r test.in
 dill==0.3.9
     # via pylint
     # via
-    #   -c requirements/common_constraints.txt
-    #   -r requirements/base.txt
+    #   -c common_constraints.txt
+    #   -r base.txt
     #   django-appconf
     #   django-config-models
     #   django-crum
@@ -91,68 +91,68 @@ dill==0.3.9
     #   xblock-sdk
 django-appconf==1.1.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django-statici18n
 django-config-models==2.9.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 django-crum==0.7.9
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 django-filter==25.1
-    # via -r requirements/base.txt
+    # via -r base.txt
 django-statici18n==2.6.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 django-waffle==4.2.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 djangorestframework==3.16.0
     # via
-    #   -r requirements/base.txt
-    #   -r requirements/test.in
+    #   -r base.txt
+    #   -r test.in
     #   django-config-models
 dnspython==2.7.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   pymongo
 docopt==0.6.2
     # via coveralls
 docutils==0.21.2
     # via readme-renderer
 edx-ccx-keys==2.0.2
-    # via -r requirements/base.txt
+    # via -r base.txt
 edx-django-utils==7.4.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django-config-models
 edx-lint==5.6.0
-    # via -r requirements/test.in
+    # via -r test.in
 edx-opaque-keys[django]==2.12.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-ccx-keys
     #   openedx-filters
 fs==2.4.16
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   fs-s3fs
     #   openedx-django-pyfs
     #   xblock
 fs-s3fs==1.1.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   openedx-django-pyfs
     #   xblock-sdk
 future==1.0.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   pyjwkest
 id==1.5.0
     # via twine
 idna==3.10
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   requests
 importlib-metadata==8.6.1
     # via keyring
@@ -170,29 +170,29 @@ jinja2==3.1.6
     #   cookiecutter
 jmespath==1.0.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   boto3
     #   botocore
 jsonfield==3.1.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 keyring==25.6.0
     # via twine
 lazy==1.6
-    # via -r requirements/base.txt
+    # via -r base.txt
 lxml==5.3.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
     #   xblock-sdk
 mako==1.3.10
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
 markdown-it-py==3.0.0
     # via rich
 markupsafe==3.0.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   jinja2
     #   mako
     #   xblock
@@ -201,53 +201,53 @@ mccabe==0.7.0
 mdurl==0.1.2
     # via markdown-it-py
 mock==5.2.0
-    # via -r requirements/test.in
+    # via -r test.in
 more-itertools==10.6.0
     # via
     #   jaraco-classes
     #   jaraco-functools
 newrelic==10.9.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 nh3==0.2.21
     # via readme-renderer
 oauthlib==3.2.2
-    # via -r requirements/base.txt
+    # via -r base.txt
 openedx-django-pyfs==3.7.0
-    # via -r requirements/base.txt
+    # via -r base.txt
 openedx-filters==2.0.1
-    # via -r requirements/base.txt
+    # via -r base.txt
 packaging==24.2
     # via twine
 pbr==6.1.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   stevedore
 platformdirs==4.3.7
     # via pylint
 psutil==7.0.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 pycodestyle==2.13.0
-    # via -r requirements/test.in
+    # via -r test.in
 pycparser==2.22
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   cffi
 pycryptodomex==3.22.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   pyjwkest
 pygments==2.19.1
     # via
     #   readme-renderer
     #   rich
 pyjwkest==1.4.2
-    # via -r requirements/base.txt
+    # via -r base.txt
 pyjwt==2.10.1
-    # via -r requirements/base.txt
+    # via -r base.txt
 pylint==3.3.6
     # via
     #   edx-lint
@@ -264,17 +264,17 @@ pylint-plugin-utils==0.8.2
     #   pylint-django
 pymongo==4.12.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-opaque-keys
 pynacl==1.5.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-django-utils
 pypng==0.20220715.0
     # via xblock-sdk
 python-dateutil==2.9.0.post0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   arrow
     #   botocore
     #   xblock
@@ -284,21 +284,21 @@ python-slugify==8.0.4
     #   cookiecutter
 pytz==2025.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
 pyyaml==6.0.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   code-annotations
     #   cookiecutter
     #   xblock
 readme-renderer==44.0
     # via
-    #   -r requirements/test.in
+    #   -r test.in
     #   twine
 requests==2.32.3
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   cookiecutter
     #   coveralls
     #   id
@@ -316,16 +316,16 @@ rich==14.0.0
     #   twine
 s3transfer==0.11.4
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   boto3
 simplejson==3.20.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
     #   xblock-sdk
 six==1.17.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-ccx-keys
     #   edx-lint
     #   fs
@@ -334,11 +334,11 @@ six==1.17.0
     #   python-dateutil
 sqlparse==0.5.3
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   django
 stevedore==5.4.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   code-annotations
     #   edx-django-utils
     #   edx-opaque-keys
@@ -347,41 +347,41 @@ text-unidecode==1.3
 tomlkit==0.13.2
     # via pylint
 twine==6.1.0
-    # via -r requirements/test.in
+    # via -r test.in
 types-python-dateutil==2.9.0.20241206
     # via arrow
 typing-extensions==4.13.2
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   edx-opaque-keys
 urllib3==1.26.20
     # via
-    #   -c requirements/common_constraints.txt
-    #   -c requirements/constraints.txt
-    #   -r requirements/base.txt
+    #   -c common_constraints.txt
+    #   -c constraints.txt
+    #   -r base.txt
     #   botocore
     #   requests
     #   twine
 web-fragments==3.0.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
     #   xblock-sdk
 webencodings==0.5.1
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   bleach
 webob==1.8.9
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock
     #   xblock-sdk
 xblock==5.2.0
     # via
-    #   -r requirements/base.txt
+    #   -r base.txt
     #   xblock-sdk
 xblock-sdk==0.13.0
-    # via -r requirements/test.in
+    # via -r test.in
 zipp==3.21.0
     # via importlib-metadata
 
