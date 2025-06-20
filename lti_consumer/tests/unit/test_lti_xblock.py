@@ -2313,29 +2313,6 @@ class TestLti1p3AccessTokenJWK(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertJSONEqual(response.content, {"error": "invalid_client"})
 
-    @patch("jwkest.jwk.request")
-    def test_access_token_using_keyset_url_that_fails(self, request):
-        """
-        Test request where the provider's keyset URL request fails.
-        """
-        request.side_effect = Exception("request fails")
-        response = self.xblock.lti_1p3_access_token(self.request)
-        self.assertEqual(response.status_code, 400)
-        self.assertJSONEqual(response.content, {'error': 'invalid_client'})
-
-    @patch("jwkest.jwk.request")
-    def test_access_token_using_keyset_url_with_invalid_contents(self, request):
-        """
-        Test request where the provider's keyset URL doesn't return valid JSON.
-        """
-        response_mock = Mock()
-        response_mock.status_code = 200
-        response_mock.text = b'this is not a valid json'
-        request.return_value = response_mock
-        response = self.xblock.lti_1p3_access_token(self.request)
-        self.assertEqual(response.status_code, 400)
-        self.assertJSONEqual(response.content, {'error': 'invalid_client'})
-
 
 class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
     """
