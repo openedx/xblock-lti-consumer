@@ -2313,7 +2313,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertJSONEqual(response.content, {"error": "invalid_client"})
 
-    @patch("jwkest.jwk.request")
+    @patch("requests.get")
     def test_access_token_using_keyset_url_that_fails(self, request):
         """
         Test request where the provider's keyset URL request fails.
@@ -2323,7 +2323,7 @@ class TestLti1p3AccessTokenJWK(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertJSONEqual(response.content, {'error': 'invalid_client'})
 
-    @patch("jwkest.jwk.request")
+    @patch("requests.get")
     def test_access_token_using_keyset_url_with_invalid_contents(self, request):
         """
         Test request where the provider's keyset URL doesn't return valid JSON.

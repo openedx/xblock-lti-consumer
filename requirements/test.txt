@@ -25,20 +25,18 @@ backports-tarfile==1.2.0
 binaryornot==0.4.4
     # via cookiecutter
 bleach==6.2.0
-    # via -r base.txt
-boto3==1.38.37
+    # via -r requirements/base.txt
+boto3==1.38.41
     # via
     #   -r base.txt
     #   fs-s3fs
-botocore==1.38.37
+botocore==1.38.41
     # via
     #   -r base.txt
     #   boto3
     #   s3transfer
 certifi==2025.6.15
-    # via
-    #   -r base.txt
-    #   requests
+    # via requests
 cffi==1.17.1
     # via
     #   -r base.txt
@@ -47,9 +45,7 @@ cffi==1.17.1
 chardet==5.2.0
     # via binaryornot
 charset-normalizer==3.4.2
-    # via
-    #   -r base.txt
-    #   requests
+    # via requests
 click==8.2.1
     # via
     #   -r base.txt
@@ -67,13 +63,13 @@ cookiecutter==2.6.0
 coverage[toml]==7.9.1
     # via coveralls
 coveralls==4.0.1
-    # via -r test.in
+    # via -r requirements/test.in
 cryptography==45.0.4
     # via
-    #   -r test.in
+    #   -r requirements/test.in
     #   secretstorage
 ddt==1.7.2
-    # via -r test.in
+    # via -r requirements/test.in
 dill==0.4.0
     # via pylint
     # via
@@ -104,7 +100,7 @@ django-crum==0.7.9
 django-filter==25.1
     # via -r base.txt
 django-statici18n==2.6.0
-    # via -r base.txt
+    # via -r requirements/base.txt
 django-waffle==5.0.0
     # via
     #   -r base.txt
@@ -123,13 +119,13 @@ docopt==0.6.2
 docutils==0.21.2
     # via readme-renderer
 edx-ccx-keys==2.0.2
-    # via -r base.txt
+    # via -r requirements/base.txtr
 edx-django-utils==8.0.0
     # via
     #   -r base.txt
     #   django-config-models
 edx-lint==5.6.0
-    # via -r test.in
+    # via -r requirements/test.in
 edx-opaque-keys[django]==3.0.0
     # via
     #   -r base.txt
@@ -146,16 +142,10 @@ fs-s3fs==1.1.1
     #   -r base.txt
     #   openedx-django-pyfs
     #   xblock-sdk
-future==1.0.0
-    # via
-    #   -r base.txt
-    #   pyjwkest
 id==1.5.0
     # via twine
 idna==3.10
-    # via
-    #   -r base.txt
-    #   requests
+    # via requests
 importlib-metadata==8.7.0
     # via keyring
 isort==6.0.1
@@ -164,7 +154,7 @@ jaraco-classes==3.4.0
     # via keyring
 jaraco-context==6.0.1
     # via keyring
-jaraco-functools==4.1.0
+jaraco-functools==4.2.1
     # via keyring
 jeepney==0.9.0
     # via
@@ -184,7 +174,7 @@ jsonfield==3.1.0
 keyring==25.6.0
     # via twine
 lazy==1.6
-    # via -r base.txt
+    # via -r requirements/base.txt
 lxml==5.4.0
     # via
     #   -r base.txt
@@ -207,19 +197,19 @@ mccabe==0.7.0
 mdurl==0.1.2
     # via markdown-it-py
 mock==5.2.0
-    # via -r test.in
+    # via -r requirements/test.in
 more-itertools==10.7.0
     # via
     #   jaraco-classes
     #   jaraco-functools
 nh3==0.2.21
     # via readme-renderer
-oauthlib==3.2.2
-    # via -r base.txt
+oauthlib==3.3.1
+    # via -r requirements/base.txt
 openedx-django-pyfs==3.8.0
-    # via -r base.txt
+    # via -r requirements/base.txt
 openedx-filters==2.1.0
-    # via -r base.txt
+    # via -r requirements/base.txt
 packaging==25.0
     # via twine
 pbr==6.1.1
@@ -232,24 +222,20 @@ psutil==7.0.0
     # via
     #   -r base.txt
     #   edx-django-utils
-pycodestyle==2.13.0
-    # via -r test.in
+pycodestyle==2.14.0
+    # via -r requirements/test.in
 pycparser==2.22
     # via
     #   -r base.txt
     #   cffi
 pycryptodomex==3.23.0
-    # via
-    #   -r base.txt
-    #   pyjwkest
-pygments==2.19.1
+    # via -r requirements/base.txt
+pygments==2.19.2
     # via
     #   readme-renderer
     #   rich
-pyjwkest==1.4.2
-    # via -r base.txt
 pyjwt==2.10.1
-    # via -r base.txt
+    # via -r requirements/base.txt
 pylint==3.3.7
     # via
     #   edx-lint
@@ -300,11 +286,9 @@ readme-renderer==44.0
     #   twine
 requests==2.32.4
     # via
-    #   -r base.txt
     #   cookiecutter
     #   coveralls
     #   id
-    #   pyjwkest
     #   requests-toolbelt
     #   twine
     #   xblock-sdk
@@ -334,7 +318,6 @@ six==1.17.0
     #   edx-lint
     #   fs
     #   fs-s3fs
-    #   pyjwkest
     #   python-dateutil
 sqlparse==0.5.3
     # via
@@ -351,7 +334,7 @@ text-unidecode==1.3
 tomlkit==0.13.3
     # via pylint
 twine==6.1.0
-    # via -r test.in
+    # via -r requirements/test.in
 types-python-dateutil==2.9.0.20250516
     # via arrow
 typing-extensions==4.14.0
@@ -385,7 +368,7 @@ xblock==5.2.0
     #   -r base.txt
     #   xblock-sdk
 xblock-sdk==0.13.0
-    # via -r test.in
+    # via -r requirements/test.in
 zipp==3.23.0
     # via importlib-metadata
 

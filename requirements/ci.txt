@@ -32,12 +32,12 @@ binaryornot==0.4.4
     #   -r test.txt
     #   cookiecutter
 bleach==6.2.0
-    # via -r test.txt
-boto3==1.38.37
+    # via -r requirements/test.txt
+boto3==1.38.41
     # via
     #   -r test.txt
     #   fs-s3fs
-botocore==1.38.37
+botocore==1.38.41
     # via
     #   -r test.txt
     #   boto3
@@ -94,13 +94,13 @@ coverage[toml]==7.9.1
     #   -r test.txt
     #   coveralls
 coveralls==4.0.1
-    # via -r test.txt
+    # via -r requirements/test.txt
 cryptography==45.0.4
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   secretstorage
 ddt==1.7.2
-    # via -r test.txt
+    # via -r requirements/test.txt
 dill==0.4.0
     # via
     #   -r test.txt
@@ -138,7 +138,7 @@ django-crum==0.7.9
 django-filter==25.1
     # via -r test.txt
 django-statici18n==2.6.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 django-waffle==5.0.0
     # via
     #   -r test.txt
@@ -160,13 +160,13 @@ docutils==0.21.2
     #   -r test.txt
     #   readme-renderer
 edx-ccx-keys==2.0.2
-    # via -r test.txt
+    # via -r requirements/test.txt
 edx-django-utils==8.0.0
     # via
     #   -r test.txt
     #   django-config-models
 edx-lint==5.6.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 edx-opaque-keys[django]==3.0.0
     # via
     #   -r test.txt
@@ -188,10 +188,6 @@ fs-s3fs==1.1.1
     #   -r test.txt
     #   openedx-django-pyfs
     #   xblock-sdk
-future==1.0.0
-    # via
-    #   -r test.txt
-    #   pyjwkest
 id==1.5.0
     # via
     #   -r test.txt
@@ -216,13 +212,17 @@ jaraco-context==6.0.1
     # via
     #   -r test.txt
     #   keyring
-jaraco-functools==4.1.0
+jaraco-functools==4.2.1
     # via
     #   -r test.txt
     #   keyring
 jeepney==0.9.0
     # via
     #   -r test.txt
+    #   keyring
+jeepney==0.9.0
+    # via
+    #   -r requirements/test.txt
     #   keyring
     #   secretstorage
 jinja2==3.1.6
@@ -242,7 +242,7 @@ keyring==25.6.0
     #   -r test.txt
     #   twine
 lazy==1.6
-    # via -r test.txt
+    # via -r requirements/test.txt
 lxml==5.4.0
     # via
     #   -r test.txt
@@ -271,7 +271,7 @@ mdurl==0.1.2
     #   -r test.txt
     #   markdown-it-py
 mock==5.2.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 more-itertools==10.7.0
     # via
     #   -r test.txt
@@ -281,16 +281,16 @@ nh3==0.2.21
     # via
     #   -r test.txt
     #   readme-renderer
-oauthlib==3.2.2
-    # via -r test.txt
+oauthlib==3.3.1
+    # via -r requirements/test.txt
 openedx-django-pyfs==3.8.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 openedx-filters==2.1.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 packaging==25.0
     # via
-    #   -r test.txt
-    #   -r tox.txt
+    #   -r requirements/test.txt
+    #   -r requirements/tox.txt
     #   pyproject-api
     #   tox
     #   twine
@@ -313,25 +313,21 @@ psutil==7.0.0
     # via
     #   -r test.txt
     #   edx-django-utils
-pycodestyle==2.13.0
-    # via -r test.txt
+pycodestyle==2.14.0
+    # via -r requirements/test.txt
 pycparser==2.22
     # via
     #   -r test.txt
     #   cffi
 pycryptodomex==3.23.0
-    # via
-    #   -r test.txt
-    #   pyjwkest
-pygments==2.19.1
+    # via -r requirements/test.txt
+pygments==2.19.2
     # via
     #   -r test.txt
     #   readme-renderer
     #   rich
-pyjwkest==1.4.2
-    # via -r test.txt
 pyjwt==2.10.1
-    # via -r test.txt
+    # via -r requirements/test.txt
 pylint==3.3.7
     # via
     #   -r test.txt
@@ -399,7 +395,6 @@ requests==2.32.4
     #   cookiecutter
     #   coveralls
     #   id
-    #   pyjwkest
     #   requests-toolbelt
     #   twine
     #   xblock-sdk
@@ -422,7 +417,7 @@ s3transfer==0.13.0
     #   boto3
 secretstorage==3.3.3
     # via
-    #   -r test.txt
+    #   -r requirements/test.txt
     #   keyring
 simplejson==3.20.1
     # via
@@ -436,7 +431,6 @@ six==1.17.0
     #   edx-lint
     #   fs
     #   fs-s3fs
-    #   pyjwkest
     #   python-dateutil
 sqlparse==0.5.3
     # via
@@ -457,9 +451,10 @@ tomlkit==0.13.3
     #   -r test.txt
     #   pylint
 tox==4.27.0
-    # via -r tox.txt
+
+    # via -r requirements/tox.txt
 twine==6.1.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 types-python-dateutil==2.9.0.20250516
     # via
     #   -r test.txt
@@ -467,7 +462,7 @@ types-python-dateutil==2.9.0.20250516
 typing-extensions==4.14.0
     # via
     #   -r test.txt
-    #   edx-opaque-keys
+    #   edx-opaque-keyshttps://github.com/openedx/xblock-lti-consumer/pull/563/conflict?name=requirements%252Fci.txt&ancestor_oid=66c69255464c53e7a2808ea36a8c52cbf28d2b93&base_oid=b327b365d7d4d1a36871cb2cfdc6c4eb25ca57db&head_oid=c0457dd7427df4f852d02cf4aa47f6b1209b8a56
 urllib3==1.26.20
     # via
     #   -c common_constraints.txt
@@ -499,7 +494,7 @@ xblock==5.2.0
     #   -r test.txt
     #   xblock-sdk
 xblock-sdk==0.13.0
-    # via -r test.txt
+    # via -r requirements/test.txt
 zipp==3.23.0
     # via
     #   -r test.txt
