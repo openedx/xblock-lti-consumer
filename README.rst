@@ -16,11 +16,11 @@ Getting Started
 Installation
 ============
 
-The LTI Consumer XBlock is installed as by default on every Open edX instance.
+The LTI Consumer XBlock is installed by default on every Open edX instance.
 
-For details regarding how to deploy a different version, see the "`Installing extra xblocks and requirements`_" section of Tutor documentation.
+For details on how to deploy a different version, see the "`Installing extra XBlocks and requirements`_" section of the Tutor documentation.
 
-.. _Installing extra xblocks and requirements: https://docs.tutor.edly.io/configuration.html#installing-extra-xblocks-and-requirements
+.. _Installing extra XBlocks and requirements: https://docs.tutor.edly.io/configuration.html#installing-extra-xblocks-and-requirements
 
 Enabling in Studio
 ------------------
@@ -37,7 +37,7 @@ advanced settings.
 Developing
 ===========
 
-The following steps assumes you have a working Tutor dev setup.
+The following steps assume you have a working Tutor dev setup.
 
 #. Clone the repo
 
