@@ -65,6 +65,12 @@ Before performing any of the following tasks, create a virtual environment and a
    python -m venv .venv
    source .venv/bin/activate
 
+#. Install the dev dependencies
+
+   .. code-block:: bash
+
+      make install-dev
+
 #. Changes to style rules should be made to the Sass files, compiled to CSS, and committed to the git repository.
 
    .. code-block:: bash
