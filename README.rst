@@ -16,37 +16,11 @@ Getting Started
 Installation
 ============
 
-For details regarding how to deploy this or any other XBlock in the lms instance, see the `installing-the-xblock`_ documentation.
+The LTI Consumer XBlock is installed as by default on every Open edX instance.
 
-.. _installing-the-xblock: https://docs.tutor.edly.io/configuration.html#installing-extra-xblocks-and-requirements
+For details regarding how to deploy a different version, see the "`Installing extra xblocks and requirements`_" section of Tutor documentation.
 
-Installing in Docker Devstack
------------------------------
-
-Assuming that your ``devstack`` repo lives at ``~/code/devstack``
-and that ``edx-platform`` lives right alongside that directory, you'll want
-to checkout ``xblock-lti-consumer`` and have it live in ``~/code/src/xblock-lti-consumer``.
-This will make it so that you can access it inside an LMS container shell
-and easily make modifications for local testing.
-
-**You will have to run the below instructions twice, once for the LMS and once for Studio.
-Otherwise you will be using different versions of the xblock in the two containers.**
-
-Run ``make dev.shell.lms`` or ``make dev.shell.studio`` from your ``devstack`` directory to enter a running container.
-Once in there, you can do the following to have your devstack pointing at a local development
-version of ``xblock-lti-consumer``:
-
-.. code:: bash
-
-    $ pushd /edx/src/xblock-lti-consumer
-    $ virtualenv venv/
-    $ source venv/bin/activate
-    $ make install
-    $ make test  # optional, if you want to see that everything works
-    $ deactivate
-    $ pushd  # should take you back to /edx/app/edxapp/edx-platform
-    $ pip uninstall -y lti_consumer_xblock
-    $ pip install -e /edx/src/xblock-lti-consumer
+.. _Installing extra xblocks and requirements: https://docs.tutor.edly.io/configuration.html#installing-extra-xblocks-and-requirements
 
 Enabling in Studio
 ------------------
@@ -63,58 +37,63 @@ advanced settings.
 Developing
 ===========
 
-One Time Setup
---------------
-.. code:: bash
+The following steps assumes you have a working Tutor dev setup.
 
-  # Clone the repository
-  git clone git@github.com:openedx/xblock-lti-consumer.git
-  cd xblock-lti-consumer
+#. Clone the repo
 
-  # Set up a virtualenv using virtualenvwrapper with the same name as the repo and activate it
-  mkvirtualenv -p python3.11 xblock-lti-consumer
+    .. code-block:: bash
 
+       git clone git@github.com:openedx/xblock-lti-consumer.git
 
-Every time you develop something in this repo
----------------------------------------------
-.. code:: bash
+#. Add it as a Tutor mount, and update your environment
 
-  # Activate the virtualenv
-  workon xblock-lti-consumer
+    .. code-block:: bash
 
-  # Grab the latest code
-  git checkout master
-  git pull
+       tutor mounts add /path/to/xblock-lti-consumer
+       tutor dev launch
 
-  # Install/update the dev requirements
-  make install
+This will add the cloned repo to the ``lms`` and the ``cms`` containers at ``/mnt/xblock-lti-consumer`` and install it as an editable pip pacakge.
+Any changes made to the Python code will auto-reload both ``lms`` and ``cms`` services.
 
-  # Run the tests (to verify the status before you make any changes)
-  make test
+Common Development Tasks
+------------------------
 
-  # Make a new branch for your changes
-  git checkout -b <your_github_username>/<short_description>
+Before performing any of the following tasks, create a virtual environment and activate it.
 
-  # Using your favorite editor, edit the code to make your change.
-  vim ...
+.. code-block:: bash
 
-  # Changes to style rules should be made to the Sass files, compiled to CSS,
-  # and committed to the git repository.
-  make compile-sass
+   python -m venv .venv
+   source .venv/bin/activate
 
-  # Run your new tests
-  pytest ./path/to/new/tests
+#. Changes to style rules should be made to the Sass files, compiled to CSS, and committed to the git repository.
 
-  # Run quality checks
-  make quality
+   .. code-block:: bash
 
-  # Add a changelog entry to CHANGELOG.rst
+      make compile-sass
 
-  # Commit all your changes
-  git commit ...
-  git push
+#. Running tests
 
-  # Open a PR and ask for review.
+   .. code-block:: bash
+
+      pytest ./path/to/new/tests
+
+#. Run quality checks
+
+   .. code-block:: bash
+
+      make quality
+
+Development Workflow
+--------------------
+
+#. Fork and clone the repo.
+#. Set up the dev environment as mentioned above.
+#. Create a new branch.
+#. Make necessary changes.
+#. Run tests and quality checks.
+#. Add a changelog entry to CHANGELOG.rst
+#. Commit all your changes
+#. Open a PR and ask for review.
 
 Package Requirements
 --------------------
@@ -137,10 +116,10 @@ Testing
 Unit Testing
 ============
 
-* To run all of the unit tests at once, run `make test`
-* To run tests on individual files in development, run `python ./test.py -k=[name of test file without .py]`
-* For example, if you want to run the tests in test_permissions.py, run `python ./test.py -k=test_permissions`
-* To run a specific test in a file, run something like `python ./test.py -k=test_permissions.TestClass.test_function`
+* To run all of the unit tests at once, run ``make test``
+* To run tests on individual files in development, run ``python ./test.py -k=[name of test file without .py]``
+* For example, if you want to run the tests in test_permissions.py, run ``python ./test.py -k=test_permissions``
+* To run a specific test in a file, run something like ``python ./test.py -k=test_permissions.TestClass.test_function``
 
 Testing Against an LTI Provider
 ===============================
@@ -161,10 +140,10 @@ https://docs.openedx.org/en/latest/educators/how-tos/course_development/exercise
 3. Click edit and fill in the following fields:
    ``LTI ID``: "test"
    ``LTI URL``: "https://saltire.lti.app/tool"
-   **Note:** If you are using more than one same LTI xblocks in the same unit, 
-   please append the `norefresh` parameter to the LTI URL to avoid any 
-   potential failures. Then LTI URL will look like this: 
-   `https://saltire.lti.app/tool?norefresh`.
+   **Note:** If you are using more than one same LTI xblocks in the same unit,
+   please append the ``norefresh`` parameter to the LTI URL to avoid any
+   potential failures. Then LTI URL will look like this:
+   ``https://saltire.lti.app/tool?norefresh``.
 4. Click save.  The unit should refresh and you should see "Passed" in the "Verification" field of
    the message tab in the LTI Tool Provider emulator.
 5. Click the "Publish" button.
@@ -185,13 +164,15 @@ needs to know the LMS's one.
 
 Instructions:
 
-#. Set up a local tunnel (using `ngrok` or a similar tool) to get a URL accessible from the internet.
-#. Add the following settings to `edx-platform/lms/envs/private.py` and `edx-platform/cms/envs/private.py`:
+#. Set up a local tunnel (using **ngrok** or a similar tool) to get a URL accessible from the internet.
+#. Add the following settings to ``edx-platform/lms/envs/private.py`` and ``edx-platform/cms/envs/private.py``:
 
-    * LTI_BASE="http://localhost:18000"
-    * LTI_API_BASE="http://<your_ngrok>.ngrok.io"
+   .. code-block:: python
 
-#. Create a new course, and add the `lti_consumer` block to the advanced modules list.
+      LTI_BASE="http://localhost:18000"
+      LTI_API_BASE="http://<your_ngrok>.ngrok.io"
+
+#. Create a new course, and add the ``lti_consumer`` block to the advanced modules list.
 #. In the course, create a new unit and add the LTI block.
 
    * Set ``LTI Version`` to ``LTI 1.3``.
