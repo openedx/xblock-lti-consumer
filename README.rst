@@ -41,16 +41,16 @@ The following steps assume you have a working Tutor dev setup.
 
 #. Clone the repo
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-       git clone git@github.com:openedx/xblock-lti-consumer.git
+      git clone git@github.com:openedx/xblock-lti-consumer.git
 
 #. Add it as a Tutor mount, and update your environment
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-       tutor mounts add /path/to/xblock-lti-consumer
-       tutor dev launch
+      tutor mounts add /path/to/xblock-lti-consumer
+      tutor dev launch
 
 This will add the cloned repo to the ``lms`` and the ``cms`` containers at ``/mnt/xblock-lti-consumer`` and install it as an editable pip pacakge.
 Any changes made to the Python code will auto-reload both ``lms`` and ``cms`` services.
