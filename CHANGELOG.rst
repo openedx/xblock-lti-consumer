@@ -16,6 +16,11 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.14.2 - 2025-08-06
+-------------------
+* Deprecation/Removal of pyjwkest
+* Various version updates
+
 9.14.1 - 2025-05-12
 -------------------
 * Add new flag `lti_consumer.enable_external_multiple_launch_urls`.
