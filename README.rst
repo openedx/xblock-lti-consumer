@@ -55,6 +55,9 @@ The following steps assume you have a working Tutor dev setup.
 This will add the cloned repo to the ``lms`` and the ``cms`` containers at ``/mnt/xblock-lti-consumer`` and install it as an editable pip pacakge.
 Any changes made to the Python code will auto-reload both ``lms`` and ``cms`` services.
 
+.. note::
+   Development instructions for the older devstack can be found `here <https://github.com/openedx/xblock-lti-consumer/blob/v9.14.2/README.rst>`_.
+
 Common Development Tasks
 ------------------------
 
