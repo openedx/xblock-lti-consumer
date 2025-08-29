@@ -98,6 +98,10 @@ DOCS_ANCHOR_TAG_OPEN = (
     "https://docs.openedx.org/en/latest/educators/concepts/exercise_tools/about_lti_component.html"
     "'>"
 )
+MOODLE_TAG_OPEN = (
+    "<a rel='noopener' target='_blank' "
+    "href='/extras/get_moodle_login_url/'>"
+)
 RESULT_SERVICE_SUFFIX_PARSER = re.compile(r"^user/(?P<anon_id>[\w-]+)", re.UNICODE)
 LTI_1P1_ROLE_MAP = {
     'student': 'Student,Learner',
@@ -434,17 +438,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             docs_anchor_open=DOCS_ANCHOR_TAG_OPEN,
             anchor_close="</a>"
         ),
-        default='',
+        default='MOODLE',
         scope=Scope.settings
     )
     launch_url = String(
         display_name=_("LTI URL"),
         help=_(
             "Enter the URL of the external tool that this component launches. "
-            "This setting is only used when Hide External Tool is set to False."
-            "<br />See the {docs_anchor_open}edX LTI documentation{anchor_close} for more details on this setting."
+            "<br />Click {docs_anchor_open}here to enter Moodle Backend{anchor_close}"
         ).format(
-            docs_anchor_open=DOCS_ANCHOR_TAG_OPEN,
+            docs_anchor_open=MOODLE_TAG_OPEN,
             anchor_close="</a>"
         ),
         default='',
@@ -523,7 +526,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     has_score = Boolean(
         display_name=_("Scored"),
         help=_("Select True if this component will receive a numerical score from the external LTI system."),
-        default=False,
+        default=True,
         scope=Scope.settings
     )
     weight = Float(
@@ -570,7 +573,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         display_name=_("Request user's username"),
         # Translators: This is used to request the user's username for a third party service.
         help=_("Select True to request the user's username."),
-        default=False,
+        default=True,
         scope=Scope.settings
     )
     ask_to_send_full_name = Boolean(
@@ -584,7 +587,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         display_name=_("Request user's email"),
         # Translators: This is used to request the user's email for a third party service.
         help=_("Select True to request the user's email address."),
-        default=False,
+        default=True,
         scope=Scope.settings
     )
 
@@ -594,6 +597,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                "The processors are site-wide, please consult the site administrator if you have any questions."),
         default=False,
         scope=Scope.settings
+    )
+
+    completion_time = Integer(
+        display_name = _("Completion Time in MilliSeconds"),
+        help = _("The completion time to show completion popup."),
+        default = 5000,
+        scope = Scope.settings
     )
 
     # Possible editable fields
@@ -611,7 +621,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Other parameters
         'custom_parameters', 'launch_target', 'button_text', 'inline_height', 'modal_height',
         'modal_width', 'has_score', 'weight', 'hide_launch', 'accept_grades_past_due',
-        'ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email', 'enable_processors',
+        'ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email', 'enable_processors', 'completion_time',
     )
 
     # Author view
@@ -1779,6 +1789,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'modal_width': self.modal_width,
             'accept_grades_past_due': self.accept_grades_past_due,
             'lti_version': self.lti_version,
+            'completion_time': self.completion_time * 60000,
         }
 
     def _get_modal_position_offset(self, viewport_percentage):

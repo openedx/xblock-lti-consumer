@@ -171,7 +171,7 @@ function LtiConsumerXBlock(runtime, element) {
         var ltiVersion = $ltiContainer.data('lti-version');
 
         function renderPIIConsentPromptIfRequired(onSuccess, showCancelButton=true) {
-            if (askToSendUsername && askToSendFullName && askToSendEmail) {
+            /*if (askToSendUsername && askToSendFullName && askToSendEmail) {
                 msg = gettext(
                     'Click OK to have your username, full name, and e-mail address sent to a 3rd party application.'
                 );
@@ -200,7 +200,9 @@ function LtiConsumerXBlock(runtime, element) {
                 msg += '\n\n' + gettext('Click Cancel to return to this page without sending your information.');
             }
 
-            $.when(confirmDialog(msg, $(this), showCancelButton)).then(onSuccess);
+            $.when(confirmDialog(msg, $(this), showCancelButton)).then(onSuccess); */
+            onSuccess('OK');
+            return;
         }
 
         // Render consent dialog for inline elements immediately.

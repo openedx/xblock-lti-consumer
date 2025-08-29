@@ -159,6 +159,80 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
         }
     }
 
+    function initializeLtiToolAutocomplete() {
+        const searchBoxSelector = "#xb-field-edit-launch_url"; // Selector for the launch URL input box
+        const weightFieldSelector = "#xb-field-edit-weight";
+        //const dropdownSelector = "#xb-field-edit-lti_tool_urls"; // Selector for the dropdown field
+
+        let storedLtiTools = []; // To store the fetched tools
+
+        // Fetch tools based on course_shortName and store them
+        function fetchLtiTools(courseShortName, callback) {
+            const api_url = "https://" + window.location.hostname + "/extras/get_lti_tool_urls";
+            $.ajax({
+                type: "POST",
+                url: api_url,
+                data: {
+                    course_shortName: courseShortName
+                },
+                success: function (data) {
+                    if (data.ltiTools) {
+                        storedLtiTools = data.ltiTools; // Store the response
+                        console.log(storedLtiTools);
+                        callback(storedLtiTools); // Invoke callback with the data
+                    } else {
+                        console.error("Invalid API response:", data);
+                        callback([]);
+                    }
+                },
+                error: function (error) {
+                    console.error("Error fetching LTI tools:", error);
+                    callback([]);
+                }
+            });
+        }
+
+        // Filter stored tools based on the search term
+        function filterTools(searchTerm) {
+            return storedLtiTools.filter(tool =>
+                tool.tool_name.toLowerCase().includes(searchTerm.toLowerCase())
+            ).map(tool => ({
+                label: tool.tool_name, 
+                value: tool.tool_url,
+                grade: tool.grade !== null ? tool.grade : "1.0"
+            }));
+        }
+
+        $(searchBoxSelector).autocomplete({
+            source: function (request, response) {
+                const filteredTools = filterTools(request.term);
+                response(filteredTools);
+            },
+            minLength: 2,
+            autoFocus: true,
+            delay: 200,
+            select: function (event, ui) {
+                $(searchBoxSelector).val(ui.item.value); // Update search box
+                console.log("Selected tool:", ui.item);
+
+                // Check if grade exists and update weight field
+                if (ui.item.grade !== null) {
+                    $(weightFieldSelector).val(ui.item.grade).trigger("change");
+                } else {
+                    console.log("Grade is null for the selected item.");
+                }
+            }
+        }).on("input", function () {
+            $(this).autocomplete("search");
+        });        
+
+        // Fetch tools on load using course_shortName
+        const courseShortName = window.location.href.split("+")[1] + "|" + window.location.href.split("+")[2];
+        fetchLtiTools(courseShortName, function () {
+            console.log("Fetched LTI tools:", storedLtiTools);
+        });
+    }
+
     // Call once component is instanced to hide fields
     toggleLtiFields();
 
@@ -174,5 +248,31 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
 
     $(element).find('#xb-field-edit-config_type').bind('change', function () {
         toggleLtiFields();
+    });
+
+    if ($('#xb-field-edit-launch_url').length > 0) {
+        initializeLtiToolAutocomplete();
+    }
+
+    $(element).find('.xblock-actions .save-button').on('click', function (e) {
+        const lms_url = document.querySelector('.action-item .button-view').href;
+        const selected_tool = $(element).find('#xb-field-edit-launch_url').val();
+        if (selected_tool) {
+            const update_moodle_block_url = "https://" + window.location.hostname + "/extras/update_moodle_block_url";
+            $.ajax({
+                type: "POST",
+                url: update_moodle_block_url,
+                data: {
+                    lms_url: lms_url,
+                    selected_tool: selected_tool
+                },
+                success: function (data) {
+                    console.log(data);
+                },
+                error: function (error) {
+                    console.error("Error while updating moodle block url:", error);
+                }
+            });
+        }
     });
 }
