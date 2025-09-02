@@ -33,11 +33,11 @@ binaryornot==0.4.4
     #   cookiecutter
 bleach==6.2.0
     # via -r requirements/test.txt
-boto3==1.40.17
+boto3==1.40.21
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.40.17
+botocore==1.40.21
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -89,13 +89,13 @@ cookiecutter==2.6.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-coverage[toml]==7.10.5
+coverage[toml]==7.10.6
     # via
     #   -r requirements/test.txt
     #   coveralls
 coveralls==4.0.1
     # via -r requirements/test.txt
-cryptography==45.0.6
+cryptography==45.0.7
     # via
     #   -r requirements/test.txt
     #   secretstorage
@@ -268,7 +268,7 @@ mdurl==0.1.2
     #   markdown-it-py
 mock==5.2.0
     # via -r requirements/test.txt
-more-itertools==10.7.0
+more-itertools==10.8.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
@@ -442,7 +442,7 @@ tomlkit==0.13.3
     # via
     #   -r requirements/test.txt
     #   pylint
-tox==4.28.4
+tox==4.29.0
     # via -r requirements/tox.txt
 twine==6.1.0
     # via -r requirements/test.txt

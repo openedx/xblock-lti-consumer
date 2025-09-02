@@ -24,11 +24,11 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.2.0
     # via -r requirements/base.txt
-boto3==1.40.17
+boto3==1.40.21
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.40.17
+botocore==1.40.21
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -58,7 +58,7 @@ code-annotations==2.3.0
     # via edx-lint
 cookiecutter==2.6.0
     # via xblock-sdk
-cryptography==45.0.6
+cryptography==45.0.7
     # via -r requirements/quality.in
 ddt==1.7.2
     # via -r requirements/quality.in
