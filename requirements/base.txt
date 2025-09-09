@@ -12,17 +12,17 @@ attrs==25.3.0
     # via -r requirements/base.in
 bleach==6.2.0
     # via -r requirements/base.in
-boto3==1.40.17
+boto3==1.40.26
     # via fs-s3fs
-botocore==1.40.17
+botocore==1.40.26
     # via
     #   boto3
     #   s3transfer
-cffi==1.17.1
+cffi==2.0.0
     # via pynacl
 click==8.2.1
     # via edx-django-utils
-django==4.2.23
+django==4.2.24
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
@@ -51,7 +51,7 @@ django-waffle==5.0.0
     # via edx-django-utils
 djangorestframework==3.16.1
     # via django-config-models
-dnspython==2.7.0
+dnspython==2.8.0
     # via pymongo
 edx-ccx-keys==2.0.2
     # via -r requirements/base.in
@@ -97,7 +97,7 @@ openedx-filters==2.1.0
     # via -r requirements/base.in
 psutil==7.0.0
     # via edx-django-utils
-pycparser==2.22
+pycparser==2.23
     # via cffi
 pycryptodomex==3.23.0
     # via -r requirements/base.in
