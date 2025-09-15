@@ -33,11 +33,11 @@ binaryornot==0.4.4
     #   cookiecutter
 bleach==6.2.0
     # via -r requirements/test.txt
-boto3==1.40.17
+boto3==1.40.26
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.40.17
+botocore==1.40.26
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -50,7 +50,7 @@ certifi==2025.8.3
     # via
     #   -r requirements/test.txt
     #   requests
-cffi==1.17.1
+cffi==2.0.0
     # via
     #   -r requirements/test.txt
     #   cryptography
@@ -89,13 +89,13 @@ cookiecutter==2.6.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-coverage[toml]==7.10.5
+coverage[toml]==7.10.6
     # via
     #   -r requirements/test.txt
     #   coveralls
 coveralls==4.0.1
     # via -r requirements/test.txt
-cryptography==45.0.6
+cryptography==45.0.7
     # via
     #   -r requirements/test.txt
     #   secretstorage
@@ -109,7 +109,7 @@ distlib==0.4.0
     # via
     #   -r requirements/tox.txt
     #   virtualenv
-django==4.2.23
+django==4.2.24
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/test.txt
@@ -147,7 +147,7 @@ djangorestframework==3.16.1
     # via
     #   -r requirements/test.txt
     #   django-config-models
-dnspython==2.7.0
+dnspython==2.8.0
     # via
     #   -r requirements/test.txt
     #   pymongo
@@ -268,7 +268,7 @@ mdurl==0.1.2
     #   markdown-it-py
 mock==5.2.0
     # via -r requirements/test.txt
-more-itertools==10.7.0
+more-itertools==10.8.0
     # via
     #   -r requirements/test.txt
     #   jaraco-classes
@@ -307,7 +307,7 @@ psutil==7.0.0
     #   edx-django-utils
 pycodestyle==2.14.0
     # via -r requirements/test.txt
-pycparser==2.22
+pycparser==2.23
     # via
     #   -r requirements/test.txt
     #   cffi
@@ -442,9 +442,9 @@ tomlkit==0.13.3
     # via
     #   -r requirements/test.txt
     #   pylint
-tox==4.28.4
+tox==4.30.2
     # via -r requirements/tox.txt
-twine==6.1.0
+twine==6.2.0
     # via -r requirements/test.txt
 types-python-dateutil==2.9.0.20250822
     # via

@@ -26,18 +26,18 @@ binaryornot==0.4.4
     # via cookiecutter
 bleach==6.2.0
     # via -r requirements/base.txt
-boto3==1.40.17
+boto3==1.40.26
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.40.17
+botocore==1.40.26
     # via
     #   -r requirements/base.txt
     #   boto3
     #   s3transfer
 certifi==2025.8.3
     # via requests
-cffi==1.17.1
+cffi==2.0.0
     # via
     #   -r requirements/base.txt
     #   cryptography
@@ -60,11 +60,11 @@ code-annotations==2.3.0
     # via edx-lint
 cookiecutter==2.6.0
     # via xblock-sdk
-coverage[toml]==7.10.5
+coverage[toml]==7.10.6
     # via coveralls
 coveralls==4.0.1
     # via -r requirements/test.in
-cryptography==45.0.6
+cryptography==45.0.7
     # via
     #   -r requirements/test.in
     #   secretstorage
@@ -110,7 +110,7 @@ djangorestframework==3.16.1
     #   -r requirements/base.txt
     #   -r requirements/test.in
     #   django-config-models
-dnspython==2.7.0
+dnspython==2.8.0
     # via
     #   -r requirements/base.txt
     #   pymongo
@@ -198,7 +198,7 @@ mdurl==0.1.2
     # via markdown-it-py
 mock==5.2.0
     # via -r requirements/test.in
-more-itertools==10.7.0
+more-itertools==10.8.0
     # via
     #   jaraco-classes
     #   jaraco-functools
@@ -220,7 +220,7 @@ psutil==7.0.0
     #   edx-django-utils
 pycodestyle==2.14.0
     # via -r requirements/test.in
-pycparser==2.22
+pycparser==2.23
     # via
     #   -r requirements/base.txt
     #   cffi
@@ -329,7 +329,7 @@ text-unidecode==1.3
     # via python-slugify
 tomlkit==0.13.3
     # via pylint
-twine==6.1.0
+twine==6.2.0
     # via -r requirements/test.in
 types-python-dateutil==2.9.0.20250822
     # via arrow
