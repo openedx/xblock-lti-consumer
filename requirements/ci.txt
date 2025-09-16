@@ -33,11 +33,11 @@ binaryornot==0.4.4
     #   cookiecutter
 bleach==6.2.0
     # via -r requirements/test.txt
-boto3==1.40.26
+boto3==1.40.31
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.40.26
+botocore==1.40.31
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -340,11 +340,11 @@ pylint-plugin-utils==0.9.0
     #   -r requirements/test.txt
     #   pylint-celery
     #   pylint-django
-pymongo==4.14.1
+pymongo==4.15.0
     # via
     #   -r requirements/test.txt
     #   edx-opaque-keys
-pynacl==1.5.0
+pynacl==1.6.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
@@ -403,11 +403,11 @@ rich==14.1.0
     #   -r requirements/test.txt
     #   cookiecutter
     #   twine
-s3transfer==0.13.1
+s3transfer==0.14.0
     # via
     #   -r requirements/test.txt
     #   boto3
-secretstorage==3.3.3
+secretstorage==3.4.0
     # via
     #   -r requirements/test.txt
     #   keyring

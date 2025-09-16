@@ -16,11 +16,11 @@ attrs==25.3.0
     # via -r requirements/base.txt
 bleach==6.2.0
     # via -r requirements/base.txt
-boto3==1.40.26
+boto3==1.40.31
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.40.26
+botocore==1.40.31
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -145,11 +145,11 @@ pycryptodomex==3.23.0
     # via -r requirements/base.txt
 pyjwt==2.10.1
     # via -r requirements/base.txt
-pymongo==4.14.1
+pymongo==4.15.0
     # via
     #   -r requirements/base.txt
     #   edx-opaque-keys
-pynacl==1.5.0
+pynacl==1.6.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
@@ -167,7 +167,7 @@ pyyaml==6.0.2
     #   -r requirements/base.txt
     #   edx-i18n-tools
     #   xblock
-s3transfer==0.13.1
+s3transfer==0.14.0
     # via
     #   -r requirements/base.txt
     #   boto3
