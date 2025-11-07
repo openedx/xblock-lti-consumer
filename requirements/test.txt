@@ -24,13 +24,13 @@ backports-tarfile==1.2.0
     # via jaraco-context
 binaryornot==0.4.4
     # via cookiecutter
-bleach==6.2.0
+bleach==6.3.0
     # via -r requirements/base.txt
-boto3==1.40.55
+boto3==1.40.68
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-botocore==1.40.55
+botocore==1.40.68
     # via
     #   -r requirements/base.txt
     #   boto3
@@ -60,9 +60,9 @@ code-annotations==2.3.0
     # via edx-lint
 cookiecutter==2.6.0
     # via xblock-sdk
-coverage[toml]==7.11.0
+coverage[toml]==7.11.1
     # via coveralls
-coveralls==4.0.1
+coveralls==4.0.2
     # via -r requirements/test.in
 cryptography==46.0.3
     # via
@@ -97,7 +97,7 @@ django-crum==0.7.9
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-django-filter==25.1
+django-filter==25.2
     # via -r requirements/base.txt
 django-statici18n==2.6.0
     # via -r requirements/base.txt
@@ -116,7 +116,7 @@ dnspython==2.8.0
     #   pymongo
 docopt==0.6.2
     # via coveralls
-docutils==0.22.2
+docutils==0.22.3
     # via readme-renderer
 edx-ccx-keys==2.0.2
     # via -r requirements/base.txt
@@ -202,7 +202,7 @@ more-itertools==10.8.0
     # via
     #   jaraco-classes
     #   jaraco-functools
-nh3==0.3.1
+nh3==0.3.2
     # via readme-renderer
 oauthlib==3.3.1
     # via -r requirements/base.txt
@@ -214,7 +214,7 @@ packaging==25.0
     # via twine
 platformdirs==4.5.0
     # via pylint
-psutil==7.1.1
+psutil==7.1.3
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
