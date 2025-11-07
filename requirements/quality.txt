@@ -25,12 +25,9 @@ binaryornot==0.4.4
 bleach==6.3.0
     # via -r requirements/base.txt
 boto3==1.40.68
-    # via
-    #   -r requirements/base.txt
-    #   fs-s3fs
+    # via fs-s3fs
 botocore==1.40.68
     # via
-    #   -r requirements/base.txt
     #   boto3
     #   s3transfer
 certifi==2025.10.5
@@ -77,7 +74,6 @@ django==5.2.8
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
-    #   openedx-django-pyfs
     #   openedx-filters
     #   xblock-sdk
 django-appconf==1.1.0
@@ -123,13 +119,9 @@ fs==2.4.16
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-    #   openedx-django-pyfs
     #   xblock
 fs-s3fs==1.1.1
-    # via
-    #   -r requirements/base.txt
-    #   openedx-django-pyfs
-    #   xblock-sdk
+    # via xblock-sdk
 idna==3.11
     # via requests
 isort==6.1.0
@@ -140,7 +132,6 @@ jinja2==3.1.6
     #   cookiecutter
 jmespath==1.0.1
     # via
-    #   -r requirements/base.txt
     #   boto3
     #   botocore
 jsonfield==3.2.0
@@ -169,8 +160,6 @@ mccabe==0.7.0
 mdurl==0.1.2
     # via markdown-it-py
 oauthlib==3.3.1
-    # via -r requirements/base.txt
-openedx-django-pyfs==3.8.0
     # via -r requirements/base.txt
 openedx-filters==2.1.0
     # via -r requirements/base.txt
@@ -244,9 +233,7 @@ requests==2.32.5
 rich==14.2.0
     # via cookiecutter
 s3transfer==0.14.0
-    # via
-    #   -r requirements/base.txt
-    #   boto3
+    # via boto3
 simplejson==3.20.2
     # via
     #   -r requirements/base.txt
@@ -283,7 +270,6 @@ tzdata==2025.2
 urllib3==1.26.20
     # via
     #   -c requirements/constraints.txt
-    #   -r requirements/base.txt
     #   botocore
     #   requests
 web-fragments==3.1.0

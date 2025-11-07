@@ -122,7 +122,6 @@ django==5.2.8
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
-    #   openedx-django-pyfs
     #   openedx-filters
     #   xblock-sdk
 django-appconf==1.1.0
@@ -181,12 +180,10 @@ fs==2.4.16
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-    #   openedx-django-pyfs
     #   xblock
 fs-s3fs==1.1.1
     # via
     #   -r requirements/test.txt
-    #   openedx-django-pyfs
     #   xblock-sdk
 id==1.5.0
     # via
@@ -278,8 +275,6 @@ nh3==0.3.2
     #   -r requirements/test.txt
     #   readme-renderer
 oauthlib==3.3.1
-    # via -r requirements/test.txt
-openedx-django-pyfs==3.8.0
     # via -r requirements/test.txt
 openedx-filters==2.1.0
     # via -r requirements/test.txt

@@ -27,12 +27,9 @@ binaryornot==0.4.4
 bleach==6.3.0
     # via -r requirements/base.txt
 boto3==1.40.68
-    # via
-    #   -r requirements/base.txt
-    #   fs-s3fs
+    # via fs-s3fs
 botocore==1.40.68
     # via
-    #   -r requirements/base.txt
     #   boto3
     #   s3transfer
 certifi==2025.10.5
@@ -84,7 +81,6 @@ dill==0.4.0
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
-    #   openedx-django-pyfs
     #   openedx-filters
     #   xblock-sdk
 django-appconf==1.1.0
@@ -135,13 +131,9 @@ fs==2.4.16
     # via
     #   -r requirements/base.txt
     #   fs-s3fs
-    #   openedx-django-pyfs
     #   xblock
 fs-s3fs==1.1.1
-    # via
-    #   -r requirements/base.txt
-    #   openedx-django-pyfs
-    #   xblock-sdk
+    # via xblock-sdk
 id==1.5.0
     # via twine
 idna==3.11
@@ -166,7 +158,6 @@ jinja2==3.1.6
     #   cookiecutter
 jmespath==1.0.1
     # via
-    #   -r requirements/base.txt
     #   boto3
     #   botocore
 jsonfield==3.2.0
@@ -205,8 +196,6 @@ more-itertools==10.8.0
 nh3==0.3.2
     # via readme-renderer
 oauthlib==3.3.1
-    # via -r requirements/base.txt
-openedx-django-pyfs==3.8.0
     # via -r requirements/base.txt
 openedx-filters==2.1.0
     # via -r requirements/base.txt
@@ -297,9 +286,7 @@ rich==14.2.0
     #   cookiecutter
     #   twine
 s3transfer==0.14.0
-    # via
-    #   -r requirements/base.txt
-    #   boto3
+    # via boto3
 secretstorage==3.4.0
     # via keyring
 simplejson==3.20.2
@@ -340,7 +327,6 @@ tzdata==2025.2
 urllib3==1.26.20
     # via
     #   -c requirements/constraints.txt
-    #   -r requirements/base.txt
     #   botocore
     #   requests
     #   twine
