@@ -17,7 +17,7 @@ jobs:
         python-version:
         - '3.11'
         - '3.12'
-        toxenv: [django42, django52, quality]
+        toxenv: [django52, quality]
 
     steps:
     - uses: actions/checkout@v5
