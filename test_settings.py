@@ -3,6 +3,11 @@ Custom testing settings for testing views
 """
 from workbench.settings import *
 
+# We don't need djpyfs for this block so remove it from installed apps.
+try:
+    INSTALLED_APPS.remove("djpyfs")
+except ValueError:
+    pass
 
 # Usage id pattern (from edx-platform)
 USAGE_ID_PATTERN = r'(?P<usage_id>(?:i4x://?[^/]+/[^/]+/[^/]+/[^@]+(?:@[^/]+)?)|(?:[^/]+))'
