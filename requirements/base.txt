@@ -10,19 +10,13 @@ asgiref==3.10.0
     # via django
 attrs==25.4.0
     # via -r requirements/base.in
-bleach==6.2.0
+bleach==6.3.0
     # via -r requirements/base.in
-boto3==1.40.55
-    # via fs-s3fs
-botocore==1.40.55
-    # via
-    #   boto3
-    #   s3transfer
 cffi==2.0.0
     # via pynacl
 click==8.3.0
     # via edx-django-utils
-django==4.2.25
+django==5.2.8
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
@@ -35,7 +29,6 @@ django==4.2.25
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
-    #   openedx-django-pyfs
     #   openedx-filters
 django-appconf==1.1.0
     # via django-statici18n
@@ -43,7 +36,7 @@ django-config-models==2.9.0
     # via -r requirements/base.in
 django-crum==0.7.9
     # via edx-django-utils
-django-filter==25.1
+django-filter==25.2
     # via -r requirements/base.in
 django-statici18n==2.6.0
     # via -r requirements/base.in
@@ -63,16 +56,7 @@ edx-opaque-keys[django]==3.0.0
     #   edx-ccx-keys
     #   openedx-filters
 fs==2.4.16
-    # via
-    #   fs-s3fs
-    #   openedx-django-pyfs
-    #   xblock
-fs-s3fs==1.1.1
-    # via openedx-django-pyfs
-jmespath==1.0.1
-    # via
-    #   boto3
-    #   botocore
+    # via xblock
 jsonfield==3.2.0
     # via -r requirements/base.in
 lazy==1.6
@@ -91,11 +75,9 @@ markupsafe==3.0.3
     #   xblock
 oauthlib==3.3.1
     # via -r requirements/base.in
-openedx-django-pyfs==3.8.0
-    # via -r requirements/base.in
 openedx-filters==2.1.0
     # via -r requirements/base.in
-psutil==7.1.1
+psutil==7.1.3
     # via edx-django-utils
 pycparser==2.23
     # via cffi
@@ -108,22 +90,17 @@ pymongo==4.15.3
 pynacl==1.6.0
     # via edx-django-utils
 python-dateutil==2.9.0.post0
-    # via
-    #   botocore
-    #   xblock
+    # via xblock
 pytz==2025.2
     # via xblock
 pyyaml==6.0.3
     # via xblock
-s3transfer==0.14.0
-    # via boto3
 simplejson==3.20.2
     # via xblock
 six==1.17.0
     # via
     #   edx-ccx-keys
     #   fs
-    #   fs-s3fs
     #   python-dateutil
 sqlparse==0.5.3
     # via django
@@ -133,10 +110,6 @@ stevedore==5.5.0
     #   edx-opaque-keys
 typing-extensions==4.15.0
     # via edx-opaque-keys
-urllib3==1.26.20
-    # via
-    #   -c requirements/constraints.txt
-    #   botocore
 web-fragments==3.1.0
     # via xblock
 webencodings==0.5.1
