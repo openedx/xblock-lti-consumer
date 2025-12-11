@@ -155,7 +155,10 @@ class TestLti1p3Consumer(TestCase):
     @ddt.data(
         (
             'student',
-            ['http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student']
+            [
+                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student',
+                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Learner'
+            ]
         ),
         (
             'staff',
@@ -237,7 +240,8 @@ class TestLti1p3Consumer(TestCase):
             {
                 "sub": "1",
                 "https://purl.imsglobal.org/spec/lti/claim/roles": [
-                    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student"
+                    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student",
+                    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Learner"
                 ]
             }
         ),
