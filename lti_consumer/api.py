@@ -4,27 +4,34 @@ Python APIs used to handle LTI configuration and launches.
 Some methods are meant to be used inside the XBlock, so they
 return plaintext to allow easy testing/mocking.
 """
-
 import json
+from uuid import UUID
 
+from django.conf import settings
 from opaque_keys.edx.keys import CourseKey
 
 from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
+from lti_consumer.lti_xblock import LtiConsumerXBlock
+
+from .filters import get_external_config_from_filter
 from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
 from .utils import (
     get_cache_key,
     get_data_from_cache,
-    get_lti_1p3_context_types_claim,
-    get_lti_deeplinking_content_url,
+    get_lms_lti_access_token_link,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
-    get_lms_lti_access_token_link,
+    get_lti_1p3_context_types_claim,
+    get_lti_deeplinking_content_url,
 )
-from .filters import get_external_config_from_filter
 
 
-def _get_or_create_local_lti_config(lti_version, block_location,
-                                    config_store=LtiConfiguration.CONFIG_ON_XBLOCK, external_id=None):
+def _get_or_create_local_lti_config(
+    lti_version: str,
+    block_location: str,
+    config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+    external_id: str | None = None,
+) -> LtiConfiguration:
     """
     Retrieve the LtiConfiguration for the block described by block_location, if one exists. If one does not exist,
     create an LtiConfiguration with the LtiConfiguration.CONFIG_ON_XBLOCK config_store.
@@ -48,14 +55,14 @@ def _get_or_create_local_lti_config(lti_version, block_location,
     return lti_config
 
 
-def _get_config_by_config_id(config_id):
+def _get_config_by_config_id(config_id: UUID):
     """
     Gets the LTI config by its UUID config ID
     """
     return LtiConfiguration.objects.get(config_id=config_id)
 
 
-def _get_lti_config_for_block(block):
+def _get_lti_config_for_block(block: LtiConsumerXBlock) -> LtiConfiguration:
     """
     Retrieves or creates a LTI Configuration for a block.
 
@@ -88,12 +95,27 @@ def _get_lti_config_for_block(block):
     return lti_config
 
 
+def _sync_block_data_from_db(block: LtiConsumerXBlock, config: LtiConfiguration) -> None:
+    """
+    Synchronizes data from the database to the block in the modulestore.
+    """
+    block.lti_1p3_client_id = config.lti_1p3_client_id
+    block.lti_1p3_internal_private_key = config.lti_1p3_internal_private_key
+    block.lti_1p3_internal_private_key_id = config.lti_1p3_internal_private_key_id
+    block.lti_1p3_internal_public_jwk = config.lti_1p3_internal_public_jwk
+    block.save()
+    # FIXME: Confirm if this is the correct way to save the block
+    block.runtime.modulestore.update_item(block, None)
+
+
 def config_id_for_block(block):
     """
     Returns the externally facing config_id of the LTI Configuration used by this block,
     creating one if required. That ID is suitable for use in launch data or get_consumer.
     """
     config = _get_lti_config_for_block(block)
+    if settings.SERVICE_VARIANT == 'cms':
+        _sync_block_data_from_db(block, config)
     return config.config_id
 
 

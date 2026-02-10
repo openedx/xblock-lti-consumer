@@ -60,11 +60,11 @@ import bleach
 from django.conf import settings
 from django.utils import timezone
 from web_fragments.fragment import Fragment
-
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.validation import ValidationMessage
+
 try:
     from xblock.utils.resources import ResourceLoader
     from xblock.utils.studio_editable import StudioEditableXBlockMixin
@@ -340,6 +340,30 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "uri's the tool may request."
         ),
         scope=Scope.settings
+    )
+    lti_1p3_client_id = String(
+        display_name=_("Client ID"),
+        default='',
+        scope=Scope.settings,
+        help=_("Client ID used by LTI tool"),
+    )
+    lti_1p3_internal_private_key = String(
+        display_name=_("Internal Private Key"),
+        default='',
+        scope=Scope.settings,
+        help=_("Platform's generated Private key. Keep this value secret."),
+    )
+    lti_1p3_internal_private_key_id = String(
+        display_name=_("Internal Private Key ID"),
+        default='',
+        scope=Scope.settings,
+        help=_("Platform's generated Private key ID"),
+    )
+    lti_1p3_internal_public_jwk = String(
+        display_name=_("Internal Public JWK"),
+        default='',
+        scope=Scope.settings,
+        help=_("Platform's generated JWK keyset."),
     )
 
     lti_1p3_tool_key_mode = String(
