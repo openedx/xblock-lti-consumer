@@ -42,14 +42,16 @@ def _get_or_create_local_lti_config(
     This allows XBlock users to update the LTI version without needing to update the database.
     """
     # The create operation is only performed when there is no existing configuration for the block
+    defaults = {
+        "lti_1p3_internal_private_key": block.lti_1p3_internal_private_key,
+        "lti_1p3_internal_private_key_id": block.lti_1p3_internal_private_key_id,
+        "lti_1p3_internal_public_jwk": block.lti_1p3_internal_public_jwk,
+    }
+    if block.lti_1p3_client_id:
+        defaults["lti_1p3_client_id"] = block.lti_1p3_client_id
     lti_config, _ = LtiConfiguration.objects.get_or_create(
         location=block.scope_ids.usage_id,
-        defaults={
-            "lti_1p3_client_id": block.lti_1p3_client_id,
-            "lti_1p3_internal_private_key": block.lti_1p3_internal_private_key,
-            "lti_1p3_internal_private_key_id": block.lti_1p3_internal_private_key_id,
-            "lti_1p3_internal_public_jwk": block.lti_1p3_internal_public_jwk,
-        }
+        defaults=defaults
     )
 
     lti_config.config_store = config_store
@@ -113,7 +115,8 @@ def _sync_block_data_from_db(block: LtiConsumerXBlock, config: LtiConfiguration)
     block.lti_1p3_internal_public_jwk = config.lti_1p3_internal_public_jwk
     block.save()
     # FIXME: Confirm if this is the correct way to save the block
-    block.runtime.modulestore.update_item(block, None)
+    if hasattr(block.runtime, 'modulestore'):
+        block.runtime.modulestore.update_item(block, None)
 
 
 def config_id_for_block(block):
