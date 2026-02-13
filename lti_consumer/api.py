@@ -23,8 +23,12 @@ from .utils import (
 from .filters import get_external_config_from_filter
 
 
-def _get_or_create_local_lti_config(lti_version, block_location,
-                                    config_store=LtiConfiguration.CONFIG_ON_XBLOCK, external_id=None):
+def _get_or_create_local_lti_config(
+    lti_version,
+    config_id,
+    config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+    external_id=None,
+):
     """
     Retrieve the LtiConfiguration for the block described by block_location, if one exists. If one does not exist,
     create an LtiConfiguration with the LtiConfiguration.CONFIG_ON_XBLOCK config_store.
@@ -35,7 +39,7 @@ def _get_or_create_local_lti_config(lti_version, block_location,
     This allows XBlock users to update the LTI version without needing to update the database.
     """
     # The create operation is only performed when there is no existing configuration for the block
-    lti_config, _ = LtiConfiguration.objects.get_or_create(location=block_location)
+    lti_config, _ = LtiConfiguration.objects.get_or_create(config_id=config_id)
 
     lti_config.config_store = config_store
     lti_config.external_id = external_id
@@ -65,7 +69,7 @@ def _get_lti_config_for_block(block):
     if block.config_type == 'database':
         lti_config = _get_or_create_local_lti_config(
             block.lti_version,
-            block.scope_ids.usage_id,
+            block.config_id,
             LtiConfiguration.CONFIG_ON_DB,
         )
     elif block.config_type == 'external':
@@ -75,14 +79,14 @@ def _get_lti_config_for_block(block):
         )
         lti_config = _get_or_create_local_lti_config(
             config.get("version"),
-            block.scope_ids.usage_id,
+            block.config_id,
             LtiConfiguration.CONFIG_EXTERNAL,
             external_id=block.external_config,
         )
     else:
         lti_config = _get_or_create_local_lti_config(
             block.lti_version,
-            block.scope_ids.usage_id,
+            block.config_id,
             LtiConfiguration.CONFIG_ON_XBLOCK,
         )
     return lti_config
