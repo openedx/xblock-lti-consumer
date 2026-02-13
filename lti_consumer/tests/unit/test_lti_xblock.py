@@ -18,7 +18,7 @@ from django.utils import timezone
 from jwt.api_jwk import PyJWK, PyJWKSet
 from xblock.validation import Validation
 
-from lti_consumer.api import config_id_for_block
+from lti_consumer.api import config_for_block
 from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_1p3.tests.utils import create_jwt
@@ -1894,7 +1894,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         expected_launch_data_kwargs = {
             "user_id": 1,
             "user_role": "instructor",
-            "config_id": config_id_for_block(self.xblock),
+            "config_id": config_for_block(self.xblock),
             "resource_link_id": str(self.xblock.scope_ids.usage_id),
             "external_user_id": "external_user_id",
             "launch_presentation_document_target": "iframe",
