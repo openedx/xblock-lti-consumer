@@ -45,7 +45,7 @@ from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (LtiAgsLi
                                                                         LtiNrpsContextMembershipBasicSerializer,
                                                                         LtiNrpsContextMembershipPIISerializer)
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
-from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
+from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentItem, LtiXBlockConfig
 from lti_consumer.plugin import compat
 from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
 from lti_consumer.track import track_event
@@ -516,7 +516,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
     """
     try:
         # Retrieve LTI configuration
-        lti_config = LtiConfiguration.objects.get(id=lti_config_id)
+        lti_config = LtiXBlockConfig.objects.get(id=lti_config_id)
 
         # Get LTI consumer
         lti_consumer = lti_config.get_lti_consumer()
@@ -536,7 +536,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         # verify and save each content item passed from the tool.
         with transaction.atomic():
             # Erase older deep linking selection
-            LtiDlContentItem.objects.filter(lti_configuration=lti_config).delete()
+            LtiDlContentItem.objects.filter(lti_xblock_config=lti_config).delete()
 
             for content_item in content_items:
                 content_type = content_item.get('type')
@@ -553,7 +553,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
 
                 # Save content item
                 LtiDlContentItem.objects.create(
-                    lti_configuration=lti_config,
+                    lti_xblock_config=lti_config,
                     content_type=content_type,
                     attributes=serializer.validated_data,
                 )
@@ -685,7 +685,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        lti_configuration = self.request.lti_configuration
+        lti_xblock_config = self.request.lti_xblock_config
 
         # Return all LineItems related to the LTI configuration.
         # TODO:
@@ -693,12 +693,12 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         # to each resource link (block), and this filter needs
         # improved once we start reusing LTI configurations.
         return LtiAgsLineItem.objects.filter(
-            lti_configuration=lti_configuration
+            lti_xblock_config=lti_xblock_config
         )
 
     def perform_create(self, serializer):
-        lti_configuration = self.request.lti_configuration
-        serializer.save(lti_configuration=lti_configuration)
+        lti_xblock_config = self.request.lti_xblock_config
+        serializer.save(lti_xblock_config=lti_xblock_config)
 
     @action(
         detail=True,
@@ -819,7 +819,7 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         Checks if PII fields can be exposed and returns appropiate serializer.
         """
         if (not compat.nrps_pii_disallowed() and
-                get_lti_pii_sharing_state_for_course(self.request.lti_configuration.location.course_key)):
+                get_lti_pii_sharing_state_for_course(self.request.lti_xblock_config.location.course_key)):
             return LtiNrpsContextMembershipPIISerializer
         else:
             return LtiNrpsContextMembershipBasicSerializer
@@ -831,7 +831,7 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         """
 
         # get course key
-        course_key = self.request.lti_configuration.location.course_key
+        course_key = self.request.lti_xblock_config.location.course_key
 
         try:
             data = compat.get_course_members(course_key)

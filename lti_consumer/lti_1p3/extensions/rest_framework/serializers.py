@@ -76,7 +76,7 @@ class LtiAgsLineItemSerializer(serializers.ModelSerializer):
         return reverse(
             'lti_consumer:lti-ags-view-detail',
             kwargs={
-                'lti_config_id': obj.lti_configuration.id,
+                'lti_config_id': obj.lti_xblock_config.id,
                 'pk': obj.pk
             },
             request=request,

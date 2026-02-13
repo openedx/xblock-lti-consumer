@@ -49,6 +49,7 @@ What is supported:
             Numeric grades between 0 and 1 and text + basic HTML feedback comments are supported, via
             GET / PUT / DELETE HTTP methods respectively
 """
+import uuid
 
 import logging
 import re
@@ -287,6 +288,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "If the support staff provided you with a pre-configured LTI reusable Tool ID, select"
             "'Reusable Configuration' and enter it in the text field below."
         )
+    )
+    config_id = String(
+        display_name=_("Configuration ID"),
+        scope=Scope.settings,
+        default="",
+        help=_("Config ID for a reusable configuration.")
     )
 
     lti_version = String(
@@ -708,6 +715,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 validation.add(ValidationMessage(ValidationMessage.WARNING, str(
                     _("The specified LTI ID is not configured in this course's Advanced Settings.")
                 )))
+        if self.lti_version == "lti_1p3" and not self.config_id:
+            self.config_id = str(uuid.uuid4())
+            # __AUTO_GENERATED_PRINT_VAR_START__
+            print(f"""======================================= LtiConsumerXBlock#validate config_id: {self.config_id}""") # __AUTO_GENERATED_PRINT_VAR_END__
         return validation
 
     def get_settings(self):

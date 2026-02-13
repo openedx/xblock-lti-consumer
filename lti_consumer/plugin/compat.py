@@ -118,6 +118,25 @@ def load_enough_xblock(location):  # pragma: nocover
         return xblock_api.load_block(location, None)
 
 
+def save_xblock(block):  # pragma: nocover
+    """
+    Load enough of an xblock to read from for LTI values stored on the block.
+    The block may or may not be bound to the user for actual use depending on
+    what has happened in the request so far.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from xmodule.modulestore.django import modulestore
+    from openedx.core.djangoapps.xblock import api as xblock_api
+
+    # Save course block using modulestore
+    if isinstance(block.scope_ids.usage_id.context_key, CourseKey):
+        return modulestore().update_item(block, None)
+    # Save library block using the XBlock API
+    else:
+        runtime = xblock_api.get_runtime()
+        return runtime.save_block(block)
+
+
 def load_block_as_user(location):  # pragma: nocover
     """
     Load a block as the current user, or load as the anonymous user if no user is available.
