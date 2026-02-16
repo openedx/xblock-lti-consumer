@@ -11,8 +11,8 @@ from edx_django_utils.cache import get_cache_key
 
 from lti_consumer.api import (
     _get_config_by_config_id,
-    _get_or_create_local_lti_config,
-    config_id_for_block,
+    _get_or_create_local_lti_xblock_config,
+    config_for_block,
     get_end_assessment_return,
     get_lti_1p3_content_url,
     get_deep_linking_data,
@@ -103,13 +103,13 @@ class TestConfigIdForBlock(TestCase):
 
     def test_double_fetch(self):
         self.xblock.config_type = 'database'
-        config_id = config_id_for_block(self.xblock)
+        config_id = config_for_block(self.xblock)
         self.assertIsNotNone(config_id)
         config = _get_config_by_config_id(config_id)
         self.assertEqual(LtiConfiguration.CONFIG_ON_DB, config.config_store)
 
         # fetch again, shouldn't make a new one
-        second_config_id = config_id_for_block(self.xblock)
+        second_config_id = config_for_block(self.xblock)
         self.assertEqual(config_id, second_config_id)
 
     @ddt.data(
@@ -122,7 +122,7 @@ class TestConfigIdForBlock(TestCase):
         mock_external_config.return_value = {"version": LtiConfiguration.LTI_1P3}
         str_store, result_store = mapping_pair
         self.xblock.config_type = str_store
-        config_id = config_id_for_block(self.xblock)
+        config_id = config_for_block(self.xblock)
         self.assertIsNotNone(config_id)
         config = _get_config_by_config_id(config_id)
         self.assertEqual(result_store, config.config_store)
@@ -144,7 +144,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         self.assertEqual(LtiConfiguration.objects.all().count(), 0)
 
         # Call API
-        lti_config = _get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_xblock_config(
             lti_version=lti_version,
             block_location=location
         )
@@ -166,7 +166,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         )
 
         # Call API
-        lti_config_retrieved = _get_or_create_local_lti_config(
+        lti_config_retrieved = _get_or_create_local_lti_xblock_config(
             lti_version=lti_version,
             block_location=location
         )
@@ -187,7 +187,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         )
 
         # Call API
-        _get_or_create_local_lti_config(
+        _get_or_create_local_lti_xblock_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block_location=location
         )
@@ -204,7 +204,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         """
         location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_version = LtiConfiguration.LTI_1P3
-        lti_config = _get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_xblock_config(
             lti_version=lti_version,
             block_location=location,
             config_store=config_store,
@@ -226,7 +226,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
             external_id="test_plugin:test-id"
         )
 
-        _get_or_create_local_lti_config(
+        _get_or_create_local_lti_xblock_config(
             lti_version=lti_version,
             block_location=location,
             external_id=None

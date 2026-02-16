@@ -4,27 +4,34 @@ Python APIs used to handle LTI configuration and launches.
 Some methods are meant to be used inside the XBlock, so they
 return plaintext to allow easy testing/mocking.
 """
+from uuid import UUID
 
 import json
 
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 
 from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
-from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
+
+from .filters import get_external_config_from_filter
+from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem, LtiXBlockConfig
 from .utils import (
     get_cache_key,
     get_data_from_cache,
-    get_lti_1p3_context_types_claim,
-    get_lti_deeplinking_content_url,
+    get_lms_lti_access_token_link,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
-    get_lms_lti_access_token_link,
+    get_lti_1p3_context_types_claim,
+    get_lti_deeplinking_content_url,
 )
-from .filters import get_external_config_from_filter
 
 
-def _get_or_create_local_lti_config(lti_version, block_location,
-                                    config_store=LtiConfiguration.CONFIG_ON_XBLOCK, external_id=None):
+def _get_or_create_local_lti_xblock_config(
+    lti_version: str,
+    block_location: UsageKey | str,
+    config_id: str | None = None,
+    config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+    external_id=None,
+):
     """
     Retrieve the LtiConfiguration for the block described by block_location, if one exists. If one does not exist,
     create an LtiConfiguration with the LtiConfiguration.CONFIG_ON_XBLOCK config_store.
@@ -35,7 +42,14 @@ def _get_or_create_local_lti_config(lti_version, block_location,
     This allows XBlock users to update the LTI version without needing to update the database.
     """
     # The create operation is only performed when there is no existing configuration for the block
-    lti_config, _ = LtiConfiguration.objects.get_or_create(location=block_location)
+    lti_xblock_config, created = LtiXBlockConfig.objects.get_or_create(location=block_location)
+    if created:
+        if config_id:
+            lti_config, _ = LtiConfiguration.objects.get_or_create(config_id=config_id)
+        else:
+            lti_config = LtiConfiguration.objects.create()
+    else:
+        lti_config = lti_xblock_config.lti_configuration
 
     lti_config.config_store = config_store
     lti_config.external_id = external_id
@@ -45,7 +59,7 @@ def _get_or_create_local_lti_config(lti_version, block_location,
 
     lti_config.save()
 
-    return lti_config
+    return lti_xblock_config
 
 
 def _get_config_by_config_id(config_id):
@@ -55,17 +69,25 @@ def _get_config_by_config_id(config_id):
     return LtiConfiguration.objects.get(config_id=config_id)
 
 
+def _get_config_by_location(location: UsageKey | str):
+    """
+    Gets the LTI xblock config by its UUID config ID
+    """
+    return LtiXBlockConfig.objects.get(location=location)
+
+
 def _get_lti_config_for_block(block):
     """
-    Retrieves or creates a LTI Configuration for a block.
+    Retrieves or creates a LTI Xblock Configuration for a block.
 
-    This wraps around `_get_or_create_local_lti_config` and handles the block and modulestore
+    This wraps around `_get_or_create_local_lti_xblock_config` and handles the block and modulestore
     bits of configuration.
     """
     if block.config_type == 'database':
-        lti_config = _get_or_create_local_lti_config(
+        lti_xblock_config = _get_or_create_local_lti_xblock_config(
             block.lti_version,
             block.scope_ids.usage_id,
+            block.config_id,
             LtiConfiguration.CONFIG_ON_DB,
         )
     elif block.config_type == 'external':
@@ -73,51 +95,54 @@ def _get_lti_config_for_block(block):
             {"course_key": block.scope_ids.usage_id.context_key},
             block.external_config
         )
-        lti_config = _get_or_create_local_lti_config(
+        lti_xblock_config = _get_or_create_local_lti_xblock_config(
             config.get("version"),
             block.scope_ids.usage_id,
+            block.config_id,
             LtiConfiguration.CONFIG_EXTERNAL,
             external_id=block.external_config,
         )
     else:
-        lti_config = _get_or_create_local_lti_config(
+        lti_xblock_config = _get_or_create_local_lti_xblock_config(
             block.lti_version,
             block.scope_ids.usage_id,
+            block.config_id,
             LtiConfiguration.CONFIG_ON_XBLOCK,
         )
-    return lti_config
+    return lti_xblock_config
 
 
-def config_id_for_block(block):
+def config_for_block(block):
     """
     Returns the externally facing config_id of the LTI Configuration used by this block,
     creating one if required. That ID is suitable for use in launch data or get_consumer.
     """
-    config = _get_lti_config_for_block(block)
-    return config.config_id
+    xblock_config = _get_lti_config_for_block(block)
+    return xblock_config
 
 
-def get_lti_consumer(config_id):
+def get_lti_consumer(location: UsageKey):
     """
-    Retrieves an LTI Consumer instance for a given configuration.
+    Retrieves an LTI Consumer instance for a given location.
 
     Returns an instance of LtiConsumer1p1 or LtiConsumer1p3 depending
     on the configuration.
     """
     # Return an instance of LTI 1.1 or 1.3 consumer, depending
     # on the configuration stored in the model.
-    return _get_config_by_config_id(config_id).get_lti_consumer()
+    return _get_config_by_location(location).get_lti_consumer()
 
 
 def get_lti_1p3_launch_info(
     launch_data,
+    location: UsageKey,
 ):
     """
     Retrieves the Client ID, Keyset URL and other urls used to configure a LTI tool.
     """
     # Retrieve LTI Config and consumer
-    lti_config = _get_config_by_config_id(launch_data.config_id)
-    lti_consumer = lti_config.get_lti_consumer()
+    lti_xblock_config = _get_config_by_location(location)
+    lti_consumer = lti_xblock_config.get_lti_consumer()
 
     # Check if deep Linking is available, if so, add some extra context:
     # Deep linking launch URL, and if deep linking is already configured
@@ -134,12 +159,13 @@ def get_lti_1p3_launch_info(
 
         # Retrieve LTI Content Items (if any was set up)
         dl_content_items = LtiDlContentItem.objects.filter(
-            lti_configuration=lti_config
+            lti_xblock_config=lti_xblock_config
         )
         # Add content item attributes to context
         if dl_content_items.exists():
             deep_linking_content_items = [item.attributes for item in dl_content_items]
 
+    lti_config = lti_xblock_config.lti_configuration
     config_id = lti_config.config_id
     client_id = lti_config.lti_1p3_client_id
 
@@ -165,6 +191,7 @@ def get_lti_1p3_launch_info(
 
 def get_lti_1p3_launch_start_url(
     launch_data,
+    location: UsageKey,
     deep_link_launch=False,
     dl_content_id=None,
 ):
@@ -172,7 +199,7 @@ def get_lti_1p3_launch_start_url(
     Computes and retrieves the LTI URL that starts the OIDC flow.
     """
     # Retrieve LTI consumer
-    lti_consumer = get_lti_consumer(launch_data.config_id)
+    lti_consumer = get_lti_consumer(location)
 
     # Include a message hint in the launch_data depending on LTI launch type
     # Case 1: Performs Deep Linking configuration flow. Triggered by staff users to
@@ -190,6 +217,7 @@ def get_lti_1p3_launch_start_url(
 
 def get_lti_1p3_content_url(
     launch_data,
+    location: UsageKey,
 ):
     """
     Computes and returns which URL the LTI consumer should launch to.
@@ -209,13 +237,14 @@ def get_lti_1p3_content_url(
 
     # If there's no content items, return normal LTI launch URL
     if not content_items.count():
-        return get_lti_1p3_launch_start_url(launch_data)
+        return get_lti_1p3_launch_start_url(launch_data, location)
 
     # If there's a single `ltiResourceLink` content, return the launch
     # url for that specific deep link
     if content_items.count() == 1 and content_items.get().content_type == LtiDlContentItem.LTI_RESOURCE_LINK:
         return get_lti_1p3_launch_start_url(
             launch_data,
+            location,
             dl_content_id=content_items.get().id,
         )
 
