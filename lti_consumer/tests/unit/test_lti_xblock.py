@@ -1896,7 +1896,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "user_id": 1,
             "user_role": "instructor",
             "config_id": config_id_for_block(self.xblock),
-            "resource_link_id": str(urllib.parse.quote(str(self.xblock.scope_ids.usage_id))),
+            "resource_link_id": urllib.parse.quote(str(self.xblock.scope_ids.usage_id)),
             "external_user_id": "external_user_id",
             "launch_presentation_document_target": "iframe",
             "message_type": "LtiResourceLinkRequest",
