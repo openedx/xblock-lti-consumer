@@ -4,6 +4,7 @@ Unit tests for LtiConsumerXBlock
 import json
 import logging
 import string
+import urllib.parse
 from datetime import timedelta
 from itertools import product
 from unittest.mock import Mock, PropertyMock, patch
@@ -15,15 +16,14 @@ from django.conf import settings as dj_settings
 from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
-from xblock.validation import Validation
-
 from jwt.api_jwk import PyJWK, PyJWKSet
-from lti_consumer.exceptions import LtiError
+from xblock.validation import Validation
 
 from lti_consumer.api import config_id_for_block
 from lti_consumer.data import Lti1p3LaunchData
-from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
+from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_1p3.tests.utils import create_jwt
+from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
 from lti_consumer.tests import test_utils
 from lti_consumer.tests.test_utils import (
     FAKE_USER_ID,
@@ -1896,7 +1896,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "user_id": 1,
             "user_role": "instructor",
             "config_id": config_id_for_block(self.xblock),
-            "resource_link_id": str(self.xblock.scope_ids.usage_id),
+            "resource_link_id": urllib.parse.quote(str(self.xblock.scope_ids.usage_id)),
             "external_user_id": "external_user_id",
             "launch_presentation_document_target": "iframe",
             "message_type": "LtiResourceLinkRequest",
