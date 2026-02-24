@@ -16,6 +16,14 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.14.4 - 2026-02-23
+-------------------
+* Add URL encoding of resource_link_id in the url params to resolve the parsing issue and allow empty resource_id.
+
+9.14.3 - 2025-10-22
+-------------------
+* fix: Convert UUIDField columns to uuid type for MariaDB
+
 9.14.2 - 2025-08-06
 -------------------
 * Deprecation/Removal of pyjwkest
