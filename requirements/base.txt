@@ -6,7 +6,7 @@
 #
 appdirs==1.4.4
     # via fs
-asgiref==3.11.0
+asgiref==3.11.1
     # via django
 attrs==25.4.0
     # via -r requirements/base.in
@@ -16,7 +16,7 @@ cffi==2.0.0
     # via pynacl
 click==8.3.1
     # via edx-django-utils
-django==5.2.10
+django==5.2.11
     # via
     #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
@@ -77,13 +77,13 @@ oauthlib==3.3.1
     # via -r requirements/base.in
 openedx-filters==2.1.0
     # via -r requirements/base.in
-psutil==7.2.1
+psutil==7.2.2
     # via edx-django-utils
 pycparser==3.0
     # via cffi
 pycryptodomex==3.23.0
     # via -r requirements/base.in
-pyjwt==2.10.1
+pyjwt==2.11.0
     # via -r requirements/base.in
 pymongo==4.16.0
     # via edx-opaque-keys
