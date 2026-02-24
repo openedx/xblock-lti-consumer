@@ -13,13 +13,11 @@ from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_ROLE_MAP
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore
 
 
-class UsageKeyField(serializers.Field):
+class EncodedUsageKeyField(serializers.Field):
     """
-    Serializer field for a model UsageKey field.
-
-    Recreated here since we cannot import directly from
-    from the platform like so:
-    `from openedx.core.lib.api.serializers import UsageKeyField`
+    This serializer field converts from a form of encoded usage key
+    to an instance of UsageKey. This is useful for LTI request parameters,
+    where it may be necessary to encode a usage key which includes + in the string.
     """
     def to_representation(self, value):
         """
@@ -27,22 +25,6 @@ class UsageKeyField(serializers.Field):
         """
         return str(value)
 
-    def to_internal_value(self, data):
-        """
-        Convert unicode to a usage key.
-        """
-        try:
-            return UsageKey.from_string(data)
-        except InvalidKeyError as err:
-            raise serializers.ValidationError(f"Invalid usage key: {data!r}") from err
-
-
-class EncodedUsageKeyField(UsageKeyField):
-    """
-    This serializer field converts from a form of encoded usage key
-    to an instance of UsageKey. This is useful for LTI request parameters,
-    where it may be necessary to encode a usage key which includes + in the string.
-    """
     def to_internal_value(self, data):
         """
         Convert encoded unicode to a usage key.
@@ -90,9 +72,7 @@ class LtiAgsLineItemSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs.get('resource_id') is None and attrs.get('resource_link_id') is None:
-            raise serializers.ValidationError(
-                "Must provide at least one of resource_id or resource_link_id"
-            )
+            raise serializers.ValidationError("Must provide at least one of resource_id or resource_link_id")
         return attrs
 
     def get_id(self, obj):
@@ -408,7 +388,7 @@ class LtiContextSerializer(serializers.Serializer):
     """
     Serializer for a LTI Context
     """
-    id = UsageKeyField()
+    id = EncodedUsageKeyField()
 
 
 class LtiNrpsContextMemberBasicSerializer(serializers.Serializer):
