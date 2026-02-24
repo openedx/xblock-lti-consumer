@@ -3,17 +3,16 @@ Tests for LTI Advantage Assignments and Grades Service views.
 """
 import json
 from datetime import timedelta
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
-from Cryptodome.PublicKey import RSA
 import ddt
+from Cryptodome.PublicKey import RSA
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITransactionTestCase
 
-
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiConfiguration, LtiAgsLineItem, LtiAgsScore
+from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 from lti_consumer.tests.test_utils import make_xblock
 
 
@@ -234,6 +233,27 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
                 'startDateTime': None,
                 'endDateTime': None,
             }
+        )
+
+    def test_create_lti_lineitem_validation(self):
+        """
+        Test LTI LineItem Creation Validation.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem')
+
+        response = self.client.post(
+            self.lineitem_endpoint,
+            data=json.dumps({
+                'scoreMaximum': 100,
+                'label': 'test',
+                'tag': 'score',
+            }),
+            content_type="application/vnd.ims.lis.v2.lineitem+json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            str(response.data['non_field_errors'][0]),
+            'Must provide at least one of resource_id or resource_link_id'
         )
 
     def test_create_lineitem(self):
