@@ -38,6 +38,11 @@ class UsageKeyField(serializers.Field):
 
 
 class EncodedUsageKeyField(UsageKeyField):
+    """
+    This serializer field converts from a form of encoded usage key
+    to an instance of UsageKey. This is useful for LTI request parameters,
+    where it may be necessary to encode a usage key which includes + in the string.
+    """
     def to_internal_value(self, data):
         """
         Convert encoded unicode to a usage key.
