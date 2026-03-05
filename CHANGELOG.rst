@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.14.5 - 2026-03-05
+-------------------
+* Pass context claim in deep linking launch request & fix use external config deployment_id.
+
 9.14.4 - 2026-02-23
 -------------------
 * Add URL encoding of resource_link_id in the url params to resolve the parsing issue and allow empty resource_id.
