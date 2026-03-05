@@ -346,16 +346,16 @@ class LtiConsumer1p3:
         else:
             raise ValueError("Required resource_link data isn't set.")
 
+        # Context claim
+        if self.lti_claim_context:
+            lti_message.update(self.lti_claim_context)
+
         # Only used when doing normal LTI launches
         if include_extra_claims:
             # Set optional claims
             # Launch presentation claim
             if self.lti_claim_launch_presentation:
                 lti_message.update(self.lti_claim_launch_presentation)
-
-            # Context claim
-            if self.lti_claim_context:
-                lti_message.update(self.lti_claim_context)
 
             # Platform instance claim
             # The GUID must be consistent across platform deployments, so we have opted to generate a UUID

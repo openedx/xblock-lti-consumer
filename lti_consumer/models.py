@@ -599,9 +599,7 @@ class LtiConfiguration(models.Model):
                 lti_oidc_url=self.external_config.get('lti_1p3_oidc_url'),
                 lti_launch_url=lti_launch_url,
                 client_id=self.external_config.get('lti_1p3_client_id'),
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id='1',
+                deployment_id=self.external_config.get('lti_1p3_deployment_id', "1"),
                 rsa_key=self.external_config.get('lti_1p3_private_key'),
                 rsa_key_id=self.external_config.get('lti_1p3_private_key_id'),
                 # Registered redirect uris
