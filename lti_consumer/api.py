@@ -4,7 +4,6 @@ Python APIs used to handle LTI configuration and launches.
 Some methods are meant to be used inside the XBlock, so they
 return plaintext to allow easy testing/mocking.
 """
-from uuid import UUID
 
 import json
 

@@ -652,7 +652,7 @@ class LtiXBlockConfig(models.Model):
         """
         Returns an instanced class of LTI 1.1 or 1.3 consumer.
         """
-        return self.lti_configuration._get_lti_1p1_consumer(self.location)
+        return self.lti_configuration.get_lti_consumer(self.location)
 
     class Meta:
         app_label = 'lti_consumer'
