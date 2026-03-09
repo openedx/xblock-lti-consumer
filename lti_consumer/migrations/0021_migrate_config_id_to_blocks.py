@@ -29,6 +29,28 @@ def copy_config_id(apps, schema_editor):
         except Exception as e:
             print(f"Failed to copy config_id for configuration {configuration}: {e}")
 
+    LtiAgsLineItem = apps.get_model("lti_consumer", "LtiAgsLineItem")
+    for line_item in LtiAgsLineItem.objects.all():
+        xblock_config = LtiXBlockConfig.objects.filter(
+            lti_configuration=line_item.lti_configuration,
+            location=line_item.lti_configuration.location,
+        ).first()
+        if not xblock_config:
+            print(f"Invalid configuration linked to AGS line item: {line_item}.")
+        line_item.xblock_config = xblock_config
+        line_item.save()
+
+    LtiDlContentItem = apps.get_model("lti_consumer", "LtiDlContentItem")
+    for content_item in LtiDlContentItem.objects.all():
+        xblock_config = LtiXBlockConfig.objects.filter(
+            lti_configuration=content_item.lti_configuration,
+            location=content_item.lti_configuration.location,
+        ).first()
+        if not xblock_config:
+            print(f"Invalid configuration linked to Dl Conent Item: {content_item}.")
+        content_item.xblock_config = xblock_config
+        content_item.save()
+
 
 def backwards(apps, schema_editor):
     """Reverse the migration only for MariaDB databases."""
@@ -38,7 +60,7 @@ def backwards(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('lti_consumer', '0020_ltixblockconfig'),
+        ('lti_consumer', '0020_ltixblockconfig_ltiagslineitem_lti_xblock_config_and_more'),
     ]
 
     operations = [
