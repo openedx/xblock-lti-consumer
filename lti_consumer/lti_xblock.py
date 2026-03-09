@@ -720,8 +720,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     def save(self):
         if self.lti_version == "lti_1p3" and not self.config_id:
             self.config_id = str(uuid.uuid4())
-            # __AUTO_GENERATED_PRINT_VAR_START__
-            print(f"""======================================= LtiConsumerXBlock#validate config_id: {self.config_id}""") # __AUTO_GENERATED_PRINT_VAR_END__
         super().save()
 
     def get_settings(self):
