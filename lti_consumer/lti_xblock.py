@@ -1176,6 +1176,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context.update(
             get_lti_1p3_launch_info(
                 launch_data,
+                self.scope_ids.usage_id
             )
         )
 
