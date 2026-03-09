@@ -1176,6 +1176,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context.update(
             get_lti_1p3_launch_info(
                 launch_data,
+                self.scope_ids.usage_id
             )
         )
 
@@ -1679,7 +1680,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         launch_data = Lti1p3LaunchData(
             user_id=self.lms_user_id,
             user_role=self.role,
-            config_id=xblock_config.config.config_id,
+            config_id=xblock_config.lti_configuration.config_id,
             # resource_link_id is used in the url params by the tool, so it should be url encoded.
             resource_link_id=urllib.parse.quote(str(location)),
             external_user_id=self.external_user_id,

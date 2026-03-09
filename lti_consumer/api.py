@@ -42,11 +42,14 @@ def _get_or_create_local_lti_xblock_config(
     """
     # The create operation is only performed when there is no existing configuration for the block
     lti_xblock_config, created = LtiXBlockConfig.objects.get_or_create(location=block_location)
+    lti_config: LtiConfiguration | None = None
     if created:
         if config_id:
             lti_config, _ = LtiConfiguration.objects.get_or_create(config_id=config_id)
         else:
             lti_config = LtiConfiguration.objects.create()
+        lti_xblock_config.lti_configuration = lti_config
+        lti_xblock_config.save()
     else:
         lti_config = lti_xblock_config.lti_configuration
 
