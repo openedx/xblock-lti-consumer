@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+10.0.0 - 2026-03-09
+--------------------
+* Drop support for Python 3.11. Python 3.12 is now the minimum supported version.
+
 9.14.5 - 2026-03-05
 -------------------
 * Pass context claim in deep linking launch request & fix use external config deployment_id.
