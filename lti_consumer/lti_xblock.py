@@ -718,7 +718,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         return validation
 
     def save(self):
-        if self.lti_version == "lti_1p3" and not self.config_id:
+        if not self.config_id:
             self.config_id = str(uuid.uuid4())
         super().save()
 
