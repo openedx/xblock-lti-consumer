@@ -87,7 +87,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
 LTI_1P3_PROCTORING_ASSESSMENT_STARTED = Signal()
 
 
-@receiver(SignalHandler.item_deleted if SignalHandler else [])
+@receiver(SignalHandler.pre_item_deleted if SignalHandler else [])
 def delete_child_lti_configurations(**kwargs):
     """
     Delete lti configurtion from database for this block children.
@@ -98,7 +98,8 @@ def delete_child_lti_configurations(**kwargs):
         usage_key = usage_key.for_branch(None)
         try:
             deleted_block = compat.load_enough_xblock(usage_key)
-        except Exception:
+        except Exception as e:
+            log.warning(f"Cannot find xblock for key {usage_key}. Reason: {str(e)}. ")
             return
         id_list = {deleted_block.location}
         for block in compat.yield_dynamic_block_descendants(deleted_block, kwargs.get('user_id')):
