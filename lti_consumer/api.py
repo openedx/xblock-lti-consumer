@@ -52,6 +52,12 @@ def _get_or_create_local_lti_xblock_config(
         lti_xblock_config.save()
     else:
         lti_config = lti_xblock_config.lti_configuration
+        if not lti_config:
+            # This is an edge case, when an existing configuration is lost or this block is imported from another
+            # instance, we create a new configuration to avoid no configuration issue.
+            lti_config = LtiConfiguration.objects.create()
+            lti_xblock_config.lti_configuration = lti_config
+            lti_xblock_config.save()
 
     lti_config.config_store = config_store
     lti_config.external_id = external_id
