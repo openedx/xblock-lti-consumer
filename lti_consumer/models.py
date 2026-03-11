@@ -334,7 +334,7 @@ class LtiConfiguration(models.Model):
         """
         return get_external_config_from_filter({}, self.external_id)
 
-    def _get_lti_1p1_consumer(self, location: UsageKey):
+    def _get_lti_1p1_consumer(self, location: UsageKey | None = None):
         """
         Return a class of LTI 1.1 consumer.
         """
@@ -485,7 +485,7 @@ class LtiConfiguration(models.Model):
         except NotImplementedError as exc:
             log.exception("Error setting up LTI 1.3 Advantage Names and Role Provisioning Services: %s", exc)
 
-    def _get_lti_1p3_consumer(self, location: UsageKey):
+    def _get_lti_1p3_consumer(self, location: UsageKey | None = None):
         """
         Return a class of LTI 1.3 consumer.
 
@@ -572,10 +572,12 @@ class LtiConfiguration(models.Model):
         return consumer
 
     @function_trace('lti_consumer.models.LtiConfiguration.get_lti_consumer')
-    def get_lti_consumer(self, location: UsageKey):
+    def get_lti_consumer(self, location: UsageKey | None = None):
         """
         Returns an instanced class of LTI 1.1 or 1.3 consumer.
         """
+        if self.config_store == self.CONFIG_ON_XBLOCK and location is None:
+            raise ValueError("UsageKey is required if you are using CONFIG_ON_XBLOCK")
         if self.version == self.LTI_1P3:
             return self._get_lti_1p3_consumer(location)
 
