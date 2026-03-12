@@ -8,21 +8,42 @@ from importlib import import_module
 from urllib.parse import urlencode
 
 from django.conf import settings
-from edx_django_utils.cache import get_cache_key, TieredCache
+from edx_django_utils.cache import TieredCache, get_cache_key
 
-from lti_consumer.plugin.compat import (
-    get_external_config_waffle_flag,
-    get_external_user_id_1p1_launches_waffle_flag,
-    get_database_config_waffle_flag,
-    get_external_multiple_launch_urls_waffle_flag,
-)
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
+from lti_consumer.plugin.compat import (
+    get_database_config_waffle_flag,
+    get_external_config_waffle_flag,
+    get_external_multiple_launch_urls_waffle_flag,
+    get_external_user_id_1p1_launches_waffle_flag,
+)
 
 log = logging.getLogger(__name__)
 
 SLUG_CHARACTER_CLASS = '[-a-zA-Z0-9_]'
 EXTERNAL_ID_REGEX = re.compile(rf'^({SLUG_CHARACTER_CLASS}+:{SLUG_CHARACTER_CLASS}+)$')
+# Configuration storage
+# Initally, this only supported the configuration
+# stored on the block. Now it has been expanded to
+# enable storing LTI configuration in the model itself or in an external
+# configuration service fetchable using openedx-filters
+CONFIG_ON_XBLOCK = 'CONFIG_ON_XBLOCK'
+CONFIG_ON_DB = 'CONFIG_ON_DB'
+CONFIG_EXTERNAL = 'CONFIG_EXTERNAL'
+
+
+def compare_config_type(block_field, db_field):
+    """
+    As value of config_type stored in database and xblock differ, we use this function
+    compare them
+    """
+    db_to_xblock_map = {
+        CONFIG_ON_XBLOCK: 'new',
+        CONFIG_ON_DB: 'database',
+        CONFIG_EXTERNAL: 'external',
+    }
+    return db_to_xblock_map[db_field] == block_field
 
 
 def _(text):

@@ -11,11 +11,16 @@ from django.test.testcases import TestCase
 from edx_django_utils.cache import TieredCache, get_cache_key
 
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
-from lti_consumer.lti_1p3.exceptions import (BadJwtSignature, InvalidClaimValue, MalformedJwtToken,
-                                             MissingRequiredClaim, NoSuitableKeys)
+from lti_consumer.lti_1p3.exceptions import (
+    BadJwtSignature,
+    InvalidClaimValue,
+    MalformedJwtToken,
+    MissingRequiredClaim,
+    NoSuitableKeys,
+)
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.models import LtiConfiguration
-from lti_consumer.utils import get_data_from_cache
+from lti_consumer.utils import CONFIG_ON_DB, get_data_from_cache
 
 
 @ddt.ddt
@@ -34,7 +39,7 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
         self.lti_config = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
             lti_1p3_proctoring_enabled=True,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
+            config_store=CONFIG_ON_DB,
         )
 
         # Set up cached data necessary for this endpoint: launch_data and session_data.
