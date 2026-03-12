@@ -49,11 +49,10 @@ What is supported:
             Numeric grades between 0 and 1 and text + basic HTML feedback comments are supported, via
             GET / PUT / DELETE HTTP methods respectively
 """
-import uuid
-
 import logging
 import re
 import urllib.parse
+import uuid
 from collections import namedtuple
 from importlib import import_module
 
@@ -61,11 +60,11 @@ import bleach
 from django.conf import settings
 from django.utils import timezone
 from web_fragments.fragment import Fragment
-
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.validation import ValidationMessage
+
 try:
     from xblock.utils.resources import ResourceLoader
     from xblock.utils.studio_editable import StudioEditableXBlockMixin
@@ -75,19 +74,20 @@ except ModuleNotFoundError:  # For backward compatibility with releases older th
 
 from .data import Lti1p3LaunchData
 from .exceptions import LtiError
-from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
+from .lti_1p1.consumer import LTI_PARAMETERS, LtiConsumer1p1, parse_result_json
 from .lti_1p1.oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .plugin import compat
 from .track import track_event
 from .utils import (
-    _,
-    resolve_custom_parameter_template,
-    external_config_filter_enabled,
-    external_user_id_1p1_launches_enabled,
-    database_config_enabled,
     EXTERNAL_ID_REGEX,
+    _,
+    compare_config_type,
+    database_config_enabled,
+    external_config_filter_enabled,
     external_multiple_launch_urls_enabled,
+    external_user_id_1p1_launches_enabled,
+    resolve_custom_parameter_template,
 )
 
 log = logging.getLogger(__name__)
@@ -720,6 +720,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     def save(self):
         if not self.config_id:
             self.config_id = str(uuid.uuid4())
+        else:
+            from lti_consumer.api import try_get_config_by_id  # pylint: disable=import-outside-toplevel
+
+            row = try_get_config_by_id(self.config_id)
+            if row and not compare_config_type(self.config_type, row.config_store):
+                # The configuration type has been changed since it was saved. Create a new config row.
+                self.config_id = str(uuid.uuid4())
         super().save()
 
     def get_settings(self):

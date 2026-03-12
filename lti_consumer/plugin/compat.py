@@ -124,15 +124,15 @@ def save_xblock(block):  # pragma: nocover
     what has happened in the request so far.
     """
     # pylint: disable=import-error,import-outside-toplevel
-    from xmodule.modulestore.django import modulestore
     from openedx.core.djangoapps.xblock import api as xblock_api
+    from xmodule.modulestore.django import modulestore
 
     # Save course block using modulestore
     if isinstance(block.scope_ids.usage_id.context_key, CourseKey):
         return modulestore().update_item(block, None)
     # Save library block using the XBlock API
     else:
-        runtime = xblock_api.get_runtime()
+        runtime = xblock_api.get_runtime(None)
         return runtime.save_block(block)
 
 
@@ -141,7 +141,7 @@ def load_block_as_user(location):  # pragma: nocover
     Load a block as the current user, or load as the anonymous user if no user is available.
     """
     # pylint: disable=import-error,import-outside-toplevel
-    from crum import get_current_user, get_current_request
+    from crum import get_current_request, get_current_user
     from lms.djangoapps.courseware.block_render import get_block_for_descriptor
 
     # Retrieve block from modulestore
@@ -360,6 +360,7 @@ def get_signal_handler():
     Import the signal handler from LMS
     """
     try:
+        # pylint: disable=import-error,import-outside-toplevel
         from xmodule.modulestore.django import SignalHandler
         return SignalHandler
     except ImportError:
@@ -371,7 +372,8 @@ def yield_dynamic_block_descendants(block, user_id):
     Import and run `yield_dynamic_block_descendants` from LMS
     """
     try:
+        # pylint: disable=import-error,import-outside-toplevel,redefined-outer-name
         from common.djangoapps.util.block_utils import yield_dynamic_block_descendants
         return yield_dynamic_block_descendants(block, user_id)
     except ImportError:
-        None
+        return None

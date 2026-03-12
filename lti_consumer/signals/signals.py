@@ -98,7 +98,7 @@ def delete_child_lti_configurations(**kwargs):
         usage_key = usage_key.for_branch(None)
         try:
             deleted_block = compat.load_enough_xblock(usage_key)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             log.warning(f"Cannot find xblock for key {usage_key}. Reason: {str(e)}. ")
             return
         id_list = {deleted_block.location}

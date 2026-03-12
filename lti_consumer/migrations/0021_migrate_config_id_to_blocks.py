@@ -7,9 +7,9 @@ This will help us link xblocks with LtiConsumer database rows without relying on
 from django.db import migrations
 
 
-def copy_config_id(apps, schema_editor):
+def copy_config_id(apps, _):
     """Copy config_id from LtiConsumer to LtiConsumerXBlock."""
-    from lti_consumer.plugin.compat import load_enough_xblock, save_xblock
+    from lti_consumer.plugin.compat import load_enough_xblock, save_xblock  # pylint: disable=import-outside-toplevel
 
     LtiConfiguration = apps.get_model("lti_consumer", "LtiConfiguration")
     LtiXBlockConfig = apps.get_model("lti_consumer", "LtiXBlockConfig")
@@ -26,7 +26,7 @@ def copy_config_id(apps, schema_editor):
             blockstore.config_id = str(configuration.config_id)
             blockstore.save()
             save_xblock(blockstore)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"Failed to copy config_id for configuration {configuration}: {e}")
 
     LtiAgsLineItem = apps.get_model("lti_consumer", "LtiAgsLineItem")
@@ -52,15 +52,14 @@ def copy_config_id(apps, schema_editor):
         content_item.save()
 
 
-def backwards(apps, schema_editor):
+def backwards(*_):
     """Reverse the migration only for MariaDB databases."""
-    pass
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('lti_consumer', '0020_ltixblockconfig_ltiagslineitem_lti_xblock_config_and_more'),
+        ('lti_consumer', '0020_ltixblockconfig'),
     ]
 
     operations = [

@@ -15,6 +15,11 @@ from lti_consumer.models import (
 )
 
 
+class LtiXBlockConfigInline(admin.TabularInline):
+    model = LtiXBlockConfig
+    extra = 0
+
+
 @admin.register(LtiConfiguration)
 class LtiConfigurationAdmin(admin.ModelAdmin):
     """
@@ -22,7 +27,8 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
 
     Makes the location field read-only to avoid issues.
     """
-    readonly_fields = ('location', 'config_id')
+    readonly_fields = ('config_id',)
+    inlines = [LtiXBlockConfigInline]
 
 
 @admin.register(LtiXBlockConfig)
