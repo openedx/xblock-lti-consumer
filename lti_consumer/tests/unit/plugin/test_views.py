@@ -669,8 +669,8 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
     def setUp(self):
         super().setUp()
 
-        location = 'block-v1:course+test+2020+type@problem+block@test'
-        self.config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=location)
+        self.location = 'block-v1:course+test+2020+type@problem+block@test'
+        self.config = LtiConfiguration(version=LtiConfiguration.LTI_1P3)
         self.config.save()
         self.url = reverse('lti_consumer:lti_consumer.access_token', args=[str(self.config.config_id)])
         # Patch settings calls to LMS method
@@ -729,7 +729,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
 
         url = reverse(
             'lti_consumer:lti_consumer.access_token_via_location',
-            args=[str(self.config.location)]
+            args=[str(self.location)]
         )
         body = self.get_body(create_jwt(self.key, {}))
         response = self.client.post(url, data=json.dumps(body), content_type='application/json')
