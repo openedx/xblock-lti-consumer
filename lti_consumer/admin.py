@@ -11,7 +11,13 @@ from lti_consumer.models import (
     LtiAgsScore,
     LtiConfiguration,
     LtiDlContentItem,
+    LtiXBlockConfig,
 )
+
+
+class LtiXBlockConfigInline(admin.TabularInline):
+    model = LtiXBlockConfig
+    extra = 0
 
 
 @admin.register(LtiConfiguration)
@@ -21,7 +27,16 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
 
     Makes the location field read-only to avoid issues.
     """
-    readonly_fields = ('location', 'config_id')
+    readonly_fields = ('config_id',)
+    inlines = [LtiXBlockConfigInline]
+
+
+@admin.register(LtiXBlockConfig)
+class LtiXBlockConfigAdmin(admin.ModelAdmin):
+    """
+    Admin view for LtiXBlockConfig models.
+    """
+    list_display = ('location', 'lti_configuration__config_id')
 
 
 @admin.register(CourseAllowPIISharingInLTIFlag)

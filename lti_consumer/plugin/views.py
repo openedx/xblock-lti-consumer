@@ -3,7 +3,7 @@ LTI consumer plugin passthrough views
 """
 import logging
 import sys
-import urllib
+import urllib.parse
 
 import jwt
 from django.conf import settings
@@ -26,31 +26,48 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
-from lti_consumer.exceptions import LtiError, ExternalConfigurationNotFound
+from lti_consumer.exceptions import ExternalConfigurationNotFound, LtiError
+from lti_consumer.filters import get_external_config_from_filter
 from lti_consumer.lti_1p3.consumer import LtiConsumer1p3, LtiProctoringConsumer
-from lti_consumer.lti_1p3.exceptions import (BadJwtSignature, InvalidClaimValue, Lti1p3Exception,
-                                             LtiDeepLinkingContentTypeNotSupported, MalformedJwtToken,
-                                             MissingRequiredClaim, NoSuitableKeys, TokenSignatureExpired,
-                                             UnknownClientId, UnsupportedGrantType)
+from lti_consumer.lti_1p3.exceptions import (
+    BadJwtSignature,
+    InvalidClaimValue,
+    Lti1p3Exception,
+    LtiDeepLinkingContentTypeNotSupported,
+    MalformedJwtToken,
+    MissingRequiredClaim,
+    NoSuitableKeys,
+    TokenSignatureExpired,
+    UnknownClientId,
+    UnsupportedGrantType,
+)
 from lti_consumer.lti_1p3.extensions.rest_framework.authentication import Lti1p3ApiAuthentication
 from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
 from lti_consumer.lti_1p3.extensions.rest_framework.parsers import LineItemParser, LineItemScoreParser
-from lti_consumer.lti_1p3.extensions.rest_framework.permissions import (LtiAgsPermissions,
-                                                                        LtiNrpsContextMembershipsPermissions)
-from lti_consumer.lti_1p3.extensions.rest_framework.renderers import (LineItemRenderer, LineItemResultsRenderer,
-                                                                      LineItemScoreRenderer, LineItemsRenderer,
-                                                                      MembershipResultRenderer)
-from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (LtiAgsLineItemSerializer,
-                                                                        LtiAgsResultSerializer, LtiAgsScoreSerializer,
-                                                                        LtiNrpsContextMembershipBasicSerializer,
-                                                                        LtiNrpsContextMembershipPIISerializer)
+from lti_consumer.lti_1p3.extensions.rest_framework.permissions import (
+    LtiAgsPermissions,
+    LtiNrpsContextMembershipsPermissions,
+)
+from lti_consumer.lti_1p3.extensions.rest_framework.renderers import (
+    LineItemRenderer,
+    LineItemResultsRenderer,
+    LineItemScoreRenderer,
+    LineItemsRenderer,
+    MembershipResultRenderer,
+)
+from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
+    LtiAgsLineItemSerializer,
+    LtiAgsResultSerializer,
+    LtiAgsScoreSerializer,
+    LtiNrpsContextMembershipBasicSerializer,
+    LtiNrpsContextMembershipPIISerializer,
+)
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
-from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
+from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentItem, LtiXBlockConfig
 from lti_consumer.plugin import compat
 from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
 from lti_consumer.track import track_event
 from lti_consumer.utils import _, get_data_from_cache, get_lti_1p3_context_types_claim, get_lti_api_base
-from lti_consumer.filters import get_external_config_from_filter
 
 log = logging.getLogger(__name__)
 
@@ -217,16 +234,22 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         )
 
     config_id = launch_data.config_id
+    location = urllib.parse.unquote(launch_data.resource_link_id)
     try:
-        lti_config = LtiConfiguration.objects.get(
-            config_id=config_id
+        lti_xblock_config = LtiXBlockConfig.objects.get(
+            lti_configuration__config_id=config_id,
+            location=location
         )
-    except (LtiConfiguration.DoesNotExist, ValidationError) as exc:
-        log.error("Invalid config_id '%s' for LTI 1.3 Launch callback", config_id)
+    except (LtiXBlockConfig.DoesNotExist, ValidationError) as exc:
+        log.error(
+            "Invalid config_id '%s' and resource_link_id '%s' for LTI 1.3 Launch callback",
+            config_id,
+            location,
+        )
         raise Http404 from exc
 
-    if lti_config.version != LtiConfiguration.LTI_1P3:
-        error_msg = f"The LTI Version of the following configuration is not LTI 1.3: {lti_config}"
+    if lti_xblock_config.lti_configuration.version != LtiConfiguration.LTI_1P3:
+        error_msg = f"The LTI Version of the following configuration is not LTI 1.3: {lti_xblock_config}"
         log.error(error_msg)
         return render(
             request,
@@ -238,7 +261,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     context = {}
 
     try:
-        lti_consumer = lti_config.get_lti_consumer()
+        lti_consumer = lti_xblock_config.get_lti_consumer()
 
         # Set sub and roles claims.
         user_id = launch_data.external_user_id if launch_data.external_user_id else launch_data.user_id
@@ -315,7 +338,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         # different parameters, set by instructors when running the DL configuration flow.
         elif deep_linking_content_item_id and lti_consumer.dl:
             # Retrieve Deep Linking parameters using the  parameter.
-            content_item = lti_config.ltidlcontentitem_set.get(pk=deep_linking_content_item_id)
+            content_item = lti_xblock_config.lti_configuration.ltidlcontentitem_set.get(pk=deep_linking_content_item_id)
             # Only filter DL content item from content item set in the same LTI configuration.
             # This avoids a malicious user to input a random LTI id and perform LTI DL
             # content launches outside the scope of its configuration.
@@ -361,7 +384,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             )
         })
         event = {
-            'lti_version': lti_config.version,
+            'lti_version': lti_xblock_config.lti_configuration.version,
             'user_roles': user_role,
             'launch_url': context['launch_url']
         }
@@ -425,12 +448,16 @@ def access_token_endpoint(
         version = None
         lti_consumer = None
         if usage_id:
-            lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
-            version = lti_config.version
+            lti_config = LtiXBlockConfig.objects.get(location=UsageKey.from_string(usage_id))
+            version = lti_config.lti_configuration.version
             lti_consumer = lti_config.get_lti_consumer()
         elif lti_config_id:
-            lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
-            version = lti_config.version
+            # It doesn't matter if multiple xblock refer to same configuration, we just need to find the first one
+            # as the access_token generation does not depend of any xblock data.
+            lti_config = LtiXBlockConfig.objects.filter(lti_configuration__config_id=lti_config_id).first()
+            if not lti_config:
+                raise LtiError("LTI configuration not found")
+            version = lti_config.lti_configuration.version
             lti_consumer = lti_config.get_lti_consumer()
         elif external_app and external_slug:
             lti_config = get_external_config_from_filter({}, external_id)
@@ -516,7 +543,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
     """
     try:
         # Retrieve LTI configuration
-        lti_config = LtiConfiguration.objects.get(id=lti_config_id)
+        lti_config = LtiXBlockConfig.objects.get(id=lti_config_id)
 
         # Get LTI consumer
         lti_consumer = lti_config.get_lti_consumer()
@@ -536,7 +563,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         # verify and save each content item passed from the tool.
         with transaction.atomic():
             # Erase older deep linking selection
-            LtiDlContentItem.objects.filter(lti_configuration=lti_config).delete()
+            LtiDlContentItem.objects.filter(lti_xblock_config=lti_config).delete()
 
             for content_item in content_items:
                 content_type = content_item.get('type')
@@ -553,7 +580,7 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
 
                 # Save content item
                 LtiDlContentItem.objects.create(
-                    lti_configuration=lti_config,
+                    lti_xblock_config=lti_config,
                     content_type=content_type,
                     attributes=serializer.validated_data,
                 )
@@ -685,7 +712,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        lti_configuration = self.request.lti_configuration
+        lti_xblock_config = self.request.lti_xblock_config
 
         # Return all LineItems related to the LTI configuration.
         # TODO:
@@ -693,12 +720,12 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         # to each resource link (block), and this filter needs
         # improved once we start reusing LTI configurations.
         return LtiAgsLineItem.objects.filter(
-            lti_configuration=lti_configuration
+            lti_xblock_config=lti_xblock_config
         )
 
     def perform_create(self, serializer):
-        lti_configuration = self.request.lti_configuration
-        serializer.save(lti_configuration=lti_configuration)
+        lti_xblock_config = self.request.lti_xblock_config
+        serializer.save(lti_xblock_config=lti_xblock_config)
 
     @action(
         detail=True,
@@ -819,7 +846,7 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         Checks if PII fields can be exposed and returns appropiate serializer.
         """
         if (not compat.nrps_pii_disallowed() and
-                get_lti_pii_sharing_state_for_course(self.request.lti_configuration.location.course_key)):
+                get_lti_pii_sharing_state_for_course(self.request.lti_xblock_config.location.course_key)):
             return LtiNrpsContextMembershipPIISerializer
         else:
             return LtiNrpsContextMembershipBasicSerializer
@@ -831,7 +858,7 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         """
 
         # get course key
-        course_key = self.request.lti_configuration.location.course_key
+        course_key = self.request.lti_xblock_config.location.course_key
 
         try:
             data = compat.get_course_members(course_key)
@@ -883,7 +910,9 @@ def start_proctoring_assessment_endpoint(request):
     resource_link_id = decoded_jwt.get('https://purl.imsglobal.org/spec/lti/claim/resource_link', {}).get('id')
 
     try:
-        lti_config = LtiConfiguration.objects.get(lti_1p3_client_id=iss)
+        lti_config = LtiXBlockConfig.objects.filter(lti_configuration__lti_1p3_client_id=iss).first()
+        if not lti_config:
+            raise LtiConfiguration.DoesNotExist
     except LtiConfiguration.DoesNotExist:
         log.error("Invalid iss claim '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint"
                   " callback", iss)
@@ -892,7 +921,8 @@ def start_proctoring_assessment_endpoint(request):
     lti_consumer = lti_config.get_lti_consumer()
 
     if not isinstance(lti_consumer, LtiProctoringConsumer):
-        log.info("Proctoring Services for LTIConfiguration with config_id %s are not enabled", lti_config.config_id)
+        log.info("Proctoring Services for LTIConfiguration with config_id %s are not enabled",
+                 lti_config.lti_configuration.config_id)
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
 
     # Grab the data we need from the cache: launch_data and session_data.
@@ -908,7 +938,7 @@ def start_proctoring_assessment_endpoint(request):
         log.warning(
             f'There was a cache miss trying to fetch the launch data during an LTI 1.3 proctoring StartAssessment '
             f'launch when using the cache key {launch_data_key}. The LtiConfiguration config_id is '
-            f'{lti_config.config_id} the user_id is {request.user.id}.'
+            f'{lti_config.lti_configuration.config_id} the user_id is {request.user.id}.'
         )
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
 
@@ -945,7 +975,7 @@ def start_proctoring_assessment_endpoint(request):
             # for this optional claim.
             log.error(
                 "An error occurred during the handling of an LtiStartAssessment LTI lauch message for LTIConfiguration "
-                f"with config_id {lti_config.config_id} and resource_link_id {resource_link_id}. The "
+                f"with config_id {lti_config.lti_configuration.config_id} and resource_link_id {resource_link_id}. The "
                 "end_assessment_return Tool JWT claim is not a boolean value. An LtiEndAssessment LTI launch message "
                 "will not be sent as part of the end assessment workflow."
             )

@@ -49,10 +49,10 @@ What is supported:
             Numeric grades between 0 and 1 and text + basic HTML feedback comments are supported, via
             GET / PUT / DELETE HTTP methods respectively
 """
-
 import logging
 import re
 import urllib.parse
+import uuid
 from collections import namedtuple
 from importlib import import_module
 
@@ -60,11 +60,11 @@ import bleach
 from django.conf import settings
 from django.utils import timezone
 from web_fragments.fragment import Fragment
-
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.validation import ValidationMessage
+
 try:
     from xblock.utils.resources import ResourceLoader
     from xblock.utils.studio_editable import StudioEditableXBlockMixin
@@ -74,19 +74,20 @@ except ModuleNotFoundError:  # For backward compatibility with releases older th
 
 from .data import Lti1p3LaunchData
 from .exceptions import LtiError
-from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
+from .lti_1p1.consumer import LTI_PARAMETERS, LtiConsumer1p1, parse_result_json
 from .lti_1p1.oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .plugin import compat
 from .track import track_event
 from .utils import (
-    _,
-    resolve_custom_parameter_template,
-    external_config_filter_enabled,
-    external_user_id_1p1_launches_enabled,
-    database_config_enabled,
     EXTERNAL_ID_REGEX,
+    _,
+    compare_config_type,
+    database_config_enabled,
+    external_config_filter_enabled,
     external_multiple_launch_urls_enabled,
+    external_user_id_1p1_launches_enabled,
+    resolve_custom_parameter_template,
 )
 
 log = logging.getLogger(__name__)
@@ -287,6 +288,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "If the support staff provided you with a pre-configured LTI reusable Tool ID, select"
             "'Reusable Configuration' and enter it in the text field below."
         )
+    )
+    config_id = String(
+        display_name=_("Configuration ID"),
+        scope=Scope.settings,
+        default="",
+        help=_("Config ID for a reusable configuration.")
     )
 
     lti_version = String(
@@ -710,6 +717,18 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                 )))
         return validation
 
+    def save(self):
+        if not self.config_id:
+            self.config_id = str(uuid.uuid4())
+        else:
+            from lti_consumer.api import try_get_config_by_id  # pylint: disable=import-outside-toplevel
+
+            row = try_get_config_by_id(self.config_id)
+            if row and not compare_config_type(self.config_type, row.config_store):
+                # The configuration type has been changed since it was saved. Create a new config row.
+                self.config_id = str(uuid.uuid4())
+        super().save()
+
     def get_settings(self):
         """
         Get the XBlock settings bucket via the SettingsService.
@@ -1115,9 +1134,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Runtime import since this will only run in the
         # Open edX LMS/Studio environments.
         # pylint: disable=import-outside-toplevel
-        from lti_consumer.api import config_id_for_block, get_lti_consumer
+        from lti_consumer.api import config_for_block
 
-        return get_lti_consumer(config_id_for_block(self))
+        return config_for_block(self).get_lti_consumer()
 
     def extract_real_user_data(self):
         """
@@ -1164,6 +1183,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         context.update(
             get_lti_1p3_launch_info(
                 launch_data,
+                self.scope_ids.usage_id
             )
         )
 
@@ -1643,8 +1663,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Open edX LMS/Studio environments.
         # TODO: Replace this with a more appropriate API function that is intended for public use.
         # pylint: disable=import-outside-toplevel
-        from lti_consumer.api import config_id_for_block
-        config_id = config_id_for_block(self)
+        from lti_consumer.api import config_for_block
+        xblock_config = config_for_block(self)
 
         location = self.scope_ids.usage_id
         course_key = str(location.context_key)
@@ -1667,7 +1687,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         launch_data = Lti1p3LaunchData(
             user_id=self.lms_user_id,
             user_role=self.role,
-            config_id=config_id,
+            config_id=xblock_config.lti_configuration.config_id,
             # resource_link_id is used in the url params by the tool, so it should be url encoded.
             resource_link_id=urllib.parse.quote(str(location)),
             external_user_id=self.external_user_id,
@@ -1709,6 +1729,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             from lti_consumer.api import get_lti_1p3_content_url  # pylint: disable=import-outside-toplevel
             lti_block_launch_handler = get_lti_1p3_content_url(
                 launch_data,
+                self.scope_ids.usage_id,
             )
 
         return lti_block_launch_handler

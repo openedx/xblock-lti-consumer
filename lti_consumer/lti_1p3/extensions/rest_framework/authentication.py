@@ -5,10 +5,9 @@ Implements a custom authentication class to be used by LTI Advantage extensions.
 """
 from django.contrib.auth.models import AnonymousUser
 from django.utils.translation import gettext as _
-from rest_framework import authentication
-from rest_framework import exceptions
+from rest_framework import authentication, exceptions
 
-from lti_consumer.models import LtiConfiguration
+from lti_consumer.models import LtiXBlockConfig
 
 
 class Lti1p3ApiAuthentication(authentication.BaseAuthentication):
@@ -51,8 +50,8 @@ class Lti1p3ApiAuthentication(authentication.BaseAuthentication):
 
         # Retrieve LTI configuration or fail if it doesn't exist
         try:
-            lti_configuration = LtiConfiguration.objects.get(pk=lti_config_id)
-            lti_consumer = lti_configuration.get_lti_consumer()
+            lti_xblock_config = LtiXBlockConfig.objects.get(pk=lti_config_id)
+            lti_consumer = lti_xblock_config.get_lti_consumer()
         except Exception as err:
             msg = _('LTI configuration not found.')
             raise exceptions.AuthenticationFailed(msg) from err
@@ -72,7 +71,7 @@ class Lti1p3ApiAuthentication(authentication.BaseAuthentication):
         # With the LTI Configuration and consumer attached to the request
         # the views and permissions classes can make use of the
         # current LTI context to retrieve settings and decode the token passed.
-        request.lti_configuration = lti_configuration
+        request.lti_xblock_config = lti_xblock_config
         request.lti_consumer = lti_consumer
 
         # This isn't tied to any authentication backend on Django (it's just

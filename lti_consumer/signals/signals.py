@@ -4,13 +4,15 @@ LTI Consumer related Signal handlers
 import logging
 
 from django.db.models.signals import post_save
-from django.dispatch import receiver, Signal
+from django.dispatch import Signal, receiver
+from openedx_events.content_authoring.data import LibraryBlockData, XBlockData
+from openedx_events.content_authoring.signals import LIBRARY_BLOCK_DELETED, XBLOCK_DELETED
 
-from lti_consumer.models import LtiAgsScore
+from lti_consumer.models import LtiAgsScore, LtiConfiguration, LtiXBlockConfig
 from lti_consumer.plugin import compat
 
-
 log = logging.getLogger(__name__)
+SignalHandler = compat.get_signal_handler()
 
 
 @receiver(post_save, sender=LtiAgsScore, dispatch_uid='publish_grade_on_score_update')
@@ -83,3 +85,63 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
 
 
 LTI_1P3_PROCTORING_ASSESSMENT_STARTED = Signal()
+
+
+@receiver(SignalHandler.pre_item_deleted if SignalHandler else [])
+def delete_child_lti_configurations(**kwargs):
+    """
+    Delete lti configurtion from database for this block children.
+    """
+    usage_key = kwargs.get('usage_key')
+    if usage_key:
+        # Strip branch info
+        usage_key = usage_key.for_branch(None)
+        try:
+            deleted_block = compat.load_enough_xblock(usage_key)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            log.warning(f"Cannot find xblock for key {usage_key}. Reason: {str(e)}. ")
+            return
+        id_list = {deleted_block.location}
+        for block in compat.yield_dynamic_block_descendants(deleted_block, kwargs.get('user_id')):
+            id_list.add(block.location)
+
+        LtiXBlockConfig.objects.filter(
+            location__in=id_list
+        ).delete()
+        log.info(f"Deleted {len(id_list)} lti xblock configurations in modulestore")
+        result = LtiConfiguration.objects.filter(ltixblockconfig__isnull=True).delete()
+        log.info(f"Deleted {result} lti configuration objects in library")
+
+
+@receiver(XBLOCK_DELETED)
+def delete_lti_configuration(**kwargs):
+    """
+    Delete lti configurtion from database for this block.
+    """
+    xblock_info = kwargs.get("xblock_info", None)
+    if not xblock_info or not isinstance(xblock_info, XBlockData):
+        log.error("Received null or incorrect data for event")
+        return
+
+    LtiXBlockConfig.objects.filter(
+        location=xblock_info.usage_key
+    ).delete()
+    result = LtiConfiguration.objects.filter(ltixblockconfig__isnull=True).delete()
+    log.info(f"Deleted {result} lti configuration objects in library")
+
+
+@receiver(LIBRARY_BLOCK_DELETED)
+def delete_lib_lti_configuration(**kwargs):
+    """
+    Delete lti configurtion from database for this library block.
+    """
+    library_block = kwargs.get("library_block", None)
+    if not library_block or not isinstance(library_block, LibraryBlockData):
+        log.error("Received null or incorrect data for event")
+        return
+
+    LtiXBlockConfig.objects.filter(
+        location=library_block.usage_key
+    ).delete()
+    result = LtiConfiguration.objects.filter(ltixblockconfig__isnull=True).delete()
+    log.info(f"Deleted {result} lti configuration objects in library")

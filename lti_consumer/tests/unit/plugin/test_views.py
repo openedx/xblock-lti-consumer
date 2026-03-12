@@ -2,32 +2,32 @@
 Tests for LTI 1.3 endpoint views.
 """
 import json
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 import ddt
 import jwt
+from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from django.urls import reverse
 from edx_django_utils.cache import TieredCache, get_cache_key
 from jwt.api_jwk import PyJWK
-
-from Cryptodome.PublicKey import RSA
 from opaque_keys.edx.keys import UsageKey
+
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
-from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.lti_1p3.exceptions import (
-    MissingRequiredClaim,
     MalformedJwtToken,
-    TokenSignatureExpired,
+    MissingRequiredClaim,
     NoSuitableKeys,
+    PreflightRequestValidationFailure,
+    TokenSignatureExpired,
     UnknownClientId,
     UnsupportedGrantType,
-    PreflightRequestValidationFailure,
 )
-from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.lti_1p3.tests.utils import create_jwt
+from lti_consumer.lti_xblock import LtiConsumerXBlock
+from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.tests.test_utils import make_xblock
-from lti_consumer.utils import cache_lti_1p3_launch_data
+from lti_consumer.utils import CONFIG_ON_DB, CONFIG_ON_XBLOCK, cache_lti_1p3_launch_data
 
 
 @ddt.ddt
@@ -45,7 +45,7 @@ class TestLti1p3KeysetEndpoint(TestCase):
         # Set up LTI Configuration
         self.lti_config = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
-            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            config_store=CONFIG_ON_XBLOCK,
             location=UsageKey.from_string(self.location)
         )
 
@@ -150,7 +150,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         self.config = LtiConfiguration(
             version=LtiConfiguration.LTI_1P3,
             location=self.location,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
+            config_store=CONFIG_ON_DB,
             lti_1p3_redirect_uris=["https://tool.example", "http://tool.example/launch"]
         )
         self.config.save()
@@ -382,7 +382,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         """
         Set up deep linking for data and mocking for testing.
         """
-        self.config.config_store = LtiConfiguration.CONFIG_ON_XBLOCK
+        self.config.config_store = CONFIG_ON_XBLOCK
         self.config.save()
 
         self.compat.get_user_role.return_value = user_role
@@ -431,7 +431,7 @@ class TestLti1p3LaunchGateEndpoint(TestCase):
         LtiConfiguration.objects.filter(id=self.config.id).update(
             location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
+            config_store=CONFIG_ON_DB,
             lti_advantage_deep_linking_enabled=dl_enabled,
             lti_advantage_deep_linking_launch_url=url,
         )
@@ -669,8 +669,8 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
     def setUp(self):
         super().setUp()
 
-        location = 'block-v1:course+test+2020+type@problem+block@test'
-        self.config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=location)
+        self.location = 'block-v1:course+test+2020+type@problem+block@test'
+        self.config = LtiConfiguration(version=LtiConfiguration.LTI_1P3)
         self.config.save()
         self.url = reverse('lti_consumer:lti_consumer.access_token', args=[str(self.config.config_id)])
         # Patch settings calls to LMS method
@@ -729,7 +729,7 @@ class TestLti1p3AccessTokenEndpoint(TestCase):
 
         url = reverse(
             'lti_consumer:lti_consumer.access_token_via_location',
-            args=[str(self.config.location)]
+            args=[str(self.location)]
         )
         body = self.get_body(create_jwt(self.key, {}))
         response = self.client.post(url, data=json.dumps(body), content_type='application/json')

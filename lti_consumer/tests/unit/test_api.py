@@ -3,19 +3,19 @@ Tests for LTI API.
 """
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
-import ddt
 
+import ddt
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from edx_django_utils.cache import get_cache_key
 
 from lti_consumer.api import (
     _get_config_by_config_id,
-    _get_or_create_local_lti_config,
-    config_id_for_block,
+    _get_or_create_local_lti_xblock_config,
+    config_for_block,
+    get_deep_linking_data,
     get_end_assessment_return,
     get_lti_1p3_content_url,
-    get_deep_linking_data,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
     validate_lti_1p3_launch_data,
@@ -24,7 +24,7 @@ from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
 from lti_consumer.tests.test_utils import make_xblock
-from lti_consumer.utils import get_data_from_cache
+from lti_consumer.utils import CONFIG_EXTERNAL, CONFIG_ON_DB, CONFIG_ON_XBLOCK, get_data_from_cache
 
 # it's convenient to have this in lowercase to compare to URLs
 _test_config_id = "6c440bf4-face-beef-face-e8bcfb1e53bd"
@@ -74,7 +74,7 @@ class Lti1P3TestCase(TestCase):
             config_id=_test_config_id,
             location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
-            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            config_store=CONFIG_ON_XBLOCK,
         )
 
     def _get_lti_1p3_launch_data(self):
@@ -103,26 +103,26 @@ class TestConfigIdForBlock(TestCase):
 
     def test_double_fetch(self):
         self.xblock.config_type = 'database'
-        config_id = config_id_for_block(self.xblock)
+        config_id = config_for_block(self.xblock)
         self.assertIsNotNone(config_id)
         config = _get_config_by_config_id(config_id)
-        self.assertEqual(LtiConfiguration.CONFIG_ON_DB, config.config_store)
+        self.assertEqual(CONFIG_ON_DB, config.config_store)
 
         # fetch again, shouldn't make a new one
-        second_config_id = config_id_for_block(self.xblock)
+        second_config_id = config_for_block(self.xblock)
         self.assertEqual(config_id, second_config_id)
 
     @ddt.data(
-        ('external', LtiConfiguration.CONFIG_EXTERNAL),
-        ('database', LtiConfiguration.CONFIG_ON_DB),
-        ('any other val', LtiConfiguration.CONFIG_ON_XBLOCK),
+        ('external', CONFIG_EXTERNAL),
+        ('database', CONFIG_ON_DB),
+        ('any other val', CONFIG_ON_XBLOCK),
     )
     @patch('lti_consumer.api.get_external_config_from_filter')
     def test_store_types(self, mapping_pair, mock_external_config):
         mock_external_config.return_value = {"version": LtiConfiguration.LTI_1P3}
         str_store, result_store = mapping_pair
         self.xblock.config_type = str_store
-        config_id = config_id_for_block(self.xblock)
+        config_id = config_for_block(self.xblock)
         self.assertIsNotNone(config_id)
         config = _get_config_by_config_id(config_id)
         self.assertEqual(result_store, config.config_store)
@@ -144,7 +144,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         self.assertEqual(LtiConfiguration.objects.all().count(), 0)
 
         # Call API
-        lti_config = _get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_xblock_config(
             lti_version=lti_version,
             block_location=location
         )
@@ -152,7 +152,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         # Check if the object was created
         self.assertEqual(lti_config.version, lti_version)
         self.assertEqual(str(lti_config.location), location)
-        self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
+        self.assertEqual(lti_config.config_store, CONFIG_ON_XBLOCK)
 
     def test_retrieve_existing(self):
         """
@@ -166,7 +166,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         )
 
         # Call API
-        lti_config_retrieved = _get_or_create_local_lti_config(
+        lti_config_retrieved = _get_or_create_local_lti_xblock_config(
             lti_version=lti_version,
             block_location=location
         )
@@ -187,7 +187,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         )
 
         # Call API
-        _get_or_create_local_lti_config(
+        _get_or_create_local_lti_xblock_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block_location=location
         )
@@ -196,7 +196,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         lti_config.refresh_from_db()
         self.assertEqual(lti_config.version, LtiConfiguration.LTI_1P3)
 
-    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_EXTERNAL, LtiConfiguration.CONFIG_ON_DB)
+    @ddt.data(CONFIG_ON_XBLOCK, CONFIG_EXTERNAL, CONFIG_ON_DB)
     def test_create_lti_config_config_store(self, config_store):
         """
         Check if the config_store parameter to _get_or_create_local_lti_config is used to change
@@ -204,7 +204,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         """
         location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_version = LtiConfiguration.LTI_1P3
-        lti_config = _get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_xblock_config(
             lti_version=lti_version,
             block_location=location,
             config_store=config_store,
@@ -222,11 +222,11 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         lti_config = LtiConfiguration.objects.create(
             location=location,
             version=LtiConfiguration.LTI_1P3,
-            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            config_store=CONFIG_EXTERNAL,
             external_id="test_plugin:test-id"
         )
 
-        _get_or_create_local_lti_config(
+        _get_or_create_local_lti_xblock_config(
             lti_version=lti_version,
             block_location=location,
             external_id=None
@@ -235,7 +235,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         lti_config.refresh_from_db()
         self.assertEqual(lti_config.version, lti_version)
         self.assertEqual(str(lti_config.location), location)
-        self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
+        self.assertEqual(lti_config.config_store, CONFIG_ON_XBLOCK)
         self.assertEqual(lti_config.external_id, None)
 
 
@@ -553,7 +553,7 @@ class TestGetLti1p3LaunchInfo(TestCase):
         lti_config = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
             config_id=_test_config_id,
-            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            config_store=CONFIG_EXTERNAL,
             external_id=external_id,
         )
 
