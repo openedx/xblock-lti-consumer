@@ -22,13 +22,13 @@ astroid==4.0.4
     #   pylint-celery
 attrs==25.4.0
     # via -r requirements/base.txt
-binaryornot==0.5.0
+binaryornot==0.6.0
     # via cookiecutter
 bleach==6.3.0
     # via -r requirements/base.txt
-boto3==1.42.63
+boto3==1.42.69
     # via fs-s3fs
-botocore==1.42.63
+botocore==1.42.69
     # via
     #   boto3
     #   s3transfer
@@ -39,7 +39,7 @@ cffi==2.0.0
     #   -r requirements/base.txt
     #   cryptography
     #   pynacl
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
     # via requests
 click==8.3.1
     # via
@@ -52,11 +52,11 @@ click==8.3.1
     #   typer
 click-log==0.4.0
     # via edx-lint
-code-annotations==2.3.2
+code-annotations==3.0.0
     # via edx-lint
 cookiecutter==2.7.1
     # via xblock-sdk
-coverage[toml]==7.13.4
+coverage[toml]==7.13.5
     # via coveralls
 coveralls==4.1.0
     # via -r requirements/test.in
@@ -94,7 +94,7 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==25.2
     # via -r requirements/base.txt
-django-statici18n==2.6.0
+django-statici18n==2.7.1
     # via -r requirements/base.txt
 django-waffle==5.0.0
     # via
@@ -117,7 +117,7 @@ edx-django-utils==8.0.1
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-lint==5.6.0
+edx-lint==6.0.0
     # via -r requirements/test.in
 edx-opaque-keys[django]==3.1.0
     # via
@@ -214,7 +214,7 @@ pygments==2.19.2
     # via
     #   readme-renderer
     #   rich
-pyjwt==2.11.0
+pyjwt==2.12.1
     # via -r requirements/base.txt
 pylint==4.0.5
     # via
@@ -330,7 +330,7 @@ urllib3==1.26.20
     #   botocore
     #   requests
     #   twine
-web-fragments==3.1.0
+web-fragments==4.0.0
     # via
     #   -r requirements/base.txt
     #   xblock
