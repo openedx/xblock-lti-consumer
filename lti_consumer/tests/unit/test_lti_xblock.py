@@ -4,7 +4,6 @@ Unit tests for LtiConsumerXBlock
 import json
 import logging
 import string
-import urllib.parse
 from datetime import timedelta
 from itertools import product
 from unittest.mock import Mock, PropertyMock, patch
@@ -1896,7 +1895,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
             "user_id": 1,
             "user_role": "instructor",
             "config_id": config_id_for_block(self.xblock),
-            "resource_link_id": urllib.parse.quote(str(self.xblock.scope_ids.usage_id)),
+            "resource_link_id": str(self.xblock.scope_ids.usage_id),
             "external_user_id": "external_user_id",
             "launch_presentation_document_target": "iframe",
             "message_type": "LtiResourceLinkRequest",

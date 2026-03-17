@@ -1,7 +1,6 @@
 """
 Serializers for LTI-related endpoints
 """
-import urllib.parse
 from datetime import timezone
 
 from opaque_keys import InvalidKeyError
@@ -13,7 +12,7 @@ from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_ROLE_MAP
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore
 
 
-class EncodedUsageKeyField(serializers.Field):
+class UsageKeyField(serializers.Field):
     """
     This serializer field converts from a form of encoded usage key
     to an instance of UsageKey. This is useful for LTI request parameters,
@@ -31,11 +30,8 @@ class EncodedUsageKeyField(serializers.Field):
         """
         try:
             return UsageKey.from_string(data)
-        except InvalidKeyError:
-            try:
-                return UsageKey.from_string(urllib.parse.unquote(data))
-            except InvalidKeyError as err:
-                raise serializers.ValidationError(f"Invalid usage key: {data!r}") from err
+        except InvalidKeyError as err:
+            raise serializers.ValidationError(f"Invalid usage key: {data!r}") from err
 
 
 class LtiAgsLineItemSerializer(serializers.ModelSerializer):
@@ -66,7 +62,7 @@ class LtiAgsLineItemSerializer(serializers.ModelSerializer):
     # Mapping from snake_case to camelCase
     resourceId = serializers.CharField(source='resource_id', required=False)
     scoreMaximum = serializers.IntegerField(source='score_maximum')
-    resourceLinkId = EncodedUsageKeyField(required=False, source='resource_link_id')
+    resourceLinkId = UsageKeyField(required=False, source='resource_link_id')
     startDateTime = serializers.DateTimeField(required=False, source='start_date_time')
     endDateTime = serializers.DateTimeField(required=False, source='end_date_time')
 
@@ -388,7 +384,7 @@ class LtiContextSerializer(serializers.Serializer):
     """
     Serializer for a LTI Context
     """
-    id = EncodedUsageKeyField()
+    id = UsageKeyField()
 
 
 class LtiNrpsContextMemberBasicSerializer(serializers.Serializer):
