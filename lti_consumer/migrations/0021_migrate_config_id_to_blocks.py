@@ -1,9 +1,11 @@
-# Generated migration for copying config_id into modulestore from database (Django 5.2)
+# Generated migration for copying config_id into modulestore from database (Django 6.2)
 """
 This migration will copy config_id from LtiConsumer database to LtiConsumerXBlock.
 
 This will help us link xblocks with LtiConsumer database rows without relying on the location or usage_key of xblocks.
 """
+import uuid
+
 from django.db import migrations
 
 
@@ -15,8 +17,10 @@ def copy_config_id(apps, _):
     LtiXBlockConfig = apps.get_model("lti_consumer", "LtiXBlockConfig")
 
     for configuration in LtiConfiguration.objects.all():
+        # Create a new unique location for cconfiguration with no location.
+        location = configuration.location or str(uuid.uuid4())
         LtiXBlockConfig.objects.update_or_create(
-            location=configuration.location,
+            location=str(location),
             defaults={
                 "lti_configuration": configuration,
             }
@@ -33,22 +37,22 @@ def copy_config_id(apps, _):
     for line_item in LtiAgsLineItem.objects.all():
         xblock_config = LtiXBlockConfig.objects.filter(
             lti_configuration=line_item.lti_configuration,
-            location=line_item.lti_configuration.location,
         ).first()
         if not xblock_config:
             print(f"Invalid configuration linked to AGS line item: {line_item}.")
-        line_item.xblock_config = xblock_config
+            continue
+        line_item.lti_xblock_config = xblock_config
         line_item.save()
 
     LtiDlContentItem = apps.get_model("lti_consumer", "LtiDlContentItem")
     for content_item in LtiDlContentItem.objects.all():
         xblock_config = LtiXBlockConfig.objects.filter(
             lti_configuration=content_item.lti_configuration,
-            location=content_item.lti_configuration.location,
         ).first()
         if not xblock_config:
             print(f"Invalid configuration linked to Dl Conent Item: {content_item}.")
-        content_item.xblock_config = xblock_config
+            continue
+        content_item.lti_xblock_config = xblock_config
         content_item.save()
 
 
@@ -59,7 +63,7 @@ def backwards(*_):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('lti_consumer', '0020_ltixblockconfig'),
+        ('lti_consumer', '0020_ltixblockconfig_ltiagslineitem_lti_xblock_config_and_more'),
     ]
 
     operations = [

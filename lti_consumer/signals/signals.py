@@ -101,9 +101,9 @@ def delete_child_lti_configurations(**kwargs):
         except Exception as e:  # pylint: disable=broad-exception-caught
             log.warning(f"Cannot find xblock for key {usage_key}. Reason: {str(e)}. ")
             return
-        id_list = {deleted_block.location}
+        id_list = {str(deleted_block.location)}
         for block in compat.yield_dynamic_block_descendants(deleted_block, kwargs.get('user_id')):
-            id_list.add(block.location)
+            id_list.add(str(block.location))
 
         LtiXBlockConfig.objects.filter(
             location__in=id_list
@@ -124,7 +124,7 @@ def delete_lti_configuration(**kwargs):
         return
 
     LtiXBlockConfig.objects.filter(
-        location=xblock_info.usage_key
+        location=str(xblock_info.usage_key)
     ).delete()
     result = LtiConfiguration.objects.filter(ltixblockconfig__isnull=True).delete()
     log.info(f"Deleted {result} lti configuration objects in library")
@@ -141,7 +141,7 @@ def delete_lib_lti_configuration(**kwargs):
         return
 
     LtiXBlockConfig.objects.filter(
-        location=library_block.usage_key
+        location=str(library_block.usage_key)
     ).delete()
     result = LtiConfiguration.objects.filter(ltixblockconfig__isnull=True).delete()
     log.info(f"Deleted {result} lti configuration objects in library")

@@ -1,7 +1,7 @@
 """
 Module that contains the openedx filters for this XBlock
 """
-from typing import Dict
+from typing import Any, Dict
 
 from openedx_filters.tooling import OpenEdxPublicFilter
 
@@ -15,7 +15,7 @@ class LTIConfigurationListed(OpenEdxPublicFilter):
     filter_type = "org.openedx.xblock.lti_consumer.configuration.listed.v1"
 
     @classmethod
-    def run_filter(cls, context: Dict, config_id: str, configurations: Dict):
+    def run_filter(cls, context: Dict, config_id: str, configurations: Dict) -> tuple[Dict, str, Dict]:
         """
         Execute the filter with the signature specified.
 
@@ -28,7 +28,7 @@ class LTIConfigurationListed(OpenEdxPublicFilter):
         return data.get("context"), data.get("config_id"), data.get("configurations")
 
 
-def get_external_config_from_filter(context, config_id=''):
+def get_external_config_from_filter(context, config_id='') -> dict[str, Any]:
     """
     Thin wrapper around the LTIConfigurationListed filter to get the external
     configuration values using a certain context and config_id.

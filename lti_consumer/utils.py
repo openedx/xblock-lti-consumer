@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from edx_django_utils.cache import TieredCache, get_cache_key
 
+from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
 from lti_consumer.plugin.compat import (
@@ -31,6 +32,14 @@ EXTERNAL_ID_REGEX = re.compile(rf'^({SLUG_CHARACTER_CLASS}+:{SLUG_CHARACTER_CLAS
 CONFIG_ON_XBLOCK = 'CONFIG_ON_XBLOCK'
 CONFIG_ON_DB = 'CONFIG_ON_DB'
 CONFIG_EXTERNAL = 'CONFIG_EXTERNAL'
+LTI_ADVANTAGE_AGS_DISABLED = 'disabled'
+LTI_ADVANTAGE_AGS_DECLARATIVE = 'declarative'
+LTI_ADVANTAGE_AGS_PROGRAMMATIC = 'programmatic'
+LTI_ADVANTAGE_AGS_CHOICES = [
+    (LTI_ADVANTAGE_AGS_DISABLED, 'Disabled'),
+    (LTI_ADVANTAGE_AGS_DECLARATIVE, 'Allow tools to submit grades only (declarative)'),
+    (LTI_ADVANTAGE_AGS_PROGRAMMATIC, 'Allow tools to manage and submit grade (programmatic)')
+]
 
 
 def compare_config_type(block_field, db_field):
@@ -342,7 +351,7 @@ def cache_lti_1p3_launch_data(launch_data):
     return launch_data_key
 
 
-def get_data_from_cache(cache_key):
+def get_data_from_cache(cache_key) -> Lti1p3LaunchData:
     """
     Return data stored in the cache with the cache key, if it exists. If not, return none.
 

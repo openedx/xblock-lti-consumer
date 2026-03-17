@@ -25,7 +25,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
-from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
+from lti_consumer.api import (
+    get_lti_config_by_location,
+    get_lti_pii_sharing_state_for_course,
+    validate_lti_1p3_launch_data,
+)
 from lti_consumer.exceptions import ExternalConfigurationNotFound, LtiError
 from lti_consumer.filters import get_external_config_from_filter
 from lti_consumer.lti_1p3.consumer import LtiConsumer1p3, LtiProctoringConsumer
@@ -234,13 +238,13 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         )
 
     config_id = launch_data.config_id
-    location = urllib.parse.unquote(launch_data.resource_link_id)
+    location = launch_data.resource_link_id
     try:
-        lti_xblock_config = LtiXBlockConfig.objects.get(
+        lti_xblock_config = get_lti_config_by_location(
+            location,
             lti_configuration__config_id=config_id,
-            location=location
         )
-    except (LtiXBlockConfig.DoesNotExist, ValidationError) as exc:
+    except LtiXBlockConfig.DoesNotExist as exc:
         log.error(
             "Invalid config_id '%s' and resource_link_id '%s' for LTI 1.3 Launch callback",
             config_id,
@@ -480,7 +484,7 @@ def access_token_endpoint(
                 tool_key=lti_config.get("lti_1p3_tool_public_key"),
                 tool_keyset_url=lti_config.get("lti_1p3_tool_keyset_url"),
             )
-    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ExternalConfigurationNotFound) as exc:
+    except (InvalidKeyError, LtiXBlockConfig.DoesNotExist, ExternalConfigurationNotFound) as exc:
         log.info(
             "Error while retrieving access token for ID %s: %s",
             usage_id or lti_config_id or external_id,
@@ -590,8 +594,8 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
         return render(request, 'html/lti-dl/dl_response_saved.html')
 
     # If LtiConfiguration doesn't exist, error with 404 status.
-    except LtiConfiguration.DoesNotExist as exc:
-        log.info("LtiConfiguration %r does not exist: %s", lti_config_id, exc)
+    except LtiXBlockConfig.DoesNotExist as exc:
+        log.info("LtiXBlockConfig %r does not exist: %s", lti_config_id, exc)
         raise Http404 from exc
     # If the deep linking content type is not supported
     except LtiDeepLinkingContentTypeNotSupported as exc:
@@ -651,11 +655,21 @@ def deep_linking_content_endpoint(request, lti_config_id):
         )
     try:
         # Get LTI Configuration
-        lti_config = LtiConfiguration.objects.get(id=lti_config_id)
-    except LtiConfiguration.DoesNotExist as exc:
-        log.info("LtiConfiguration %r does not exist: %s", lti_config_id, exc)
+        lti_config = LtiXBlockConfig.objects.get(id=lti_config_id)
+    except LtiXBlockConfig.DoesNotExist as exc:
+        log.info("LtiXBlockConfig %r does not exist: %s", lti_config_id, exc)
         raise Http404 from exc
 
+    # Currently, deep linking only works in xblock context
+    if not lti_config.location:
+        error_msg = f'Missing LTI location for LTI xblock Configuration {lti_config}'
+        log.warning(error_msg)
+        return render(
+            request,
+            'html/lti_launch_error.html',
+            context={"error_msg": error_msg},
+            status=HTTP_400_BAD_REQUEST
+        )
     # check if user has proper access
     block = compat.load_block_as_user(lti_config.location)
     if not has_block_access(request.user, block, lti_config.location.course_key):
@@ -667,7 +681,7 @@ def deep_linking_content_endpoint(request, lti_config_id):
         raise PermissionDenied
 
     # Get all LTI-DL contents
-    content_items = LtiDlContentItem.objects.filter(lti_configuration=lti_config)
+    content_items = LtiDlContentItem.objects.filter(lti_xblock_config=lti_config)
 
     # If no LTI-DL contents found for current configuration, throw 404 error
     if not content_items.exists():
@@ -910,10 +924,11 @@ def start_proctoring_assessment_endpoint(request):
     resource_link_id = decoded_jwt.get('https://purl.imsglobal.org/spec/lti/claim/resource_link', {}).get('id')
 
     try:
-        lti_config = LtiXBlockConfig.objects.filter(lti_configuration__lti_1p3_client_id=iss).first()
-        if not lti_config:
-            raise LtiConfiguration.DoesNotExist
-    except LtiConfiguration.DoesNotExist:
+        lti_config = get_lti_config_by_location(
+            resource_link_id,
+            lti_configuration__lti_1p3_client_id=iss
+        )
+    except LtiXBlockConfig.DoesNotExist:
         log.error("Invalid iss claim '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint"
                   " callback", iss)
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_404_NOT_FOUND)
@@ -921,7 +936,7 @@ def start_proctoring_assessment_endpoint(request):
     lti_consumer = lti_config.get_lti_consumer()
 
     if not isinstance(lti_consumer, LtiProctoringConsumer):
-        log.info("Proctoring Services for LTIConfiguration with config_id %s are not enabled",
+        log.info("Proctoring Services for LtiXBlockConfig with config_id %s are not enabled",
                  lti_config.lti_configuration.config_id)
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_400_BAD_REQUEST)
 
