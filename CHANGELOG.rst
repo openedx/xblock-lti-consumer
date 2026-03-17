@@ -16,6 +16,10 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+10.0.1 - 2026-03-17
+--------------------
+* Revert the quoting of location/usage_keys done in version 9.14.4 & 9.14.5.
+
 10.0.0 - 2026-03-09
 --------------------
 * Drop support for Python 3.11. Python 3.12 is now the minimum supported version.
