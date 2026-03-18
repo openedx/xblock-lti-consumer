@@ -55,6 +55,7 @@ import re
 import urllib.parse
 from collections import namedtuple
 from importlib import import_module
+import uuid
 
 import bleach
 from django.conf import settings
@@ -311,6 +312,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     )
 
     # LTI 1.3 fields
+    lti_1p3_passport_id = String(
+        display_name=_("Lti 1.3 passport ID that points to Lti1p3Passport table"),
+        scope=Scope.settings,
+        default="",
+        help=_("Passport ID for a reusable keys.")
+    )
+
     lti_1p3_launch_url = String(
         display_name=_("Tool Launch URL"),
         default='',
@@ -991,7 +999,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         i4x-2-3-lti-31de800015cf4afb973356dbe81496df this part of resource_link_id:
         makes resource_link_id to be unique among courses inside same system.
         """
-        return str(urllib.parse.quote(f"{settings.LMS_BASE}-{self.scope_ids.usage_id.html_id()}"))
+        return str(self.scope_ids.usage_id)
 
     @property
     def lis_result_sourcedid(self):
@@ -1668,7 +1676,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             user_id=self.lms_user_id,
             user_role=self.role,
             config_id=config_id,
-            resource_link_id=str(location),
+            resource_link_id=self.resource_link_id,
             external_user_id=self.external_user_id,
             preferred_username=username,
             name=full_name,

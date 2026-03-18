@@ -22,7 +22,7 @@ router.register(r'memberships', LtiNrpsContextMembershipViewSet, basename='lti-n
 app_name = 'lti_consumer'
 urlpatterns = [
     path(
-        'lti_consumer/v1/public_keysets/<uuid:lti_config_id>',
+        'lti_consumer/v1/public_keysets/<uuid:passport_id>',
         public_keyset_endpoint,
         name='lti_consumer.public_keyset_endpoint'
     ),
@@ -44,7 +44,7 @@ urlpatterns = [
         name='lti_consumer.launch_gate'
     ),
     path(
-        'lti_consumer/v1/token/<uuid:lti_config_id>',
+        'lti_consumer/v1/token/<uuid:passport_id>',
         access_token_endpoint,
         name='lti_consumer.access_token'
     ),

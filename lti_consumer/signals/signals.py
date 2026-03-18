@@ -6,7 +6,7 @@ import logging
 from django.db.models.signals import post_save
 from django.dispatch import receiver, Signal
 
-from lti_consumer.models import LtiAgsScore
+from lti_consumer.models import LtiAgsScore, Lti1p3Passport, LtiConfiguration
 from lti_consumer.plugin import compat
 
 
@@ -80,6 +80,11 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                 exc,
             )
             raise exc
+
+
+@receiver(post_save, sender=LtiConfiguration, dispatch_uid='create_lti_1p3_passport')
+def create_lti_1p3_passport(sender, instance: LtiConfiguration, **kwargs):  # pylint: disable=unused-argument
+    instance.create_lti_1p3_passport()
 
 
 LTI_1P3_PROCTORING_ASSESSMENT_STARTED = Signal()

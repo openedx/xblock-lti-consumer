@@ -353,7 +353,7 @@ def check_token_claim(token, claim_key, expected_value=None, invalid_claim_error
         raise InvalidClaimValue(msg)
 
 
-def model_to_dict(model_object, exclude=None):
+def model_to_dict(model_object, exclude: list[str] | None = None, include: list[str] | None = None):
     """
     Get dictionary from model object.
 
@@ -369,7 +369,7 @@ def model_to_dict(model_object, exclude=None):
 
         # Remove private and excluded fields.
         for key in list(object_fields):
-            if key.startswith('_') or key in exclude:
+            if key.startswith('_') or key in exclude or (include and key not in include):
                 object_fields.pop(key, None)
 
         return object_fields

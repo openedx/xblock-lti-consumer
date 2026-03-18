@@ -26,31 +26,48 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
-from lti_consumer.exceptions import LtiError, ExternalConfigurationNotFound
+from lti_consumer.exceptions import ExternalConfigurationNotFound, LtiError
+from lti_consumer.filters import get_external_config_from_filter
 from lti_consumer.lti_1p3.consumer import LtiConsumer1p3, LtiProctoringConsumer
-from lti_consumer.lti_1p3.exceptions import (BadJwtSignature, InvalidClaimValue, Lti1p3Exception,
-                                             LtiDeepLinkingContentTypeNotSupported, MalformedJwtToken,
-                                             MissingRequiredClaim, NoSuitableKeys, TokenSignatureExpired,
-                                             UnknownClientId, UnsupportedGrantType)
+from lti_consumer.lti_1p3.exceptions import (
+    BadJwtSignature,
+    InvalidClaimValue,
+    Lti1p3Exception,
+    LtiDeepLinkingContentTypeNotSupported,
+    MalformedJwtToken,
+    MissingRequiredClaim,
+    NoSuitableKeys,
+    TokenSignatureExpired,
+    UnknownClientId,
+    UnsupportedGrantType,
+)
 from lti_consumer.lti_1p3.extensions.rest_framework.authentication import Lti1p3ApiAuthentication
 from lti_consumer.lti_1p3.extensions.rest_framework.constants import LTI_DL_CONTENT_TYPE_SERIALIZER_MAP
 from lti_consumer.lti_1p3.extensions.rest_framework.parsers import LineItemParser, LineItemScoreParser
-from lti_consumer.lti_1p3.extensions.rest_framework.permissions import (LtiAgsPermissions,
-                                                                        LtiNrpsContextMembershipsPermissions)
-from lti_consumer.lti_1p3.extensions.rest_framework.renderers import (LineItemRenderer, LineItemResultsRenderer,
-                                                                      LineItemScoreRenderer, LineItemsRenderer,
-                                                                      MembershipResultRenderer)
-from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (LtiAgsLineItemSerializer,
-                                                                        LtiAgsResultSerializer, LtiAgsScoreSerializer,
-                                                                        LtiNrpsContextMembershipBasicSerializer,
-                                                                        LtiNrpsContextMembershipPIISerializer)
+from lti_consumer.lti_1p3.extensions.rest_framework.permissions import (
+    LtiAgsPermissions,
+    LtiNrpsContextMembershipsPermissions,
+)
+from lti_consumer.lti_1p3.extensions.rest_framework.renderers import (
+    LineItemRenderer,
+    LineItemResultsRenderer,
+    LineItemScoreRenderer,
+    LineItemsRenderer,
+    MembershipResultRenderer,
+)
+from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
+    LtiAgsLineItemSerializer,
+    LtiAgsResultSerializer,
+    LtiAgsScoreSerializer,
+    LtiNrpsContextMembershipBasicSerializer,
+    LtiNrpsContextMembershipPIISerializer,
+)
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
-from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
+from lti_consumer.models import Lti1p3Passport, LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
 from lti_consumer.plugin import compat
 from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
 from lti_consumer.track import track_event
 from lti_consumer.utils import _, get_data_from_cache, get_lti_1p3_context_types_claim, get_lti_api_base
-from lti_consumer.filters import get_external_config_from_filter
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +105,7 @@ def has_block_access(user, block, course_key):
 def public_keyset_endpoint(
     request,
     usage_id=None,
-    lti_config_id=None,
+    passport_id=None,
     external_app=None,
     external_slug=None,
 ):
@@ -100,7 +117,7 @@ def public_keyset_endpoint(
     and run the proper handler.
 
     Arguments:
-        lti_config_id (UUID): config_id of the LtiConfiguration
+        passport_id (UUID): passport_id of the Lti1p3Passport
         usage_id (UsageKey): location of the Block
         external_app (str): App name of the external LTI configuration
         external_slug (str): Slug of the external LTI configuration.
@@ -111,15 +128,12 @@ def public_keyset_endpoint(
     external_id = f"{external_app}:{external_slug}"
 
     try:
-        version = None
         public_jwk = {}
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
-            version = lti_config.version
             public_jwk = lti_config.lti_1p3_public_jwk
-        elif lti_config_id:
-            lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
-            version = lti_config.version
+        elif passport_id:
+            lti_config = Lti1p3Passport.objects.get(passport_id=passport_id)
             public_jwk = lti_config.lti_1p3_public_jwk
         elif external_app and external_slug:
             lti_config = get_external_config_from_filter({}, external_id)
@@ -127,13 +141,7 @@ def public_keyset_endpoint(
             if not lti_config:
                 raise ExternalConfigurationNotFound("External LTI configuration not found")
 
-            version = lti_config.get("version")
             public_jwk = lti_config.get("lti_1p3_public_jwk", {})
-
-        if version is None or version != LtiConfiguration.LTI_1P3:
-            raise LtiError(
-                "LTI Error: LTI 1.1 blocks do not have a public keyset endpoint."
-            )
 
         # Retrieve block's Public JWK
         # The underlying method will generate a new Private-Public Pair if one does
@@ -141,10 +149,16 @@ def public_keyset_endpoint(
         response = JsonResponse(public_jwk)
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
-    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ExternalConfigurationNotFound, LtiError) as exc:
+    except (
+        InvalidKeyError,
+        LtiConfiguration.DoesNotExist,
+        Lti1p3Passport.DoesNotExist,
+        ExternalConfigurationNotFound,
+        LtiError,
+    ) as exc:
         log.info(
             "Error while retrieving keyset for ID %s: %s",
-            usage_id or lti_config_id or external_id,
+            usage_id or passport_id or external_id,
             exc,
             exc_info=True,
         )
@@ -396,7 +410,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 @require_http_methods(["POST"])
 def access_token_endpoint(
     request,
-    lti_config_id=None,
+    passport_id=None,
     usage_id=None,
     external_app=None,
     external_slug=None,
@@ -407,7 +421,7 @@ def access_token_endpoint(
     This endpoint is only valid when a LTI 1.3 tool is being used.
 
     Arguments:
-        lti_config_id (UUID): config_id of the LtiConfiguration
+        passport_id (UUID): passport_id of the Lti1p3Passport
         usage_id (UsageKey): location of the Block
         external_app (str): App name of the external LTI configuration
         external_slug (str): Slug of the external LTI configuration.
@@ -422,23 +436,30 @@ def access_token_endpoint(
     external_id = f"{external_app}:{external_slug}"
 
     try:
-        version = None
         lti_consumer = None
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
-            version = lti_config.version
             lti_consumer = lti_config.get_lti_consumer()
-        elif lti_config_id:
-            lti_config = LtiConfiguration.objects.get(config_id=lti_config_id)
-            version = lti_config.version
-            lti_consumer = lti_config.get_lti_consumer()
+        elif passport_id:
+            lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
+            lti_consumer = LtiConsumer1p3(
+                iss=get_lti_api_base(),
+                lti_oidc_url=None,
+                lti_launch_url=None,
+                client_id=lti_passport.lti_1p3_client_id,
+                deployment_id=None,
+                rsa_key=lti_passport.lti_1p3_private_key,
+                rsa_key_id=lti_passport.lti_1p3_private_key_id,
+                redirect_uris=None,
+                tool_key=lti_passport.lti_1p3_tool_public_key,
+                tool_keyset_url=lti_passport.lti_1p3_tool_keyset_url,
+            )
         elif external_app and external_slug:
             lti_config = get_external_config_from_filter({}, external_id)
 
             if not lti_config:
                 raise ExternalConfigurationNotFound("External LTI configuration not found")
 
-            version = lti_config.get("version")
             # External LTI configurations don't have a get_lti_consumer method
             # so we initialize the LtiConsumer1p3 class using the external config data.
             lti_consumer = LtiConsumer1p3(
@@ -453,17 +474,19 @@ def access_token_endpoint(
                 tool_key=lti_config.get("lti_1p3_tool_public_key"),
                 tool_keyset_url=lti_config.get("lti_1p3_tool_keyset_url"),
             )
-    except (InvalidKeyError, LtiConfiguration.DoesNotExist, ExternalConfigurationNotFound) as exc:
+    except (
+        InvalidKeyError,
+        LtiConfiguration.DoesNotExist,
+        Lti1p3Passport.DoesNotExist,
+        ExternalConfigurationNotFound,
+    ) as exc:
         log.info(
             "Error while retrieving access token for ID %s: %s",
-            usage_id or lti_config_id or external_id,
+            usage_id or passport_id or external_id,
             exc,
             exc_info=True,
         )
         raise Http404 from exc
-
-    if version is None or version != LtiConfiguration.LTI_1P3:
-        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
 
     if lti_consumer is None:
         return JsonResponse({"error": "lti_consumer_not_initialized"}, status=HTTP_404_NOT_FOUND)
@@ -883,10 +906,18 @@ def start_proctoring_assessment_endpoint(request):
     resource_link_id = decoded_jwt.get('https://purl.imsglobal.org/spec/lti/claim/resource_link', {}).get('id')
 
     try:
-        lti_config = LtiConfiguration.objects.get(lti_1p3_client_id=iss)
+        passport = Lti1p3Passport.objects.filter(lti_1p3_client_id=iss).first()
+        lti_config = LtiConfiguration.objects.get(passport=passport, location=resource_link_id)
+    except Lti1p3Passport.DoesNotExist:
+        log.error(
+            "Invalid iss claim '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint callback", iss
+        )
+        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_404_NOT_FOUND)
     except LtiConfiguration.DoesNotExist:
-        log.error("Invalid iss claim '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint"
-                  " callback", iss)
+        log.error(
+            "Invalid resource_link id '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint",
+            resource_link_id,
+        )
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_404_NOT_FOUND)
 
     lti_consumer = lti_config.get_lti_consumer()

@@ -7,11 +7,28 @@ from django.contrib import admin
 from lti_consumer.forms import CourseAllowPIISharingInLTIAdminForm
 from lti_consumer.models import (
     CourseAllowPIISharingInLTIFlag,
+    Lti1p3Passport,
     LtiAgsLineItem,
     LtiAgsScore,
     LtiConfiguration,
     LtiDlContentItem,
 )
+
+
+class LtiConfigurationInline(admin.TabularInline):
+    model = LtiConfiguration
+    extra = 0
+    can_delete = False
+    fields = ('location',)
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(LtiConfiguration)
@@ -22,6 +39,15 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
     Makes the location field read-only to avoid issues.
     """
     readonly_fields = ('location', 'config_id')
+
+
+@admin.register(Lti1p3Passport)
+class Lti1p3PassportAdmin(admin.ModelAdmin):
+    """
+    Admin view for Lti1p3Passport models.
+    """
+    list_display = ('passport_id', 'lti_1p3_client_id')
+    inlines = [LtiConfigurationInline]
 
 
 @admin.register(CourseAllowPIISharingInLTIFlag)

@@ -7,10 +7,9 @@ from typing import Callable
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.forms import ModelForm
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 
 from lti_consumer.exceptions import LtiError
-
 
 log = logging.getLogger(__name__)
 
@@ -100,15 +99,15 @@ def get_external_multiple_launch_urls_waffle_flag():  # pragma: nocover
     return CourseWaffleFlag(f'{WAFFLE_NAMESPACE}.{ENABLE_EXTERNAL_MULTIPLE_LAUNCH_URLS}', __name__)
 
 
-def load_enough_xblock(location):  # pragma: nocover
+def load_enough_xblock(location: UsageKey):  # pragma: nocover
     """
     Load enough of an xblock to read from for LTI values stored on the block.
     The block may or may not be bound to the user for actual use depending on
     what has happened in the request so far.
     """
     # pylint: disable=import-error,import-outside-toplevel
-    from xmodule.modulestore.django import modulestore
     from openedx.core.djangoapps.xblock import api as xblock_api
+    from xmodule.modulestore.django import modulestore
 
     # Retrieve course block from modulestore
     if isinstance(location.context_key, CourseKey):
@@ -116,6 +115,25 @@ def load_enough_xblock(location):  # pragma: nocover
     # Retrieve library block from the XBlock API
     else:
         return xblock_api.load_block(location, None)
+
+
+def save_xblock(block):  # pragma: nocover
+    """
+    Load enough of an xblock to read from for LTI values stored on the block.
+    The block may or may not be bound to the user for actual use depending on
+    what has happened in the request so far.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    from openedx.core.djangoapps.xblock import api as xblock_api
+    from xmodule.modulestore.django import modulestore
+
+    # Save course block using modulestore
+    if isinstance(block.scope_ids.usage_id.context_key, CourseKey):
+        return modulestore().update_item(block, None)
+    # Save library block using the XBlock API
+    else:
+        runtime = xblock_api.get_runtime(None)
+        return runtime.save_block(block)
 
 
 def load_block_as_user(location):  # pragma: nocover

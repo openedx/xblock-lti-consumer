@@ -10,21 +10,21 @@ import json
 from opaque_keys.edx.keys import CourseKey
 
 from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
-from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
+
+from .filters import get_external_config_from_filter
+from .models import CourseAllowPIISharingInLTIFlag, Lti1p3Passport, LtiConfiguration, LtiDlContentItem
 from .utils import (
     get_cache_key,
     get_data_from_cache,
-    get_lti_1p3_context_types_claim,
-    get_lti_deeplinking_content_url,
+    get_lms_lti_access_token_link,
     get_lms_lti_keyset_link,
     get_lms_lti_launch_link,
-    get_lms_lti_access_token_link,
+    get_lti_1p3_context_types_claim,
+    get_lti_deeplinking_content_url,
 )
-from .filters import get_external_config_from_filter
 
 
-def _get_or_create_local_lti_config(lti_version, block_location,
-                                    config_store=LtiConfiguration.CONFIG_ON_XBLOCK, external_id=None):
+def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
     """
     Retrieve the LtiConfiguration for the block described by block_location, if one exists. If one does not exist,
     create an LtiConfiguration with the LtiConfiguration.CONFIG_ON_XBLOCK config_store.
@@ -34,11 +34,38 @@ def _get_or_create_local_lti_config(lti_version, block_location,
     the XBlock to be the source of truth for the LTI version, which is a user-centric perspective we've adopted.
     This allows XBlock users to update the LTI version without needing to update the database.
     """
+    from lti_consumer.plugin.compat import save_xblock  # pylint: disable=import-outside-toplevel
     # The create operation is only performed when there is no existing configuration for the block
-    lti_config, _ = LtiConfiguration.objects.get_or_create(location=block_location)
+    lti_config, _ = LtiConfiguration.objects.get_or_create(location=block.scope_ids.usage_id)
+    passport = lti_config.lti_1p3_passport
+    if passport and config_store == LtiConfiguration.CONFIG_ON_XBLOCK:
+        # Copy keyset url and public key to passport row
+        if passport.lticonfiguration_set.count() == 1 or (
+            passport.lti_1p3_tool_keyset_url == '' and passport.lti_1p3_tool_public_key == ''
+        ):
+            # If the passport is only used in one LTI configuration or both fields are empty,
+            # we update its tool key and url to match block fields.
+            passport.lti_1p3_tool_public_key = str(block.lti_1p3_tool_public_key)
+            passport.lti_1p3_tool_keyset_url = str(block.lti_1p3_tool_keyset_url)
+            passport.save()
+        elif (
+            passport.lti_1p3_tool_public_key != str(block.lti_1p3_tool_public_key)
+            or passport.lti_1p3_tool_keyset_url != str(block.lti_1p3_tool_keyset_url)
+        ):
+            # tool public key or url has changed, we create a new passport to avoid conflicts
+            # with the existing configuration
+            passport = Lti1p3Passport.objects.create(
+                lti_1p3_tool_public_key=str(block.lti_1p3_tool_public_key),
+                lti_1p3_tool_keyset_url=str(block.lti_1p3_tool_keyset_url),
+            )
+            from lti_consumer.plugin.compat import save_xblock  # pylint: disable=import-outside-toplevel
+            block.lti_1p3_passport_id = str(passport.passport_id)
+            block.save()
+            save_xblock(block)
 
     lti_config.config_store = config_store
-    lti_config.external_id = external_id
+    lti_config.external_id = block.external_config
+    lti_config.lti_1p3_passport = passport
 
     if lti_config.version != lti_version:
         lti_config.version = lti_version
@@ -63,9 +90,9 @@ def _get_lti_config_for_block(block):
     bits of configuration.
     """
     if block.config_type == 'database':
-        lti_config = _get_or_create_local_lti_config(
+        lti_config = get_or_create_local_lti_config(
             block.lti_version,
-            block.scope_ids.usage_id,
+            block,
             LtiConfiguration.CONFIG_ON_DB,
         )
     elif block.config_type == 'external':
@@ -73,16 +100,15 @@ def _get_lti_config_for_block(block):
             {"course_key": block.scope_ids.usage_id.context_key},
             block.external_config
         )
-        lti_config = _get_or_create_local_lti_config(
+        lti_config = get_or_create_local_lti_config(
             config.get("version"),
-            block.scope_ids.usage_id,
+            block,
             LtiConfiguration.CONFIG_EXTERNAL,
-            external_id=block.external_config,
         )
     else:
-        lti_config = _get_or_create_local_lti_config(
+        lti_config = get_or_create_local_lti_config(
             block.lti_version,
-            block.scope_ids.usage_id,
+            block,
             LtiConfiguration.CONFIG_ON_XBLOCK,
         )
     return lti_config
@@ -140,7 +166,7 @@ def get_lti_1p3_launch_info(
         if dl_content_items.exists():
             deep_linking_content_items = [item.attributes for item in dl_content_items]
 
-    config_id = lti_config.config_id
+    config_id = lti_config.passport_id
     client_id = lti_config.lti_1p3_client_id
     deployment_id = "1"
 

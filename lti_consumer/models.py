@@ -1,40 +1,41 @@
 """
 LTI configuration and linking models.
 """
+import json
 import logging
 import uuid
-import json
 
-from django.db import models
-from django.core.validators import MinValueValidator
-from django.core.exceptions import ValidationError
-
-from jsonfield import JSONField
-from Cryptodome.PublicKey import RSA
 from ccx_keys.locator import CCXBlockUsageLocator
-from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
-from opaque_keys.edx.keys import CourseKey
 from config_models.models import ConfigurationModel
+from Cryptodome.PublicKey import RSA
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
+from django.db import models
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from edx_django_utils.monitoring import function_trace
+from jsonfield import JSONField
+from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
+from opaque_keys.edx.keys import CourseKey
+
 from lti_consumer.filters import get_external_config_from_filter
 
 # LTI 1.1
 from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
+
 # LTI 1.3
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiProctoringConsumer
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
 from lti_consumer.utils import (
-    get_lti_api_base,
+    EXTERNAL_ID_REGEX,
+    choose_lti_1p3_redirect_uris,
+    external_multiple_launch_urls_enabled,
     get_lti_ags_lineitems_url,
+    get_lti_api_base,
     get_lti_deeplinking_response_url,
     get_lti_nrps_context_membership_url,
-    choose_lti_1p3_redirect_uris,
     model_to_dict,
-    EXTERNAL_ID_REGEX,
-    external_multiple_launch_urls_enabled,
 )
 
 log = logging.getLogger(__name__)
@@ -45,6 +46,118 @@ def generate_client_id():
     Generates a random UUID string.
     """
     return str(uuid.uuid4())
+
+
+class Lti1p3Passport(models.Model):
+    """
+    Model to store LTI 1.3 keys.
+    """
+    passport_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+
+    lti_1p3_internal_private_key = models.TextField(
+        blank=True,
+        help_text=_("Platform's generated Private key. Keep this value secret."),
+    )
+
+    lti_1p3_internal_private_key_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text=_("Platform's generated Private key ID"),
+    )
+
+    lti_1p3_internal_public_jwk = models.TextField(
+        blank=True,
+        help_text=_("Platform's generated JWK keyset."),
+    )
+
+    lti_1p3_client_id = models.CharField(
+        max_length=255,
+        default=generate_client_id,
+        help_text=_("Client ID used by LTI tool"),
+    )
+
+    lti_1p3_tool_public_key = models.TextField(
+        "LTI 1.3 Tool Public Key",
+        blank=True,
+        help_text='This is the LTI Tool\'s public key. This should be provided by the LTI Tool. '
+                  'One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
+    )
+
+    lti_1p3_tool_keyset_url = models.CharField(
+        "LTI 1.3 Tool Keyset URL",
+        max_length=255,
+        blank=True,
+        help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
+                  'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
+    )
+
+    def _generate_lti_1p3_keys_if_missing(self):
+        """
+        Generate LTI 1.3 RSA256 keys if missing.
+
+        If either the public or private key are missing, regenerate them.
+        The LMS provides a keyset endpoint, so key rotations don't cause any issues
+        for LTI launches (as long as they have a different kid).
+        """
+        # Generate new private key if not present
+        if not self.lti_1p3_internal_private_key:
+            # Private key
+            private_key = RSA.generate(2048)
+            self.lti_1p3_internal_private_key_id = str(uuid.uuid4())
+            self.lti_1p3_internal_private_key = private_key.export_key('PEM').decode('utf-8')
+
+            # Clear public key if any to allow regeneration
+            # in the code below
+            self.lti_1p3_internal_public_jwk = ''
+
+        if not self.lti_1p3_internal_public_jwk:
+            # Public key
+            key_handler = PlatformKeyHandler(
+                key_pem=self.lti_1p3_internal_private_key,
+                kid=self.lti_1p3_internal_private_key_id,
+            )
+            self.lti_1p3_internal_public_jwk = json.dumps(
+                key_handler.get_public_jwk()
+            )
+
+        # Doesn't do anything if model didn't change
+        self.save()
+
+    @property
+    def lti_1p3_private_key(self):
+        """
+        Return the platform's private key used in LTI 1.3 authentication flows.
+        """
+        self._generate_lti_1p3_keys_if_missing()
+        return self.lti_1p3_internal_private_key
+
+    @property
+    def lti_1p3_private_key_id(self):
+        """
+        Return the platform's private key ID used in LTI 1.3 authentication flows.
+        """
+        self._generate_lti_1p3_keys_if_missing()
+        return self.lti_1p3_internal_private_key_id
+
+    @property
+    def lti_1p3_public_jwk(self):
+        """
+        Return the platform's public keys used in LTI 1.3 authentication flows.
+        """
+        self._generate_lti_1p3_keys_if_missing()
+        return json.loads(self.lti_1p3_internal_public_jwk)
+
+    def __str__(self):
+        return f'Lti1p3Passport: {self.passport_id}'
+
+    def clean(self):
+        if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
+            raise ValidationError({
+                "config_store": _(
+                    "LTI Configuration stored on the model for LTI 1.3 must have a value for one of "
+                        "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
+                ),
+            })
 
 
 class LtiConfiguration(models.Model):
@@ -138,26 +251,11 @@ class LtiConfiguration(models.Model):
     )
 
     # LTI 1.3 Related variables
-    lti_1p3_internal_private_key = models.TextField(
+    lti_1p3_passport = models.ForeignKey(
+        Lti1p3Passport,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
-        help_text=_("Platform's generated Private key. Keep this value secret."),
-    )
-
-    lti_1p3_internal_private_key_id = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text=_("Platform's generated Private key ID"),
-    )
-
-    lti_1p3_internal_public_jwk = models.TextField(
-        blank=True,
-        help_text=_("Platform's generated JWK keyset."),
-    )
-
-    lti_1p3_client_id = models.CharField(
-        max_length=255,
-        default=generate_client_id,
-        help_text=_("Client ID used by LTI tool"),
     )
 
     lti_1p3_oidc_url = models.CharField(
@@ -175,21 +273,6 @@ class LtiConfiguration(models.Model):
         help_text='This is the LTI launch URL, otherwise known as the target_link_uri. '
                   'It represents the LTI resource to launch to or load in the second leg of the launch flow, '
                   'when the resource is actually launched or loaded.'
-    )
-
-    lti_1p3_tool_public_key = models.TextField(
-        "LTI 1.3 Tool Public Key",
-        blank=True,
-        help_text='This is the LTI Tool\'s public key. This should be provided by the LTI Tool. '
-                  'One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
-    )
-
-    lti_1p3_tool_keyset_url = models.CharField(
-        "LTI 1.3 Tool Keyset URL",
-        max_length=255,
-        blank=True,
-        help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
-                  'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
     )
 
     lti_1p3_redirect_uris = models.JSONField(
@@ -261,14 +344,10 @@ class LtiConfiguration(models.Model):
                     'LTI Configuration using reusable configuration needs a external ID in "x:y" format.',
                 ),
             })
-        if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB:
-            if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
-                raise ValidationError({
-                    "config_store": _(
-                        "LTI Configuration stored on the model for LTI 1.3 must have a value for one of "
-                        "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
-                    ),
-                })
+        if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB and not self.lti_1p3_passport:
+            raise ValidationError({
+                "config_store": _('LTI Configuration for 1.3 requires passport to be set.'),
+            })
         if (self.version == self.LTI_1P3 and self.config_store in [self.CONFIG_ON_XBLOCK, self.CONFIG_EXTERNAL] and
                 self.lti_1p3_proctoring_enabled):
             raise ValidationError({
@@ -315,65 +394,87 @@ class LtiConfiguration(models.Model):
                     f'Failed to parse main LTI configuration location: {self.location}',
                 )
 
+    def create_lti_1p3_passport(self):
+        """
+        Create an LTI 1.3 Passport configuration for this course instance.
+        """
+        passport = self.lti_1p3_passport
+        if not passport:
+            block = compat.load_enough_xblock(self.location)
+            if block.lti_1p3_passport_id:
+                passport, created = Lti1p3Passport.objects.get_or_create(passport_id=block.lti_1p3_passport_id)
+                if created:
+                    log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
+                else:
+                    log.info("Existing LTI 1.3 Passport %s found for %s", passport, self)
+            else:
+                passport = Lti1p3Passport.objects.create()
+                log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
+                block.lti_1p3_passport_id = str(passport.passport_id)
+                block.save()
+                compat.save_xblock(block)
+            self.lti_1p3_passport = passport
+            self.save()
+
     def save(self, *args, **kwargs):
         self.sync_configurations()
         super().save(*args, **kwargs)
 
-    def _generate_lti_1p3_keys_if_missing(self):
+    @property
+    def passport_id(self):
         """
-        Generate LTI 1.3 RSA256 keys if missing.
-
-        If either the public or private key are missing, regenerate them.
-        The LMS provides a keyset endpoint, so key rotations don't cause any issues
-        for LTI launches (as long as they have a different kid).
+        Return the passport ID associated with this configuration instance.
         """
-        # Generate new private key if not present
-        if not self.lti_1p3_internal_private_key:
-            # Private key
-            private_key = RSA.generate(2048)
-            self.lti_1p3_internal_private_key_id = str(uuid.uuid4())
-            self.lti_1p3_internal_private_key = private_key.export_key('PEM').decode('utf-8')
-
-            # Clear public key if any to allow regeneration
-            # in the code below
-            self.lti_1p3_internal_public_jwk = ''
-
-        if not self.lti_1p3_internal_public_jwk:
-            # Public key
-            key_handler = PlatformKeyHandler(
-                key_pem=self.lti_1p3_internal_private_key,
-                kid=self.lti_1p3_internal_private_key_id,
-            )
-            self.lti_1p3_internal_public_jwk = json.dumps(
-                key_handler.get_public_jwk()
-            )
-
-        # Doesn't do anything if model didn't change
-        self.save()
+        self.create_lti_1p3_passport()
+        return self.lti_1p3_passport.passport_id
 
     @property
     def lti_1p3_private_key(self):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
-        return self.lti_1p3_internal_private_key
+        self.create_lti_1p3_passport()
+        return self.lti_1p3_passport.lti_1p3_private_key
 
     @property
     def lti_1p3_private_key_id(self):
         """
         Return the platform's private key ID used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
-        return self.lti_1p3_internal_private_key_id
+        self.create_lti_1p3_passport()
+        return self.lti_1p3_passport.lti_1p3_private_key_id
 
     @property
     def lti_1p3_public_jwk(self):
         """
         Return the platform's public keys used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
-        return json.loads(self.lti_1p3_internal_public_jwk)
+        self.create_lti_1p3_passport()
+        return self.lti_1p3_passport.lti_1p3_public_jwk
+
+    @property
+    def lti_1p3_client_id(self):
+        """
+        Return platform client id from passport
+        """
+        self.create_lti_1p3_passport()
+        return self.lti_1p3_passport.lti_1p3_client_id
+
+    @property
+    def lti_1p3_tool_keyset_url(self):
+        """
+        Return tool keyset url from passport
+        """
+        self.create_lti_1p3_passport()
+        return self.lti_1p3_passport.lti_1p3_tool_keyset_url
+
+    @property
+    def lti_1p3_tool_public_key(self):
+        """
+        Return tool public key from passport
+        """
+        self.create_lti_1p3_passport()
+        return self.lti_1p3_passport.lti_1p3_tool_public_key
 
     @cached_property
     def external_config(self):
