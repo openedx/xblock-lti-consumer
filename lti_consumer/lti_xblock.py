@@ -374,6 +374,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             " requests received have the signature from the tool."
             "<br /><b>This is not required when doing LTI 1.3 Launches"
             " without LTI Advantage nor Basic Outcomes requests.</b>"
+            "<br /><br /><b>Changing the public key or keyset url will cause the client ID, block keyset url "
+            "and access token url to be regenerated if they are shared between blocks. "
+            "Please check and update them in the LTI tool settings if necessary.</b>"
         ),
     )
     lti_1p3_tool_public_key = String(
@@ -388,6 +391,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "from the tool."
             "<br /><b>This is not required when doing LTI 1.3 Launches without LTI Advantage nor "
             "Basic Outcomes requests.</b>"
+            "<br /><br /><b>Changing the public key or keyset url will cause the client ID, block keyset url "
+            "and access token url to be regenerated if they are shared between blocks. "
+            "Please check and update them in the LTI tool settings if necessary.</b>"
         ),
     )
 

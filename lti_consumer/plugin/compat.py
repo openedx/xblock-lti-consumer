@@ -353,3 +353,27 @@ def nrps_pii_disallowed():
     """
     return (hasattr(settings, 'LTI_NRPS_DISALLOW_PII') and
             settings.LTI_NRPS_DISALLOW_PII is True)
+
+
+def get_signal_handler():
+    """
+    Import the signal handler from LMS
+    """
+    try:
+        # pylint: disable=import-outside-toplevel
+        from xmodule.modulestore.django import SignalHandler
+        return SignalHandler
+    except ImportError:
+        return None
+
+
+def yield_dynamic_block_descendants(block, user_id):
+    """
+    Import and run `yield_dynamic_block_descendants` from LMS
+    """
+    try:
+        # pylint: disable=import-outside-toplevel,redefined-outer-name
+        from common.djangoapps.util.block_utils import yield_dynamic_block_descendants
+        return yield_dynamic_block_descendants(block, user_id)
+    except ImportError:
+        return None
