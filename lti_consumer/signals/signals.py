@@ -32,7 +32,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
     # have permissions to.
     # TODO: This security mechanism will need to be reworked once we enable LTI 1.3
     # reusability to allow one configuration to save scores on multiple placements,
-    # but still locking down access to the items that are using the LTI configurtion.
+    # but still locking down access to the items that are using the LTI configuration.
     if line_item.resource_link_id != lti_config.location:
         log.warning(
             "LTI tool tried publishing score %r to block %s (outside allowed scope of: %s).",
@@ -92,7 +92,7 @@ def create_lti_1p3_passport(sender, instance: LtiConfiguration, **kwargs):  # py
 @receiver(SignalHandler.pre_item_delete if SignalHandler else [])
 def delete_child_lti_configurations(**kwargs):
     """
-    Delete lti configurtion from database for this block children.
+    Delete lti configuration from database for this block children.
     """
     usage_key = kwargs.get('usage_key')
     if usage_key:
@@ -103,14 +103,14 @@ def delete_child_lti_configurations(**kwargs):
         except Exception as e:  # pylint: disable=broad-exception-caught
             log.warning(f"Cannot find xblock for key {usage_key}. Reason: {str(e)}. ")
             return
-        id_list = {str(deleted_block.location)}
+        block_locations = {str(deleted_block.location)}
         for block in compat.yield_dynamic_block_descendants(deleted_block, kwargs.get('user_id')):
-            id_list.add(str(block.location))
+            block_locations.add(str(block.location))
 
         LtiConfiguration.objects.filter(
-            location__in=id_list
+            location__in=block_locations
         ).delete()
-        log.info(f"Deleted {len(id_list)} lti configurations in modulestore")
+        log.info(f"Deleted {len(block_locations)} LTI configurations for block and its children in modulestore")
         result = Lti1p3Passport.objects.filter(lticonfiguration__isnull=True).delete()
         log.info(f"Deleted {result} lti 1.3 passport objects in library")
 
@@ -118,7 +118,7 @@ def delete_child_lti_configurations(**kwargs):
 @receiver(XBLOCK_DELETED)
 def delete_lti_configuration(**kwargs):
     """
-    Delete lti configurtion from database for this block.
+    Delete lti configuration from database for this block.
     """
     xblock_info = kwargs.get("xblock_info", None)
     if not xblock_info or not isinstance(xblock_info, XBlockData):
@@ -135,7 +135,7 @@ def delete_lti_configuration(**kwargs):
 @receiver(LIBRARY_BLOCK_DELETED)
 def delete_lib_lti_configuration(**kwargs):
     """
-    Delete lti configurtion from database for this library block.
+    Delete lti configuration from database for this library block.
     """
     library_block = kwargs.get("library_block", None)
     if not library_block or not isinstance(library_block, LibraryBlockData):
