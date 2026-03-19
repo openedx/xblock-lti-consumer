@@ -402,9 +402,11 @@ class LtiConfiguration(models.Model):
         Create an LTI 1.3 Passport configuration for this course instance.
         """
         passport = self.lti_1p3_passport
+        block = None
         if not passport:
-            block = compat.load_enough_xblock(self.location)
-            if block.lti_1p3_passport_id:
+            if self.location:
+                block = compat.load_enough_xblock(self.location)
+            if self.location and block.lti_1p3_passport_id:
                 passport, created = Lti1p3Passport.objects.get_or_create(passport_id=block.lti_1p3_passport_id)
                 if created:
                     log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
@@ -413,9 +415,10 @@ class LtiConfiguration(models.Model):
             else:
                 passport = Lti1p3Passport.objects.create()
                 log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
-                block.lti_1p3_passport_id = str(passport.passport_id)
-                block.save()
-                compat.save_xblock(block)
+                if block:
+                    block.lti_1p3_passport_id = str(passport.passport_id)
+                    block.save()
+                    compat.save_xblock(block)
             self.lti_1p3_passport = passport
             self.save()
 
