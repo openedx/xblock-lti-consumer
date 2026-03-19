@@ -159,6 +159,9 @@ class Lti1p3Passport(models.Model):
                 ),
             })
 
+    class Meta:
+        app_label = 'lti_consumer'
+
 
 class LtiConfiguration(models.Model):
     """
