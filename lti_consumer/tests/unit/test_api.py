@@ -3,21 +3,21 @@ Tests for LTI API.
 """
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
-import ddt
 
+import ddt
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from edx_django_utils.cache import get_cache_key
 
 from lti_consumer.api import (
     _get_config_by_config_id,
-    get_or_create_local_lti_config,
     config_id_for_block,
+    get_deep_linking_data,
     get_end_assessment_return,
     get_lti_1p3_content_url,
-    get_deep_linking_data,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
+    get_or_create_local_lti_config,
     validate_lti_1p3_launch_data,
 )
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
@@ -129,7 +129,7 @@ class TestConfigIdForBlock(TestCase):
 
 
 @ddt.ddt
-class TestGetOrCreateLocalLtiConfiguration(TestCase):
+class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
     """
     Unit tests for _get_or_create_local_lti_config API method.
     """
@@ -146,7 +146,7 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         # Call API
         lti_config = get_or_create_local_lti_config(
             lti_version=lti_version,
-            block_location=location
+            block=self.xblock
         )
 
         # Check if the object was created

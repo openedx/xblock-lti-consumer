@@ -112,7 +112,7 @@ class ToolKeyHandler:
                 message = jwt.decode(
                     token,
                     key,
-                    algorithms=['RS256', 'RS512',],
+                    algorithms=['RS256', 'RS512'],
                     options={
                         'verify_signature': True,
                         'verify_aud': False

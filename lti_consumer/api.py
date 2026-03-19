@@ -49,8 +49,8 @@ def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigura
             passport.lti_1p3_tool_keyset_url = str(block.lti_1p3_tool_keyset_url)
             passport.save()
         elif (
-            passport.lti_1p3_tool_public_key != str(block.lti_1p3_tool_public_key)
-            or passport.lti_1p3_tool_keyset_url != str(block.lti_1p3_tool_keyset_url)
+            passport.lti_1p3_tool_public_key != str(block.lti_1p3_tool_public_key) or
+            passport.lti_1p3_tool_keyset_url != str(block.lti_1p3_tool_keyset_url)
         ):
             # tool public key or url has changed, we create a new passport to avoid conflicts
             # with the existing configuration
@@ -58,7 +58,6 @@ def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigura
                 lti_1p3_tool_public_key=str(block.lti_1p3_tool_public_key),
                 lti_1p3_tool_keyset_url=str(block.lti_1p3_tool_keyset_url),
             )
-            from lti_consumer.plugin.compat import save_xblock  # pylint: disable=import-outside-toplevel
             block.lti_1p3_passport_id = str(passport.passport_id)
             block.save()
             save_xblock(block)

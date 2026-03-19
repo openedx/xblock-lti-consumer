@@ -155,7 +155,7 @@ class Lti1p3Passport(models.Model):
             raise ValidationError({
                 "config_store": _(
                     "LTI Configuration stored on the model for LTI 1.3 must have a value for one of "
-                        "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
+                    "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
                 ),
             })
 

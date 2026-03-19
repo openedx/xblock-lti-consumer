@@ -55,17 +55,16 @@ import re
 import urllib.parse
 from collections import namedtuple
 from importlib import import_module
-import uuid
 
 import bleach
 from django.conf import settings
 from django.utils import timezone
 from web_fragments.fragment import Fragment
-
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.validation import ValidationMessage
+
 try:
     from xblock.utils.resources import ResourceLoader
     from xblock.utils.studio_editable import StudioEditableXBlockMixin

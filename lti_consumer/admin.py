@@ -16,6 +16,9 @@ from lti_consumer.models import (
 
 
 class LtiConfigurationInline(admin.TabularInline):
+    """
+    Inline for the LtiConfiguration models in Lti1p3Passport.
+    """
     model = LtiConfiguration
     extra = 0
     can_delete = False
