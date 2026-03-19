@@ -26,7 +26,13 @@ astroid==4.0.4
     #   pylint
     #   pylint-celery
 attrs==26.1.0
-    # via -r requirements/test.txt
+    # via
+    #   -r requirements/test.txt
+    #   openedx-events
+backports-tarfile==1.2.0
+    # via
+    #   -r requirements/test.txt
+    #   jaraco-context
 binaryornot==0.6.0
     # via
     #   -r requirements/test.txt
@@ -117,6 +123,7 @@ django==5.2.13
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
+    #   openedx-events
     #   openedx-filters
     #   xblock-sdk
 django-appconf==1.2.0
@@ -150,18 +157,26 @@ docutils==0.22.4
     #   -r requirements/test.txt
     #   readme-renderer
 edx-ccx-keys==2.0.2
-    # via -r requirements/test.txt
+    # via
+    #   -r requirements/test.txt
+    #   openedx-events
 edx-django-utils==8.0.1
     # via
     #   -r requirements/test.txt
     #   django-config-models
+    #   openedx-events
 edx-lint==6.0.0
     # via -r requirements/test.txt
 edx-opaque-keys[django]==4.0.0
     # via
     #   -r requirements/test.txt
     #   edx-ccx-keys
+    #   openedx-events
     #   openedx-filters
+fastavro==1.12.1
+    # via
+    #   -r requirements/test.txt
+    #   openedx-events
 filelock==3.25.2
     # via
     #   -r requirements/tox.txt
@@ -185,6 +200,10 @@ idna==3.11
     # via
     #   -r requirements/test.txt
     #   requests
+importlib-metadata==8.8.0
+    # via
+    #   -r requirements/test.txt
+    #   keyring
 isort==8.0.1
     # via
     #   -r requirements/test.txt
@@ -264,7 +283,9 @@ nh3==0.3.4
     #   readme-renderer
 oauthlib==3.3.1
     # via -r requirements/test.txt
-openedx-filters==3.1.0
+openedx-events==10.5.0
+    # via -r requirements/test.txt
+openedx-filters==3.0.0
     # via -r requirements/test.txt
 packaging==26.0
     # via
@@ -487,6 +508,10 @@ xblock==6.0.0
     #   xblock-sdk
 xblock-sdk==0.14.0
     # via -r requirements/test.txt
+zipp==3.23.0
+    # via
+    #   -r requirements/test.txt
+    #   importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

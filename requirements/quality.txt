@@ -19,7 +19,9 @@ astroid==4.0.4
     #   pylint
     #   pylint-celery
 attrs==26.1.0
-    # via -r requirements/base.txt
+    # via
+    #   -r requirements/base.txt
+    #   openedx-events
 binaryornot==0.6.0
     # via cookiecutter
 bleach==6.3.0
@@ -72,6 +74,7 @@ django==5.2.13
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
+    #   openedx-events
     #   openedx-filters
     #   xblock-sdk
 django-appconf==1.2.0
@@ -101,18 +104,26 @@ dnspython==2.8.0
     #   -r requirements/base.txt
     #   pymongo
 edx-ccx-keys==2.0.2
-    # via -r requirements/base.txt
+    # via
+    #   -r requirements/base.txt
+    #   openedx-events
 edx-django-utils==8.0.1
     # via
     #   -r requirements/base.txt
     #   django-config-models
+    #   openedx-events
 edx-lint==6.0.0
     # via -r requirements/quality.in
 edx-opaque-keys[django]==4.0.0
     # via
     #   -r requirements/base.txt
     #   edx-ccx-keys
+    #   openedx-events
     #   openedx-filters
+fastavro==1.12.1
+    # via
+    #   -r requirements/base.txt
+    #   openedx-events
 fs==2.4.16
     # via
     #   -r requirements/base.txt
@@ -159,9 +170,11 @@ mdurl==0.1.2
     # via markdown-it-py
 oauthlib==3.3.1
     # via -r requirements/base.txt
-openedx-filters==3.1.0
+openedx-events==10.5.0
     # via -r requirements/base.txt
-platformdirs==4.9.6
+openedx-filters==3.0.0
+    # via -r requirements/base.txt
+platformdirs==4.9.4
     # via pylint
 psutil==7.2.2
     # via

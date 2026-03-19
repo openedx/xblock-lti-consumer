@@ -9,7 +9,9 @@ appdirs==1.4.4
 asgiref==3.11.1
     # via django
 attrs==26.1.0
-    # via -r requirements/base.in
+    # via
+    #   -r requirements/base.in
+    #   openedx-events
 bleach==6.3.0
     # via -r requirements/base.in
 cffi==2.0.0
@@ -29,6 +31,7 @@ django==5.2.13
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
+    #   openedx-events
     #   openedx-filters
 django-appconf==1.2.0
     # via django-statici18n
@@ -47,14 +50,21 @@ djangorestframework==3.17.1
 dnspython==2.8.0
     # via pymongo
 edx-ccx-keys==2.0.2
-    # via -r requirements/base.in
+    # via
+    #   -r requirements/base.in
+    #   openedx-events
 edx-django-utils==8.0.1
-    # via django-config-models
+    # via
+    #   django-config-models
+    #   openedx-events
 edx-opaque-keys[django]==4.0.0
     # via
     #   -r requirements/base.in
     #   edx-ccx-keys
+    #   openedx-events
     #   openedx-filters
+fastavro==1.12.1
+    # via openedx-events
 fs==2.4.16
     # via xblock
 jsonfield==3.2.0
@@ -74,6 +84,8 @@ markupsafe==3.0.3
     #   mako
     #   xblock
 oauthlib==3.3.1
+    # via -r requirements/base.in
+openedx-events==10.5.0
     # via -r requirements/base.in
 openedx-filters==3.1.0
     # via -r requirements/base.in
