@@ -62,14 +62,6 @@ class Lti1P3TestCase(TestBaseWithPatch):
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attributes)
         self.location = self.xblock.scope_ids.usage_id
 
-    def _get_lti_1p3_launch_data(self):
-        return Lti1p3LaunchData(
-            user_id="1",
-            user_role="student",
-            config_id=self.lti_config.config_id,
-            resource_link_id="resource_link_id",
-        )
-
 
 @ddt.ddt
 class TestConfigIdForBlock(Lti1P3TestCase):
@@ -566,6 +558,13 @@ class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
         )
 
+    def _get_lti_1p3_launch_data(self):
+        return Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id=self.lti_config.config_id,
+            resource_link_id="resource_link_id",
+        )
 
     def test_get_normal_lti_launch_url(self):
         """
@@ -636,6 +635,13 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
         )
 
+    def _get_lti_1p3_launch_data(self):
+        return Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id=self.lti_config.config_id,
+            resource_link_id="resource_link_id",
+        )
 
     @patch("lti_consumer.api.get_lti_1p3_launch_start_url")
     def test_lti_content_presentation(self, mock_get_launch_url):

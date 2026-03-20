@@ -3,7 +3,7 @@ Utility functions used within unit tests
 """
 
 import urllib
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from django.test.testcases import TestCase
 from opaque_keys.edx.keys import CourseKey

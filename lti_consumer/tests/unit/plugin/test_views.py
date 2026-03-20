@@ -8,7 +8,6 @@ from unittest.mock import Mock, patch
 import ddt
 import jwt
 from Cryptodome.PublicKey import RSA
-from django.test.testcases import TestCase
 from django.urls import reverse
 from edx_django_utils.cache import TieredCache, get_cache_key
 from jwt.api_jwk import PyJWK
