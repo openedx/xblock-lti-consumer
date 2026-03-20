@@ -16,7 +16,7 @@ from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
 
-class LtiAgsLineItemViewSetTestCase(TestBaseWithPatch, APITransactionTestCase):
+class LtiAgsLineItemViewSetTestCase(APITransactionTestCase, TestBaseWithPatch):
     """
     Test `LtiAgsLineItemViewset` Class.
     """

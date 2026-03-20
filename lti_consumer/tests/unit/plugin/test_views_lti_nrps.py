@@ -104,7 +104,7 @@ def patch_get_memberships(config=None):
     return _get_memberships
 
 
-class LtiNrpsTestCase(TestBaseWithPatch, APITransactionTestCase):  # noqa: F821
+class LtiNrpsTestCase(APITransactionTestCase, TestBaseWithPatch):  # noqa: F821
     """
     Test LtiNrpsViewSet actions
     """
