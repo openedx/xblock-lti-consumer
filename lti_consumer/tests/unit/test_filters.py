@@ -2,14 +2,11 @@
 Tests for the LTI consumer filters.
 """
 from unittest.mock import patch
+
 from django.test import TestCase, override_settings
-
-
 from openedx_filters import PipelineStep
-from lti_consumer.filters import (
-    LTIConfigurationListed,
-    get_external_config_from_filter
-)
+
+from lti_consumer.filters import LTIConfigurationListed, get_external_config_from_filter
 
 
 class MyTestPipelineStep(PipelineStep):

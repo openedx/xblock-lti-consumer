@@ -2,12 +2,12 @@
 Tests for LTI Advantage Assignments and Grades Service views.
 """
 from datetime import datetime
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from django.test import TestCase
 from opaque_keys.edx.keys import UsageKey
 
-from lti_consumer.models import LtiConfiguration, LtiAgsLineItem, LtiAgsScore
+from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 
 
 class PublishGradeOnScoreUpdateTest(TestCase):

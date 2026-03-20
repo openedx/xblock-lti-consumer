@@ -29,7 +29,7 @@ from lti_consumer.tests.test_utils import (
     get_mock_lti_configuration,
     make_jwt_request,
     make_request,
-    make_xblock,
+    make_xblock, TestBaseWithPatch
 )
 from lti_consumer.utils import resolve_custom_parameter_template
 
@@ -40,7 +40,7 @@ HTML_LAUNCH_NEW_WINDOW_BUTTON = 'btn-lti-new-window'
 HTML_IFRAME = '<iframe'
 
 
-class TestLtiConsumerXBlock(TestCase):
+class TestLtiConsumerXBlock(TestBaseWithPatch):
     """
     Unit tests for LtiConsumerXBlock.max_score()
     """
@@ -461,10 +461,9 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `resource_link_id` returns appropriate string
         """
-        hostname = "edx.org"
         self.assertEqual(
             self.xblock.resource_link_id,
-            f"{hostname}-{self.xblock.scope_ids.usage_id.html_id()}"
+            str(self.xblock.scope_ids.usage_id),
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
@@ -2235,7 +2234,7 @@ class TestDynamicCustomParametersResolver(TestLtiConsumerXBlock):
         mock_import_module.asser_not_called()
 
 
-class TestLti1p3AccessTokenJWK(TestCase):
+class TestLti1p3AccessTokenJWK(TestBaseWithPatch):
     """
     Unit tests for LtiConsumerXBlock Access Token endpoint when using a
     LTI 1.3 setup with JWK authentication.

@@ -1,23 +1,22 @@
 """
 Tests for LTI Advantage Assignments and Grades Service views.
 """
-from unittest.mock import patch, Mock
-
 import re
+from unittest.mock import Mock, patch
+
 import ddt
 from Cryptodome.PublicKey import RSA
-from rest_framework.test import APITransactionTestCase
 from rest_framework.exceptions import ValidationError
-
+from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.data import Lti1p3LaunchData
-from lti_consumer.utils import cache_lti_1p3_launch_data
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
-from lti_consumer.tests.test_utils import make_xblock
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
+from lti_consumer.utils import cache_lti_1p3_launch_data
 
 
-class LtiDeepLinkingTestCase(APITransactionTestCase):
+class LtiDeepLinkingTestCase(TestBaseWithPatch, APITransactionTestCase):
     """
     Test `LtiAgsLineItemViewset` endpoint.
     """

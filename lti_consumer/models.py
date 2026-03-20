@@ -406,7 +406,7 @@ class LtiConfiguration(models.Model):
         if not passport:
             if self.location:
                 block = compat.load_enough_xblock(self.location)
-            if self.location and block.lti_1p3_passport_id:
+            if self.location and block and block.lti_1p3_passport_id:
                 passport, created = Lti1p3Passport.objects.get_or_create(passport_id=block.lti_1p3_passport_id)
                 if created:
                     log.info("Created new LTI 1.3 Passport %s for %s", passport, self)

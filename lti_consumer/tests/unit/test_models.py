@@ -3,27 +3,31 @@ Unit tests for LTI models.
 """
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 import ddt
+from ccx_keys.locator import CCXBlockUsageLocator
 from Cryptodome.PublicKey import RSA
 from django.core.exceptions import ValidationError
-from django.test.testcases import TestCase
 from edx_django_utils.cache import RequestCache
-from ccx_keys.locator import CCXBlockUsageLocator
 from opaque_keys.edx.locator import CourseLocator
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import (CourseAllowPIISharingInLTIFlag, LtiAgsLineItem, LtiAgsScore, LtiConfiguration,
-                                 LtiDlContentItem)
-from lti_consumer.tests.test_utils import make_xblock
+from lti_consumer.models import (
+    CourseAllowPIISharingInLTIFlag,
+    LtiAgsLineItem,
+    LtiAgsScore,
+    LtiConfiguration,
+    LtiDlContentItem,
+)
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
 LAUNCH_URL = 'http://tool.example/launch'
 DEEP_LINK_URL = 'http://tool.example/deep-link/launch'
 
 
 @ddt.ddt
-class TestLtiConfigurationModel(TestCase):
+class TestLtiConfigurationModel(TestBaseWithPatch):
     """
     Unit tests for LtiConfiguration model methods.
     """
@@ -333,17 +337,17 @@ class TestLtiConfigurationModel(TestCase):
         )
 
         # Check that model fields are empty
-        self.assertFalse(lti_config.lti_1p3_internal_private_key)
-        self.assertFalse(lti_config.lti_1p3_internal_private_key_id)
-        self.assertFalse(lti_config.lti_1p3_internal_public_jwk)
+        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_private_key)
+        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_private_key_id)
+        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk)
 
         # Create and retrieve public keys
         _ = lti_config.lti_1p3_public_jwk
 
         # Check if keys were created
-        self.assertTrue(lti_config.lti_1p3_internal_private_key)
-        self.assertTrue(lti_config.lti_1p3_internal_private_key_id)
-        self.assertTrue(lti_config.lti_1p3_internal_public_jwk)
+        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_private_key)
+        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_private_key_id)
+        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk)
 
     def test_generate_public_key_only(self):
         """
@@ -356,8 +360,8 @@ class TestLtiConfigurationModel(TestCase):
         )
         # Create and retrieve public keys
         public_key = lti_config.lti_1p3_public_jwk.copy()
-        lti_config.lti_1p3_internal_public_jwk = ""
-        lti_config.save()
+        lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk = ""
+        lti_config.lti_1p3_passport.save()
 
         # Retrieve public key and check that it was correctly regenerated
         regenerated_public_key = lti_config.lti_1p3_public_jwk
@@ -384,11 +388,11 @@ class TestLtiConfigurationModel(TestCase):
 
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
 
-        self.lti_1p3_config_db.lti_1p3_tool_keyset_url = ''
-        self.lti_1p3_config_db.lti_1p3_tool_public_key = ''
+        self.lti_1p3_config_db.lti_1p3_passport.lti_1p3_tool_keyset_url = ''
+        self.lti_1p3_config_db.lti_1p3_passport.lti_1p3_tool_public_key = ''
 
         with self.assertRaises(ValidationError):
-            self.lti_1p3_config_db.clean()
+            self.lti_1p3_config_db.lti_1p3_passport.clean()
 
         self.lti_1p3_config.lti_1p3_proctoring_enabled = True
         self.lti_1p3_config.external_id = 'test_id'
@@ -558,7 +562,7 @@ class TestLtiConfigurationModel(TestCase):
         self.assertEqual(consumer.launch_url, self.xblock.lti_1p3_launch_url)
 
 
-class TestLtiAgsLineItemModel(TestCase):
+class TestLtiAgsLineItemModel(TestBaseWithPatch):
     """
     Unit tests for LtiAgsLineItem model methods.
     """
@@ -583,7 +587,7 @@ class TestLtiAgsLineItemModel(TestCase):
         )
 
 
-class TestLtiAgsScoreModel(TestCase):
+class TestLtiAgsScoreModel(TestBaseWithPatch):
     """
     Unit tests for LtiAgsScore model methods.
     """
@@ -648,7 +652,7 @@ class TestLtiAgsScoreModel(TestCase):
         )
 
 
-class TestLtiDlContentItemModel(TestCase):
+class TestLtiDlContentItemModel(TestBaseWithPatch):
     """
     Unit tests for LtiDlContentItem model methods.
     """
@@ -695,7 +699,7 @@ def lti_consumer_fields_editing_flag(course_id, enabled_for_course=False):
 
 
 @ddt.ddt
-class TestLTIConsumerHideFieldsFlag(TestCase):
+class TestLTIConsumerHideFieldsFlag(TestBaseWithPatch):
     """
     Tests the behavior of the flags for lti consumer fields' editing feature.
     These are set via Django admin settings.

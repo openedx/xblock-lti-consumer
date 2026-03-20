@@ -2,14 +2,15 @@
 Tests for LTI Names and Role Provisioning Service views.
 """
 from unittest.mock import Mock, patch
+
 from Cryptodome.PublicKey import RSA
-from rest_framework.test import APITransactionTestCase
 from rest_framework.reverse import reverse
+from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
-from lti_consumer.tests.test_utils import make_xblock
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
 
 def generate_mock_members(num, role='student'):
@@ -21,9 +22,9 @@ def generate_mock_members(num, role='student'):
     for i in range(num):
         member = {
             'id': i,
-            'username': 'user_{}'.format(i),
-            'email': 'user{}@test.com'.format(i),
-            'name': 'User {}'.format(i)
+            'username': f'user_{i}',
+            'email': f'user{i}@test.com',
+            'name': f'User {i}'
         }
 
         if role == 'student':
@@ -103,7 +104,7 @@ def patch_get_memberships(config=None):
     return _get_memberships
 
 
-class LtiNrpsTestCase(APITransactionTestCase):
+class LtiNrpsTestCase(TestBaseWithPatch, APITransactionTestCase):  # noqa: F821
     """
     Test LtiNrpsViewSet actions
     """
@@ -170,7 +171,7 @@ class LtiNrpsTestCase(APITransactionTestCase):
             "scopes": scopes,
         })
         self.client.credentials(
-            HTTP_AUTHORIZATION="Bearer {}".format(token)
+            HTTP_AUTHORIZATION=f"Bearer {token}"
         )
 
     def _parse_link_headers(self, links):
@@ -240,7 +241,7 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         """
         self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
         response = self.client.get(self.context_membership_endpoint)
-        self.assertEqual(response.data['id'], 'http://testserver{}'.format(self.context_membership_endpoint))
+        self.assertEqual(response.data['id'], f'http://testserver{self.context_membership_endpoint}')
         self.assertEqual(len(response.data['members']), 4)
         self.assertEqual(response.has_header('Link'), False)
 
@@ -268,7 +269,7 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
         response = self.client.get(self.context_membership_endpoint)
 
-        self.assertEqual(response.data['id'], 'http://testserver{}'.format(self.context_membership_endpoint))
+        self.assertEqual(response.data['id'], f'http://testserver{self.context_membership_endpoint}')
         self.assertEqual(len(response.data['members']), 4)
         self.assertEqual(response.has_header('Link'), False)
 

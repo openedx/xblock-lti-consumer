@@ -7,19 +7,24 @@ from unittest.mock import call, patch
 import ddt
 from Cryptodome.PublicKey import RSA
 from django.contrib.auth import get_user_model
-from django.test.testcases import TestCase
 from edx_django_utils.cache import TieredCache, get_cache_key
 
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
-from lti_consumer.lti_1p3.exceptions import (BadJwtSignature, InvalidClaimValue, MalformedJwtToken,
-                                             MissingRequiredClaim, NoSuitableKeys)
+from lti_consumer.lti_1p3.exceptions import (
+    BadJwtSignature,
+    InvalidClaimValue,
+    MalformedJwtToken,
+    MissingRequiredClaim,
+    NoSuitableKeys,
+)
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.models import LtiConfiguration
+from lti_consumer.tests.test_utils import TestBaseWithPatch
 from lti_consumer.utils import get_data_from_cache
 
 
 @ddt.ddt
-class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
+class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestBaseWithPatch):
     """Tests for the start_proctoring_assessment_endpoint endpoint."""
 
     def setUp(self):
@@ -30,8 +35,10 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
         # Set up user.
         self._setup_user()
 
+        self.resource_link_id = "block-v1:course+test+2020+type@problem+block@test"
         # Set up an LtiConfiguration instance for the integration.
         self.lti_config = LtiConfiguration.objects.create(
+            location=self.resource_link_id,
             version=LtiConfiguration.LTI_1P3,
             lti_1p3_proctoring_enabled=True,
             config_store=LtiConfiguration.CONFIG_ON_DB,
@@ -45,7 +52,7 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
         self.private_key = RSA.generate(2048)
         self.public_key = self.private_key.publickey().export_key().decode()
 
-        self.lti_config.lti_1p3_tool_public_key = self.public_key
+        self.lti_config.lti_1p3_passport.lti_1p3_tool_public_key = self.public_key
         self.lti_config.save()
 
     def _setup_user(self):
@@ -61,7 +68,7 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
         self.common_cache_key_arguments = {
             "app": "lti",
             "user_id": self.user.id,
-            "resource_link_id": "resource_link_id",
+            "resource_link_id": self.resource_link_id,
         }
 
         # Cache session_data.
@@ -77,7 +84,7 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
             user_id="1",
             user_role=None,
             config_id=self.lti_config.config_id,
-            resource_link_id="resource_link_id",
+            resource_link_id=self.resource_link_id,
             proctoring_launch_data=proctoring_launch_data,
             context_id="course-v1:testU+DemoX+Demo_Course",
             context_title="http://localhost:2000",
@@ -105,7 +112,7 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
             "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiStartAssessment",
             "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
             "https://purl.imsglobal.org/spec/lti-ap/claim/session_data": "session_data",
-            "https://purl.imsglobal.org/spec/lti/claim/resource_link": {"id": "resource_link_id"},
+            "https://purl.imsglobal.org/spec/lti/claim/resource_link": {"id": self.resource_link_id},
             "https://purl.imsglobal.org/spec/lti-ap/claim/attempt_number": 2,
         }
 
@@ -273,7 +280,7 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestCase):
         expected_call_args = call(
             sender=None,
             attempt_number=2,
-            resource_link={'id': 'resource_link_id'},
+            resource_link={'id': self.resource_link_id},
             user_id=self.user.id,
         )
         self.assertEqual(mock_assessment_started_signal.call_args, expected_call_args)

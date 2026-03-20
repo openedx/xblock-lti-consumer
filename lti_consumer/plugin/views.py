@@ -3,7 +3,7 @@ LTI consumer plugin passthrough views
 """
 import logging
 import sys
-import urllib
+import urllib.parse
 
 import jwt
 from django.conf import settings
@@ -128,20 +128,32 @@ def public_keyset_endpoint(
     external_id = f"{external_app}:{external_slug}"
 
     try:
+        version = None
         public_jwk = {}
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
+            version = lti_config.version
             public_jwk = lti_config.lti_1p3_public_jwk
         elif passport_id:
-            lti_config = Lti1p3Passport.objects.get(passport_id=passport_id)
-            public_jwk = lti_config.lti_1p3_public_jwk
+            lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
+            public_jwk = lti_passport.lti_1p3_public_jwk
+            # TODO: move version inside passport from config
+            # We just need any any lti_config that is using this passport to check version
+            lti_config = LtiConfiguration.objects.filter(lti_1p3_passport=lti_passport).first()
+            version = lti_config.version
         elif external_app and external_slug:
             lti_config = get_external_config_from_filter({}, external_id)
 
             if not lti_config:
                 raise ExternalConfigurationNotFound("External LTI configuration not found")
 
+            version = lti_config.get("version")
             public_jwk = lti_config.get("lti_1p3_public_jwk", {})
+
+        if version is None or version != LtiConfiguration.LTI_1P3:
+            raise LtiError(
+                "LTI Error: LTI 1.1 blocks do not have a public keyset endpoint."
+            )
 
         # Retrieve block's Public JWK
         # The underlying method will generate a new Private-Public Pair if one does
@@ -436,12 +448,18 @@ def access_token_endpoint(
     external_id = f"{external_app}:{external_slug}"
 
     try:
+        version = None
         lti_consumer = None
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
+            version = lti_config.version
             lti_consumer = lti_config.get_lti_consumer()
         elif passport_id:
             lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
+            # TODO: move version inside passport from config
+            # We just need any any lti_config that is using this passport to check version
+            lti_config = LtiConfiguration.objects.filter(lti_1p3_passport=lti_passport).first()
+            version = lti_config.version
             lti_consumer = LtiConsumer1p3(
                 iss=get_lti_api_base(),
                 lti_oidc_url=None,
@@ -460,6 +478,7 @@ def access_token_endpoint(
             if not lti_config:
                 raise ExternalConfigurationNotFound("External LTI configuration not found")
 
+            version = lti_config.get("version")
             # External LTI configurations don't have a get_lti_consumer method
             # so we initialize the LtiConsumer1p3 class using the external config data.
             lti_consumer = LtiConsumer1p3(
@@ -487,6 +506,9 @@ def access_token_endpoint(
             exc_info=True,
         )
         raise Http404 from exc
+
+    if version is None or version != LtiConfiguration.LTI_1P3:
+        return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
 
     if lti_consumer is None:
         return JsonResponse({"error": "lti_consumer_not_initialized"}, status=HTTP_404_NOT_FOUND)
@@ -907,7 +929,7 @@ def start_proctoring_assessment_endpoint(request):
 
     try:
         passport = Lti1p3Passport.objects.filter(lti_1p3_client_id=iss).first()
-        lti_config = LtiConfiguration.objects.get(passport=passport, location=resource_link_id)
+        lti_config = LtiConfiguration.objects.get(lti_1p3_passport=passport, location=resource_link_id)
     except Lti1p3Passport.DoesNotExist:
         log.error(
             "Invalid iss claim '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint callback", iss

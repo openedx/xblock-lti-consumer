@@ -13,10 +13,10 @@ from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
-from lti_consumer.tests.test_utils import make_xblock
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
 
-class LtiAgsLineItemViewSetTestCase(APITransactionTestCase):
+class LtiAgsLineItemViewSetTestCase(TestBaseWithPatch, APITransactionTestCase):
     """
     Test `LtiAgsLineItemViewset` Class.
     """

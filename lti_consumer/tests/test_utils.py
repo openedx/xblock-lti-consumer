@@ -2,16 +2,16 @@
 Utility functions used within unit tests
 """
 
-from unittest.mock import Mock
 import urllib
+from unittest.mock import Mock, patch, MagicMock
 
+from django.test.testcases import TestCase
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LocalId
 from webob import Request
 from workbench.runtime import WorkbenchRuntime
 from xblock.fields import ScopeIds
 from xblock.runtime import DictKeyValueStore, KvsFieldData
-
 
 FAKE_USER_ID = 'fake_user_id'
 
@@ -108,3 +108,29 @@ def get_mock_lti_configuration(editable):
         return_value=editable
     )
     return lti_configuration
+
+
+class TestBaseWithPatch(TestCase):
+    """Base test class that mocks xblock imports"""
+
+    def setUp(self):
+        """Set up mock patches for xblock imports"""
+        self.mock_load_xblock = Mock()
+        self.mock_load_xblock.return_value = getattr(self, 'xblock', None)
+        self.mock_save_xblock = Mock()
+        self.mock_save_xblock.return_value = None
+
+        # Patch the imports
+        self.patcher_load = patch('lti_consumer.plugin.compat.load_enough_xblock', self.mock_load_xblock)
+        self.patcher_save = patch('lti_consumer.plugin.compat.save_xblock', self.mock_save_xblock)
+
+        self.patcher_load.start()
+        self.patcher_save.start()
+
+        super().setUp()
+
+    def tearDown(self):
+        """Clean up patches"""
+        self.patcher_load.stop()
+        self.patcher_save.stop()
+        super().tearDown()
