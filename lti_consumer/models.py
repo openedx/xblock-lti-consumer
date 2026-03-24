@@ -397,7 +397,7 @@ class LtiConfiguration(models.Model):
                     f'Failed to parse main LTI configuration location: {self.location}',
                 )
 
-    def create_lti_1p3_passport(self):
+    def get_or_create_lti_1p3_passport(self):
         """
         Create an LTI 1.3 Passport configuration for this course instance.
         """
@@ -431,7 +431,7 @@ class LtiConfiguration(models.Model):
         """
         Return the passport ID associated with this configuration instance.
         """
-        self.create_lti_1p3_passport()
+        self.get_or_create_lti_1p3_passport()
         return self.lti_1p3_passport.passport_id
 
     @property
@@ -439,7 +439,7 @@ class LtiConfiguration(models.Model):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.
         """
-        self.create_lti_1p3_passport()
+        self.get_or_create_lti_1p3_passport()
         return self.lti_1p3_passport.lti_1p3_private_key
 
     @property
@@ -447,7 +447,7 @@ class LtiConfiguration(models.Model):
         """
         Return the platform's private key ID used in LTI 1.3 authentication flows.
         """
-        self.create_lti_1p3_passport()
+        self.get_or_create_lti_1p3_passport()
         return self.lti_1p3_passport.lti_1p3_private_key_id
 
     @property
@@ -455,7 +455,7 @@ class LtiConfiguration(models.Model):
         """
         Return the platform's public keys used in LTI 1.3 authentication flows.
         """
-        self.create_lti_1p3_passport()
+        self.get_or_create_lti_1p3_passport()
         return self.lti_1p3_passport.lti_1p3_public_jwk
 
     @property
@@ -463,7 +463,7 @@ class LtiConfiguration(models.Model):
         """
         Return platform client id from passport
         """
-        self.create_lti_1p3_passport()
+        self.get_or_create_lti_1p3_passport()
         return self.lti_1p3_passport.lti_1p3_client_id
 
     @property
@@ -471,7 +471,7 @@ class LtiConfiguration(models.Model):
         """
         Return tool keyset url from passport
         """
-        self.create_lti_1p3_passport()
+        self.get_or_create_lti_1p3_passport()
         return self.lti_1p3_passport.lti_1p3_tool_keyset_url
 
     @property
@@ -479,7 +479,7 @@ class LtiConfiguration(models.Model):
         """
         Return tool public key from passport
         """
-        self.create_lti_1p3_passport()
+        self.get_or_create_lti_1p3_passport()
         return self.lti_1p3_passport.lti_1p3_tool_public_key
 
     @cached_property

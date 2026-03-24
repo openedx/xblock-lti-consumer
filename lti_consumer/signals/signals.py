@@ -86,7 +86,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
 
 @receiver(post_save, sender=LtiConfiguration, dispatch_uid='create_lti_1p3_passport')
 def create_lti_1p3_passport(sender, instance: LtiConfiguration, **kwargs):  # pylint: disable=unused-argument
-    instance.create_lti_1p3_passport()
+    instance.get_or_create_lti_1p3_passport()
 
 
 @receiver(SignalHandler.pre_item_delete if SignalHandler else [])

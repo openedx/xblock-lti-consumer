@@ -119,9 +119,7 @@ def load_enough_xblock(location: UsageKey):  # pragma: nocover
 
 def save_xblock(block):  # pragma: nocover
     """
-    Load enough of an xblock to read from for LTI values stored on the block.
-    The block may or may not be bound to the user for actual use depending on
-    what has happened in the request so far.
+    Save xblock in modulestore or contentstore.
     """
     # pylint: disable=import-error,import-outside-toplevel
     from openedx.core.djangoapps.xblock import api as xblock_api
