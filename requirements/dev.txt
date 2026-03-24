@@ -12,7 +12,7 @@ asgiref==3.11.1
     # via
     #   -r requirements/base.txt
     #   django
-attrs==25.4.0
+attrs==26.1.0
     # via -r requirements/base.txt
 bleach==6.3.0
     # via -r requirements/base.txt
@@ -42,7 +42,7 @@ django-appconf==1.2.0
     # via
     #   -r requirements/base.txt
     #   django-statici18n
-django-config-models==2.9.0
+django-config-models==3.0.0
     # via -r requirements/base.txt
 django-crum==0.7.9
     # via
@@ -50,13 +50,13 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==25.2
     # via -r requirements/base.txt
-django-statici18n==2.6.0
+django-statici18n==2.7.1
     # via -r requirements/base.txt
 django-waffle==5.0.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-djangorestframework==3.16.1
+djangorestframework==3.17.0
     # via
     #   -r requirements/base.txt
     #   django-config-models
@@ -70,7 +70,7 @@ edx-django-utils==8.0.1
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-i18n-tools==1.9.0
+edx-i18n-tools==2.0.0
     # via -r requirements/dev.in
 edx-opaque-keys[django]==3.1.0
     # via
@@ -120,7 +120,7 @@ pycparser==3.0
     #   cffi
 pycryptodomex==3.23.0
     # via -r requirements/base.txt
-pyjwt==2.11.0
+pyjwt==2.12.1
     # via -r requirements/base.txt
 pymongo==4.16.0
     # via
@@ -166,7 +166,7 @@ typing-extensions==4.15.0
     # via
     #   -r requirements/base.txt
     #   edx-opaque-keys
-web-fragments==3.1.0
+web-fragments==4.0.0
     # via
     #   -r requirements/base.txt
     #   xblock

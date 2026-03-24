@@ -25,24 +25,24 @@ astroid==4.0.4
     #   -r requirements/test.txt
     #   pylint
     #   pylint-celery
-attrs==25.4.0
+attrs==26.1.0
     # via -r requirements/test.txt
-binaryornot==0.5.0
+binaryornot==0.6.0
     # via
     #   -r requirements/test.txt
     #   cookiecutter
 bleach==6.3.0
     # via -r requirements/test.txt
-boto3==1.42.63
+boto3==1.42.74
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.42.63
+botocore==1.42.74
     # via
     #   -r requirements/test.txt
     #   boto3
     #   s3transfer
-cachetools==7.0.3
+cachetools==7.0.5
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -55,7 +55,7 @@ cffi==2.0.0
     #   -r requirements/test.txt
     #   cryptography
     #   pynacl
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
     # via
     #   -r requirements/test.txt
     #   requests
@@ -72,7 +72,7 @@ click-log==0.4.0
     # via
     #   -r requirements/test.txt
     #   edx-lint
-code-annotations==2.3.2
+code-annotations==3.0.0
     # via
     #   -r requirements/test.txt
     #   edx-lint
@@ -84,7 +84,7 @@ cookiecutter==2.7.1
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
-coverage[toml]==7.13.4
+coverage[toml]==7.13.5
     # via
     #   -r requirements/test.txt
     #   coveralls
@@ -123,7 +123,7 @@ django-appconf==1.2.0
     # via
     #   -r requirements/test.txt
     #   django-statici18n
-django-config-models==2.9.0
+django-config-models==3.0.0
     # via -r requirements/test.txt
 django-crum==0.7.9
     # via
@@ -131,13 +131,13 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==25.2
     # via -r requirements/test.txt
-django-statici18n==2.6.0
+django-statici18n==2.7.1
     # via -r requirements/test.txt
 django-waffle==5.0.0
     # via
     #   -r requirements/test.txt
     #   edx-django-utils
-djangorestframework==3.16.1
+djangorestframework==3.17.0
     # via
     #   -r requirements/test.txt
     #   django-config-models
@@ -155,14 +155,14 @@ edx-django-utils==8.0.1
     # via
     #   -r requirements/test.txt
     #   django-config-models
-edx-lint==5.6.0
+edx-lint==6.0.0
     # via -r requirements/test.txt
 edx-opaque-keys[django]==3.1.0
     # via
     #   -r requirements/test.txt
     #   edx-ccx-keys
     #   openedx-filters
-filelock==3.25.0
+filelock==3.25.2
     # via
     #   -r requirements/tox.txt
     #   python-discovery
@@ -193,7 +193,7 @@ jaraco-classes==3.4.0
     # via
     #   -r requirements/test.txt
     #   keyring
-jaraco-context==6.1.1
+jaraco-context==6.1.2
     # via
     #   -r requirements/test.txt
     #   keyring
@@ -302,7 +302,7 @@ pygments==2.19.2
     #   -r requirements/test.txt
     #   readme-renderer
     #   rich
-pyjwt==2.11.0
+pyjwt==2.12.1
     # via -r requirements/test.txt
 pylint==4.0.5
     # via
@@ -346,7 +346,7 @@ python-dateutil==2.9.0.post0
     #   arrow
     #   botocore
     #   xblock
-python-discovery==1.1.1
+python-discovery==1.2.0
     # via
     #   -r requirements/tox.txt
     #   virtualenv
@@ -439,7 +439,7 @@ tomlkit==0.14.0
     # via
     #   -r requirements/test.txt
     #   pylint
-tox==4.49.0
+tox==4.50.3
     # via -r requirements/tox.txt
 twine==6.2.0
     # via -r requirements/test.txt
@@ -462,11 +462,11 @@ urllib3==1.26.20
     #   botocore
     #   requests
     #   twine
-virtualenv==21.1.0
+virtualenv==21.2.0
     # via
     #   -r requirements/tox.txt
     #   tox
-web-fragments==3.1.0
+web-fragments==4.0.0
     # via
     #   -r requirements/test.txt
     #   xblock
