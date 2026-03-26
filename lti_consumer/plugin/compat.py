@@ -353,7 +353,7 @@ def nrps_pii_disallowed():
             settings.LTI_NRPS_DISALLOW_PII is True)
 
 
-def get_signal_handler():
+def get_signal_handler():  # pragma: nocover
     """
     Import the signal handler from LMS
     """
@@ -365,7 +365,7 @@ def get_signal_handler():
         return None
 
 
-def yield_dynamic_block_descendants(block, user_id):
+def yield_dynamic_block_descendants(block, user_id):  # pragma: nocover
     """
     Import and run `yield_dynamic_block_descendants` from LMS
     """

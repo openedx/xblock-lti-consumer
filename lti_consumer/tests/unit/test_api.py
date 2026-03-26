@@ -8,6 +8,7 @@ import ddt
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from edx_django_utils.cache import get_cache_key
+from opaque_keys.edx.keys import UsageKey
 
 from lti_consumer.api import (
     _get_config_by_config_id,
@@ -22,7 +23,7 @@ from lti_consumer.api import (
 )
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiConfiguration, LtiDlContentItem
+from lti_consumer.models import Lti1p3Passport, LtiConfiguration, LtiDlContentItem
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 from lti_consumer.utils import get_data_from_cache
 
@@ -61,6 +62,7 @@ class Lti1P3TestCase(TestBaseWithPatch):
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attributes)
         self.location = self.xblock.scope_ids.usage_id
+        self.other_location = UsageKey.from_string("block-v1:course+101+2024+type@lti_consumer+block@test")
 
 
 @ddt.ddt
@@ -208,6 +210,149 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.assertEqual(str(lti_config.location), str(self.location))
         self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
         self.assertEqual(lti_config.external_id, None)
+
+    def test_passport_created_on_first_call(self):
+        """
+        Check if a passport is created when none exists.
+        """
+        lti_version = LtiConfiguration.LTI_1P3
+
+        lti_config = get_or_create_local_lti_config(
+            lti_version=lti_version,
+            block=self.xblock
+        )
+
+        self.assertIsNotNone(lti_config.lti_1p3_passport)
+
+    def test_passport_updated_when_single_use(self):
+        """
+        Check if passport is updated when it's only used by one config.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='old_key',
+            lti_1p3_tool_keyset_url='old_url'
+        )
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport
+        )
+
+        self.xblock.lti_1p3_tool_public_key = 'new_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
+
+        get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        passport.refresh_from_db()
+        self.assertEqual(passport.lti_1p3_tool_public_key, 'new_key')
+        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'new_url')
+
+    def test_new_passport_created_on_key_conflict(self):
+        """
+        Check if a new passport is created when block key differs and passport is shared.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='shared_key',
+            lti_1p3_tool_keyset_url='shared_url'
+        )
+        # Create two configs sharing the passport
+        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=passport)
+        LtiConfiguration.objects.create(location=self.other_location, lti_1p3_passport=passport)
+
+        self.xblock.lti_1p3_tool_key_mode = 'public_key'
+        self.xblock.lti_1p3_tool_public_key = 'new_key'
+
+        get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        # Original passport unchanged
+        passport.refresh_from_db()
+        self.assertEqual(passport.lti_1p3_tool_public_key, 'shared_key')
+
+        # Block has new passport
+        self.assertNotEqual(self.xblock.lti_1p3_passport_id, str(passport.passport_id))
+
+    def test_passport_unchanged_when_keys_match(self):
+        """
+        Check if passport is not updated when block keys already match.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='matching_key',
+            lti_1p3_tool_keyset_url='matching_url'
+        )
+        lti_config = LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport
+        )
+
+        self.xblock.lti_1p3_tool_public_key = 'matching_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
+
+        original_passport_id = passport.passport_id
+
+        get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        # Same passport used
+        self.assertEqual(Lti1p3Passport.objects.count(), 1)
+        lti_config.refresh_from_db()
+        self.assertEqual(str(lti_config.lti_1p3_passport.passport_id), str(original_passport_id))
+
+    @ddt.data(
+        ('public_key', 'lti_1p3_tool_public_key'),
+        ('keyset_url', 'lti_1p3_tool_keyset_url')
+    )
+    @ddt.unpack
+    def test_new_passport_on_key_mode_change(self, key_mode, key_field):
+        """
+        Check if a new passport is created when key_mode-specific field changes.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='old_key',
+            lti_1p3_tool_keyset_url='old_url'
+        )
+        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=passport)
+        LtiConfiguration.objects.create(location=self.other_location, lti_1p3_passport=passport)
+
+        self.xblock.lti_1p3_tool_key_mode = key_mode
+        setattr(self.xblock, key_field, 'new_value')
+
+        get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        self.assertEqual(Lti1p3Passport.objects.count(), 2)
+
+    def test_passport_updated_when_fields_empty(self):
+        """
+        Check if passport is updated when both key fields are empty.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='',
+            lti_1p3_tool_keyset_url=''
+        )
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport
+        )
+
+        self.xblock.lti_1p3_tool_public_key = 'new_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
+
+        get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        passport.refresh_from_db()
+        self.assertEqual(passport.lti_1p3_tool_public_key, 'new_key')
 
 
 @ddt.ddt

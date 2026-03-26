@@ -4,5 +4,3 @@ data_file = .coverage
 source = lti_consumer
 omit =
     */urls.py
-    lti_consumer/migrations/*
-    lti_consumer/plugin/compat.py

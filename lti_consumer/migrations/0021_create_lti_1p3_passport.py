@@ -7,7 +7,7 @@ This will help us link xblocks with LtiConsumer database rows without relying on
 from django.db import migrations
 
 
-def create_lti_1p3_passport(apps, _):
+def create_lti_1p3_passport(apps, _):  # pragma: nocover
     """Copy config_id from LtiConsumer to LtiConsumerXBlock."""
     from lti_consumer.plugin.compat import load_enough_xblock, save_xblock  # pylint: disable=import-outside-toplevel
     from lti_consumer.utils import model_to_dict  # pylint: disable=import-outside-toplevel

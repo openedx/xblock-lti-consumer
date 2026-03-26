@@ -24,13 +24,13 @@ class LtiConfigurationInline(admin.TabularInline):
     can_delete = False
     fields = ('location',)
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(self, request, obj=None):  # pragma: nocover
         return False
 
-    def has_delete_permission(self, request, obj=None):
+    def has_delete_permission(self, request, obj=None):  # pragma: nocover
         return False
 
-    def has_add_permission(self, request, obj=None):
+    def has_add_permission(self, request, obj=None):  # pragma: nocover
         return False
 
 
