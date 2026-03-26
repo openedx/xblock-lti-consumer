@@ -928,13 +928,10 @@ def start_proctoring_assessment_endpoint(request):
     resource_link_id = decoded_jwt.get('https://purl.imsglobal.org/spec/lti/claim/resource_link', {}).get('id')
 
     try:
-        passport = Lti1p3Passport.objects.filter(lti_1p3_client_id=iss).first()
-        lti_config = LtiConfiguration.objects.get(lti_1p3_passport=passport, location=resource_link_id)
-    except Lti1p3Passport.DoesNotExist:
-        log.error(
-            "Invalid iss claim '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint callback", iss
+        lti_config = LtiConfiguration.objects.get(
+            lti_1p3_passport__lti_1p3_client_id=iss,
+            location=resource_link_id
         )
-        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_404_NOT_FOUND)
     except LtiConfiguration.DoesNotExist:
         log.error(
             "Invalid resource_link id '%s' for LTI 1.3 Proctoring Services start_proctoring_assessment_endpoint",
