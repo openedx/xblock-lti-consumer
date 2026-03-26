@@ -6,6 +6,7 @@ return plaintext to allow easy testing/mocking.
 """
 
 import json
+import logging
 
 from opaque_keys.edx.keys import CourseKey
 
@@ -22,6 +23,8 @@ from .utils import (
     get_lti_1p3_context_types_claim,
     get_lti_deeplinking_content_url,
 )
+
+log = logging.getLogger(__name__)
 
 
 def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
@@ -48,9 +51,12 @@ def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigura
             passport.lti_1p3_tool_public_key = str(block.lti_1p3_tool_public_key)
             passport.lti_1p3_tool_keyset_url = str(block.lti_1p3_tool_keyset_url)
             passport.save()
+            log.info("Updated LTI passport for %s to match block fields", block.scope_ids.usage_id)
         elif (
-            passport.lti_1p3_tool_public_key != str(block.lti_1p3_tool_public_key) or
-            passport.lti_1p3_tool_keyset_url != str(block.lti_1p3_tool_keyset_url)
+            (block.lti_1p3_tool_key_mode == 'public_key' and
+            passport.lti_1p3_tool_public_key != str(block.lti_1p3_tool_public_key)) or
+            (block.lti_1p3_tool_key_mode == 'keyset_url' and
+            passport.lti_1p3_tool_keyset_url != str(block.lti_1p3_tool_keyset_url))
         ):
             # tool public key or url has changed, we create a new passport to avoid conflicts
             # with the existing configuration
@@ -60,6 +66,7 @@ def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigura
             )
             block.lti_1p3_passport_id = str(passport.passport_id)
             block.save()
+            log.info("Created new LTI passport for %s with new keyset and public key", block.scope_ids.usage_id)
             save_xblock(block)
 
     lti_config.config_store = config_store
