@@ -53,10 +53,11 @@ def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigura
             passport.save()
             log.info("Updated LTI passport for %s to match block fields", block.scope_ids.usage_id)
         elif (
-            (block.lti_1p3_tool_key_mode == 'public_key' and
-            passport.lti_1p3_tool_public_key != str(block.lti_1p3_tool_public_key)) or
-            (block.lti_1p3_tool_key_mode == 'keyset_url' and
-            passport.lti_1p3_tool_keyset_url != str(block.lti_1p3_tool_keyset_url))
+            block.lti_1p3_tool_key_mode == 'public_key' and
+            passport.lti_1p3_tool_public_key != str(block.lti_1p3_tool_public_key)
+        ) or (
+            block.lti_1p3_tool_key_mode == 'keyset_url' and
+            passport.lti_1p3_tool_keyset_url != str(block.lti_1p3_tool_keyset_url)
         ):
             # tool public key or url has changed, we create a new passport to avoid conflicts
             # with the existing configuration
