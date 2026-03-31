@@ -32,6 +32,8 @@ class PublishGradeOnScoreUpdateTest(TestCase):
 
         # Patch internal method to avoid calls to modulestore
         self._block_mock = Mock()
+        self._block_mock.display_name = "consumer"
+        self._block_mock.context_id = "some-context-id"
         compat_mock = patch("lti_consumer.models.compat")
         self.addCleanup(compat_mock.stop)
         self._compat_mock = compat_mock.start()

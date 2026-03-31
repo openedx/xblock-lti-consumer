@@ -50,6 +50,9 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
             'lti_advantage_deep_linking_enabled': True,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        self.xblock_1 = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        self.xblock_2 = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        self.xblock_3 = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
         patcher = patch(
             'lti_consumer.plugin.compat.load_enough_xblock',
@@ -65,12 +68,12 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         )
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
-            location=self.xblock.scope_ids.usage_id,
+            location=self.xblock_1.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3
         )
 
         self.lti_1p3_config_db = LtiConfiguration.objects.create(
-            location=self.xblock.scope_ids.usage_id,
+            location=self.xblock_2.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
             lti_advantage_ags_mode='programmatic',
@@ -80,7 +83,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         self.lti_1p3_config_external = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_EXTERNAL,
-            location=self.xblock.scope_ids.usage_id,
+            location=self.xblock_3.scope_ids.usage_id,
         )
 
         self.lti_1p1_external = LtiConfiguration.objects.create(
@@ -93,11 +96,13 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         """
         Helper function to create a LtiConfiguration object with specific attributes
         """
-        return LtiConfiguration.objects.create(
-            location=self.xblock.scope_ids.usage_id,
-            version=LtiConfiguration.LTI_1P3,
-            **kwargs
+        defaults = kwargs
+        defaults["version"] = LtiConfiguration.LTI_1P3
+        config, _ = LtiConfiguration.objects.update_or_create(
+            location=self.xblock_1.scope_ids.usage_id,
+            defaults=defaults,
         )
+        return config
 
     @patch("lti_consumer.models.LtiConfiguration._get_lti_1p3_consumer")
     @patch("lti_consumer.models.LtiConfiguration._get_lti_1p1_consumer")
