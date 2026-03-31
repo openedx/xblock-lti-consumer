@@ -423,12 +423,12 @@ class LtiConfiguration(models.Model):
                 else:
                     log.info("Existing LTI 1.3 Passport %s found for %s", passport, self)
             else:
-                passport = Lti1p3Passport.objects.create(
-                    name=f"Passport of {block.display_name}",
-                    context_key=block.context_id,
-                )
+                passport = Lti1p3Passport.objects.create()
                 log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
                 if block:
+                    passport.name = f"Passport of {block.display_name}"
+                    passport.context_key = block.context_id
+                    passport.save()
                     block.lti_1p3_passport_id = str(passport.passport_id)
                     block.save()
                     compat.save_xblock(block)
