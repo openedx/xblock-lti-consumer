@@ -52,6 +52,8 @@ class Lti1p3Passport(models.Model):
     """
     Model to store LTI 1.3 keys.
     """
+    name = models.CharField(max_length=255, null=True, blank=True)
+    context_key = models.CharField(max_length=255, null=True, blank=True)
     passport_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
 
     lti_1p3_internal_private_key = models.TextField(
@@ -148,7 +150,7 @@ class Lti1p3Passport(models.Model):
         return json.loads(self.lti_1p3_internal_public_jwk)
 
     def __str__(self):
-        return f'Lti1p3Passport: {self.passport_id}'
+        return f'Lti1p3Passport: {self.name} - {self.passport_id}'
 
     def clean(self):
         if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
@@ -225,6 +227,8 @@ class LtiConfiguration(models.Model):
         db_index=True,
         null=True,
         blank=True,
+        # Duplicate fails if not unique.
+        unique=True,
     )
 
     # This is where the configuration is stored in the model if stored on this model.
@@ -407,13 +411,22 @@ class LtiConfiguration(models.Model):
             if self.location:
                 block = compat.load_enough_xblock(self.location)
             if self.location and block and block.lti_1p3_passport_id:
-                passport, created = Lti1p3Passport.objects.get_or_create(passport_id=block.lti_1p3_passport_id)
+                passport, created = Lti1p3Passport.objects.get_or_create(
+                    passport_id=block.lti_1p3_passport_id,
+                    defaults={
+                        "name": f"Passport of {block.display_name}",
+                        "context_key": block.context_id,
+                    }
+                )
                 if created:
                     log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
                 else:
                     log.info("Existing LTI 1.3 Passport %s found for %s", passport, self)
             else:
-                passport = Lti1p3Passport.objects.create()
+                passport = Lti1p3Passport.objects.create(
+                    name=f"Passport of {block.display_name}",
+                    context_key=block.context_id,
+                )
                 log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
                 if block:
                     block.lti_1p3_passport_id = str(passport.passport_id)

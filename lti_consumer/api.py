@@ -64,6 +64,8 @@ def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigura
             passport = Lti1p3Passport.objects.create(
                 lti_1p3_tool_public_key=str(block.lti_1p3_tool_public_key),
                 lti_1p3_tool_keyset_url=str(block.lti_1p3_tool_keyset_url),
+                name=f"Passport of {block.display_name}",
+                context_key=block.context_id,
             )
             block.lti_1p3_passport_id = str(passport.passport_id)
             block.save()

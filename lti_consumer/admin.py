@@ -49,7 +49,12 @@ class Lti1p3PassportAdmin(admin.ModelAdmin):
     """
     Admin view for Lti1p3Passport models.
     """
-    list_display = ('passport_id', 'lti_1p3_client_id')
+    list_display = (
+        'name',
+        'context_key',
+        'passport_id',
+        'lti_1p3_client_id',
+    )
     inlines = [LtiConfigurationInline]
 
 
