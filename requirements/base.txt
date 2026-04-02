@@ -8,7 +8,7 @@ appdirs==1.4.4
     # via fs
 asgiref==3.11.1
     # via django
-attrs==25.4.0
+attrs==26.1.0
     # via -r requirements/base.in
 bleach==6.3.0
     # via -r requirements/base.in
@@ -16,9 +16,8 @@ cffi==2.0.0
     # via pynacl
 click==8.3.1
     # via edx-django-utils
-django==5.2.12
+django==6.0.3
     # via
-    #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
     #   django-appconf
     #   django-config-models
@@ -32,17 +31,17 @@ django==5.2.12
     #   openedx-filters
 django-appconf==1.2.0
     # via django-statici18n
-django-config-models==2.9.0
+django-config-models==3.0.0
     # via -r requirements/base.in
 django-crum==0.7.9
     # via edx-django-utils
 django-filter==25.2
     # via -r requirements/base.in
-django-statici18n==2.6.0
+django-statici18n==2.7.1
     # via -r requirements/base.in
 django-waffle==5.0.0
     # via edx-django-utils
-djangorestframework==3.16.1
+djangorestframework==3.17.1
     # via django-config-models
 dnspython==2.8.0
     # via pymongo
@@ -75,7 +74,7 @@ markupsafe==3.0.3
     #   xblock
 oauthlib==3.3.1
     # via -r requirements/base.in
-openedx-filters==2.1.0
+openedx-filters==3.0.0
     # via -r requirements/base.in
 psutil==7.2.2
     # via edx-django-utils
@@ -83,7 +82,7 @@ pycparser==3.0
     # via cffi
 pycryptodomex==3.23.0
     # via -r requirements/base.in
-pyjwt==2.11.0
+pyjwt==2.12.1
     # via -r requirements/base.in
 pymongo==4.16.0
     # via edx-opaque-keys
@@ -110,13 +109,13 @@ stevedore==5.7.0
     #   edx-opaque-keys
 typing-extensions==4.15.0
     # via edx-opaque-keys
-web-fragments==3.1.0
+web-fragments==4.0.0
     # via xblock
 webencodings==0.5.1
     # via bleach
 webob==1.8.9
     # via xblock
-xblock==5.3.0
+xblock==6.0.0
     # via -r requirements/base.in
 
 # The following packages are considered to be unsafe in a requirements file:

@@ -20,15 +20,15 @@ astroid==4.0.4
     # via
     #   pylint
     #   pylint-celery
-attrs==25.4.0
+attrs==26.1.0
     # via -r requirements/base.txt
-binaryornot==0.5.0
+binaryornot==0.6.0
     # via cookiecutter
 bleach==6.3.0
     # via -r requirements/base.txt
-boto3==1.42.63
+boto3==1.42.79
     # via fs-s3fs
-botocore==1.42.63
+botocore==1.42.79
     # via
     #   boto3
     #   s3transfer
@@ -39,7 +39,7 @@ cffi==2.0.0
     #   -r requirements/base.txt
     #   cryptography
     #   pynacl
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
     # via requests
 click==8.3.1
     # via
@@ -52,15 +52,15 @@ click==8.3.1
     #   typer
 click-log==0.4.0
     # via edx-lint
-code-annotations==2.3.2
+code-annotations==3.0.0
     # via edx-lint
 cookiecutter==2.7.1
     # via xblock-sdk
-coverage[toml]==7.13.4
+coverage[toml]==7.13.5
     # via coveralls
 coveralls==4.1.0
     # via -r requirements/test.in
-cryptography==46.0.5
+cryptography==46.0.6
     # via
     #   -r requirements/test.in
     #   secretstorage
@@ -69,7 +69,6 @@ ddt==1.7.2
 dill==0.4.1
     # via pylint
     # via
-    #   -c requirements/common_constraints.txt
     #   -r requirements/base.txt
     #   django-appconf
     #   django-config-models
@@ -86,7 +85,7 @@ django-appconf==1.2.0
     # via
     #   -r requirements/base.txt
     #   django-statici18n
-django-config-models==2.9.0
+django-config-models==3.0.0
     # via -r requirements/base.txt
 django-crum==0.7.9
     # via
@@ -94,13 +93,13 @@ django-crum==0.7.9
     #   edx-django-utils
 django-filter==25.2
     # via -r requirements/base.txt
-django-statici18n==2.6.0
+django-statici18n==2.7.1
     # via -r requirements/base.txt
 django-waffle==5.0.0
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-djangorestframework==3.16.1
+djangorestframework==3.17.1
     # via
     #   -r requirements/base.txt
     #   -r requirements/test.in
@@ -117,7 +116,7 @@ edx-django-utils==8.0.1
     # via
     #   -r requirements/base.txt
     #   django-config-models
-edx-lint==5.6.0
+edx-lint==6.0.0
     # via -r requirements/test.in
 edx-opaque-keys[django]==3.1.0
     # via
@@ -139,7 +138,7 @@ isort==8.0.1
     # via pylint
 jaraco-classes==3.4.0
     # via keyring
-jaraco-context==6.1.1
+jaraco-context==6.1.2
     # via keyring
 jaraco-functools==4.4.0
     # via keyring
@@ -188,11 +187,11 @@ more-itertools==10.8.0
     # via
     #   jaraco-classes
     #   jaraco-functools
-nh3==0.3.3
+nh3==0.3.4
     # via readme-renderer
 oauthlib==3.3.1
     # via -r requirements/base.txt
-openedx-filters==2.1.0
+openedx-filters==3.0.0
     # via -r requirements/base.txt
 packaging==26.0
     # via twine
@@ -210,11 +209,11 @@ pycparser==3.0
     #   cffi
 pycryptodomex==3.23.0
     # via -r requirements/base.txt
-pygments==2.19.2
+pygments==2.20.0
     # via
     #   readme-renderer
     #   rich
-pyjwt==2.11.0
+pyjwt==2.12.1
     # via -r requirements/base.txt
 pylint==4.0.5
     # via
@@ -264,7 +263,7 @@ readme-renderer==44.0
     # via
     #   -r requirements/test.in
     #   twine
-requests==2.32.5
+requests==2.33.1
     # via
     #   cookiecutter
     #   coveralls
@@ -330,7 +329,7 @@ urllib3==1.26.20
     #   botocore
     #   requests
     #   twine
-web-fragments==3.1.0
+web-fragments==4.0.0
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -344,11 +343,11 @@ webob==1.8.9
     #   -r requirements/base.txt
     #   xblock
     #   xblock-sdk
-xblock==5.3.0
+xblock==6.0.0
     # via
     #   -r requirements/base.txt
     #   xblock-sdk
-xblock-sdk==0.13.0
+xblock-sdk==0.14.0
     # via -r requirements/test.in
 
 # The following packages are considered to be unsafe in a requirements file:
