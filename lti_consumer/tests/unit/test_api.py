@@ -18,7 +18,7 @@ from lti_consumer.api import (
     get_lti_1p3_content_url,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
-    get_or_create_local_lti_config,
+    _get_or_create_local_lti_config,
     validate_lti_1p3_launch_data,
 )
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
@@ -122,7 +122,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.assertEqual(LtiConfiguration.objects.all().count(), 0)
 
         # Call API
-        lti_config = get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_config(
             lti_version=lti_version,
             block=self.xblock
         )
@@ -144,7 +144,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         )
 
         # Call API
-        lti_config_retrieved = get_or_create_local_lti_config(
+        lti_config_retrieved = _get_or_create_local_lti_config(
             lti_version=lti_version,
             block=self.xblock
         )
@@ -163,7 +163,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         )
 
         # Call API
-        get_or_create_local_lti_config(
+        _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block=self.xblock
         )
@@ -179,7 +179,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         the config_store field of the LtiConfiguration model appropriately.
         """
         lti_version = LtiConfiguration.LTI_1P3
-        lti_config = get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_config(
             lti_version=lti_version,
             block=self.xblock,
             config_store=config_store,
@@ -200,7 +200,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
             external_id="test_plugin:test-id"
         )
 
-        get_or_create_local_lti_config(
+        _get_or_create_local_lti_config(
             lti_version=lti_version,
             block=self.xblock,
         )
@@ -217,10 +217,11 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         """
         lti_version = LtiConfiguration.LTI_1P3
 
-        lti_config = get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_config(
             lti_version=lti_version,
             block=self.xblock
         )
+        lti_config.refresh_from_db()
 
         self.assertIsNotNone(lti_config.lti_1p3_passport)
 
@@ -240,7 +241,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.xblock.lti_1p3_tool_public_key = 'new_key'
         self.xblock.lti_1p3_tool_keyset_url = 'new_url'
 
-        get_or_create_local_lti_config(
+        _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block=self.xblock
         )
@@ -264,7 +265,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.xblock.lti_1p3_tool_key_mode = 'public_key'
         self.xblock.lti_1p3_tool_public_key = 'new_key'
 
-        get_or_create_local_lti_config(
+        _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block=self.xblock
         )
@@ -294,7 +295,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
 
         original_passport_id = passport.passport_id
 
-        get_or_create_local_lti_config(
+        _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block=self.xblock
         )
@@ -323,7 +324,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.xblock.lti_1p3_tool_key_mode = key_mode
         setattr(self.xblock, key_field, 'new_value')
 
-        get_or_create_local_lti_config(
+        _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block=self.xblock
         )
@@ -346,7 +347,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.xblock.lti_1p3_tool_public_key = 'new_key'
         self.xblock.lti_1p3_tool_keyset_url = 'new_url'
 
-        get_or_create_local_lti_config(
+        _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block=self.xblock
         )
@@ -572,6 +573,7 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
 
         # Call and check returns
         launch_info = get_lti_1p3_launch_info(launch_data)
+        lti_config.refresh_from_db()
 
         # Not checking all data here, there's a test specific for that
         self.assertEqual(launch_info['client_id'], lti_config.lti_1p3_client_id)
@@ -622,6 +624,7 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
             version=LtiConfiguration.LTI_1P3,
             config_id=_test_config_id,
         )
+        lti_config.refresh_from_db()
         LtiDlContentItem.objects.create(
             lti_configuration=lti_config,
             content_type=LtiDlContentItem.IMAGE,
