@@ -29,10 +29,6 @@ attrs==26.1.0
     # via
     #   -r requirements/test.txt
     #   openedx-events
-backports-tarfile==1.2.0
-    # via
-    #   -r requirements/test.txt
-    #   jaraco-context
 binaryornot==0.6.0
     # via
     #   -r requirements/test.txt
@@ -200,10 +196,6 @@ idna==3.11
     # via
     #   -r requirements/test.txt
     #   requests
-importlib-metadata==8.8.0
-    # via
-    #   -r requirements/test.txt
-    #   keyring
 isort==8.0.1
     # via
     #   -r requirements/test.txt
@@ -283,7 +275,7 @@ nh3==0.3.4
     #   readme-renderer
 oauthlib==3.3.1
     # via -r requirements/test.txt
-openedx-events==10.5.0
+openedx-events==11.1.0
     # via -r requirements/test.txt
 openedx-filters==3.0.0
     # via -r requirements/test.txt
@@ -508,10 +500,6 @@ xblock==6.0.0
     #   xblock-sdk
 xblock-sdk==0.14.0
     # via -r requirements/test.txt
-zipp==3.23.0
-    # via
-    #   -r requirements/test.txt
-    #   importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

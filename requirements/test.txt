@@ -24,8 +24,6 @@ attrs==26.1.0
     # via
     #   -r requirements/base.txt
     #   openedx-events
-backports-tarfile==1.2.0
-    # via jaraco-context
 binaryornot==0.6.0
     # via cookiecutter
 bleach==6.3.0
@@ -148,8 +146,6 @@ id==1.5.0
     # via twine
 idna==3.11
     # via requests
-importlib-metadata==8.8.0
-    # via keyring
 isort==8.0.1
     # via pylint
 jaraco-classes==3.4.0
@@ -207,7 +203,7 @@ nh3==0.3.4
     # via readme-renderer
 oauthlib==3.3.1
     # via -r requirements/base.txt
-openedx-events==10.5.0
+openedx-events==11.1.0
     # via -r requirements/base.txt
 openedx-filters==3.0.0
     # via -r requirements/base.txt
@@ -367,8 +363,6 @@ xblock==6.0.0
     #   xblock-sdk
 xblock-sdk==0.14.0
     # via -r requirements/test.in
-zipp==3.23.0
-    # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
