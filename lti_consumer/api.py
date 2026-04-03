@@ -69,7 +69,7 @@ def _ensure_lti_passport(block, lti_config):
     return passport
 
 
-def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
+def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
     """
     Retrieve or create an LtiConfiguration for the block.
 
@@ -114,7 +114,7 @@ def _get_lti_config_for_block(block):
     bits of configuration.
     """
     if block.config_type == 'database':
-        lti_config = get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_config(
             block.lti_version,
             block,
             LtiConfiguration.CONFIG_ON_DB,
@@ -124,13 +124,13 @@ def _get_lti_config_for_block(block):
             {"course_key": block.scope_ids.usage_id.context_key},
             block.external_config
         )
-        lti_config = get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_config(
             config.get("version"),
             block,
             LtiConfiguration.CONFIG_EXTERNAL,
         )
     else:
-        lti_config = get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_config(
             block.lti_version,
             block,
             LtiConfiguration.CONFIG_ON_XBLOCK,
