@@ -250,6 +250,83 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.assertEqual(passport.lti_1p3_tool_public_key, 'new_key')
         self.assertEqual(passport.lti_1p3_tool_keyset_url, 'new_url')
 
+    def test_passport_not_updated_when_config_store_not_on_xblock(self):
+        """
+        Ensure that when the existing LtiConfiguration is not stored on the XBlock
+        (e.g., CONFIG_ON_DB), the passport is not updated even if block key values differ.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='shared_key',
+            lti_1p3_tool_keyset_url='shared_url'
+        )
+        # Create a configuration that uses the passport but is stored on DB
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+        )
+
+        # Block has different keys, but since the config is not on XBlock,
+        # _ensure_lti_passport should not update the shared passport.
+        self.xblock.lti_1p3_tool_public_key = 'new_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
+
+        _get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+        )
+
+        passport.refresh_from_db()
+        # passport should remain unchanged
+        self.assertEqual(passport.lti_1p3_tool_public_key, 'shared_key')
+        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'shared_url')
+
+    def test_passport_not_saved_when_no_changes(self):
+        """
+        Ensure that passport.save() is not called when passport fields already match the
+        XBlock values and no update is required.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='matching_key',
+            lti_1p3_tool_keyset_url='matching_url'
+        )
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport
+        )
+
+        # Make block keys match the passport
+        self.xblock.lti_1p3_tool_public_key = 'matching_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
+
+        with patch.object(Lti1p3Passport, 'save') as mock_save:
+            _get_or_create_local_lti_config(
+                lti_version=LtiConfiguration.LTI_1P3,
+                block=self.xblock
+            )
+            mock_save.assert_not_called()
+
+    def test_config_not_saved_when_no_changes(self):
+        """
+        Ensure that LtiConfiguration.save() is not called when no fields change.
+        """
+        # Create a config that already matches the block's current values
+        LtiConfiguration.objects.create(
+            location=self.location,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+        )
+
+        # Ensure block has default external_config of None and LTI version matches
+        with patch.object(LtiConfiguration, 'save') as mock_save:
+            _get_or_create_local_lti_config(
+                lti_version=LtiConfiguration.LTI_1P3,
+                block=self.xblock,
+                config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            )
+            mock_save.assert_not_called()
+
     def test_new_passport_created_on_key_conflict(self):
         """
         Check if a new passport is created when block key differs and passport is shared.
