@@ -17,6 +17,7 @@ def set_name_and_context_key(apps, _):
             block = load_enough_xblock(configuration.location)
         except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"Error loading xblock {configuration.location}: {e}")
+            continue
         try:
             passport = configuration.lti_1p3_passport
             if passport and not passport.name:
@@ -25,6 +26,7 @@ def set_name_and_context_key(apps, _):
                 passport.save()
         except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"Error saving passport {passport}: {e}")
+            continue
 
 
 def backwards(*_):

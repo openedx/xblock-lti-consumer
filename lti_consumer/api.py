@@ -72,15 +72,23 @@ def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigura
             log.info("Created new LTI passport for %s with new keyset and public key", block.scope_ids.usage_id)
             save_xblock(block)
 
-    lti_config.config_store = config_store
-    lti_config.external_id = block.external_config
-    lti_config.lti_1p3_passport = passport
+    dirty = False
 
+    if lti_config.config_store != config_store:
+        lti_config.config_store = config_store
+        dirty = True
+    if lti_config.external_id != block.external_config:
+        lti_config.external_id = block.external_config
+        dirty = True
+    if passport and lti_config.lti_1p3_passport != passport.pk:
+        lti_config.lti_1p3_passport = passport
+        dirty = True
     if lti_config.version != lti_version:
         lti_config.version = lti_version
+        dirty = True
 
-    lti_config.save()
-
+    if dirty:
+        lti_config.save()
     return lti_config
 
 

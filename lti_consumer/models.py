@@ -432,8 +432,9 @@ class LtiConfiguration(models.Model):
                     block.lti_1p3_passport_id = str(passport.passport_id)
                     block.save()
                     compat.save_xblock(block)
-            self.lti_1p3_passport = passport
-            self.save()
+            # We use update to avoid triggering post save signal as this function is itself
+            # called from the post_save signal handler, this avoids double call to same function.
+            LtiConfiguration.objects.filter(pk=self.pk).update(lti_1p3_passport=passport)
 
     def save(self, *args, **kwargs):
         self.sync_configurations()
