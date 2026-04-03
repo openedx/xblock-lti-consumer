@@ -55,7 +55,7 @@ def _ensure_lti_passport(block, lti_config):
     )
 
     if key_mismatch:
-        from lti_consumer.plugin.compat import save_xblock
+        from lti_consumer.plugin.compat import save_xblock  # pylint: disable=import-outside-toplevel
         passport = Lti1p3Passport.objects.create(
             lti_1p3_tool_public_key=block_public_key,
             lti_1p3_tool_keyset_url=block_keyset_url,
