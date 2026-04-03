@@ -435,6 +435,8 @@ class LtiConfiguration(models.Model):
             # We use update to avoid triggering post save signal as this function is itself
             # called from the post_save signal handler, this avoids double call to same function.
             LtiConfiguration.objects.filter(pk=self.pk).update(lti_1p3_passport=passport)
+            # Refresh block from db to get passport id.
+            self.refresh_from_db()
 
     def save(self, *args, **kwargs):
         self.sync_configurations()

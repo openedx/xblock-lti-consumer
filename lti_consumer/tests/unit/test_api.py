@@ -221,7 +221,6 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
             lti_version=lti_version,
             block=self.xblock
         )
-        lti_config.refresh_from_db()
 
         self.assertIsNotNone(lti_config.lti_1p3_passport)
 
@@ -379,7 +378,6 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
 
         # Same passport used
         self.assertEqual(Lti1p3Passport.objects.count(), 1)
-        lti_config.refresh_from_db()
         self.assertEqual(str(lti_config.lti_1p3_passport.passport_id), str(original_passport_id))
 
     @ddt.data(
@@ -650,7 +648,6 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
 
         # Call and check returns
         launch_info = get_lti_1p3_launch_info(launch_data)
-        lti_config.refresh_from_db()
 
         # Not checking all data here, there's a test specific for that
         self.assertEqual(launch_info['client_id'], lti_config.lti_1p3_client_id)
@@ -701,7 +698,6 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
             version=LtiConfiguration.LTI_1P3,
             config_id=_test_config_id,
         )
-        lti_config.refresh_from_db()
         LtiDlContentItem.objects.create(
             lti_configuration=lti_config,
             content_type=LtiDlContentItem.IMAGE,
