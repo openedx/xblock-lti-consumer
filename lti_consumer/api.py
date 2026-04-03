@@ -27,68 +27,75 @@ from .utils import (
 log = logging.getLogger(__name__)
 
 
+def _ensure_lti_passport(block, lti_config):
+    """Ensure passport is synced with block fields, creating a new one if needed."""
+    passport = lti_config.lti_1p3_passport
+    if not passport or lti_config.config_store != LtiConfiguration.CONFIG_ON_XBLOCK:
+        return passport
+
+    block_public_key = str(block.lti_1p3_tool_public_key)
+    block_keyset_url = str(block.lti_1p3_tool_keyset_url)
+
+    # Update existing passport if safe
+    if passport.lticonfiguration_set.count() == 1 or (
+        not passport.lti_1p3_tool_public_key and not passport.lti_1p3_tool_keyset_url
+    ):
+        if passport.lti_1p3_tool_public_key != block_public_key or passport.lti_1p3_tool_keyset_url != block_keyset_url:
+            passport.lti_1p3_tool_public_key = block_public_key
+            passport.lti_1p3_tool_keyset_url = block_keyset_url
+            passport.save()
+            log.info("Updated LTI passport for %s", block.scope_ids.usage_id)
+        return passport
+
+    # Create new passport if keys changed and passport is shared
+    key_mismatch = (
+        block.lti_1p3_tool_key_mode == 'public_key' and passport.lti_1p3_tool_public_key != block_public_key
+    ) or (
+        block.lti_1p3_tool_key_mode == 'keyset_url' and passport.lti_1p3_tool_keyset_url != block_keyset_url
+    )
+
+    if key_mismatch:
+        from lti_consumer.plugin.compat import save_xblock
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key=block_public_key,
+            lti_1p3_tool_keyset_url=block_keyset_url,
+            name=f"Passport of {block.display_name}",
+            context_key=block.context_id,
+        )
+        block.lti_1p3_passport_id = str(passport.passport_id)
+        save_xblock(block)
+        log.info("Created new LTI passport for %s", block.scope_ids.usage_id)
+
+    return passport
+
+
 def get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
     """
-    Retrieve the LtiConfiguration for the block described by block_location, if one exists. If one does not exist,
-    create an LtiConfiguration with the LtiConfiguration.CONFIG_ON_XBLOCK config_store.
+    Retrieve or create an LtiConfiguration for the block.
 
-    Treat the lti_version argument as the source of truth for LtiConfiguration.version and override the
-    LtiConfiguration.version with lti_version. This allows, for example, for
-    the XBlock to be the source of truth for the LTI version, which is a user-centric perspective we've adopted.
-    This allows XBlock users to update the LTI version without needing to update the database.
+    The lti_version parameter is treated as the source of truth, overriding
+    any stored version to allow XBlocks to control LTI version without DB updates.
     """
-    from lti_consumer.plugin.compat import save_xblock  # pylint: disable=import-outside-toplevel
-    # The create operation is only performed when there is no existing configuration for the block
     lti_config, _ = LtiConfiguration.objects.get_or_create(location=block.scope_ids.usage_id)
-    passport = lti_config.lti_1p3_passport
-    if passport and config_store == LtiConfiguration.CONFIG_ON_XBLOCK:
-        # Copy keyset url and public key to passport row
-        if passport.lticonfiguration_set.count() == 1 or (
-            passport.lti_1p3_tool_keyset_url == '' and passport.lti_1p3_tool_public_key == ''
-        ):
-            # If the passport is only used in one LTI configuration or both fields are empty,
-            # we update its tool key and url to match block fields.
-            passport.lti_1p3_tool_public_key = str(block.lti_1p3_tool_public_key)
-            passport.lti_1p3_tool_keyset_url = str(block.lti_1p3_tool_keyset_url)
-            passport.save()
-            log.info("Updated LTI passport for %s to match block fields", block.scope_ids.usage_id)
-        elif (
-            block.lti_1p3_tool_key_mode == 'public_key' and
-            passport.lti_1p3_tool_public_key != str(block.lti_1p3_tool_public_key)
-        ) or (
-            block.lti_1p3_tool_key_mode == 'keyset_url' and
-            passport.lti_1p3_tool_keyset_url != str(block.lti_1p3_tool_keyset_url)
-        ):
-            # tool public key or url has changed, we create a new passport to avoid conflicts
-            # with the existing configuration
-            passport = Lti1p3Passport.objects.create(
-                lti_1p3_tool_public_key=str(block.lti_1p3_tool_public_key),
-                lti_1p3_tool_keyset_url=str(block.lti_1p3_tool_keyset_url),
-                name=f"Passport of {block.display_name}",
-                context_key=block.context_id,
-            )
-            block.lti_1p3_passport_id = str(passport.passport_id)
-            block.save()
-            log.info("Created new LTI passport for %s with new keyset and public key", block.scope_ids.usage_id)
-            save_xblock(block)
 
-    dirty = False
+    # Ensure passport is synced with block
+    passport = _ensure_lti_passport(block, lti_config)
 
-    if lti_config.config_store != config_store:
-        lti_config.config_store = config_store
-        dirty = True
-    if lti_config.external_id != block.external_config:
-        lti_config.external_id = block.external_config
-        dirty = True
-    if passport and lti_config.lti_1p3_passport != passport.pk:
-        lti_config.lti_1p3_passport = passport
-        dirty = True
-    if lti_config.version != lti_version:
-        lti_config.version = lti_version
-        dirty = True
+    # Batch updates
+    updates = {
+        'config_store': config_store,
+        'external_id': block.external_config,
+        'version': lti_version,
+    }
+    if passport:
+        updates['lti_1p3_passport'] = passport
 
-    if dirty:
+    # Only save if changed
+    if any(getattr(lti_config, key) != value for key, value in updates.items()):
+        for key, value in updates.items():
+            setattr(lti_config, key, value)
         lti_config.save()
+
     return lti_config
 
 
