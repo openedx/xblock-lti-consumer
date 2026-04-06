@@ -26,9 +26,9 @@ binaryornot==0.6.0
     # via cookiecutter
 bleach==6.3.0
     # via -r requirements/base.txt
-boto3==1.42.79
+boto3==1.42.83
     # via fs-s3fs
-botocore==1.42.79
+botocore==1.42.83
     # via
     #   boto3
     #   s3transfer
@@ -39,9 +39,9 @@ cffi==2.0.0
     #   -r requirements/base.txt
     #   cryptography
     #   pynacl
-charset-normalizer==3.4.6
+charset-normalizer==3.4.7
     # via requests
-click==8.3.1
+click==8.3.2
     # via
     #   -r requirements/base.txt
     #   click-log
@@ -69,6 +69,7 @@ ddt==1.7.2
 dill==0.4.1
     # via pylint
     # via
+    #   -c requirements/common_constraints.txt
     #   -r requirements/base.txt
     #   django-appconf
     #   django-config-models
@@ -118,7 +119,7 @@ edx-django-utils==8.0.1
     #   django-config-models
 edx-lint==6.0.0
     # via -r requirements/test.in
-edx-opaque-keys[django]==3.1.0
+edx-opaque-keys[django]==4.0.0
     # via
     #   -r requirements/base.txt
     #   edx-ccx-keys
@@ -183,7 +184,7 @@ mdurl==0.1.2
     # via markdown-it-py
 mock==5.2.0
     # via -r requirements/test.in
-more-itertools==10.8.0
+more-itertools==11.0.1
     # via
     #   jaraco-classes
     #   jaraco-functools
@@ -321,7 +322,7 @@ typing-extensions==4.15.0
     # via
     #   -r requirements/base.txt
     #   edx-opaque-keys
-tzdata==2025.3
+tzdata==2026.1
     # via arrow
 urllib3==1.26.20
     # via
