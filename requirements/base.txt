@@ -14,10 +14,11 @@ bleach==6.3.0
     # via -r requirements/base.in
 cffi==2.0.0
     # via pynacl
-click==8.3.1
+click==8.3.2
     # via edx-django-utils
-django==6.0.3
+django==5.2.12
     # via
+    #   -c requirements/common_constraints.txt
     #   -r requirements/base.in
     #   django-appconf
     #   django-config-models
@@ -49,7 +50,7 @@ edx-ccx-keys==2.0.2
     # via -r requirements/base.in
 edx-django-utils==8.0.1
     # via django-config-models
-edx-opaque-keys[django]==3.1.0
+edx-opaque-keys[django]==4.0.0
     # via
     #   -r requirements/base.in
     #   edx-ccx-keys
