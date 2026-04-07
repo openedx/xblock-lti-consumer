@@ -35,7 +35,7 @@ binaryornot==0.6.0
     #   cookiecutter
 bleach==6.3.0
     # via -r requirements/test.txt
-boto3==1.42.89
+boto3==1.42.84
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
@@ -277,7 +277,7 @@ oauthlib==3.3.1
     # via -r requirements/test.txt
 openedx-events==11.1.0
     # via -r requirements/test.txt
-openedx-filters==3.0.0
+openedx-filters==3.1.0
     # via -r requirements/test.txt
 packaging==26.0
     # via
