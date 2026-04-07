@@ -2,11 +2,12 @@
 LTI Consumer related Signal handlers
 """
 import logging
+import uuid
 
 from django.db.models.signals import post_save
 from django.dispatch import Signal, receiver
-from openedx_events.content_authoring.data import LibraryBlockData, XBlockData
-from openedx_events.content_authoring.signals import LIBRARY_BLOCK_DELETED, XBLOCK_DELETED
+from openedx_events.content_authoring.data import DuplicatedXBlockData, LibraryBlockData, XBlockData
+from openedx_events.content_authoring.signals import LIBRARY_BLOCK_DELETED, XBLOCK_DELETED, XBLOCK_DUPLICATED
 
 from lti_consumer.models import Lti1p3Passport, LtiAgsScore, LtiConfiguration
 from lti_consumer.plugin import compat
@@ -147,6 +148,24 @@ def delete_lib_lti_configuration(**kwargs):
     ).delete()
     result = Lti1p3Passport.objects.filter(lticonfiguration__isnull=True).delete()
     log.info(f"Deleted {result} lti 1.3 passport objects in library")
+
+
+@receiver(XBLOCK_DUPLICATED)
+def duplicate_xblock_lti_configuration(**kwargs):
+    """
+    Duplicate LTI configuration from the source to the target xblock.
+    """
+    xblock_data = kwargs.get("xblock_info", None)
+    if not xblock_data or not isinstance(xblock_data, DuplicatedXBlockData):
+        log.error("Received null or incorrect data for event")
+        return
+
+    src_lti_config = LtiConfiguration.objects.get(location=str(xblock_data.source_usage_key))
+    copy = src_lti_config
+    copy.pk = None
+    copy.location = str(xblock_data.usage_key)
+    copy.config_id = uuid.uuid4()
+    copy.save()
 
 
 LTI_1P3_PROCTORING_ASSESSMENT_STARTED = Signal()
