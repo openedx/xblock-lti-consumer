@@ -24,7 +24,7 @@ click==8.3.2
     # via
     #   -r requirements/base.txt
     #   edx-django-utils
-django==5.2.12
+django==5.2.13
     # via
     #   -r requirements/base.txt
     #   django-appconf
@@ -104,7 +104,7 @@ markupsafe==3.0.3
     #   xblock
 oauthlib==3.3.1
     # via -r requirements/base.txt
-openedx-filters==3.0.0
+openedx-filters==3.1.0
     # via -r requirements/base.txt
 path==16.16.0
     # via edx-i18n-tools
