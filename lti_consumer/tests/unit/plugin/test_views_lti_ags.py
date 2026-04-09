@@ -395,6 +395,43 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(score.grading_progress, LtiAgsScore.FULLY_GRADED)
         self.assertEqual(score.user_id, self.primary_user_id)
 
+    @ddt.data(None, "")
+    def test_create_score_without_comment(self, comment):
+        """
+        Test the LTI AGS LineItem Score Creation when comment is omitted or blank.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        data = {
+            "timestamp": self.early_timestamp,
+            "scoreGiven": 83,
+            "scoreMaximum": 100,
+            "activityProgress": LtiAgsScore.COMPLETED,
+            "gradingProgress": LtiAgsScore.FULLY_GRADED,
+            "userId": self.primary_user_id,
+        }
+        if comment is not None:
+            data["comment"] = comment
+
+        response = self.client.post(
+            self.scores_endpoint,
+            data=json.dumps(data),
+            content_type="application/vnd.ims.lis.v1.score+json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(LtiAgsScore.objects.filter(
+            line_item=self.line_item,
+            user_id=self.primary_user_id
+        ).count(), 1)
+
+        score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
+        if comment is None:
+            self.assertIsNone(score.comment)
+        else:
+            self.assertEqual(score.comment, comment)
+        score.delete()
+
     def _post_lti_score(self, override_data=None):
         """
         Helper method to post a LTI score

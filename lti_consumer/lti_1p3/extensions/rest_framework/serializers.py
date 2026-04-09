@@ -125,7 +125,7 @@ class LtiAgsScoreSerializer(serializers.ModelSerializer):
     timestamp = serializers.DateTimeField(input_formats=[ISO_8601], format=ISO_8601, default_timezone=timezone.utc)
     scoreGiven = serializers.FloatField(source='score_given', required=False, allow_null=True, default=None)
     scoreMaximum = serializers.FloatField(source='score_maximum', required=False, allow_null=True, default=None)
-    comment = serializers.CharField(required=False, allow_null=True)
+    comment = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     activityProgress = serializers.CharField(source='activity_progress')
     gradingProgress = serializers.CharField(source='grading_progress')
     userId = serializers.CharField(source='user_id')
