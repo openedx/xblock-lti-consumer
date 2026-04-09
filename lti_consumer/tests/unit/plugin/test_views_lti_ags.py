@@ -177,10 +177,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
             response.data,
             [
                 {
-                    'id': 'http://testserver/lti_consumer/v1/lti/{}/lti-ags/{}'.format(
-                        self.lti_config.id,
-                        line_item.id
-                    ),
+                    'id': f'http://testserver/lti_consumer/v1/lti/{self.lti_config.id}/lti-ags/{line_item.id}',
                     'resourceId': 'test',
                     'scoreMaximum': 100,
                     'label': 'test label',
@@ -221,10 +218,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(
             response.data,
             {
-                'id': 'http://testserver/lti_consumer/v1/lti/{}/lti-ags/{}'.format(
-                    self.lti_config.id,
-                    line_item.id
-                ),
+                'id': f'http://testserver/lti_consumer/v1/lti/{self.lti_config.id}/lti-ags/{line_item.id}',
                 'resourceId': 'test',
                 'scoreMaximum': 100,
                 'label': 'test label',
@@ -936,11 +930,14 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
 
         # Create Score
         response = self.client.get(self.results_endpoint)
+        response_with_trailing_slash = self.client.get(self.results_endpoint + '/')
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response_with_trailing_slash.status_code, 200)
 
         # There should be 2 results (not include the empty score user's result)
         self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response_with_trailing_slash.data), 2)
 
         # Check the data
         primary_user_results_endpoint = reverse(
@@ -983,7 +980,7 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
 
     def test_retrieve_results_for_user_id(self):
         """
-        Test the LTI AGS LineItem Resul Retrieval for a single user.
+        Test the LTI AGS LineItem Result Retrieval for a single user.
         """
         self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly')
 
@@ -996,14 +993,23 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
             }
         )
 
+        results_user_endpoint_with_trailing_slash = results_user_endpoint + '/'
+
         # Request results with userId
         response = self.client.get(results_user_endpoint, data={"userId": self.secondary_user_id})
+        response_with_trailing_slash = self.client.get(
+            results_user_endpoint_with_trailing_slash,
+            data={"userId": self.secondary_user_id},
+        )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response_with_trailing_slash.status_code, 200)
 
         # There should be 1 result for that user
         self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response_with_trailing_slash.data), 1)
         self.assertEqual(response.data[0]['userId'], self.secondary_user_id)
+        self.assertEqual(response_with_trailing_slash.data[0]['userId'], self.secondary_user_id)
 
     def test_retrieve_results_with_limit(self):
         """
@@ -1023,3 +1029,30 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
         # `primary_user_id` was assigned to the record with the `late_timestamp`
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['userId'], self.primary_user_id)
+
+    def test_results_serializer_id_includes_user_id_separator(self):
+        """
+        Test that the results serializer builds a valid URL for a user-specific result.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly')
+
+        results_user_endpoint = reverse(
+            'lti_consumer:lti-ags-view-results',
+            kwargs={
+                "lti_config_id": self.lti_config.id,
+                "pk": self.line_item.id,
+                "user_id": self.secondary_user_id,
+            }
+        )
+
+        response = self.client.get(results_user_endpoint, data={"userId": self.secondary_user_id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]['id'],
+            (
+                f'http://testserver/lti_consumer/v1/lti/{self.lti_config.id}/lti-ags'
+                f'/{self.line_item.id}/results/{self.secondary_user_id}'
+            ),
+        )

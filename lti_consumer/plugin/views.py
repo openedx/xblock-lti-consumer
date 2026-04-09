@@ -748,7 +748,7 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['GET'],
-        url_path='results/(?P<user_id>[^/.]+)?',
+        url_path=r'results(?:/(?P<user_id>[^/.]+))?/?',
         renderer_classes=[LineItemResultsRenderer],
         content_negotiation_class=IgnoreContentNegotiation,
     )

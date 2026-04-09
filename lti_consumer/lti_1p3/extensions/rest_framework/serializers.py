@@ -194,13 +194,15 @@ class LtiAgsResultSerializer(serializers.ModelSerializer):
 
     def get_id(self, obj):
         request = self.context.get('request')
+        kwargs = {
+            'lti_config_id': obj.line_item.lti_configuration.id,
+            'pk': obj.line_item.pk,
+        }
+        if obj.user_id:
+            kwargs['user_id'] = obj.user_id
         return reverse(
             'lti_consumer:lti-ags-view-results',
-            kwargs={
-                'lti_config_id': obj.line_item.lti_configuration.id,
-                'pk': obj.line_item.pk,
-                'user_id': obj.user_id,
-            },
+            kwargs=kwargs,
             request=request,
         )
 
