@@ -193,6 +193,9 @@ class LtiAgsResultSerializer(serializers.ModelSerializer):
     comment = serializers.CharField()
 
     def get_id(self, obj):
+        """
+        Return result URL for score. Include user_id when score scoped to learner.
+        """
         request = self.context.get('request')
         kwargs = {
             'lti_config_id': obj.line_item.lti_configuration.id,
