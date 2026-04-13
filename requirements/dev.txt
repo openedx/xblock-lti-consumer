@@ -115,7 +115,7 @@ markupsafe==3.0.3
     #   xblock
 oauthlib==3.3.1
     # via -r requirements/base.txt
-openedx-events==11.1.0
+openedx-events==11.1.1
     # via -r requirements/base.txt
 openedx-filters==3.1.0
     # via -r requirements/base.txt

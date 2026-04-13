@@ -35,11 +35,11 @@ binaryornot==0.6.0
     #   cookiecutter
 bleach==6.3.0
     # via -r requirements/test.txt
-boto3==1.42.84
+boto3==1.42.88
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.42.89
+botocore==1.42.88
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -275,7 +275,7 @@ nh3==0.3.4
     #   readme-renderer
 oauthlib==3.3.1
     # via -r requirements/test.txt
-openedx-events==11.1.0
+openedx-events==11.1.1
     # via -r requirements/test.txt
 openedx-filters==3.1.0
     # via -r requirements/test.txt
@@ -453,7 +453,7 @@ tomlkit==0.14.0
     # via
     #   -r requirements/test.txt
     #   pylint
-tox==4.53.0
+tox==4.52.1
     # via -r requirements/tox.txt
 twine==6.2.0
     # via -r requirements/test.txt
@@ -476,7 +476,7 @@ urllib3==1.26.20
     #   botocore
     #   requests
     #   twine
-virtualenv==21.2.3
+virtualenv==21.2.1
     # via
     #   -r requirements/tox.txt
     #   tox
