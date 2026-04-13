@@ -7,13 +7,14 @@ from unittest.mock import Mock, patch
 from ddt import data, ddt, unpack
 from django.test import TestCase
 from opaque_keys.edx.keys import UsageKey
-from openedx_events.content_authoring.data import LibraryBlockData, XBlockData
+from openedx_events.content_authoring.data import DuplicatedXBlockData, LibraryBlockData, XBlockData
 
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 from lti_consumer.signals.signals import (
     delete_child_lti_configurations,
     delete_lib_lti_configuration,
     delete_lti_configuration,
+    duplicate_xblock_lti_configuration,
 )
 
 
@@ -400,3 +401,75 @@ class TestDeleteLibLtiConfiguration(TestCase):
 
         mocks['lti_config'].objects.filter.assert_called_once()
         mocks['log'].info.assert_called_once()
+
+
+class TestDuplicateXblockLtiConfiguration(TestCase):
+    """Tests for duplicate_xblock_lti_configuration function."""
+
+    def setUp(self):
+        self.source_usage_key = UsageKey.from_string(
+            "block-v1:course+101+2024+type@lti_consumer+block@source"
+        )
+        self.target_usage_key = UsageKey.from_string(
+            "block-v1:course+101+2024+type@lti_consumer+block@target"
+        )
+        self.xblock_data = Mock(spec=DuplicatedXBlockData)
+        self.xblock_data.source_usage_key = self.source_usage_key
+        self.xblock_data.usage_key = self.target_usage_key
+
+    @patch('lti_consumer.signals.signals.model_to_dict')
+    @patch('lti_consumer.signals.signals.LtiConfiguration')
+    def test_duplicate_success(self, mock_lti_config, mock_model_to_dict):
+        """Duplicate creates copy when source exists and target empty."""
+        source_config = Mock()
+        mock_lti_config.objects.filter.return_value.first.side_effect = [source_config]
+        mock_lti_config.objects.filter.return_value.exists.return_value = False
+        mock_model_to_dict.return_value = {
+            'field_a': 'value_a',
+            'field_b': 'value_b',
+        }
+
+        duplicate_xblock_lti_configuration(xblock_info=self.xblock_data)
+
+        mock_lti_config.objects.filter.assert_any_call(location=str(self.source_usage_key))
+        mock_lti_config.objects.filter.assert_any_call(location=str(self.target_usage_key))
+        mock_model_to_dict.assert_called_once_with(
+            source_config,
+            exclude=["id", "pk", "location", "config_id"],
+        )
+        mock_lti_config.objects.create.assert_called_once()
+        create_kwargs = mock_lti_config.objects.create.call_args.kwargs
+        assert create_kwargs['field_a'] == 'value_a'
+        assert create_kwargs['field_b'] == 'value_b'
+        assert create_kwargs['location'] == str(self.target_usage_key)
+        assert create_kwargs['config_id'] is not None
+
+    @patch('lti_consumer.signals.signals.log')
+    @patch('lti_consumer.signals.signals.LtiConfiguration')
+    def test_duplicate_source_missing(self, mock_lti_config, mock_log):
+        """No source config triggers warning and exits."""
+        mock_lti_config.objects.filter.return_value.first.return_value = None
+        mock_lti_config.objects.filter.return_value.exists.return_value = False
+
+        duplicate_xblock_lti_configuration(xblock_info=self.xblock_data)
+
+        mock_log.warning.assert_called_once()
+        mock_lti_config.objects.create.assert_not_called()
+
+    @patch('lti_consumer.signals.signals.log')
+    @patch('lti_consumer.signals.signals.LtiConfiguration')
+    def test_duplicate_target_exists(self, mock_lti_config, mock_log):
+        """Existing target config skips duplication."""
+        mock_lti_config.objects.filter.return_value.first.return_value = Mock()
+        mock_lti_config.objects.filter.return_value.exists.return_value = True
+
+        duplicate_xblock_lti_configuration(xblock_info=self.xblock_data)
+
+        mock_log.info.assert_called_once()
+        mock_lti_config.objects.create.assert_not_called()
+
+    @patch('lti_consumer.signals.signals.log')
+    def test_duplicate_invalid_input(self, mock_log):
+        """Invalid xblock_info logs error."""
+        duplicate_xblock_lti_configuration(xblock_info=None)
+        mock_log.error.assert_called_once_with("Received null or incorrect data for event")

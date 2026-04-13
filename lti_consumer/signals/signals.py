@@ -11,6 +11,7 @@ from openedx_events.content_authoring.signals import LIBRARY_BLOCK_DELETED, XBLO
 
 from lti_consumer.models import Lti1p3Passport, LtiAgsScore, LtiConfiguration
 from lti_consumer.plugin import compat
+from lti_consumer.utils import model_to_dict
 
 log = logging.getLogger(__name__)
 SignalHandler = compat.get_signal_handler()
@@ -160,12 +161,40 @@ def duplicate_xblock_lti_configuration(**kwargs):
         log.error("Received null or incorrect data for event")
         return
 
-    src_lti_config = LtiConfiguration.objects.get(location=str(xblock_data.source_usage_key))
-    copy = src_lti_config
-    copy.pk = None
-    copy.location = str(xblock_data.usage_key)
-    copy.config_id = uuid.uuid4()
-    copy.save()
+    source_usage_key = str(xblock_data.source_usage_key)
+    target_usage_key = str(xblock_data.usage_key)
+
+    src_lti_config = LtiConfiguration.objects.filter(location=source_usage_key).first()
+    if not src_lti_config:
+        log.warning("No LTI configuration found to duplicate. source=%s", source_usage_key)
+        return
+
+    if LtiConfiguration.objects.filter(location=target_usage_key).exists():
+        log.info(
+            "Target already has LTI configuration. Skipping duplicate. target=%s source=%s",
+            target_usage_key,
+            source_usage_key,
+        )
+        return
+
+    # Convert the LTI configuration to a dictionary and set the new location and config_id
+    # to copy lticonfiguration data to the new location and config_id
+    payload = model_to_dict(
+        src_lti_config,
+        # Include all unique fields and generated ones.
+        exclude=["id", "pk", "location", "config_id"],
+    )
+    payload["location"] = target_usage_key
+    payload["config_id"] = uuid.uuid4()
+
+    try:
+        LtiConfiguration.objects.create(**payload)
+    except Exception:  # pylint: disable=broad-exception-caught
+        log.exception(
+            "Failed duplicating LTI configuration. source=%s target=%s",
+            source_usage_key,
+            target_usage_key,
+        )
 
 
 LTI_1P3_PROCTORING_ASSESSMENT_STARTED = Signal()
