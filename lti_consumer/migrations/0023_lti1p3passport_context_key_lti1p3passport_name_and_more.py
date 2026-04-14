@@ -4,7 +4,7 @@ import opaque_keys.edx.django.models
 from django.db import migrations, models
 
 
-def set_name_and_context_key(apps, _):  # pragma: nocover
+def set_name_and_context_key(apps, _):
     """
     Copy name and context_key from Block to LTI1p3Passport.
     """

@@ -7,7 +7,7 @@ This will help us link xblocks with LtiConsumer database rows without relying on
 from django.db import migrations
 
 
-def create_lti_1p3_passport(apps, _):  # pragma: nocover
+def create_lti_1p3_passport(apps, _):
     """Copy config_id from LtiConsumer to LtiConsumerXBlock."""
     from lti_consumer.plugin.compat import load_enough_xblock, save_xblock  # pylint: disable=import-outside-toplevel
     from lti_consumer.utils import model_to_dict  # pylint: disable=import-outside-toplevel
@@ -16,13 +16,6 @@ def create_lti_1p3_passport(apps, _):  # pragma: nocover
     Lti1p3Passport = apps.get_model("lti_consumer", "Lti1p3Passport")
 
     for configuration in LtiConfiguration.objects.all():
-        try:
-            block = load_enough_xblock(configuration.location)
-            block.lti_1p3_passport_id = str(configuration.config_id)
-            block.save()
-            save_xblock(block)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            print(f"Failed to copy passport_id for configuration {configuration}: {e}")
         values = model_to_dict(
             configuration,
             include=[
@@ -34,12 +27,20 @@ def create_lti_1p3_passport(apps, _):  # pragma: nocover
                 'lti_1p3_tool_keyset_url',
             ],
         )
-        if block.config_type == "new":
-            # Data is stored xblock
-            values.update({
-                'lti_1p3_tool_public_key': block.lti_1p3_tool_public_key,
-                'lti_1p3_tool_keyset_url': block.lti_1p3_tool_keyset_url,
-            })
+        if configuration.location:
+            try:
+                block = load_enough_xblock(configuration.location)
+                block.lti_1p3_passport_id = str(configuration.config_id)
+                block.save()
+                save_xblock(block)
+                if block.config_type == "new":
+                    # Data is stored xblock
+                    values.update({
+                        'lti_1p3_tool_public_key': block.lti_1p3_tool_public_key,
+                        'lti_1p3_tool_keyset_url': block.lti_1p3_tool_keyset_url,
+                    })
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                print(f"Failed to copy passport_id for configuration {configuration}: {e}")
         passport, _ = Lti1p3Passport.objects.update_or_create(
             # Use config_id as passport_id to preserve existing urls that use it.
             passport_id=configuration.config_id,
