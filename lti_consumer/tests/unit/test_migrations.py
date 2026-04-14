@@ -1,3 +1,6 @@
+"""
+Tests for custom migrations scripts
+"""
 import importlib
 import uuid
 from unittest import mock
@@ -45,6 +48,7 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
     def test_migration_creates_and_links_passport(self):
         """New-style block overrides tool key values from block fields."""
         class FakeBlock:
+            """Dummy class for testing new-style block overrides"""
             config_type = "new"
             lti_1p3_tool_public_key = "xblock-tool-public-key"
             lti_1p3_tool_keyset_url = "https://xblock.example/jwks.json"
@@ -135,6 +139,7 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
     def test_migration_keeps_db_values_when_block_not_new(self):
         """Non-new block keeps DB tool key values even when block loads."""
         class FakeBlock:
+            """Dummy class for testing new-style block overrides"""
             config_type = "legacy"
             lti_1p3_tool_public_key = "xblock-tool-public-key"
             lti_1p3_tool_keyset_url = "https://xblock.example/jwks.json"
@@ -219,6 +224,7 @@ class Test0023SetPassportNameAndContextKey(TransactionTestCase):
         """Populate new passport fields from block when passport has no name yet."""
 
         class FakeBlock:
+            """Dummy class for testing new-style block overrides"""
             display_name = "Unit 1 LTI"
             context_id = "course-v1:org+course+run"
 
@@ -281,6 +287,7 @@ class Test0023SetPassportNameAndContextKey(TransactionTestCase):
         configuration = LtiConfiguration.objects.get(pk=self.configuration.pk)
 
         class FakeBlock:
+            """Dummy class for testing new-style block overrides"""
             display_name = "Changed title"
             context_id = "changed-context"
 
