@@ -283,6 +283,43 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         self.assertIn('email', member_fields)
         self.assertIn('name', member_fields)
 
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 1,
+            'instructor': 1,
+            'staff': 1,
+        })),
+    )
+    def test_get_membership_roles_mapping(self, expose_pii_fields_patcher):
+        """
+        Test context membership endpoint returns mapped LTI context role URIs.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(self.context_membership_endpoint)
+
+        expose_pii_fields_patcher.assert_called()
+        self.assertEqual(len(response.data['members']), 3)
+
+        actual_roles = [set(member['roles']) for member in response.data['members']]
+
+        self.assertIn(
+            {'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner'},
+            actual_roles,
+        )
+        self.assertIn(
+            {'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor'},
+            actual_roles,
+        )
+        self.assertIn(
+            {
+                'http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator',
+                'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor',
+            },
+            actual_roles,
+        )
+
     @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
     @patch(
         'lti_consumer.plugin.views.compat.get_course_members',
