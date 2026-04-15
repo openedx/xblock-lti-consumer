@@ -8,6 +8,11 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.exceptions import LtiError
+from lti_consumer.lti_1p3.constants import (
+    LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR,
+    LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,
+    LTI_1P3_CONTEXT_ROLE_LEARNER,
+)
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
@@ -305,18 +310,15 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         actual_roles = [set(member['roles']) for member in response.data['members']]
 
         self.assertIn(
-            {'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner'},
+            set(LTI_1P3_CONTEXT_ROLE_LEARNER),
             actual_roles,
         )
         self.assertIn(
-            {'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor'},
+            set(LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
             actual_roles,
         )
         self.assertIn(
-            {
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor',
-            },
+            set(LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
             actual_roles,
         )
 
