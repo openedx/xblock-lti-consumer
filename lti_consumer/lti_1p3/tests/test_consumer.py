@@ -2,27 +2,34 @@
 Unit tests for LTI 1.3 consumer implementation
 """
 
+import uuid
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
-import uuid
 
 import ddt
 import jwt
 from Cryptodome.PublicKey import RSA
 from django.conf import settings
 from django.test.testcases import TestCase
-from edx_django_utils.cache import get_cache_key, TieredCache
+from edx_django_utils.cache import TieredCache, get_cache_key
 from jwt.api_jwk import PyJWKSet
 
 from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_1p3 import exceptions
 from lti_consumer.lti_1p3.ags import LtiAgs
-from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
-from lti_consumer.lti_1p3.nprs import LtiNrps
-from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE, LTI_PROCTORING_DATA_KEYS
+from lti_consumer.lti_1p3.constants import (
+    LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR,
+    LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,
+    LTI_1P3_CONTEXT_ROLE_LEARNER,
+    LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT,
+    LTI_1P3_CONTEXT_TYPE,
+    LTI_1P3_ROLE_NONE,
+    LTI_PROCTORING_DATA_KEYS,
+)
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3, LtiProctoringConsumer
+from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
-
+from lti_consumer.lti_1p3.nprs import LtiNrps
 
 # Variables required for testing and verification
 ISS = "http://test-platform.example/"
@@ -154,161 +161,25 @@ class TestLti1p3Consumer(TestCase):
             return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access
 
     @ddt.data(
-        (
-            'student',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'staff',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor',
-            ]
-        ),
-        (
-            'instructor',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Administrator',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor',
-            ]
-        ),
-        (
-            'guest',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'limited_staff',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor',
-            ]
-        ),
-        (
-            'finance_admin',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'sales_admin',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'beta_testers',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'library_user',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'ccx_coach',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'data_researcher',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'org_course_creator_group',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'course_creator_group',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'support',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'Administrator',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'Moderator',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
-        (
-            'Group Moderator',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership/Instructor#TeachingAssistant',
-            ]
-        ),
-        (
-            'Community TA',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership/Instructor#TeachingAssistant',
-            ]
-        ),
-        (
-            'Student',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#None',
-                'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
-            ]
-        ),
+        ('student', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('staff', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
+        ('instructor', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
+        ('guest', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('limited_staff', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
+        ('finance_admin', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('sales_admin', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('beta_testers', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('library_user', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('ccx_coach', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('data_researcher', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('org_course_creator_group', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('course_creator_group', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('support', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Administrator', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Moderator', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Group Moderator', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
+        ('Community TA', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
+        ('Student', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
     )
     @ddt.unpack
     def test_get_user_roles(self, role, expected_output):
