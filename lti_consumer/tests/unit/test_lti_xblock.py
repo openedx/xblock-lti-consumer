@@ -74,6 +74,7 @@ class TestLtiConsumerXBlock(TestBaseWithPatch):
         self.compat.get_course_by_id.return_value = course
         self.compat.get_user_role.return_value = "student"
         self.compat.get_external_id_for_user.return_value = "12345"
+        self.compat.get_user_course_forum_role.return_value = None
 
 
 class TestAddXmlToNode(TestCase):
@@ -348,6 +349,40 @@ class TestProperties(TestLtiConsumerXBlock):
         }
         with self.assertRaises(LtiError):
             _ = self.xblock.role
+
+    @ddt.data(
+        ('student', None, 'student'),
+        ('guest', 'Community TA', 'Community TA'),
+        ('student', 'Group Moderator', 'Group Moderator'),
+        ('staff', 'Community TA', 'staff'),
+        ('limited_staff', 'Group Moderator', 'limited_staff'),
+        ('instructor', 'Community TA', 'instructor'),
+    )
+    @ddt.unpack
+    def test_get_lti_1p3_user_role(self, base_role, forum_role, expected_role):
+        """
+        Test effective LTI 1.3 role includes supported forum roles for non-staff users.
+        """
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_id': FAKE_USER_ID,
+            'edx-platform.user_role': base_role,
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.compat.get_user_course_forum_role.return_value = forum_role
+
+        self.assertEqual(self.xblock._get_lti_1p3_user_role(), expected_role)
+
+        if base_role in {'staff', 'instructor', 'limited_staff'}:
+            self.compat.get_user_course_forum_role.assert_not_called()
+        else:
+            self.compat.get_user_course_forum_role.assert_called_once_with(
+                FAKE_USER_ID,
+                self.xblock.scope_ids.usage_id.context_key,
+            )
+
+        self.compat.get_user_course_forum_role.reset_mock()
 
     def test_user_is_staff(self):
         """
@@ -1958,6 +1993,34 @@ class TestLtiConsumer1p3XBlock(TestCase):
             expected_launch_data
         )
         self.xblock.get_lti_1p3_custom_parameters.assert_called_once_with()
+
+    @patch('lti_consumer.lti_xblock.compat.get_user_course_forum_role')
+    def test_get_lti_1p3_launch_data_uses_forum_role(self, mock_get_user_course_forum_role):
+        """
+        Test that get_lti_1p3_launch_data uses forum role for supported non-staff users.
+        """
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_id': 1,
+            'edx-platform.user_role': 'student',
+            'edx-platform.is_authenticated': True,
+            'edx-platform.username': 'fake_username',
+        }
+
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.xblock.runtime.service(self, 'user').get_external_user_id = Mock(return_value="external_user_id")
+        self.xblock.get_context_title = Mock(return_value="context_title")
+        self.xblock.get_pii_sharing_enabled = Mock(return_value=False)
+        self.xblock.get_lti_1p3_custom_parameters = Mock(return_value={})
+        mock_get_user_course_forum_role.return_value = 'Community TA'
+
+        launch_data = self.xblock.get_lti_1p3_launch_data()
+
+        self.assertEqual(launch_data.user_role, 'Community TA')
+        mock_get_user_course_forum_role.assert_called_once_with(
+            1,
+            self.xblock.scope_ids.usage_id.context_key,
+        )
 
     @patch('lti_consumer.plugin.compat.get_course_by_id')
     def test_get_context_title(self, mock_get_course_by_id):

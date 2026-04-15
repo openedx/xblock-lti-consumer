@@ -345,6 +345,46 @@ def get_event_tracker():  # pragma: nocover
         return None
 
 
+def get_user_course_forum_role(user_id, course_id):  # pragma: nocover
+    """
+    Return exact forum access role for user in course when it maps to LTI 1.3 forum roles.
+    """
+    # pylint: disable=import-error,import-outside-toplevel
+    target_roles = {'Community TA', 'Group Moderator'}
+
+    try:
+        from django.contrib.auth import get_user_model
+        from lms.djangoapps.discussion.django_comment_client.utils import get_user_role_names
+
+        user = get_user_model().objects.get(id=user_id)
+        forum_roles = set(get_user_role_names(user, course_id))
+        if 'Group Moderator' in forum_roles:
+            return 'Group Moderator'
+        if 'Community TA' in forum_roles:
+            return 'Community TA'
+        return None
+    except Exception:  # pragma: nocover
+        try:
+            from openedx.core.djangoapps.django_comment_common.models import Role
+
+            user_forum_roles = set(
+                Role.objects.filter(
+                    users__id=user_id,
+                    course_id=course_id,
+                    name__in=target_roles,
+                ).values_list('name', flat=True)
+            )
+
+            if 'Group Moderator' in user_forum_roles:
+                return 'Group Moderator'
+            if 'Community TA' in user_forum_roles:
+                return 'Community TA'
+        except Exception:
+            return None
+
+        return None
+
+
 def nrps_pii_disallowed():
     """
     Check if platform disallows sharing pii over NRPS

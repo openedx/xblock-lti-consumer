@@ -939,6 +939,27 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             raise LtiError(self.ugettext("Could not get user id for current request"))
         return str(user_id)
 
+    def _get_lti_1p3_user_role(self):
+        """
+        Return effective LTI 1.3 user role, including supported forum roles.
+        """
+        role = self.role
+        # Keep privileged course roles unchanged.
+        # `staff`, `instructor`, and `limited_staff` already map to stronger LTI roles
+        # than forum roles like `Community TA` or `Group Moderator`, so forum role
+        # should only override learner-like base roles.
+        if role in {'staff', 'instructor', 'limited_staff'}:
+            return role
+
+        forum_role = compat.get_user_course_forum_role(
+            self.lms_user_id,
+            self.scope_ids.usage_id.context_key,
+        )
+        if forum_role in {'Community TA', 'Group Moderator'}:
+            return forum_role
+
+        return role
+
     def get_lti_1p1_user_id(self):
         """
         Returns the user ID to send to an LTI tool during an LTI 1.1/2.0 launch. If the
@@ -1678,7 +1699,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         launch_data = Lti1p3LaunchData(
             user_id=self.lms_user_id,
-            user_role=self.role,
+            user_role=self._get_lti_1p3_user_role(),
             config_id=config_id,
             resource_link_id=self.resource_link_id,
             external_user_id=self.external_user_id,
