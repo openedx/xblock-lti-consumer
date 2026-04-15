@@ -349,10 +349,10 @@ def get_user_course_forum_role(user_id, course_id):  # pragma: nocover
     """
     Return exact forum access role for user in course when it maps to LTI 1.3 forum roles.
     """
-    # pylint: disable=import-error,import-outside-toplevel
     target_roles = {'Community TA', 'Group Moderator'}
 
     try:
+        # pylint: disable=import-outside-toplevel
         from django.contrib.auth import get_user_model
         from lms.djangoapps.discussion.django_comment_client.utils import get_user_role_names
 
@@ -363,8 +363,9 @@ def get_user_course_forum_role(user_id, course_id):  # pragma: nocover
         if 'Community TA' in forum_roles:
             return 'Community TA'
         return None
-    except Exception:  # pragma: nocover
+    except ImportError:
         try:
+            # pylint: disable=import-outside-toplevel
             from openedx.core.djangoapps.django_comment_common.models import Role
 
             user_forum_roles = set(
@@ -379,7 +380,7 @@ def get_user_course_forum_role(user_id, course_id):  # pragma: nocover
                 return 'Group Moderator'
             if 'Community TA' in user_forum_roles:
                 return 'Community TA'
-        except Exception:
+        except ImportError:
             return None
 
         return None

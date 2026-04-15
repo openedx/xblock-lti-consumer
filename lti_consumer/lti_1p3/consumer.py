@@ -97,7 +97,8 @@ class LtiConsumer1p3:
         Supported mappings:
         * instructor -> membership Administrator + Instructor, system None, institution None
         * staff/limited_staff -> membership Instructor, system None, institution None
-        * student/guest, discussion roles, and other explicit Open edX roles -> membership Learner, system None, institution None
+        * student/guest, discussion roles, and other explicit Open edX roles -> membership Learner,
+          system None, institution None
 
         Reference: http://www.imsglobal.org/spec/lti/v1p3/#roles-claim
         Role vocabularies: http://www.imsglobal.org/spec/lti/v1p3/#role-vocabularies

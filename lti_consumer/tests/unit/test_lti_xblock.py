@@ -372,6 +372,7 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.compat.get_user_course_forum_role.return_value = forum_role
 
+        # pylint: disable=protected-access
         self.assertEqual(self.xblock._get_lti_1p3_user_role(), expected_role)
 
         if base_role in {'staff', 'instructor', 'limited_staff'}:
