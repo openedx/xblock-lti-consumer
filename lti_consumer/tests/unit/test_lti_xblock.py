@@ -7,6 +7,7 @@ import string
 from datetime import timedelta
 from itertools import product
 from unittest.mock import Mock, PropertyMock, patch
+from xml.etree.ElementTree import Element
 
 import ddt
 import jwt
@@ -23,13 +24,15 @@ from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
+from lti_consumer.models import Lti1p3Passport, LtiConfiguration
 from lti_consumer.tests import test_utils
 from lti_consumer.tests.test_utils import (
     FAKE_USER_ID,
+    TestBaseWithPatch,
     get_mock_lti_configuration,
     make_jwt_request,
     make_request,
-    make_xblock, TestBaseWithPatch
+    make_xblock,
 )
 from lti_consumer.utils import resolve_custom_parameter_template
 
@@ -71,6 +74,36 @@ class TestLtiConsumerXBlock(TestBaseWithPatch):
         self.compat.get_course_by_id.return_value = course
         self.compat.get_user_role.return_value = "student"
         self.compat.get_external_id_for_user.return_value = "12345"
+
+
+class TestAddXmlToNode(TestCase):
+    """Unit tests for export XML on LtiConsumerXBlock."""
+
+    def test_add_xml_to_node_includes_passport_id_from_database(self):
+        xblock = make_xblock(
+            'lti_consumer',
+            LtiConsumerXBlock,
+            {
+                'lti_version': 'lti_1p3',
+                'lti_1p3_launch_url': 'http://tool.example/launch',
+                'lti_1p3_oidc_url': 'http://tool.example/oidc',
+                'lti_1p3_passport_id': '',
+            },
+        )
+        passport = Lti1p3Passport.objects.create()
+        LtiConfiguration.objects.create(
+            location=xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_1p3_passport=passport,
+        )
+        node = Element('lti_consumer')
+
+        with patch('xblock.core.XBlock.add_xml_to_node') as mock_super:
+            xblock.add_xml_to_node(node)
+
+        mock_super.assert_called_once_with(node)
+        self.assertEqual(node.get('lti_1p3_passport_id'), str(passport.passport_id))
 
 
 class TestIndexibility(TestCase):

@@ -58,6 +58,7 @@ from importlib import import_module
 
 import bleach
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from web_fragments.fragment import Fragment
 from webob import Response
@@ -74,19 +75,19 @@ except ModuleNotFoundError:  # For backward compatibility with releases older th
 
 from .data import Lti1p3LaunchData
 from .exceptions import LtiError
-from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
+from .lti_1p1.consumer import LTI_PARAMETERS, LtiConsumer1p1, parse_result_json
 from .lti_1p1.oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .plugin import compat
 from .track import track_event
 from .utils import (
-    _,
-    resolve_custom_parameter_template,
-    external_config_filter_enabled,
-    external_user_id_1p1_launches_enabled,
-    database_config_enabled,
     EXTERNAL_ID_REGEX,
+    _,
+    database_config_enabled,
+    external_config_filter_enabled,
     external_multiple_launch_urls_enabled,
+    external_user_id_1p1_launches_enabled,
+    resolve_custom_parameter_template,
 )
 
 log = logging.getLogger(__name__)
@@ -1846,3 +1847,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         xblock_body["content_type"] = "LTI Consumer"
 
         return xblock_body
+
+    def add_xml_to_node(self, node):
+        """
+        Export XBlock XML and include passport_id from database when available.
+        """
+        super().add_xml_to_node(node)
+
+        try:
+            from .models import LtiConfiguration  # pylint: disable=import-outside-toplevel
+
+            configuration = LtiConfiguration.objects.select_related("lti_1p3_passport").get(
+                location=self.scope_ids.usage_id,
+            )
+            if configuration.lti_1p3_passport:
+                node.set("lti_1p3_passport_id", str(configuration.lti_1p3_passport.passport_id))
+        except (LtiConfiguration.DoesNotExist, ObjectDoesNotExist):
+            pass
