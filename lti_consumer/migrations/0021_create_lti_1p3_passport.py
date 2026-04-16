@@ -9,7 +9,7 @@ from django.db import migrations
 
 def create_lti_1p3_passport(apps, _):
     """Copy config_id from LtiConsumer to LtiConsumerXBlock."""
-    from lti_consumer.plugin.compat import load_enough_xblock, save_xblock  # pylint: disable=import-outside-toplevel
+    from lti_consumer.plugin.compat import load_enough_xblock  # pylint: disable=import-outside-toplevel
     from lti_consumer.utils import model_to_dict  # pylint: disable=import-outside-toplevel
 
     LtiConfiguration = apps.get_model("lti_consumer", "LtiConfiguration")
@@ -30,9 +30,6 @@ def create_lti_1p3_passport(apps, _):
         if configuration.location:
             try:
                 block = load_enough_xblock(configuration.location)
-                block.lti_1p3_passport_id = str(configuration.config_id)
-                block.save()
-                save_xblock(block)
                 if block.config_type == "new":
                     # Data is stored xblock
                     values.update({

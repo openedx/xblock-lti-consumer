@@ -53,10 +53,6 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
             lti_1p3_tool_public_key = "xblock-tool-public-key"
             lti_1p3_tool_keyset_url = "https://xblock.example/jwks.json"
 
-            def __init__(self):
-                self.lti_1p3_passport_id = None
-                self.save = mock.Mock()
-
         fake_block = FakeBlock()
         values = {
             "lti_1p3_internal_private_key": "db-private-key",
@@ -88,11 +84,9 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
         self.assertEqual(passport.lti_1p3_tool_public_key, "xblock-tool-public-key")
         self.assertEqual(passport.lti_1p3_tool_keyset_url, "https://xblock.example/jwks.json")
 
-        self.assertEqual(fake_block.lti_1p3_passport_id, str(self.config_id))
-        fake_block.save.assert_called_once_with()
         mock_load.assert_called_once()
         self.assertEqual(str(mock_load.call_args.args[0]), self.location)
-        mock_save_xblock.assert_called_once_with(fake_block)
+        mock_save_xblock.assert_not_called()
 
     def test_migration_creates_passport_when_xblock_load_fails(self):
         """Missing location skips XBlock path but still creates passport from DB."""
@@ -144,10 +138,6 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
             lti_1p3_tool_public_key = "xblock-tool-public-key"
             lti_1p3_tool_keyset_url = "https://xblock.example/jwks.json"
 
-            def __init__(self):
-                self.lti_1p3_passport_id = None
-                self.save = mock.Mock()
-
         fake_block = FakeBlock()
         values = {
             "lti_1p3_internal_private_key": "db-private-key",
@@ -175,10 +165,8 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
         self.assertEqual(passport.lti_1p3_tool_public_key, "db-tool-public-key")
         self.assertEqual(passport.lti_1p3_tool_keyset_url, "https://db.example/jwks.json")
 
-        self.assertEqual(fake_block.lti_1p3_passport_id, str(self.config_id))
-        fake_block.save.assert_called_once_with()
         self.assertEqual(str(mock_load.call_args.args[0]), self.location)
-        mock_save_xblock.assert_called_once_with(fake_block)
+        mock_save_xblock.assert_not_called()
 
 
 class Test0023SetPassportNameAndContextKey(TransactionTestCase):
