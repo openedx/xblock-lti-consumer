@@ -1971,10 +1971,20 @@ class TestLtiConsumer1p3XBlock(TestCase):
 
         self.assertEqual(self.xblock.get_context_title(), "DemoX - edX")
 
-    def test_studio_view(self):
+    @patch('lti_consumer.plugin.compat.get_course_by_id')
+    def test_studio_view(self, mock_get_course_by_id):
         """
         Test that the studio settings view load the custom js.
         """
+        # Mock i18n service before fetching author view
+        self.xblock.runtime.service.return_value = None
+
+        mock_course = Mock()
+        mock_course.display_name_with_default = "DemoX"
+        mock_course.display_org_with_default = "edX"
+        mock_course.lti_passports = ["lti_passport:key:secret"]
+        mock_get_course_by_id.return_value = mock_course
+
         response = self.xblock.studio_view({})
         self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
 
