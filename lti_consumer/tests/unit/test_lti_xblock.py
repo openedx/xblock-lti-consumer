@@ -1196,12 +1196,15 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
     @override_settings(DEBUG=True)
     @patch('lti_consumer.lti_xblock.log_authorization_header')
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret')
-    def test_runtime_debug_true(self, mock_lti_provider_key_secret, mock_log_auth_header):
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock._get_lti_consumer')
+    def test_runtime_debug_true(self, mock_get_lti_consumer, mock_log_auth_header):
         """
         Test `log_authorization_header` is called when settings.DEBUG is True
         """
-        mock_lti_provider_key_secret.__get__ = Mock(return_value=(self.lti_provider_key, self.lti_provider_secret))
+        mock_get_lti_consumer.return_value = Mock(
+            oauth_key=self.lti_provider_key,
+            oauth_secret=self.lti_provider_secret,
+        )
         request = make_request('', 'GET')
         self.xblock.result_service_handler(request)
 

@@ -6,10 +6,12 @@ https://www.imsglobal.org/specs/ltiomv1p0
 """
 
 import logging
-from xml.sax.saxutils import escape
 from urllib.parse import unquote
+from xml.sax.saxutils import escape
 
+from django.conf import settings
 from lxml import etree
+
 try:
     from xblock.utils.resources import ResourceLoader
 except ModuleNotFoundError:  # For backward compatibility with releases older than Quince.
@@ -176,7 +178,13 @@ class OutcomeService:
             return response_xml_template.format(**failure_values)
 
         # Verify OAuth signing.
-        __, secret = self.xblock.lti_provider_key_secret
+        secret = self.xblock.get_lti_consumer().oauth_secret
+        if settings.DEBUG:
+            log.debug(
+                "[LTI]: verifying OAuth body signature for outcomes. service_url=%s request.url=%s",
+                self.xblock.outcome_service_url,
+                request.url,
+            )
         try:
             verify_oauth_body_signature(request, secret, self.xblock.outcome_service_url)
         except (ValueError, LtiError) as ex:
