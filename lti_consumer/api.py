@@ -28,7 +28,28 @@ log = logging.getLogger(__name__)
 
 
 def _ensure_lti_passport(block, lti_config):
-    """Ensure passport is synced with block fields, creating a new one if needed."""
+    """
+    Keep block-backed LTI passport aligned with current block key fields.
+    Function updates passport in place when safe, and splits to new passport
+    when current passport is shared and active key value changed.
+
+    Flow
+
+    passport missing or non-CONFIG_ON_XBLOCK
+        -> return current passport
+
+    passport unshared or tool fields blank
+        -> update in place from block if changed
+        -> return passport
+
+    passport shared
+        -> active tool key mode matches block
+           -> return passport
+        -> active key mode differs
+           -> create new passport
+           -> save new passport_id on block
+           -> return new passport
+    """
     passport = lti_config.lti_1p3_passport
     if not passport or lti_config.config_store != LtiConfiguration.CONFIG_ON_XBLOCK:
         return passport
@@ -36,7 +57,7 @@ def _ensure_lti_passport(block, lti_config):
     block_public_key = str(block.lti_1p3_tool_public_key)
     block_keyset_url = str(block.lti_1p3_tool_keyset_url)
 
-    # Update existing passport if safe
+    # Update in place when passport not shared, or when key fields still empty.
     if passport.lticonfiguration_set.count() == 1 or (
         not passport.lti_1p3_tool_public_key and not passport.lti_1p3_tool_keyset_url
     ):
@@ -47,7 +68,7 @@ def _ensure_lti_passport(block, lti_config):
             log.info("Updated LTI passport for %s", block.scope_ids.usage_id)
         return passport
 
-    # Create new passport if keys changed and passport is shared
+    # For shared passport, check only active key mode before splitting passport.
     key_mismatch = (
         block.lti_1p3_tool_key_mode == 'public_key' and passport.lti_1p3_tool_public_key != block_public_key
     ) or (
@@ -62,6 +83,7 @@ def _ensure_lti_passport(block, lti_config):
             name=f"Passport of {block.display_name}",
             context_key=block.context_id,
         )
+        # Persist new passport link on block so future loads use split passport.
         block.lti_1p3_passport_id = str(passport.passport_id)
         save_xblock(block)
         log.info("Created new LTI passport for %s", block.scope_ids.usage_id)

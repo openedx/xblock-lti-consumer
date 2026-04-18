@@ -58,7 +58,6 @@ from importlib import import_module
 
 import bleach
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from web_fragments.fragment import Fragment
 from webob import Response
@@ -1850,7 +1849,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     def add_xml_to_node(self, node):
         """
-        Export XBlock XML and include passport_id from database when available.
+        # The lti_1p3_passport_id XBlock field may be empty on blocks that existed before
+        # the Lti1p3Passport model was introduced (migration 0021). Rather than backfilling
+        # the field in the migration (which requires the XBlock runtime and can fail silently),
+        # we read the authoritative passport_id from the DB at export time. This ensures that
+        # when a block is duplicated or exported/imported, the receiving block's
+        # lti_1p3_passport_id field is populated and can be used to find the shared passport
+        # instead of creating new credentials.
         """
         super().add_xml_to_node(node)
 
@@ -1862,5 +1867,5 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )
             if configuration.lti_1p3_passport:
                 node.set("lti_1p3_passport_id", str(configuration.lti_1p3_passport.passport_id))
-        except (LtiConfiguration.DoesNotExist, ObjectDoesNotExist):
+        except LtiConfiguration.DoesNotExist:
             pass

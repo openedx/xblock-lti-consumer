@@ -1,6 +1,6 @@
-# Generated migration for copying config_id into modulestore from database (Django 6.2)
+# Generated migration for copying config_id to the LtiPassport table
 """
-This migration will copy config_id from LtiConsumer database to LtiConsumerXBlock.
+This migration will copy config_id from LtiConfiguration database to LtiPassport table.
 
 This will help us link xblocks with LtiConsumer database rows without relying on the location or usage_key of xblocks.
 """
@@ -17,7 +17,14 @@ FIELD_NAMES = [
 
 
 def create_lti_1p3_passport(apps, _):
-    """Copy config_id from LtiConsumer to LtiConsumerXBlock."""
+    """
+    Create a new LtiPassport entry for each existing LtiConfiguration
+
+    We use the `config_id` of the existing LtiConfiguration as the `passport_id` for the newly
+    created LtiPassort entries to maintain backwards compatability and to ensure urls built
+    from LtiPassoport passport_ids continue to work for previously created LtiConfiguration
+    which correspond to existing instances of the LTI Consumer XBlock.
+    """
     from lti_consumer.plugin.compat import load_enough_xblock  # pylint: disable=import-outside-toplevel
     from lti_consumer.utils import model_to_dict  # pylint: disable=import-outside-toplevel
 
@@ -33,7 +40,7 @@ def create_lti_1p3_passport(apps, _):
             try:
                 block = load_enough_xblock(configuration.location)
                 if block.config_type == "new":
-                    # Data is stored xblock
+                    # Data is stored on the xblock
                     values.update({
                         'lti_1p3_tool_public_key': block.lti_1p3_tool_public_key,
                         'lti_1p3_tool_keyset_url': block.lti_1p3_tool_keyset_url,
