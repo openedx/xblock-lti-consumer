@@ -6,6 +6,15 @@ This will help us link xblocks with LtiConsumer database rows without relying on
 """
 from django.db import migrations
 
+FIELD_NAMES = [
+    'lti_1p3_internal_private_key',
+    'lti_1p3_internal_private_key_id',
+    'lti_1p3_internal_public_jwk',
+    'lti_1p3_client_id',
+    'lti_1p3_tool_public_key',
+    'lti_1p3_tool_keyset_url',
+]
+
 
 def create_lti_1p3_passport(apps, _):
     """Copy config_id from LtiConsumer to LtiConsumerXBlock."""
@@ -18,14 +27,7 @@ def create_lti_1p3_passport(apps, _):
     for configuration in LtiConfiguration.objects.all():
         values = model_to_dict(
             configuration,
-            include=[
-                'lti_1p3_internal_private_key',
-                'lti_1p3_internal_private_key_id',
-                'lti_1p3_internal_public_jwk',
-                'lti_1p3_client_id',
-                'lti_1p3_tool_public_key',
-                'lti_1p3_tool_keyset_url',
-            ],
+            include=FIELD_NAMES,
         )
         if configuration.location:
             try:
@@ -37,7 +39,7 @@ def create_lti_1p3_passport(apps, _):
                         'lti_1p3_tool_keyset_url': block.lti_1p3_tool_keyset_url,
                     })
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Failed to copy passport_id for configuration {configuration}: {e}")
+                print(f"Failed to load block for {configuration.location}: {e}")
         passport, _ = Lti1p3Passport.objects.update_or_create(
             # Use config_id as passport_id to preserve existing urls that use it.
             passport_id=configuration.config_id,
@@ -47,8 +49,22 @@ def create_lti_1p3_passport(apps, _):
         configuration.save()
 
 
-def backwards(*_):
-    """Reverse the migration only for MariaDB databases."""
+def backwards(apps, _):
+    """Copy LTI 1.3 passport data back to configuration fields before unapplying."""
+    LtiConfiguration = apps.get_model("lti_consumer", "LtiConfiguration")
+
+    for configuration in LtiConfiguration.objects.select_related("lti_1p3_passport").all():
+        passport = configuration.lti_1p3_passport
+        if not passport:
+            continue
+
+        for field_name in FIELD_NAMES:
+            setattr(configuration, field_name, getattr(passport, field_name))
+
+        # Use config_id as passport_id to preserve existing urls that use it.
+        configuration.config_id = passport.passport_id
+
+        configuration.save(update_fields=[*FIELD_NAMES, 'config_id'])
 
 
 class Migration(migrations.Migration):

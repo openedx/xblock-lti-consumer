@@ -168,6 +168,55 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
         self.assertEqual(str(mock_load.call_args.args[0]), self.location)
         mock_save_xblock.assert_not_called()
 
+    def test_backwards_copies_passport_values_back_to_configuration(self):
+        """Reverse migration restores passport-backed values onto the configuration."""
+        values = {
+            "lti_1p3_internal_private_key": "db-private-key",
+            "lti_1p3_internal_private_key_id": "db-kid",
+            "lti_1p3_internal_public_jwk": '{"kty": "RSA"}',
+            "lti_1p3_client_id": "db-client-id",
+            "lti_1p3_tool_public_key": "db-tool-public-key",
+            "lti_1p3_tool_keyset_url": "https://db.example/jwks.json",
+        }
+
+        with mock.patch("lti_consumer.plugin.compat.load_enough_xblock", side_effect=Exception("boom")), \
+                mock.patch("lti_consumer.utils.model_to_dict", return_value=values):
+            self.executor.loader.build_graph()
+            self.executor.migrate(self.migrate_to)
+
+        new_apps = self.executor.loader.project_state(self.migrate_to).apps
+        LtiConfiguration = new_apps.get_model("lti_consumer", "LtiConfiguration")
+        Lti1p3Passport = new_apps.get_model("lti_consumer", "Lti1p3Passport")
+
+        configuration = LtiConfiguration.objects.get(pk=self.configuration.pk)
+        passport = Lti1p3Passport.objects.get(passport_id=self.config_id)
+
+        new_config_id = uuid.uuid4()
+        configuration.config_id = new_config_id
+        configuration.lti_1p3_internal_private_key = ""
+        configuration.lti_1p3_internal_private_key_id = ""
+        configuration.lti_1p3_internal_public_jwk = ""
+        configuration.lti_1p3_client_id = ""
+        configuration.lti_1p3_tool_public_key = ""
+        configuration.lti_1p3_tool_keyset_url = ""
+        configuration.lti_config = {"existing": "value"}
+        configuration.save()
+
+        migration_module = importlib.import_module("lti_consumer.migrations.0021_create_lti_1p3_passport")
+        migration_module.backwards(new_apps, None)
+
+        configuration.refresh_from_db()
+
+        self.assertEqual(configuration.lti_1p3_internal_private_key, passport.lti_1p3_internal_private_key)
+        self.assertEqual(configuration.lti_1p3_internal_private_key_id, passport.lti_1p3_internal_private_key_id)
+        self.assertEqual(configuration.lti_1p3_internal_public_jwk, passport.lti_1p3_internal_public_jwk)
+        self.assertEqual(configuration.lti_1p3_client_id, passport.lti_1p3_client_id)
+        self.assertEqual(configuration.config_id, passport.passport_id)
+        self.assertNotEqual(configuration.config_id, new_config_id)
+        self.assertEqual(configuration.lti_1p3_tool_public_key, passport.lti_1p3_tool_public_key)
+        self.assertEqual(configuration.lti_1p3_tool_keyset_url, passport.lti_1p3_tool_keyset_url)
+        self.assertEqual(configuration.lti_config, {"existing": "value"})
+
 
 class Test0023SetPassportNameAndContextKey(TransactionTestCase):
     """Exercise data migration 0023 across success and edge-case paths."""
