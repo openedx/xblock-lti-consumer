@@ -2,7 +2,7 @@
 """
 This migration will copy config_id from LtiConfiguration database to LtiPassport table.
 
-This will help us link xblocks with LtiConsumer database rows without relying on the location or usage_key of xblocks.
+Existing config_id values are reused as passport_id so that the keyset and access token URLs already registered with LTI tools continue to work without reconfiguration.
 """
 from django.db import migrations
 
