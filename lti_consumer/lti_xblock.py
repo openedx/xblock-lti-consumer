@@ -1849,13 +1849,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     def add_xml_to_node(self, node):
         """
-        # The lti_1p3_passport_id XBlock field may be empty on blocks that existed before
-        # the Lti1p3Passport model was introduced (migration 0021). Rather than backfilling
-        # the field in the migration (which requires the XBlock runtime and can fail silently),
-        # we read the authoritative passport_id from the DB at export time. This ensures that
-        # when a block is duplicated or exported/imported, the receiving block's
-        # lti_1p3_passport_id field is populated and can be used to find the shared passport
-        # instead of creating new credentials.
+        The lti_1p3_passport_id XBlock field may be empty on blocks that existed before
+        the Lti1p3Passport model was introduced (migration 0021). Rather than backfilling
+        the field in the migration (which requires the XBlock runtime and can fail silently),
+        we read the authoritative passport_id from the DB at export time. This ensures that
+        when a block is duplicated or exported/imported, the receiving block's
+        lti_1p3_passport_id field is populated and can be used to find the shared passport
+        instead of creating new credentials.
         """
         super().add_xml_to_node(node)
 
