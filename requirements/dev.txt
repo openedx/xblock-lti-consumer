@@ -85,7 +85,7 @@ jsonfield==3.2.0
     # via -r requirements/base.txt
 lazy==1.6
     # via -r requirements/base.txt
-lxml[html-clean]==6.0.2
+lxml[html-clean]==6.0.4
     # via
     #   -r requirements/base.txt
     #   edx-i18n-tools

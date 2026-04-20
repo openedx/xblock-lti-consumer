@@ -61,7 +61,7 @@ jsonfield==3.2.0
     # via -r requirements/base.in
 lazy==1.6
     # via -r requirements/base.in
-lxml==6.0.2
+lxml==6.0.4
     # via
     #   -r requirements/base.in
     #   xblock
