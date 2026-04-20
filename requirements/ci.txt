@@ -26,18 +26,20 @@ astroid==4.0.4
     #   pylint
     #   pylint-celery
 attrs==26.1.0
-    # via -r requirements/test.txt
+    # via
+    #   -r requirements/test.txt
+    #   openedx-events
 binaryornot==0.6.0
     # via
     #   -r requirements/test.txt
     #   cookiecutter
 bleach==6.3.0
     # via -r requirements/test.txt
-boto3==1.42.89
+boto3==1.42.91
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.42.89
+botocore==1.42.91
     # via
     #   -r requirements/test.txt
     #   boto3
@@ -117,6 +119,7 @@ django==5.2.13
     #   djangorestframework
     #   edx-django-utils
     #   jsonfield
+    #   openedx-events
     #   openedx-filters
     #   xblock-sdk
 django-appconf==1.2.0
@@ -150,19 +153,27 @@ docutils==0.22.4
     #   -r requirements/test.txt
     #   readme-renderer
 edx-ccx-keys==2.0.2
-    # via -r requirements/test.txt
+    # via
+    #   -r requirements/test.txt
+    #   openedx-events
 edx-django-utils==8.0.1
     # via
     #   -r requirements/test.txt
     #   django-config-models
+    #   openedx-events
 edx-lint==6.0.0
     # via -r requirements/test.txt
 edx-opaque-keys[django]==4.0.0
     # via
     #   -r requirements/test.txt
     #   edx-ccx-keys
+    #   openedx-events
     #   openedx-filters
-filelock==3.25.2
+fastavro==1.12.1
+    # via
+    #   -r requirements/test.txt
+    #   openedx-events
+filelock==3.29.0
     # via
     #   -r requirements/tox.txt
     #   python-discovery
@@ -224,12 +235,12 @@ keyring==25.7.0
     #   twine
 lazy==1.6
     # via -r requirements/test.txt
-lxml==6.0.4
+lxml==6.1.0
     # via
     #   -r requirements/test.txt
     #   xblock
     #   xblock-sdk
-mako==1.3.10
+mako==1.3.11
     # via
     #   -r requirements/test.txt
     #   xblock
@@ -264,9 +275,11 @@ nh3==0.3.4
     #   readme-renderer
 oauthlib==3.3.1
     # via -r requirements/test.txt
+openedx-events==11.1.1
+    # via -r requirements/test.txt
 openedx-filters==3.1.0
     # via -r requirements/test.txt
-packaging==26.0
+packaging==26.1
     # via
     #   -r requirements/test.txt
     #   -r requirements/tox.txt
@@ -405,7 +418,7 @@ shellingham==1.5.4
     # via
     #   -r requirements/test.txt
     #   typer
-simplejson==3.20.2
+simplejson==4.0.1
     # via
     #   -r requirements/test.txt
     #   xblock
@@ -463,7 +476,7 @@ urllib3==1.26.20
     #   botocore
     #   requests
     #   twine
-virtualenv==21.2.3
+virtualenv==21.2.4
     # via
     #   -r requirements/tox.txt
     #   tox

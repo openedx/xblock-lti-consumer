@@ -10,12 +10,12 @@ colorama==0.4.6
     # via tox
 distlib==0.4.0
     # via virtualenv
-filelock==3.25.2
+filelock==3.29.0
     # via
     #   python-discovery
     #   tox
     #   virtualenv
-packaging==26.0
+packaging==26.1
     # via
     #   pyproject-api
     #   tox
@@ -36,5 +36,5 @@ tomli-w==1.2.0
     # via tox
 tox==4.53.0
     # via -r requirements/tox.in
-virtualenv==21.2.3
+virtualenv==21.2.4
     # via tox

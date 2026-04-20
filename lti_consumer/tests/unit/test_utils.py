@@ -5,17 +5,17 @@ from unittest.mock import Mock, patch
 
 import ddt
 from django.test.testcases import TestCase
-
 from opaque_keys.edx.locator import CourseLocator
+
 from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE
 from lti_consumer.utils import (
+    cache_lti_1p3_launch_data,
     choose_lti_1p3_redirect_uris,
+    external_multiple_launch_urls_enabled,
+    get_data_from_cache,
     get_lti_1p3_context_types_claim,
     get_lti_1p3_launch_data_cache_key,
-    cache_lti_1p3_launch_data,
-    get_data_from_cache,
     model_to_dict,
-    external_multiple_launch_urls_enabled,
 )
 
 LAUNCH_URL = "http://tool.launch"

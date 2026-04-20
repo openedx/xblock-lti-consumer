@@ -3,34 +3,35 @@ Tests for LTI API.
 """
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
-import ddt
 
+import ddt
 from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from edx_django_utils.cache import get_cache_key
+from opaque_keys.edx.keys import UsageKey
 
 from lti_consumer.api import (
     _get_config_by_config_id,
-    _get_or_create_local_lti_config,
     config_id_for_block,
+    get_deep_linking_data,
     get_end_assessment_return,
     get_lti_1p3_content_url,
-    get_deep_linking_data,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
+    _get_or_create_local_lti_config,
     validate_lti_1p3_launch_data,
 )
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiConfiguration, LtiDlContentItem
-from lti_consumer.tests.test_utils import make_xblock
+from lti_consumer.models import Lti1p3Passport, LtiConfiguration, LtiDlContentItem
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 from lti_consumer.utils import get_data_from_cache
 
 # it's convenient to have this in lowercase to compare to URLs
 _test_config_id = "6c440bf4-face-beef-face-e8bcfb1e53bd"
 
 
-class Lti1P3TestCase(TestCase):
+class Lti1P3TestCase(TestBaseWithPatch):
     """
     Reusable test case for testing LTI 1.3 configurations.
     """
@@ -40,15 +41,7 @@ class Lti1P3TestCase(TestCase):
         """
         self._setup_lti_block()
 
-        # Patch compat method to avoid calls to modulestore
-        patcher = patch(
-            'lti_consumer.plugin.compat.load_enough_xblock',
-        )
-        self.addCleanup(patcher.stop)
-        self._load_block_patch = patcher.start()
-        self._load_block_patch.return_value = self.xblock
-
-        return super().setUp()
+        super().setUp()
 
     def _setup_lti_block(self):
         """
@@ -68,26 +61,12 @@ class Lti1P3TestCase(TestCase):
             'lti_1p3_tool_public_key': public_key,
         }
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, xblock_attributes)
-
-        # Create lti configuration
-        self.lti_config = LtiConfiguration.objects.create(
-            config_id=_test_config_id,
-            location=self.xblock.scope_ids.usage_id,
-            version=LtiConfiguration.LTI_1P3,
-            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
-        )
-
-    def _get_lti_1p3_launch_data(self):
-        return Lti1p3LaunchData(
-            user_id="1",
-            user_role="student",
-            config_id=self.lti_config.config_id,
-            resource_link_id="resource_link_id",
-        )
+        self.location = self.xblock.scope_ids.usage_id
+        self.other_location = UsageKey.from_string("block-v1:course+101+2024+type@lti_consumer+block@test")
 
 
 @ddt.ddt
-class TestConfigIdForBlock(TestCase):
+class TestConfigIdForBlock(Lti1P3TestCase):
     """
     Test config ID for block which is either a simple lookup
     or creates the config if it hasn't existed before. Config
@@ -129,7 +108,7 @@ class TestConfigIdForBlock(TestCase):
 
 
 @ddt.ddt
-class TestGetOrCreateLocalLtiConfiguration(TestCase):
+class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
     """
     Unit tests for _get_or_create_local_lti_config API method.
     """
@@ -137,38 +116,37 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         """
         Check if the API creates a model if no object matching properties is found.
         """
-        location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_version = LtiConfiguration.LTI_1P3
 
-        # Check that there's nothing in the models
+        # Check that there's 1 in the models
         self.assertEqual(LtiConfiguration.objects.all().count(), 0)
 
         # Call API
         lti_config = _get_or_create_local_lti_config(
             lti_version=lti_version,
-            block_location=location
+            block=self.xblock
         )
 
+        self.assertEqual(LtiConfiguration.objects.all().count(), 1)
         # Check if the object was created
         self.assertEqual(lti_config.version, lti_version)
-        self.assertEqual(str(lti_config.location), location)
+        self.assertEqual(str(lti_config.location), str(self.location))
         self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
 
     def test_retrieve_existing(self):
         """
         Check if the API retrieves a model if the configuration matches.
         """
-        location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_version = LtiConfiguration.LTI_1P1
 
         lti_config = LtiConfiguration.objects.create(
-            location=location
+            location=self.location
         )
 
         # Call API
         lti_config_retrieved = _get_or_create_local_lti_config(
             lti_version=lti_version,
-            block_location=location
+            block=self.xblock
         )
 
         # Check if the object was created
@@ -179,17 +157,15 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         """
         Check if the API retrieves the config and updates the API version.
         """
-        location = 'block-v1:course+test+2020+type@problem+block@test'
-
         lti_config = LtiConfiguration.objects.create(
-            location=location,
+            location=self.location,
             version=LtiConfiguration.LTI_1P1
         )
 
         # Call API
         _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
-            block_location=location
+            block=self.xblock
         )
 
         # Check if the object was created
@@ -202,11 +178,10 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         Check if the config_store parameter to _get_or_create_local_lti_config is used to change
         the config_store field of the LtiConfiguration model appropriately.
         """
-        location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_version = LtiConfiguration.LTI_1P3
         lti_config = _get_or_create_local_lti_config(
             lti_version=lti_version,
-            block_location=location,
+            block=self.xblock,
             config_store=config_store,
         )
 
@@ -216,11 +191,10 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
         """
         Check if the API clears external configuration values when external id is none
         """
-        location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_version = LtiConfiguration.LTI_1P3
 
         lti_config = LtiConfiguration.objects.create(
-            location=location,
+            location=self.location,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_EXTERNAL,
             external_id="test_plugin:test-id"
@@ -228,15 +202,233 @@ class TestGetOrCreateLocalLtiConfiguration(TestCase):
 
         _get_or_create_local_lti_config(
             lti_version=lti_version,
-            block_location=location,
-            external_id=None
+            block=self.xblock,
         )
 
         lti_config.refresh_from_db()
         self.assertEqual(lti_config.version, lti_version)
-        self.assertEqual(str(lti_config.location), location)
+        self.assertEqual(str(lti_config.location), str(self.location))
         self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
         self.assertEqual(lti_config.external_id, None)
+
+    def test_passport_created_on_first_call(self):
+        """
+        Check if a passport is created when none exists.
+        """
+        lti_version = LtiConfiguration.LTI_1P3
+
+        lti_config = _get_or_create_local_lti_config(
+            lti_version=lti_version,
+            block=self.xblock
+        )
+
+        self.assertIsNotNone(lti_config.lti_1p3_passport)
+
+    def test_passport_updated_when_single_use(self):
+        """
+        Check if passport is updated when it's only used by one config.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='old_key',
+            lti_1p3_tool_keyset_url='old_url'
+        )
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport
+        )
+
+        self.xblock.lti_1p3_tool_public_key = 'new_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
+
+        _get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        passport.refresh_from_db()
+        self.assertEqual(passport.lti_1p3_tool_public_key, 'new_key')
+        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'new_url')
+
+    def test_passport_not_updated_when_config_store_not_on_xblock(self):
+        """
+        Ensure that when the existing LtiConfiguration is not stored on the XBlock
+        (e.g., CONFIG_ON_DB), the passport is not updated even if block key values differ.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='shared_key',
+            lti_1p3_tool_keyset_url='shared_url'
+        )
+        # Create a configuration that uses the passport but is stored on DB
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+        )
+
+        # Block has different keys, but since the config is not on XBlock,
+        # _ensure_lti_passport should not update the shared passport.
+        self.xblock.lti_1p3_tool_public_key = 'new_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
+
+        _get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+        )
+
+        passport.refresh_from_db()
+        # passport should remain unchanged
+        self.assertEqual(passport.lti_1p3_tool_public_key, 'shared_key')
+        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'shared_url')
+
+    def test_passport_not_saved_when_no_changes(self):
+        """
+        Ensure that passport.save() is not called when passport fields already match the
+        XBlock values and no update is required.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='matching_key',
+            lti_1p3_tool_keyset_url='matching_url'
+        )
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport
+        )
+
+        # Make block keys match the passport
+        self.xblock.lti_1p3_tool_public_key = 'matching_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
+
+        with patch.object(Lti1p3Passport, 'save') as mock_save:
+            _get_or_create_local_lti_config(
+                lti_version=LtiConfiguration.LTI_1P3,
+                block=self.xblock
+            )
+            mock_save.assert_not_called()
+
+    def test_config_not_saved_when_no_changes(self):
+        """
+        Ensure that LtiConfiguration.save() is not called when no fields change.
+        """
+        # Create a config that already matches the block's current values
+        LtiConfiguration.objects.create(
+            location=self.location,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+        )
+
+        # Ensure block has default external_config of None and LTI version matches
+        with patch.object(LtiConfiguration, 'save') as mock_save:
+            _get_or_create_local_lti_config(
+                lti_version=LtiConfiguration.LTI_1P3,
+                block=self.xblock,
+                config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            )
+            mock_save.assert_not_called()
+
+    def test_new_passport_created_on_key_conflict(self):
+        """
+        Check if a new passport is created when block key differs and passport is shared.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='shared_key',
+            lti_1p3_tool_keyset_url='shared_url'
+        )
+        # Create two configs sharing the passport
+        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=passport)
+        LtiConfiguration.objects.create(location=self.other_location, lti_1p3_passport=passport)
+
+        self.xblock.lti_1p3_tool_key_mode = 'public_key'
+        self.xblock.lti_1p3_tool_public_key = 'new_key'
+
+        _get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        # Original passport unchanged
+        passport.refresh_from_db()
+        self.assertEqual(passport.lti_1p3_tool_public_key, 'shared_key')
+
+        # Block has new passport
+        self.assertNotEqual(self.xblock.lti_1p3_passport_id, str(passport.passport_id))
+
+    def test_passport_unchanged_when_keys_match(self):
+        """
+        Check if passport is not updated when block keys already match.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='matching_key',
+            lti_1p3_tool_keyset_url='matching_url'
+        )
+        lti_config = LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport
+        )
+
+        self.xblock.lti_1p3_tool_public_key = 'matching_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
+
+        original_passport_id = passport.passport_id
+
+        _get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        # Same passport used
+        self.assertEqual(Lti1p3Passport.objects.count(), 1)
+        self.assertEqual(str(lti_config.lti_1p3_passport.passport_id), str(original_passport_id))
+
+    @ddt.data(
+        ('public_key', 'lti_1p3_tool_public_key'),
+        ('keyset_url', 'lti_1p3_tool_keyset_url')
+    )
+    @ddt.unpack
+    def test_new_passport_on_key_mode_change(self, key_mode, key_field):
+        """
+        Check if a new passport is created when key_mode-specific field changes.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='old_key',
+            lti_1p3_tool_keyset_url='old_url'
+        )
+        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=passport)
+        LtiConfiguration.objects.create(location=self.other_location, lti_1p3_passport=passport)
+
+        self.xblock.lti_1p3_tool_key_mode = key_mode
+        setattr(self.xblock, key_field, 'new_value')
+
+        _get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        self.assertEqual(Lti1p3Passport.objects.count(), 2)
+
+    def test_passport_updated_when_fields_empty(self):
+        """
+        Check if passport is updated when both key fields are empty.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_tool_public_key='',
+            lti_1p3_tool_keyset_url=''
+        )
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=passport
+        )
+
+        self.xblock.lti_1p3_tool_public_key = 'new_key'
+        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
+
+        _get_or_create_local_lti_config(
+            lti_version=LtiConfiguration.LTI_1P3,
+            block=self.xblock
+        )
+
+        passport.refresh_from_db()
+        self.assertEqual(passport.lti_1p3_tool_public_key, 'new_key')
 
 
 @ddt.ddt
@@ -416,11 +608,12 @@ class TestValidateLti1p3LaunchData(TestCase):
         )
 
 
-class TestGetLti1p3LaunchInfo(TestCase):
+class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
     """
     Unit tests for get_lti_1p3_launch_info API method.
     """
     def setUp(self):
+        self.maxDiff = 30000
         # Patch internal method to avoid calls to modulestore
         patcher = patch(
             'lti_consumer.models.LtiConfiguration.get_lti_consumer',
@@ -446,9 +639,8 @@ class TestGetLti1p3LaunchInfo(TestCase):
         """
         Check if the API retrieves the launch with id.
         """
-        location = 'block-v1:course+test+2020+type@problem+block@test'
         lti_config = LtiConfiguration.objects.create(
-            location=location,
+            location=self.location,
             config_id=_test_config_id,
         )
 
@@ -468,7 +660,7 @@ class TestGetLti1p3LaunchInfo(TestCase):
 
         # Create LTI Config and Deep linking object
         lti_config = LtiConfiguration.objects.create(
-            location='block-v1:course+test+2020+type@problem+block@test',
+            location=self.location,
             config_id=_test_config_id,
         )
         LtiDlContentItem.objects.create(
@@ -486,14 +678,10 @@ class TestGetLti1p3LaunchInfo(TestCase):
             launch_info,
             {
                 'client_id': lti_config.lti_1p3_client_id,
-                'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
-                    lti_config.config_id
-                ),
+                'keyset_url': f'https://example.com/api/lti_consumer/v1/public_keysets/{lti_config.passport_id}',
                 'deployment_id': '1',
                 'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',
-                'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
-                    lti_config.config_id
-                ),
+                'token_url': f'https://example.com/api/lti_consumer/v1/token/{lti_config.passport_id}',
                 'deep_linking_launch_url': 'http://example.com',
 
                 'deep_linking_content_items':
@@ -523,14 +711,10 @@ class TestGetLti1p3LaunchInfo(TestCase):
             launch_info,
             {
                 'client_id': lti_config.lti_1p3_client_id,
-                'keyset_url': 'https://example.com/api/lti_consumer/v1/public_keysets/{}'.format(
-                    lti_config.config_id
-                ),
+                'keyset_url': f'https://example.com/api/lti_consumer/v1/public_keysets/{lti_config.passport_id}',
                 'deployment_id': '1',
                 'oidc_callback': 'https://example.com/api/lti_consumer/v1/launch/',
-                'token_url': 'https://example.com/api/lti_consumer/v1/token/{}'.format(
-                    lti_config.config_id
-                ),
+                'token_url': f'https://example.com/api/lti_consumer/v1/token/{lti_config.passport_id}',
                 'deep_linking_launch_url': 'http://example.com',
 
                 'deep_linking_content_items':
@@ -582,6 +766,27 @@ class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
     """
     Unit tests for LTI 1.3 launch API methods.
     """
+    def setUp(self):
+        """
+        Method to set up test data.
+        """
+        super().setUp()
+        # Create lti configuration
+        self.lti_config = LtiConfiguration.objects.create(
+            config_id=_test_config_id,
+            location=self.xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+        )
+
+    def _get_lti_1p3_launch_data(self):
+        return Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id=self.lti_config.config_id,
+            resource_link_id="resource_link_id",
+        )
+
     def test_get_normal_lti_launch_url(self):
         """
         Check if the correct launch url is retrieved for a normal LTI 1.3 launch.
@@ -638,6 +843,27 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
     """
     Unit tests for get_lti_1p3_launch_start_url API method.
     """
+    def setUp(self):
+        """
+        Method to set up test data.
+        """
+        super().setUp()
+        # Create lti configuration
+        self.lti_config = LtiConfiguration.objects.create(
+            config_id=_test_config_id,
+            location=self.xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+        )
+
+    def _get_lti_1p3_launch_data(self):
+        return Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id=self.lti_config.config_id,
+            resource_link_id="resource_link_id",
+        )
+
     @patch("lti_consumer.api.get_lti_1p3_launch_start_url")
     def test_lti_content_presentation(self, mock_get_launch_url):
         """
@@ -704,7 +930,7 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
         )
 
 
-class TestGetLtiDlContentItemData(TestCase):
+class TestGetLtiDlContentItemData(Lti1P3TestCase):
     """
     Unit tests for get_deep_linking_data API method.
     """
@@ -712,11 +938,10 @@ class TestGetLtiDlContentItemData(TestCase):
         """
         Set up an empty block configuration.
         """
+        super().setUp()
         self.lti_config = LtiConfiguration.objects.create(
             location='block-v1:course+test+2020+type@problem+block@test',
         )
-
-        return super().setUp()
 
     def test_lti_retrieve_content_item(self):
         """

@@ -16,6 +16,12 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+11.0.0 - 2026-04-20
+--------------------
+* Split LTI 1.3 Configuration into Passport Model
+* Fix duplicate, copy-paste for LTI xblocks
+* Add signal handlers for events like delete, duplicate etc.
+
 10.0.1 - 2026-03-17
 --------------------
 * Revert the quoting of location/usage_keys done in version 9.14.4 & 9.14.5.

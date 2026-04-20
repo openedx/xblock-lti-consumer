@@ -18,3 +18,4 @@ jsonfield
 django-config-models         # Configuration models for Django allowing config management with auditing
 openedx-filters
 django-statici18n
+openedx-events               # Open edX Events from Hooks Extension Framework (OEP-50)

@@ -60,11 +60,11 @@ import bleach
 from django.conf import settings
 from django.utils import timezone
 from web_fragments.fragment import Fragment
-
 from webob import Response
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean, Float, Integer
 from xblock.validation import ValidationMessage
+
 try:
     from xblock.utils.resources import ResourceLoader
     from xblock.utils.studio_editable import StudioEditableXBlockMixin
@@ -74,19 +74,19 @@ except ModuleNotFoundError:  # For backward compatibility with releases older th
 
 from .data import Lti1p3LaunchData
 from .exceptions import LtiError
-from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
+from .lti_1p1.consumer import LTI_PARAMETERS, LtiConsumer1p1, parse_result_json
 from .lti_1p1.oauth import log_authorization_header
 from .outcomes import OutcomeService
 from .plugin import compat
 from .track import track_event
 from .utils import (
-    _,
-    resolve_custom_parameter_template,
-    external_config_filter_enabled,
-    external_user_id_1p1_launches_enabled,
-    database_config_enabled,
     EXTERNAL_ID_REGEX,
+    _,
+    database_config_enabled,
+    external_config_filter_enabled,
     external_multiple_launch_urls_enabled,
+    external_user_id_1p1_launches_enabled,
+    resolve_custom_parameter_template,
 )
 
 log = logging.getLogger(__name__)
@@ -311,6 +311,13 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     )
 
     # LTI 1.3 fields
+    lti_1p3_passport_id = String(
+        display_name=_("Lti 1.3 passport ID that points to Lti1p3Passport table"),
+        scope=Scope.settings,
+        default="",
+        help=_("Passport ID for a reusable keys.")
+    )
+
     lti_1p3_launch_url = String(
         display_name=_("Tool Launch URL"),
         default='',
@@ -366,6 +373,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             " requests received have the signature from the tool."
             "<br /><b>This is not required when doing LTI 1.3 Launches"
             " without LTI Advantage nor Basic Outcomes requests.</b>"
+            "<br /><br /><b>Changing the public key or keyset URL will cause the client ID, block keyset URL "
+            "and access token URL to be regenerated if they are shared between blocks. "
+            "Please check and update them in the LTI tool settings if necessary.</b>"
         ),
     )
     lti_1p3_tool_public_key = String(
@@ -380,6 +390,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             "from the tool."
             "<br /><b>This is not required when doing LTI 1.3 Launches without LTI Advantage nor "
             "Basic Outcomes requests.</b>"
+            "<br /><br /><b>Changing the public key or keyset URL will cause the client ID, block keyset URL "
+            "and access token URL to be regenerated if they are shared between blocks. "
+            "Please check and update them in the LTI tool settings if necessary.</b>"
         ),
     )
 
@@ -991,7 +1004,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         i4x-2-3-lti-31de800015cf4afb973356dbe81496df this part of resource_link_id:
         makes resource_link_id to be unique among courses inside same system.
         """
-        return str(urllib.parse.quote(f"{settings.LMS_BASE}-{self.scope_ids.usage_id.html_id()}"))
+        return str(self.scope_ids.usage_id)
 
     @property
     def lis_result_sourcedid(self):
@@ -1668,7 +1681,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             user_id=self.lms_user_id,
             user_role=self.role,
             config_id=config_id,
-            resource_link_id=str(location),
+            resource_link_id=self.resource_link_id,
             external_user_id=self.external_user_id,
             preferred_username=username,
             name=full_name,
@@ -1833,3 +1846,26 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         xblock_body["content_type"] = "LTI Consumer"
 
         return xblock_body
+
+    def add_xml_to_node(self, node):
+        """
+        The lti_1p3_passport_id XBlock field may be empty on blocks that existed before
+        the Lti1p3Passport model was introduced (migration 0021). Rather than backfilling
+        the field in the migration (which requires the XBlock runtime and can fail silently),
+        we read the authoritative passport_id from the DB at export time. This ensures that
+        when a block is duplicated or exported/imported, the receiving block's
+        lti_1p3_passport_id field is populated and can be used to find the shared passport
+        instead of creating new credentials.
+        """
+        super().add_xml_to_node(node)
+
+        try:
+            from .models import LtiConfiguration  # pylint: disable=import-outside-toplevel
+
+            configuration = LtiConfiguration.objects.select_related("lti_1p3_passport").get(
+                location=self.scope_ids.usage_id,
+            )
+            if configuration.lti_1p3_passport:
+                node.set("lti_1p3_passport_id", str(configuration.lti_1p3_passport.passport_id))
+        except LtiConfiguration.DoesNotExist:
+            pass

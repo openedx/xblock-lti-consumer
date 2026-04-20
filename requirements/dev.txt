@@ -13,7 +13,9 @@ asgiref==3.11.1
     #   -r requirements/base.txt
     #   django
 attrs==26.1.0
-    # via -r requirements/base.txt
+    # via
+    #   -r requirements/base.txt
+    #   openedx-events
 bleach==6.3.0
     # via -r requirements/base.txt
 cffi==2.0.0
@@ -37,6 +39,7 @@ django==5.2.13
     #   edx-django-utils
     #   edx-i18n-tools
     #   jsonfield
+    #   openedx-events
     #   openedx-filters
 django-appconf==1.2.0
     # via
@@ -65,18 +68,26 @@ dnspython==2.8.0
     #   -r requirements/base.txt
     #   pymongo
 edx-ccx-keys==2.0.2
-    # via -r requirements/base.txt
+    # via
+    #   -r requirements/base.txt
+    #   openedx-events
 edx-django-utils==8.0.1
     # via
     #   -r requirements/base.txt
     #   django-config-models
+    #   openedx-events
 edx-i18n-tools==2.0.0
     # via -r requirements/dev.in
 edx-opaque-keys[django]==4.0.0
     # via
     #   -r requirements/base.txt
     #   edx-ccx-keys
+    #   openedx-events
     #   openedx-filters
+fastavro==1.12.1
+    # via
+    #   -r requirements/base.txt
+    #   openedx-events
 fs==2.4.16
     # via
     #   -r requirements/base.txt
@@ -85,7 +96,7 @@ jsonfield==3.2.0
     # via -r requirements/base.txt
 lazy==1.6
     # via -r requirements/base.txt
-lxml[html-clean]==6.0.4
+lxml[html-clean]==6.1.0
     # via
     #   -r requirements/base.txt
     #   edx-i18n-tools
@@ -93,7 +104,7 @@ lxml[html-clean]==6.0.4
     #   xblock
 lxml-html-clean==0.4.4
     # via lxml
-mako==1.3.10
+mako==1.3.11
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -103,6 +114,8 @@ markupsafe==3.0.3
     #   mako
     #   xblock
 oauthlib==3.3.1
+    # via -r requirements/base.txt
+openedx-events==11.1.1
     # via -r requirements/base.txt
 openedx-filters==3.1.0
     # via -r requirements/base.txt
@@ -143,7 +156,7 @@ pyyaml==6.0.3
     #   -r requirements/base.txt
     #   edx-i18n-tools
     #   xblock
-simplejson==3.20.2
+simplejson==4.0.1
     # via
     #   -r requirements/base.txt
     #   xblock

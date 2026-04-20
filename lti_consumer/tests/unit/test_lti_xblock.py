@@ -7,6 +7,7 @@ import string
 from datetime import timedelta
 from itertools import product
 from unittest.mock import Mock, PropertyMock, patch
+from xml.etree.ElementTree import Element
 
 import ddt
 import jwt
@@ -23,9 +24,11 @@ from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
+from lti_consumer.models import Lti1p3Passport, LtiConfiguration
 from lti_consumer.tests import test_utils
 from lti_consumer.tests.test_utils import (
     FAKE_USER_ID,
+    TestBaseWithPatch,
     get_mock_lti_configuration,
     make_jwt_request,
     make_request,
@@ -40,7 +43,7 @@ HTML_LAUNCH_NEW_WINDOW_BUTTON = 'btn-lti-new-window'
 HTML_IFRAME = '<iframe'
 
 
-class TestLtiConsumerXBlock(TestCase):
+class TestLtiConsumerXBlock(TestBaseWithPatch):
     """
     Unit tests for LtiConsumerXBlock.max_score()
     """
@@ -71,6 +74,36 @@ class TestLtiConsumerXBlock(TestCase):
         self.compat.get_course_by_id.return_value = course
         self.compat.get_user_role.return_value = "student"
         self.compat.get_external_id_for_user.return_value = "12345"
+
+
+class TestAddXmlToNode(TestCase):
+    """Unit tests for export XML on LtiConsumerXBlock."""
+
+    def test_add_xml_to_node_includes_passport_id_from_database(self):
+        xblock = make_xblock(
+            'lti_consumer',
+            LtiConsumerXBlock,
+            {
+                'lti_version': 'lti_1p3',
+                'lti_1p3_launch_url': 'http://tool.example/launch',
+                'lti_1p3_oidc_url': 'http://tool.example/oidc',
+                'lti_1p3_passport_id': '',
+            },
+        )
+        passport = Lti1p3Passport.objects.create()
+        LtiConfiguration.objects.create(
+            location=xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_1p3_passport=passport,
+        )
+        node = Element('lti_consumer')
+
+        with patch('xblock.core.XBlock.add_xml_to_node') as mock_super:
+            xblock.add_xml_to_node(node)
+
+        mock_super.assert_called_once_with(node)
+        self.assertEqual(node.get('lti_1p3_passport_id'), str(passport.passport_id))
 
 
 class TestIndexibility(TestCase):
@@ -461,10 +494,9 @@ class TestProperties(TestLtiConsumerXBlock):
         """
         Test `resource_link_id` returns appropriate string
         """
-        hostname = "edx.org"
         self.assertEqual(
             self.xblock.resource_link_id,
-            f"{hostname}-{self.xblock.scope_ids.usage_id.html_id()}"
+            str(self.xblock.scope_ids.usage_id),
         )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.context_id')
@@ -2235,7 +2267,7 @@ class TestDynamicCustomParametersResolver(TestLtiConsumerXBlock):
         mock_import_module.asser_not_called()
 
 
-class TestLti1p3AccessTokenJWK(TestCase):
+class TestLti1p3AccessTokenJWK(TestBaseWithPatch):
     """
     Unit tests for LtiConsumerXBlock Access Token endpoint when using a
     LTI 1.3 setup with JWK authentication.
