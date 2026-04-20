@@ -16,7 +16,7 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
-11.0.1 - 2026-04-20
+11.0.0 - 2026-04-20
 --------------------
 * Split LTI 1.3 Configuration into Passport Model
 * Fix duplicate, copy-paste for LTI xblocks
