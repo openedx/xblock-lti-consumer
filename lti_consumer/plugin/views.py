@@ -138,7 +138,7 @@ def public_keyset_endpoint(
             lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
             public_jwk = lti_passport.lti_1p3_public_jwk
             # TODO: move version inside passport from config
-            # We just need any lti_config that is using this passport to check version
+            # We just need any any lti_config that is using this passport to check version
             lti_config = LtiConfiguration.objects.filter(lti_1p3_passport=lti_passport).first()
             version = lti_config.version
         elif external_app and external_slug:
@@ -457,7 +457,7 @@ def access_token_endpoint(
         elif passport_id:
             lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
             # TODO: move version inside passport from config
-            # We just need any lti_config that is using this passport to check version
+            # We just need any any lti_config that is using this passport to check version
             lti_config = LtiConfiguration.objects.filter(lti_1p3_passport=lti_passport).first()
             version = lti_config.version
             lti_consumer = LtiConsumer1p3(
