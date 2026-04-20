@@ -64,6 +64,7 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
         }
 
         with mock.patch("lti_consumer.plugin.compat.load_enough_xblock", return_value=fake_block) as mock_load, \
+                mock.patch("lti_consumer.plugin.compat.save_xblock") as mock_save_xblock, \
                 mock.patch("lti_consumer.utils.model_to_dict", return_value=values):
             self.executor.loader.build_graph()
             self.executor.migrate(self.migrate_to)
@@ -85,6 +86,7 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
 
         mock_load.assert_called_once()
         self.assertEqual(str(mock_load.call_args.args[0]), self.location)
+        mock_save_xblock.assert_not_called()
 
     def test_migration_creates_passport_when_xblock_load_fails(self):
         """Missing location skips XBlock path but still creates passport from DB."""
@@ -103,7 +105,7 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
         with mock.patch(
             "lti_consumer.plugin.compat.load_enough_xblock",
             side_effect=Exception("boom"),
-        ) as mock_load, \
+        ) as mock_load, mock.patch("lti_consumer.plugin.compat.save_xblock") as mock_save_xblock, \
                 mock.patch("lti_consumer.utils.model_to_dict", return_value=values), \
                 mock.patch("builtins.print") as mock_print:
             self.executor.loader.build_graph()
@@ -125,6 +127,7 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
         self.assertEqual(passport.lti_1p3_tool_keyset_url, "https://db.example/jwks.json")
 
         mock_load.assert_not_called()
+        mock_save_xblock.assert_not_called()
         mock_print.assert_not_called()
 
     def test_migration_keeps_db_values_when_block_not_new(self):
@@ -146,6 +149,7 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
         }
 
         with mock.patch("lti_consumer.plugin.compat.load_enough_xblock", return_value=fake_block) as mock_load, \
+                mock.patch("lti_consumer.plugin.compat.save_xblock") as mock_save_xblock, \
                 mock.patch("lti_consumer.utils.model_to_dict", return_value=values):
             self.executor.loader.build_graph()
             self.executor.migrate(self.migrate_to)
@@ -162,6 +166,7 @@ class Test0021CreateLti1p3Passport(TransactionTestCase):
         self.assertEqual(passport.lti_1p3_tool_keyset_url, "https://db.example/jwks.json")
 
         self.assertEqual(str(mock_load.call_args.args[0]), self.location)
+        mock_save_xblock.assert_not_called()
 
     def test_backwards_copies_passport_values_back_to_configuration(self):
         """Reverse migration restores passport-backed values onto the configuration."""

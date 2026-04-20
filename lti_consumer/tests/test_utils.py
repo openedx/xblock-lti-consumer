@@ -117,15 +117,20 @@ class TestBaseWithPatch(TestCase):
         """Set up mock patches for xblock imports"""
         self.mock_load_xblock = Mock()
         self.mock_load_xblock.return_value = getattr(self, 'xblock', None)
+        self.mock_save_xblock = Mock()
+        self.mock_save_xblock.return_value = None
 
         # Patch the imports
         self.patcher_load = patch('lti_consumer.plugin.compat.load_enough_xblock', self.mock_load_xblock)
+        self.patcher_save = patch('lti_consumer.plugin.compat.save_xblock', self.mock_save_xblock)
 
         self.patcher_load.start()
+        self.patcher_save.start()
 
         super().setUp()
 
     def tearDown(self):
         """Clean up patches"""
         self.patcher_load.stop()
+        self.patcher_save.stop()
         super().tearDown()
