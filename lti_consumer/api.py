@@ -76,16 +76,12 @@ def _ensure_lti_passport(block, lti_config):
     )
 
     if key_mismatch:
-        from lti_consumer.plugin.compat import save_xblock  # pylint: disable=import-outside-toplevel
         passport = Lti1p3Passport.objects.create(
             lti_1p3_tool_public_key=block_public_key,
             lti_1p3_tool_keyset_url=block_keyset_url,
             name=f"Passport of {block.display_name}",
             context_key=block.context_id,
         )
-        # Persist new passport link on block so future loads use split passport.
-        block.lti_1p3_passport_id = str(passport.passport_id)
-        save_xblock(block)
         log.info("Created new LTI passport for %s", block.scope_ids.usage_id)
 
     return passport
