@@ -96,7 +96,7 @@ jsonfield==3.2.0
     # via -r requirements/base.txt
 lazy==1.6
     # via -r requirements/base.txt
-lxml[html-clean]==6.0.4
+lxml[html-clean]==6.1.0
     # via
     #   -r requirements/base.txt
     #   edx-i18n-tools
@@ -104,7 +104,7 @@ lxml[html-clean]==6.0.4
     #   xblock
 lxml-html-clean==0.4.4
     # via lxml
-mako==1.3.10
+mako==1.3.11
     # via
     #   -r requirements/base.txt
     #   xblock
@@ -156,7 +156,7 @@ pyyaml==6.0.3
     #   -r requirements/base.txt
     #   edx-i18n-tools
     #   xblock
-simplejson==3.20.2
+simplejson==4.0.1
     # via
     #   -r requirements/base.txt
     #   xblock
