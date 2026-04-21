@@ -97,7 +97,7 @@ pycryptodomex==3.23.0
     # via -r requirements/base.in
 pyjwt==2.12.1
     # via -r requirements/base.in
-pymongo==4.16.0
+pymongo==4.17.0
     # via edx-opaque-keys
 pynacl==1.6.2
     # via edx-django-utils
@@ -128,7 +128,7 @@ webencodings==0.5.1
     # via bleach
 webob==1.8.9
     # via xblock
-xblock==6.0.0
+xblock==6.1.0
     # via -r requirements/base.in
 
 # The following packages are considered to be unsafe in a requirements file:

@@ -135,7 +135,7 @@ pycryptodomex==3.23.0
     # via -r requirements/base.txt
 pyjwt==2.12.1
     # via -r requirements/base.txt
-pymongo==4.16.0
+pymongo==4.17.0
     # via
     #   -r requirements/base.txt
     #   edx-opaque-keys
@@ -191,7 +191,7 @@ webob==1.8.9
     # via
     #   -r requirements/base.txt
     #   xblock
-xblock==6.0.0
+xblock==6.1.0
     # via -r requirements/base.txt
 
 # The following packages are considered to be unsafe in a requirements file:

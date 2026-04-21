@@ -35,16 +35,16 @@ binaryornot==0.6.0
     #   cookiecutter
 bleach==6.3.0
     # via -r requirements/test.txt
-boto3==1.42.91
+boto3==1.42.92
     # via
     #   -r requirements/test.txt
     #   fs-s3fs
-botocore==1.42.91
+botocore==1.42.92
     # via
     #   -r requirements/test.txt
     #   boto3
     #   s3transfer
-cachetools==7.0.5
+cachetools==7.0.6
     # via
     #   -r requirements/tox.txt
     #   tox
@@ -192,7 +192,7 @@ id==1.5.0
     # via
     #   -r requirements/test.txt
     #   twine
-idna==3.11
+idna==3.12
     # via
     #   -r requirements/test.txt
     #   requests
@@ -337,7 +337,7 @@ pylint-plugin-utils==0.9.0
     #   -r requirements/test.txt
     #   pylint-celery
     #   pylint-django
-pymongo==4.16.0
+pymongo==4.17.0
     # via
     #   -r requirements/test.txt
     #   edx-opaque-keys
@@ -494,7 +494,7 @@ webob==1.8.9
     #   -r requirements/test.txt
     #   xblock
     #   xblock-sdk
-xblock==6.0.0
+xblock==6.1.0
     # via
     #   -r requirements/test.txt
     #   xblock-sdk
