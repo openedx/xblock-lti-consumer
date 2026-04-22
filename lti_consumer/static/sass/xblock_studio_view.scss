@@ -189,7 +189,7 @@ hr.field-group-separator {
 
 .step-body {
     padding: 1rem;
-    flex-grow: 0;
+    flex-grow: 1;
     height: 315px;
     overflow-y: scroll;
 }
@@ -205,10 +205,6 @@ div.tooltip {
 [class*="view-"] {
     .wrapper .modal-window.modal-editor,
     .wrapper.xblock-iframe-content {
-        &:not(.modal-fullscreen) {
-            width: 742px;
-        }
-
         .modal-content {
             display: flex;
             flex-direction: column;
@@ -223,66 +219,66 @@ div.tooltip {
                     display: flex;
                     flex-direction: column;
                     flex-grow: 1;
+                }
+            }
+        }
 
-                    .editor-with-buttons {
-                        display: flex;
-                        flex-direction: column;
-                        margin-bottom: 0;
-                        flex-grow: 1;
-                    }
+        .editor-with-buttons {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0;
+            flex-grow: 1;
 
-                    .xblock-actions {
-                        flex: none;
-                        margin-top: auto;
-                        flex-direction: row;
-                        position: relative;
+            .xblock-actions {
+                flex: none;
+                margin-top: auto;
+                flex-direction: row;
+                position: relative;
 
-                        .action-buttons-left {
-                            margin-right: auto;
-                            margin-left: 0;
-                            margin-bottom: 0;
-                        }
+                .action-buttons-left {
+                    margin-right: auto;
+                    margin-left: 0;
+                    margin-bottom: 0;
+                }
 
-                        .action-buttons {
-                            flex-grow: 0;
-                        }
+                .action-buttons {
+                    flex-grow: 0;
+                }
 
-                        .primary-button {
-                            color: #fff;
-                            background-color: #0a3055;
-                            box-shadow: none;
-                            font-weight: 500;
-                            border: 1px solid transparent;
-                            padding: 10px 16px;
-                            font-size: 18px;
-                            line-height: 20px;
-                            border-radius: 6px;
-                            text-align: center;
-                            vertical-align: middle;
-                            user-select: none;
-                            background-image: none;
-                            height: auto;
-                            display: block;
-                            margin-right: 0;
-                        }
+                .primary-button {
+                    color: #fff;
+                    background-color: #0a3055;
+                    box-shadow: none;
+                    font-weight: 500;
+                    border: 1px solid transparent;
+                    padding: 10px 16px;
+                    font-size: 18px;
+                    line-height: 20px;
+                    border-radius: 6px;
+                    text-align: center;
+                    vertical-align: middle;
+                    user-select: none;
+                    background-image: none;
+                    height: auto;
+                    display: block;
+                    margin-right: 0;
+                }
 
-                        .secondary-button {
-                            color: #333333;
-                            background-color: transparent;
-                            box-shadow: none;
-                            font-weight: 500;
-                            border: 1px solid #707070;
-                            padding: 10px 16px;
-                            font-size: 18px;
-                            line-height: 20px;
-                            border-radius: 6px;
-                            text-align: center;
-                            vertical-align: middle;
-                            user-select: none;
-                            background-image: none;
-                            display: block;
-                        }
-                    }
+                .secondary-button {
+                    color: #333333;
+                    background-color: transparent;
+                    box-shadow: none;
+                    font-weight: 500;
+                    border: 1px solid #707070;
+                    padding: 10px 16px;
+                    font-size: 18px;
+                    line-height: 20px;
+                    border-radius: 6px;
+                    text-align: center;
+                    vertical-align: middle;
+                    user-select: none;
+                    background-image: none;
+                    display: block;
                 }
             }
         }
