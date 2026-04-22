@@ -766,7 +766,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # editing of 'ask_to_send_username', 'ask_to_send_full_name', and 'ask_to_send_email'.
         pii_sharing_enabled = self.get_pii_sharing_enabled()
         if not pii_sharing_enabled:
-            noneditable_fields.extend(['ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email'])
+            noneditable_fields.extend([
+                'ask_to_send_username',
+                'ask_to_send_full_name',
+                'ask_to_send_email',
+                'description',
+            ])
 
         editable_fields = tuple(
             field

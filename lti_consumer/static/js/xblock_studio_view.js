@@ -390,13 +390,19 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
     let isSet;
 
     if (field.length === 0) {
-      // This is not a text/select field, so we get the value of the select option.
+      // This is not a text/select field (or is not present), so we get the value of the select option.
       options = $(element).find(`input[id^=${fieldName}_option-]`);
       if (options.length === 0) {
-        throw new Error(`No options for ${fieldName}`);
+        // The field is not present, so we return isSet = false and value = null.
+        return {
+          isSet: false,
+          value: null,
+        };
       }
-      isSet = getIsSet(options[0]);
-      value = isSet ? getRadioButtonValue(fieldName) : null;
+      return {
+        isSet: getIsSet(options[0]),
+        value: getRadioButtonValue(fieldName),
+      };
     } else {
       isSet = getIsSet(field);
       if (field.attr("type") === "checkbox") {
@@ -404,12 +410,11 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       } else {
         value = field.val();
       }
+      return {
+        isSet,
+        value,
+      };
     }
-
-    return {
-      isSet,
-      value,
-    };
   }
 
   $(element)
