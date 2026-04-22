@@ -107,7 +107,8 @@ def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigur
     updates = {
         'config_store': config_store,
         'external_id': block.external_config,
-        'version': lti_version,
+        # fallback on block lti_version if lti_version is None
+        'version': lti_version or block.lti_version,
     }
     if passport:
         updates['lti_1p3_passport'] = passport

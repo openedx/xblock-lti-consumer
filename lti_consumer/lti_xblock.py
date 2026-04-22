@@ -1600,11 +1600,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         self.module_score = scaled_score
         self.score_comment = comment
 
-    def _get_lti_launch_url(self, consumer):
+    def _get_lti_launch_url(self, consumer) -> str:
         """
         Return the LTI launch URL.
         """
-        launch_url = self.launch_url
+        launch_url = str(self.launch_url)
 
         # The lti_launch_url property only exists on the LtiConsumer1p1. The LtiConsumer1p3 does not have an
         # attribute with this name, so ensure that we're accessing it on the appropriate consumer class.
