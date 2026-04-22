@@ -1152,7 +1152,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         loader = ResourceLoader(__name__)
 
         course = self.course
-        lti_passport_ids = [lti_passport.split(':')[0].strip() for lti_passport in course.lti_passports]
+        if course:
+            lti_passport_ids = [lti_passport.split(':')[0].strip() for lti_passport in course.lti_passports]
+        else:
+            lti_passport_ids = []
 
         context = {
             'fields': {},

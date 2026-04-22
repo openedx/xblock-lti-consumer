@@ -104,6 +104,7 @@
                             class="field-data-control"
                             id="xb-field-edit-lti_id"
                             name="lti_id"
+                            {% if not lti_passports %} disabled {% endif %}
                         >
                             <option value=""></option>
                             {% spaceless %}
