@@ -305,7 +305,8 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
 
   $(element)
     .find(".next-button")
-    .bind("click", function () {
+    .bind("click", function (e) {
+      e.preventDefault();
       let nextStep;
       const version = getRadioButtonValue("lti_version");
 
@@ -325,7 +326,8 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
 
   $(element)
     .find(".previous-button")
-    .bind("click", function () {
+    .bind("click", function (e) {
+      e.preventDefault();
       let previousStep;
       const version = getRadioButtonValue("lti_version");
 
@@ -345,19 +347,22 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
 
   $(element)
     .find(".step-header-setup-link")
-    .bind("click", function () {
+    .bind("click", function (e) {
+      e.preventDefault();
       changeStep("setup");
     });
 
   $(element)
     .find(".step-header-advantage-link")
-    .click("click", function () {
+    .click("click", function (e) {
+      e.preventDefault();
       changeStep("advantage");
     });
 
   $(element)
     .find(".step-header-review-link")
-    .bind("click", function () {
+    .bind("click", function (e) {
+      e.preventDefault();
       changeStep("review");
     });
 
