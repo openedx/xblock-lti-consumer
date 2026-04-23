@@ -28,7 +28,8 @@ from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredCl
 ISS = "http://test-platform.example/"
 OIDC_URL = "http://test-platform/oidc"
 LAUNCH_URL = "http://test-platform/launch"
-REDIRECT_URIS = [LAUNCH_URL]
+DEEP_LINK_LAUNCH_URL = "http://test-platform/deep_link_launch"
+REDIRECT_URIS = [LAUNCH_URL, DEEP_LINK_LAUNCH_URL]
 CLIENT_ID = "1"
 DEPLOYMENT_ID = "1"
 NONCE = "1234"
@@ -739,14 +740,14 @@ class TestLtiAdvantageConsumer(TestCase):
         """
         Set's up deep linking class in LTI consumer.
         """
-        self.lti_consumer.enable_deep_linking("launch-url", "return-url")
+        self.lti_consumer.enable_deep_linking(DEEP_LINK_LAUNCH_URL, "return-url")
 
         lti_message_hint = self._setup_lti_message_hint()
 
         # Set LTI Consumer parameters
         self.preflight_response = {
             "client_id": CLIENT_ID,
-            "redirect_uri": LAUNCH_URL,
+            "redirect_uri": DEEP_LINK_LAUNCH_URL,
             "nonce": NONCE,
             "state": STATE,
             "lti_message_hint": lti_message_hint,
@@ -817,6 +818,40 @@ class TestLtiAdvantageConsumer(TestCase):
         self.assertEqual(
             decoded_token['https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings']['deep_link_return_url'],
             "return-url"
+        )
+
+    def test_deep_linking_preflight_uses_deep_link_launch_url(self):
+        """
+        Ensure deep linking launches send the deep linking launch URL as target_link_uri during login initiation.
+        """
+        self.lti_consumer.enable_deep_linking(DEEP_LINK_LAUNCH_URL, "return-url")
+        launch_data = Lti1p3LaunchData(
+            user_id="1",
+            user_role="student",
+            config_id="1",
+            resource_link_id="resource_link_id",
+            message_type="LtiDeepLinkingRequest",
+        )
+
+        preflight_request_data = self.lti_consumer.prepare_preflight_url(launch_data)
+        parameters = parse_qs(urlparse(preflight_request_data).query)
+
+        self.assertEqual(parameters['target_link_uri'][0], DEEP_LINK_LAUNCH_URL)
+
+    def test_deep_linking_launch_request_sets_target_link_uri(self):
+        """
+        Ensure the ID token for deep linking launches uses the deep linking launch URL as target_link_uri.
+        """
+        self._setup_deep_linking()
+
+        token = self.lti_consumer.generate_launch_request(
+            self.preflight_response,
+        )['id_token']
+
+        decoded_token = self.lti_consumer.key_handler.validate_and_decode(token)
+        self.assertEqual(
+            decoded_token['https://purl.imsglobal.org/spec/lti/claim/target_link_uri'],
+            DEEP_LINK_LAUNCH_URL,
         )
 
     def test_deep_linking_token_decode_no_dl(self):

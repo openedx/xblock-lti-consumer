@@ -773,7 +773,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
 
 class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
     """
-    Unit tests for LtiConsumerXBlock._get_lti_consumer()
+    Unit tests for LtiConsumerXBlock.get_lti_consumer()
     """
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     @patch('lti_consumer.models.LtiConsumer1p1')
@@ -788,7 +788,7 @@ class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
         type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
 
         with patch('lti_consumer.plugin.compat.load_enough_xblock', return_value=self.xblock):
-            self.xblock._get_lti_consumer()  # pylint: disable=protected-access
+            self.xblock.get_lti_consumer()  # pylint: disable=protected-access
 
         mock_lti_consumer.assert_called_with(self.xblock.launch_url, key, secret)
 
@@ -1020,7 +1020,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
                 'roles': 'Student',
             })
         )
-        self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
         self.xblock.due = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
 
@@ -1187,7 +1187,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.lti_provider_secret = 'secret'
         self.xblock.accept_grades_past_due = True
         self.mock_lti_consumer = Mock()
-        self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
 
         mock_user = Mock()
         mock_id = PropertyMock(return_value=1)
@@ -1196,12 +1196,13 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
     @override_settings(DEBUG=True)
     @patch('lti_consumer.lti_xblock.log_authorization_header')
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret')
-    def test_runtime_debug_true(self, mock_lti_provider_key_secret, mock_log_auth_header):
+    def test_runtime_debug_true(self, mock_log_auth_header):
         """
         Test `log_authorization_header` is called when settings.DEBUG is True
         """
-        mock_lti_provider_key_secret.__get__ = Mock(return_value=(self.lti_provider_key, self.lti_provider_secret))
+        self.mock_lti_consumer.oauth_key = self.lti_provider_key
+        self.mock_lti_consumer.oauth_secret = self.lti_provider_secret
+
         request = make_request('', 'GET')
         self.xblock.result_service_handler(request)
 
@@ -1672,7 +1673,7 @@ class TestGetContext(TestLtiConsumerXBlock):
         lti_launch_url = 'www.example.org'
         mock_lti_consumer = Mock()
         type(mock_lti_consumer).lti_launch_url = PropertyMock(return_value=lti_launch_url)
-        self.xblock._get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
 
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
         self.assertEqual(context['launch_url'], lti_launch_url)
@@ -1692,7 +1693,7 @@ class TestGetContext(TestLtiConsumerXBlock):
         lti_1p3_launch_url = 'www.example.org'
         mock_lti_consumer = Mock()
         type(mock_lti_consumer).launch_url = PropertyMock(return_value=lti_1p3_launch_url)
-        self.xblock._get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
 
         # Calling _get_lti_block_launch_handler raises an error because the mocked XBlock location attribute does not
         # act like a UsageKey, so mock out get_lti_1p3_launch_data to avoid accessing it.
