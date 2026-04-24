@@ -824,7 +824,7 @@ class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
         type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
 
         with patch('lti_consumer.plugin.compat.load_enough_xblock', return_value=self.xblock):
-            self.xblock.get_lti_consumer()  # pylint: disable=protected-access
+            self.xblock.get_lti_consumer()
 
         mock_lti_consumer.assert_called_with(self.xblock.launch_url, key, secret)
 
@@ -1056,7 +1056,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
                 'roles': 'Student',
             })
         )
-        self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)
         self.xblock.due = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
 
@@ -1223,7 +1223,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.lti_provider_secret = 'secret'
         self.xblock.accept_grades_past_due = True
         self.mock_lti_consumer = Mock()
-        self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)
 
         mock_user = Mock()
         mock_id = PropertyMock(return_value=1)
@@ -1709,7 +1709,7 @@ class TestGetContext(TestLtiConsumerXBlock):
         lti_launch_url = 'www.example.org'
         mock_lti_consumer = Mock()
         type(mock_lti_consumer).lti_launch_url = PropertyMock(return_value=lti_launch_url)
-        self.xblock.get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=mock_lti_consumer)
 
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
         self.assertEqual(context['launch_url'], lti_launch_url)
@@ -1729,7 +1729,7 @@ class TestGetContext(TestLtiConsumerXBlock):
         lti_1p3_launch_url = 'www.example.org'
         mock_lti_consumer = Mock()
         type(mock_lti_consumer).launch_url = PropertyMock(return_value=lti_1p3_launch_url)
-        self.xblock.get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=mock_lti_consumer)
 
         # Calling _get_lti_block_launch_handler raises an error because the mocked XBlock location attribute does not
         # act like a UsageKey, so mock out get_lti_1p3_launch_data to avoid accessing it.

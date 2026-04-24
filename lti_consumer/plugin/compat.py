@@ -345,6 +345,29 @@ def get_event_tracker():  # pragma: nocover
         return None
 
 
+def _select_supported_forum_role(forum_roles):
+    """
+    Return supported forum role with stable precedence.
+    """
+    if 'Group Moderator' in forum_roles:
+        return 'Group Moderator'
+    if 'Community TA' in forum_roles:
+        return 'Community TA'
+    return None
+
+
+def get_forum_role_model():  # pragma: nocover
+    """
+    Return discussion Role model if available.
+    """
+    try:
+        # pylint: disable=import-outside-toplevel
+        from openedx.core.djangoapps.django_comment_common.models import Role
+        return Role
+    except ImportError:
+        return None
+
+
 def get_user_course_forum_role(user_id, course_id):  # pragma: nocover
     """
     Return exact forum access role for user in course when it maps to LTI 1.3 forum roles.
@@ -358,32 +381,61 @@ def get_user_course_forum_role(user_id, course_id):  # pragma: nocover
 
         user = get_user_model().objects.get(id=user_id)
         forum_roles = set(get_user_role_names(user, course_id))
-        if 'Group Moderator' in forum_roles:
-            return 'Group Moderator'
-        if 'Community TA' in forum_roles:
-            return 'Community TA'
-        return None
+        return _select_supported_forum_role(forum_roles)
     except ImportError:
-        try:
-            # pylint: disable=import-outside-toplevel
-            from openedx.core.djangoapps.django_comment_common.models import Role
-
-            user_forum_roles = set(
-                Role.objects.filter(
-                    users__id=user_id,
-                    course_id=course_id,
-                    name__in=target_roles,
-                ).values_list('name', flat=True)
-            )
-
-            if 'Group Moderator' in user_forum_roles:
-                return 'Group Moderator'
-            if 'Community TA' in user_forum_roles:
-                return 'Community TA'
-        except ImportError:
+        role_model = get_forum_role_model()
+        if role_model is None:
             return None
 
-        return None
+        user_forum_roles = set(
+            role_model.objects.filter(
+                users__id=user_id,
+                course_id=course_id,
+                name__in=target_roles,
+            ).values_list('name', flat=True)
+        )
+
+        return _select_supported_forum_role(user_forum_roles)
+
+
+def merge_course_forum_roles(course_id, members):  # pragma: nocover
+    """
+    Merge supported forum roles into NRPS member role lists.
+
+    Privileged course roles keep precedence over forum roles to match launch behavior.
+    """
+    target_roles = {'Community TA', 'Group Moderator'}
+    privileged_roles = {'staff', 'instructor', 'limited_staff'}
+
+    role_model = get_forum_role_model()
+    if role_model is not None:
+        forum_roles_by_user = {}
+        for user_id, role_name in role_model.objects.filter(
+            users__id__in=members.keys(),
+            course_id=course_id,
+            name__in=target_roles,
+        ).values_list('users__id', 'name'):
+            forum_roles_by_user.setdefault(user_id, set()).add(role_name)
+
+        for user_id, member in members.items():
+            if privileged_roles.intersection(member.get('roles', [])):
+                continue
+
+            forum_role = _select_supported_forum_role(forum_roles_by_user.get(user_id, set()))
+            if forum_role and forum_role not in member['roles']:
+                member['roles'].append(forum_role)
+
+        return members
+
+    for user_id, member in members.items():
+        if privileged_roles.intersection(member.get('roles', [])):
+            continue
+
+        forum_role = get_user_course_forum_role(user_id, course_id)
+        if forum_role and forum_role not in member['roles']:
+            member['roles'].append(forum_role)
+
+    return members
 
 
 def nrps_pii_disallowed():
