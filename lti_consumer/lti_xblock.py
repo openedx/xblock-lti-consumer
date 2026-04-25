@@ -1175,11 +1175,44 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             if field_info is not None:
                 context["fields"][field_name] = field_info
 
+        i18n_service = self.runtime.service(self, 'i18n')
+
+        # ResourceLoader renders template from string, not Django loader-backed template.
+        # Django `{% include %}` cannot resolve partial paths in this setup, so pre-render
+        # partial templates here and inject safe HTML into wrapper template.
+        context.update({
+            'stepper_header_html': loader.render_django_template(
+                '/templates/html/lti_studio_edit/_stepper_header.html',
+                context=context,
+                i18n_service=i18n_service,
+            ),
+            'step_setup_html': loader.render_django_template(
+                '/templates/html/lti_studio_edit/_step_setup.html',
+                context=context,
+                i18n_service=i18n_service,
+            ),
+            'step_advantage_html': loader.render_django_template(
+                '/templates/html/lti_studio_edit/_step_advantage.html',
+                context=context,
+                i18n_service=i18n_service,
+            ),
+            'step_review_html': loader.render_django_template(
+                '/templates/html/lti_studio_edit/_step_review.html',
+                context=context,
+                i18n_service=i18n_service,
+            ),
+            'actions_html': loader.render_django_template(
+                '/templates/html/lti_studio_edit/_actions.html',
+                context=context,
+                i18n_service=i18n_service,
+            ),
+        })
+
         fragment = Fragment()
         fragment.add_content(loader.render_django_template(
             '/templates/html/lti_studio_edit.html',
             context=context,
-            i18n_service=self.runtime.service(self, 'i18n')
+            i18n_service=i18n_service,
         ))
 
         fragment.add_css(loader.load_unicode('static/css/xblock_studio_view.css'))
