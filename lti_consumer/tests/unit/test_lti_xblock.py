@@ -1,6 +1,7 @@
 """
 Unit tests for LtiConsumerXBlock
 """
+import gettext
 import json
 import logging
 import string
@@ -1976,8 +1977,21 @@ class TestLtiConsumer1p3XBlock(TestCase):
         """
         Test that the studio settings view load the custom js.
         """
-        # Mock i18n service before fetching author view
-        self.xblock.runtime.service.return_value = None
+        # Mock runtime services used by studio view
+        mock_i18n_service = gettext.NullTranslations()
+        mock_i18n_service.ugettext = mock_i18n_service.gettext
+
+        mock_config_service = Mock()
+        mock_config_service.configuration.lti_access_to_learners_editable.return_value = False
+
+        def runtime_service_side_effect(_block, service_name):
+            if service_name == 'i18n':
+                return mock_i18n_service
+            if service_name == 'configuration':
+                return mock_config_service
+            return None
+
+        self.xblock.runtime.service.side_effect = runtime_service_side_effect
 
         mock_course = Mock()
         mock_course.display_name_with_default = "DemoX"

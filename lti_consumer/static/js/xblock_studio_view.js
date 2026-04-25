@@ -239,13 +239,6 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       toggleLti1p3ToolKeyMode();
     });
 
-  // Bind to onChange method of lti_1p3_tool_key_mode selector
-  $(element)
-    .find("[id^=lti_1p3_tool_key_mode_option-]")
-    .bind("change", function () {
-      toggleLti1p3ToolKeyMode();
-    });
-
   // Bind to onChange method of has_score selector
   $(element)
     .find("[id^=has_score_option-]")
@@ -354,7 +347,7 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
 
   $(element)
     .find(".step-header-advantage-link")
-    .click("click", function (e) {
+    .bind("click", function (e) {
       e.preventDefault();
       changeStep("advantage");
     });
@@ -391,7 +384,7 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
 
     if (field.length === 0) {
       // This is not a text/select field (or is not present), so we get the value of the select option.
-      options = $(element).find(`input[id^=${fieldName}_option-]`);
+      const options = $(element).find(`input[id^=${fieldName}_option-]`);
       if (options.length === 0) {
         // The field is not present, so we return isSet = false and value = null.
         return {
@@ -444,7 +437,6 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
           });
           return;
         }
-        submitData.values.custom_parameters = JSON.parse(customParameters);
       }
 
       // Transform the lti_1p3_redirect_uris field into a list

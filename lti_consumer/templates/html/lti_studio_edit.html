@@ -215,7 +215,7 @@
                                     value="true"
                                     {% if fields.lti_advantage_deep_linking_enabled.value %}checked{% endif %}
                                 >
-                                <label for="lti_advantage_deep_linking_enabled-true">{% trans "Enabled" %}</label>
+                                <label for="lti_advantage_deep_linking_enabled_option-true">{% trans "Enabled" %}</label>
                             </li>
                             <li>
                                 <input
@@ -225,7 +225,7 @@
                                     value="false"
                                     {% if not fields.lti_advantage_deep_linking_enabled.value %}checked{% endif %}
                                 >
-                                <label for="lti_advantage_deep_linking_enabled-false">{% trans "Disabled" %}</label>
+                                <label for="lti_advantage_deep_linking_enabled_option-false">{% trans "Disabled" %}</label>
                             </li>
                             {% endspaceless %}
                         </ul>
