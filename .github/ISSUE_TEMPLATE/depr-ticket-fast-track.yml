@@ -1,0 +1,67 @@
+name: 🚅 Fast-Track Deprecation/Removal (DEPR)
+description: Announce a pre-approved breaking change. These include planned upgrade tasks, removal of unreachable code, and subtasks of other approved DEPR tickets. Consult the DEPR Working Group if unsure.
+title: "[DEPR]: <Technology Name>"
+labels: ["DEPR"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to announce a pre-accepted breaking change. These include planned upgrade tasks, removal of unreachable code, and subtasks of other accepted DEPR tickets.
+
+        The standard DEPR process is described in [OEP-21](https://open-edx-proposals.readthedocs.io/en/latest/processes/oep-0021-proc-deprecation.html). This ticket is using the new ["Fast Track" process]((https://github.com/openedx/.github/issues/175)), which means it gets to skip the RFC (Request for Comments) period. After creating an issue using this template, you do not need to make forum post announcing the RFC period. Instead, **update the issue's status to "Transition Unblocked", and paste the issue link in `#cc-risky-changes` in order to warn site operators.** Once your chosen Breaking Change Unblocked date has passed, you are clear to make the breaking change.
+
+        Please leave [DEPR] in the title of your ticket!
+  - type: input
+    id: rfc-start-date
+    attributes:
+      label: RFC Start Date
+      description: Fast-Track Deprecations do not have a comment period. **Leave this unchanged!**
+      value: N/A -- Already Accepted
+    validations:
+      required: true
+  - type: input
+    id: accept-date
+    attributes:
+      label: Target Plan Accepted Date
+      description: Fast-Track Deprecations are pre-Accepted. **Leave this unchanged!**
+      value: N/A -- Already Accepted
+    validations:
+      required: true
+  - type: input
+    id: transition-unblocked-date
+    attributes:
+      label: Target Transition Unblocked Date
+      description: When can operators prepare for the breaking change? For Fast-Track Deprecations, this generally should be "Immediately". **If not, please specify.**
+      value: "Immediately -- Transition Already Unblocked"
+    validations:
+      required: true
+  - type: input
+    id: breaking-change-unblocked-date
+    attributes:
+      label: Earliest Breaking Changes Unblocked Date
+      description: When is the earliest date you may make breaking changes? A good default is 2 weeks from the Transition Unblocked Date, giving operators time to transition.
+      placeholder: "2026-01-14"
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Rationale
+      description: Explain, briefly, why this breaking change needs to happen. Because you are fast-tracking this, please link to supporting information, such as an upgrade plan.
+    validations:
+      required: true
+  - type: textarea
+    id: removal
+    attributes:
+      label: Description
+      description: What functionality is being removed? What functionality, if any, replaces it? How can operators transition?
+    validations:
+      required: true
+  - type: textarea
+    id: removal-tasks
+    attributes:
+      label: Task List
+      description: (Optional) A list of tasks or PRs to complete this
+      placeholder: "- [ ] Task 1"
+    validations:
+      required: false
