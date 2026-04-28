@@ -39,36 +39,8 @@ See http://www.imsglobal.org/spec/lti/v1p3/#single-tenant-tool-registered-and-de
 
 Roles
 ~~~~~
-The roles claim takes in a list of LTI 1.3 compliant roles from http://www.imsglobal.org/spec/lti/v1p3/#role-vocabularies.
-The claim name is: https://purl.imsglobal.org/spec/lti/claim/roles.
-
-The mappings from Open edX roles are shown in the table below.
-
-.. note::
-   Current source of truth for roles mapping is
-   `0008-lti-1p3-role-mapping-update.rst <0008-lti-1p3-role-mapping-update.rst>`_.
-   This section is kept for historical reference.
-
-.. list-table::
-   :widths: auto
-   :header-rows: 1
-
-   * - Open edX role
-     - LTI 1.3 Roles included
-     - Reasoning
-   * - guest
-     - Empty
-     - Guests users are not logged in, they shouldn't be able to access LTI content.
-   * - student
-     - 'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student'
-     - Students only have permission to view and interact with the LTI content.
-   * - instructor
-     - 'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor'
-     - Instructor have both instructor and student access to a tool. No admin permissions.
-   * - staff
-     - 'http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator'
-       'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor'
-     - A staff user should be able to modify the tool settings and have full access to the content and settings.
+Current source of truth for roles mapping is
+`0008-lti-1p3-role-mapping-update.rst <0008-lti-1p3-role-mapping-update.rst>`_.
 
 Resource link
 ~~~~~~~~~~~~~
