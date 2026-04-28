@@ -33,6 +33,17 @@ LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR = [
     'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor',
 ]
 
+LTI_1P3_SYSTEM_ROLE_ADMINISTRATOR = [
+    'http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator',
+]
+
+LTI_1P3_INSTITUTION_ROLE_ADMINISTRATOR = [
+    'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Administrator',
+    'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Staff',
+    'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Faculty',
+    'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor',
+]
+
 LTI_1P3_CONTEXT_ROLE_LEARNER = [
     'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner',
 ]
@@ -42,6 +53,11 @@ LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT = [
 ]
 
 LTI_1P3_ROLE_MAP = {
+    'global_staff': (
+        LTI_1P3_SYSTEM_ROLE_ADMINISTRATOR
+        + LTI_1P3_INSTITUTION_ROLE_ADMINISTRATOR
+        + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR
+    ),
     'staff': LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,
     'limited_staff': LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,
     'instructor': LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR,
@@ -66,6 +82,7 @@ LTI_1P3_ROLE_MAP = {
 # Context membership roles (kept for callers using context map directly)
 # https://www.imsglobal.org/spec/lti/v1p3/#lis-vocabulary-for-context-roles
 LTI_1P3_CONTEXT_ROLE_MAP = {
+    'global_staff': LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR,
     'staff': LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,
     'limited_staff': LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,
     'instructor': LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR,

@@ -351,22 +351,24 @@ class TestProperties(TestLtiConsumerXBlock):
             _ = self.xblock.role
 
     @ddt.data(
-        ('student', None, 'student'),
-        ('guest', 'Community TA', 'Community TA'),
-        ('student', 'Group Moderator', 'Group Moderator'),
-        ('staff', 'Community TA', 'staff'),
-        ('limited_staff', 'Group Moderator', 'limited_staff'),
-        ('instructor', 'Community TA', 'instructor'),
+        ('student', False, None, 'student'),
+        ('guest', False, 'Community TA', 'Community TA'),
+        ('student', False, 'Group Moderator', 'Group Moderator'),
+        ('student', True, 'Group Moderator', 'global_staff'),
+        ('staff', False, 'Community TA', 'staff'),
+        ('limited_staff', False, 'Group Moderator', 'limited_staff'),
+        ('instructor', False, 'Community TA', 'instructor'),
     )
     @ddt.unpack
-    def test_get_lti_1p3_user_role(self, base_role, forum_role, expected_role):
+    def test_get_lti_1p3_user_role(self, base_role, user_is_staff, forum_role, expected_role):
         """
-        Test effective LTI 1.3 role includes supported forum roles for non-staff users.
+        Test effective LTI 1.3 role includes global staff and supported forum roles.
         """
         fake_user = Mock()
         fake_user.opt_attrs = {
             'edx-platform.user_id': FAKE_USER_ID,
             'edx-platform.user_role': base_role,
+            'edx-platform.user_is_staff': user_is_staff,
             'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
@@ -375,7 +377,7 @@ class TestProperties(TestLtiConsumerXBlock):
         # pylint: disable=protected-access
         self.assertEqual(self.xblock._get_lti_1p3_user_role(), expected_role)
 
-        if base_role in {'staff', 'instructor', 'limited_staff'}:
+        if base_role in {'staff', 'instructor', 'limited_staff'} or user_is_staff:
             self.compat.get_user_course_forum_role.assert_not_called()
         else:
             self.compat.get_user_course_forum_role.assert_called_once_with(

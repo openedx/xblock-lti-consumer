@@ -951,6 +951,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if role in {'staff', 'instructor', 'limited_staff'}:
             return role
 
+        # Global staff users can appear with learner-like course roles while still
+        # carrying Django's is_staff flag. Map them to instance-admin LTI role set.
+        if self.user_is_staff:
+            return 'global_staff'
+
         forum_role = compat.get_user_course_forum_role(
             self.lms_user_id,
             self.scope_ids.usage_id.context_key,

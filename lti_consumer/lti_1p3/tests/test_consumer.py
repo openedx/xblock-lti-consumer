@@ -23,7 +23,9 @@ from lti_consumer.lti_1p3.constants import (
     LTI_1P3_CONTEXT_ROLE_LEARNER,
     LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT,
     LTI_1P3_CONTEXT_TYPE,
+    LTI_1P3_INSTITUTION_ROLE_ADMINISTRATOR,
     LTI_1P3_ROLE_BASE,
+    LTI_1P3_SYSTEM_ROLE_ADMINISTRATOR,
     LTI_PROCTORING_DATA_KEYS,
 )
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3, LtiProctoringConsumer
@@ -162,6 +164,7 @@ class TestLti1p3Consumer(TestCase):
 
     @ddt.data(
         ('student', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('global_staff', LTI_1P3_SYSTEM_ROLE_ADMINISTRATOR + LTI_1P3_INSTITUTION_ROLE_ADMINISTRATOR + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
         ('staff', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
         ('instructor', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
         ('guest', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
