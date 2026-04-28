@@ -120,7 +120,10 @@
         </h6>
         <ul class="list-input settings-list">
             <!------------ lti_1p3_launch_url -------------->
-            <li class="field comp-setting-entry {% if fields.lti_1p3_launch_url.is_set %}is-set{% endif %}">
+            <li
+                class="field comp-setting-entry {% if fields.lti_1p3_launch_url.is_set %}is-set{% endif %}"
+                data-field-name="lti_1p3_launch_url"
+            >
                 <label class="label setting-label">{{ fields.lti_1p3_launch_url.display_name }}</label>
                 <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_1p3_launch_url.help }}"></span>
                 <input
@@ -133,7 +136,7 @@
             <!---------------------------------------------->
 
             <!------------ lti_1p3_oidc_url -------------->
-            <li class="field comp-setting-entry {% if fields.lti_1p3_oidc_url.is_set %}is-set{% endif %}">
+            <li class="field comp-setting-entry {% if fields.lti_1p3_oidc_url.is_set %}is-set{% endif %} no-external-config">
                 <label class="label setting-label">{{ fields.lti_1p3_oidc_url.display_name }}</label>
                 <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_1p3_oidc_url.help }}"></span>
                 <input
@@ -145,7 +148,7 @@
             </li>
             <!-------------------------------------------->
             <!------------ lti_1p3_redirect_uris -------------->
-            <li class="field comp-setting-entry {% if fields.lti_1p3_redirect_uris.is_set %}is-set{% endif %}">
+            <li class="field comp-setting-entry {% if fields.lti_1p3_redirect_uris.is_set %}is-set{% endif %} no-external-config">
                 <label class="label setting-label">{{ fields.lti_1p3_redirect_uris.display_name }}</label>
                 <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_1p3_redirect_uris.help }}"></span>
                 <textarea

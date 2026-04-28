@@ -57,7 +57,13 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
     } else {
       $(element).find(".l1p1").addClass("hidden");
       $(element).find(".l1p3").removeClass("hidden");
-
+      if (configType !== "new") {
+        $(element).find(".no-external-config").addClass("hidden");
+        $(element).find(".external-config").removeClass("hidden");
+      } else {
+        $(element).find(".external-config").addClass("hidden");
+        $(element).find(".no-external-config").removeClass("hidden");
+      }
     }
 
     if (configType === "new") {
@@ -69,8 +75,15 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
     }
 
     if (configType === "external") {
-      // Conditionally show the LTI 1.3 launch URL field if external multiple launch URLs are enabled.
-      toggleFieldVisibility("lti_1p3_launch_url", data.EXTERNAL_MULTIPLE_LAUNCH_URLS_ENABLED);
+      if (data.EXTERNAL_MULTIPLE_LAUNCH_URLS_ENABLED) {
+        // Conditionally show the LTI 1.3 launch URL field if external multiple launch URLs are enabled.
+        toggleFieldVisibility("lti_1p3_launch_url", true);
+        $(element).find(".field-group-lti-configuration-details.l1p3").addClass("hidden");
+      } else {
+        toggleFieldVisibility("lti_1p3_launch_url", false);
+        // Also hides the field-group-lti-configuration-details as it is empty in this case
+        $(element).find(".field-group-lti-configuration-details.l1p3").addClass("hidden");
+      }
     }
   }
 
@@ -158,9 +171,9 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
    * @param {string} step - The step to deactivate.
    */
   function deactivateCurrentStep() {
-      $(element).find(`.step-header-${currentStep}`).removeClass("pgn__stepper-header-step-active");
-      $(element).find(`.step-${currentStep}`).addClass("hidden");
-  };
+    $(element).find(`.step-header-${currentStep}`).removeClass("pgn__stepper-header-step-active");
+    $(element).find(`.step-${currentStep}`).addClass("hidden");
+  }
 
   /**
    * Show the current step and activate the step header.
@@ -168,8 +181,8 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
    * @param {string} step - The step to activate.
    */
   function activateCurrentStep() {
-      $(element).find(`.step-header-${currentStep}`).addClass("pgn__stepper-header-step-active");
-      $(element).find(`.step-${currentStep}`).removeClass("hidden");
+    $(element).find(`.step-header-${currentStep}`).addClass("pgn__stepper-header-step-active");
+    $(element).find(`.step-${currentStep}`).removeClass("hidden");
   }
 
   /**
@@ -178,10 +191,10 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
    * @param {string} step - The step to change to.
    */
   function changeStep(step) {
-      deactivateCurrentStep();
-      currentStep = step;
-      activateCurrentStep();
-      handlePrevNextButtonVisibility();
+    deactivateCurrentStep();
+    currentStep = step;
+    activateCurrentStep();
+    handlePrevNextButtonVisibility();
   }
 
   // Show or hide fields based on the selected options
@@ -208,7 +221,6 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       const wrapper = $(this).closest("li.field");
       $(wrapper).addClass("is-set");
     });
-
 
   // Bind to onChange method of lti_version selector
   $(element)
@@ -358,7 +370,6 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       e.preventDefault();
       changeStep("review");
     });
-
 
   /**
    * Return whether the field is set or not.
