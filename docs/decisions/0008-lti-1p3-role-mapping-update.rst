@@ -25,6 +25,7 @@ These include course roles such as ``limited_staff``, ``finance_admin``, ``sales
 ``beta_testers``, ``library_user``, ``ccx_coach``, and ``data_researcher``.
 Open edX also defines discussion roles such as ``Administrator``, ``Moderator``,
 ``Group Moderator``, ``Community TA``, and ``Student``.
+Global Django staff (``user.is_staff``) is represented in LTI mapping as ``global_staff``.
 
 This ADR records updated mapping used for:
 
@@ -60,6 +61,15 @@ Context role mapping is shown below.
        ``membership#Administrator``
        ``membership#Instructor``
      - Course admin role in Open edX maps to highest course-context privilege.
+   * - global_staff
+     - ``system/person#Administrator``
+       ``institution/person#Administrator``
+       ``institution/person#Staff``
+       ``institution/person#Faculty``
+       ``institution/person#Instructor``
+       ``membership#Administrator``
+       ``membership#Instructor``
+     - Global Django staff maps to instance-admin style LIS roles for tool launches.
    * - staff
      - ``system/person#None``
        ``institution/person#None``
@@ -150,6 +160,8 @@ For NRPS membership responses, Open edX includes context roles only.
      - NRPS roles included
    * - instructor
      - ``membership#Administrator`` ``membership#Instructor``
+   * - global_staff
+     - ``membership#Administrator`` ``membership#Instructor``
    * - staff
      - ``membership#Instructor``
    * - limited_staff
@@ -163,5 +175,5 @@ Consequences
 ============
 
 * Tool compatibility improves because context role URIs are now present in launch and NRPS flows.
-* Open edX role handling becomes explicit for current known course and org role values.
+* Open edX role handling becomes explicit for current known course, org, and global staff values.
 * Older documentation in ``0002-lti-1p3-variables.rst`` remains historical and should not be treated as current source of truth for roles mapping.
