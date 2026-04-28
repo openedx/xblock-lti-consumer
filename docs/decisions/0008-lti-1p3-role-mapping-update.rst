@@ -31,7 +31,8 @@ This ADR records updated mapping used for:
 * LTI 1.3 launch roles claim
 * LTI NRPS membership container member roles
 
-This ADR supersedes Roles section from ``0002-lti-1p3-variables.rst``.
+This ADR supersedes Roles section from
+`0002-lti-1p3-variables.rst <0002-lti-1p3-variables.rst>`_.
 
 Decisions
 =========

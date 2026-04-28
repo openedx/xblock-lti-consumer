@@ -45,7 +45,8 @@ The claim name is: https://purl.imsglobal.org/spec/lti/claim/roles.
 The mappings from Open edX roles are shown in the table below.
 
 .. note::
-   Current source of truth for roles mapping is ``docs/decisions/0008-lti-1p3-role-mapping-update.rst``.
+   Current source of truth for roles mapping is
+   `0008-lti-1p3-role-mapping-update.rst <0008-lti-1p3-role-mapping-update.rst>`_.
    This section is kept for historical reference.
 
 .. list-table::
