@@ -23,7 +23,7 @@ from lti_consumer.lti_1p3.constants import (
     LTI_1P3_CONTEXT_ROLE_LEARNER,
     LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT,
     LTI_1P3_CONTEXT_TYPE,
-    LTI_1P3_ROLE_NONE,
+    LTI_1P3_ROLE_BASE,
     LTI_PROCTORING_DATA_KEYS,
 )
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3, LtiProctoringConsumer
@@ -161,25 +161,25 @@ class TestLti1p3Consumer(TestCase):
             return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access
 
     @ddt.data(
-        ('student', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('staff', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
-        ('instructor', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
-        ('guest', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('limited_staff', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
-        ('finance_admin', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('sales_admin', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('beta_testers', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('library_user', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('ccx_coach', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('data_researcher', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('org_course_creator_group', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('course_creator_group', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('support', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('Administrator', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('Moderator', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
-        ('Group Moderator', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
-        ('Community TA', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
-        ('Student', LTI_1P3_ROLE_NONE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('student', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('staff', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
+        ('instructor', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
+        ('guest', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('limited_staff', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
+        ('finance_admin', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('sales_admin', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('beta_testers', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('library_user', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('ccx_coach', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('data_researcher', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('org_course_creator_group', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('course_creator_group', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('support', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Administrator', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Moderator', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Group Moderator', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
+        ('Community TA', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
+        ('Student', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
     )
     @ddt.unpack
     def test_get_user_roles(self, role, expected_output):

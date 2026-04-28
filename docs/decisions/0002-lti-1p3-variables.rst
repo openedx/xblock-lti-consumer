@@ -42,7 +42,11 @@ Roles
 The roles claim takes in a list of LTI 1.3 compliant roles from http://www.imsglobal.org/spec/lti/v1p3/#role-vocabularies.
 The claim name is: https://purl.imsglobal.org/spec/lti/claim/roles.
 
-The mappings from Open edX roles are shown in the table below:
+The mappings from Open edX roles are shown in the table below.
+
+.. note::
+   Current source of truth for roles mapping is ``docs/decisions/0008-lti-1p3-role-mapping-update.rst``.
+   This section is kept for historical reference.
 
 .. list-table::
    :widths: auto
