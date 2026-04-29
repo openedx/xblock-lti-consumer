@@ -318,9 +318,15 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       e.preventDefault();
       let nextStep;
       const version = getRadioButtonValue("lti_version");
+      try {
+        configType = getFieldValue("config_type").value || "new";
+      } catch (e) {
+        // The waffle flag is not enabled, so we default to "new".
+        configType = "new";
+      }
 
       if (currentStep === "setup") {
-        if (version === "lti_1p1") {
+        if (version === "lti_1p1" || configType !== "new") {
           nextStep = "review";
         } else {
           nextStep = "advantage";
@@ -345,7 +351,7 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       } else if (currentStep === "advantage") {
         previousStep = "setup";
       } else if (currentStep === "review") {
-        if (version === "lti_1p1") {
+        if (version === "lti_1p1" || configType !== "new") {
           previousStep = "setup";
         } else {
           previousStep = "advantage";
