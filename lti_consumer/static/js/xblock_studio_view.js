@@ -84,6 +84,10 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
         // Also hides the field-group-lti-configuration-details as it is empty in this case
         $(element).find(".field-group-lti-configuration-details.l1p3").addClass("hidden");
       }
+    } else {
+      // Reset visibility when switching away from external config.
+      toggleFieldVisibility("lti_1p3_launch_url", true);
+      $(element).find(".field-group-lti-configuration-details.l1p3").removeClass("hidden");
     }
   }
 
