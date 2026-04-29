@@ -1069,7 +1069,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             close_date = due_date
         return close_date is not None and timezone.now() > close_date
 
-    def _get_lti_consumer(self):
+    def get_lti_consumer(self):
         """
         Returns a preconfigured LTI consumer depending on the value.
 
@@ -1308,7 +1308,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response: HTML LTI launch form
         """
-        lti_consumer = self._get_lti_consumer()
+        lti_consumer = self.get_lti_consumer()
 
         # Occassionally, users try to do an LTI launch while they are unauthenticated. It is not known why this occurs.
         # Sometimes, it is due to a web crawlers; other times, it is due to actual users of the platform. Regardless,
@@ -1411,7 +1411,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Asserting that the consumer can be created. This makes sure that the LtiConfiguration
         # object exists before calling the Django View
-        assert self._get_lti_consumer()
+        assert self.get_lti_consumer()
         # Runtime import because this can only be run in the LMS/Studio Django
         # environments. Importing the views on the top level will cause RuntimeErorr
         from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
@@ -1467,12 +1467,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response:  response to this request.  See above for details.
         """
-        lti_consumer = self._get_lti_consumer()
+        lti_consumer = self.get_lti_consumer()
         lti_consumer.set_outcome_service_url(self.outcome_service_url)
 
         if settings.DEBUG:
-            lti_provider_key, lti_provider_secret = self.lti_provider_key_secret
-            log_authorization_header(request, lti_provider_key, lti_provider_secret)
+            log_authorization_header(request, lti_consumer.oauth_key, lti_consumer.oauth_secret)
 
         if not self.accept_grades_past_due and self.is_past_due:
             return Response(status=404)  # have to do 404 due to spec, but 400 is better, with error msg in body
@@ -1627,11 +1626,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         self.module_score = scaled_score
         self.score_comment = comment
 
-    def _get_lti_launch_url(self, consumer):
+    def _get_lti_launch_url(self, consumer) -> str:
         """
         Return the LTI launch URL.
         """
-        launch_url = self.launch_url
+        launch_url = str(self.launch_url)
 
         # The lti_launch_url property only exists on the LtiConsumer1p1. The LtiConsumer1p3 does not have an
         # attribute with this name, so ensure that we're accessing it on the appropriate consumer class.
@@ -1784,7 +1783,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Don't pull from the Django database unless the config_type is one that stores the LTI configuration in the
         # database.
         if self.config_type in ("database", "external"):
-            lti_consumer = self._get_lti_consumer()
+            lti_consumer = self.get_lti_consumer()
 
         launch_url = self._get_lti_launch_url(lti_consumer)
         lti_block_launch_handler = self._get_lti_block_launch_handler()

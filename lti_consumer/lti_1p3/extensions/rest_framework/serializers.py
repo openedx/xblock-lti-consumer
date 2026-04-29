@@ -125,7 +125,7 @@ class LtiAgsScoreSerializer(serializers.ModelSerializer):
     timestamp = serializers.DateTimeField(input_formats=[ISO_8601], format=ISO_8601, default_timezone=timezone.utc)
     scoreGiven = serializers.FloatField(source='score_given', required=False, allow_null=True, default=None)
     scoreMaximum = serializers.FloatField(source='score_maximum', required=False, allow_null=True, default=None)
-    comment = serializers.CharField(required=False, allow_null=True)
+    comment = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     activityProgress = serializers.CharField(source='activity_progress')
     gradingProgress = serializers.CharField(source='grading_progress')
     userId = serializers.CharField(source='user_id')
@@ -193,14 +193,19 @@ class LtiAgsResultSerializer(serializers.ModelSerializer):
     comment = serializers.CharField()
 
     def get_id(self, obj):
+        """
+        Return result URL for score. Include user_id when score scoped to learner.
+        """
         request = self.context.get('request')
+        kwargs = {
+            'lti_config_id': obj.line_item.lti_configuration.id,
+            'pk': obj.line_item.pk,
+        }
+        if obj.user_id:
+            kwargs['user_id'] = obj.user_id
         return reverse(
             'lti_consumer:lti-ags-view-results',
-            kwargs={
-                'lti_config_id': obj.line_item.lti_configuration.id,
-                'pk': obj.line_item.pk,
-                'user_id': obj.user_id,
-            },
+            kwargs=kwargs,
             request=request,
         )
 
