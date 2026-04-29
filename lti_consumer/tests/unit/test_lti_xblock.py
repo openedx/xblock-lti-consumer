@@ -1989,18 +1989,60 @@ class TestLtiConsumer1p3XBlock(TestCase):
                 return mock_i18n_service
             if service_name == 'configuration':
                 return mock_config_service
-            return None
+            return None  # pragma: nocover
 
         self.xblock.runtime.service.side_effect = runtime_service_side_effect
 
         mock_course = Mock()
         mock_course.display_name_with_default = "DemoX"
         mock_course.display_org_with_default = "edX"
-        mock_course.lti_passports = ["lti_passport:key:secret"]
+        mock_course.lti_passports = ["lti_passport_name:key:secret"]
         mock_get_course_by_id.return_value = mock_course
 
-        response = self.xblock.studio_view({})
-        self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
+        fragment = self.xblock.studio_view({})
+        self.assertEqual(fragment.js_init_fn, 'LtiConsumerXBlockInitStudio')
+
+        normalized_content = " ".join(fragment.content.split())
+
+        # Assert that the LTI passports are rendered in the fragment.
+        self.assertIn(
+            '<option value="lti_passport_name" > lti_passport_name </option>',
+            normalized_content,
+        )
+
+    @patch('lti_consumer.plugin.compat.get_course_by_id')
+    def test_studio_view_without_course(self, mock_get_course_by_id):
+        """
+        Test that the studio view is reder correctly when there is no course (e.g. in a library).
+        """
+        # Mock runtime services used by studio view
+        mock_i18n_service = gettext.NullTranslations()
+        mock_i18n_service.ugettext = mock_i18n_service.gettext
+
+        mock_config_service = Mock()
+        mock_config_service.configuration.lti_access_to_learners_editable.return_value = False
+
+        mock_get_course_by_id.return_value = None
+
+        def runtime_service_side_effect(_block, service_name):
+            if service_name == 'i18n':
+                return mock_i18n_service
+            if service_name == 'configuration':
+                return mock_config_service
+
+            return None  # pragma: nocover
+
+        self.xblock.runtime.service.side_effect = runtime_service_side_effect
+
+        fragment = self.xblock.studio_view({})
+
+        normalized_content = " ".join(fragment.content.split())
+
+        # Assert that the lti_id field is disabled if the LTI passports is empty because we don't have a course.
+        self.assertIn(
+            '<select class="field-data-control" id="xb-field-edit-lti_id" name="lti_id" disabled >',
+            normalized_content,
+        )
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data')
     @patch('lti_consumer.api.get_lti_1p3_launch_info')
