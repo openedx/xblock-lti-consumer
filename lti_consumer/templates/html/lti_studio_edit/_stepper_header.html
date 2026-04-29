@@ -1,0 +1,38 @@
+{% load i18n %}
+<div class="pgn__stepper-header">
+    <ul class="pgn__stepper-header-step-list">
+        <a href="#" class="step-header-setup-link">
+            <li class="pgn__stepper-header-step step-header-setup pgn__stepper-header-step-active">
+                <div class="pgn__bubble">
+                    <span>1</span>
+                </div>
+                <div class="pgn__stepper-header-step-title-description">
+                    <div class="pgn__stepper-header-step-title">{% trans "Setup" %}</div>
+                </div>
+            </li>
+        </a>
+        <li aria-hidden="true" class="pgn__stepper-header-line"></li>
+        <a href="#" class="step-header-advantage-link l1p3 no-external-config">
+            <li class="pgn__stepper-header-step step-header-advantage">
+                <div class="pgn__bubble">
+                    <span>2</span>
+                </div>
+                <div class="pgn__stepper-header-step-title-description">
+                    <div class="pgn__stepper-header-step-title">{% trans "Advantage Settings" %}</div>
+                </div>
+            </li>
+        </a>
+        <li aria-hidden="true" class="pgn__stepper-header-line l1p3 no-external-config"></li>
+        <a href="#" class="step-header-review-link">
+            <li class="pgn__stepper-header-step step-header-review">
+                <div class="pgn__bubble">
+                    <span class="l1p1 external-config">2</span>
+                    <span class="l1p3 no-external-config">3</span>
+                </div>
+                <div class="pgn__stepper-header-step-title-description">
+                    <div class="pgn__stepper-header-step-title">{% trans "Review Options" %}</div>
+                </div>
+            </li>
+        </a>
+    </ul>
+</div>
