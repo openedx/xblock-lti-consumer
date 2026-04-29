@@ -1988,8 +1988,7 @@ class TestLtiConsumer1p3XBlock(TestCase):
         def runtime_service_side_effect(_block, service_name):
             if service_name == 'i18n':
                 return mock_i18n_service
-            if service_name == 'configuration':
-                return mock_config_service
+
             return None  # pragma: nocover
 
         self.xblock.runtime.service.side_effect = runtime_service_side_effect
@@ -2028,8 +2027,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         def runtime_service_side_effect(_block, service_name):
             if service_name == 'i18n':
                 return mock_i18n_service
-            if service_name == 'configuration':
-                return mock_config_service
 
             return None  # pragma: nocover
 
