@@ -78,16 +78,28 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       if (data.EXTERNAL_MULTIPLE_LAUNCH_URLS_ENABLED) {
         // Conditionally show the LTI 1.3 launch URL field if external multiple launch URLs are enabled.
         toggleFieldVisibility("lti_1p3_launch_url", true);
-        $(element).find(".field-group-lti-configuration-details.l1p3").removeClass("hidden");
+        if (version === "lti_1p1") {
+          // Hide both field-group-lti-configuration-details as we EXTERNAL_MULTIPLE_LAUNCH_URLS_ENABLED does
+          // not apply to LTI 1.1.
+          $(element).find(".field-group-lti-configuration-details").addClass("hidden");
+        } else {
+          // Show the field-group-lti-configuration-details for LTI 1.3.
+          $(element).find(".field-group-lti-configuration-details.l1p3").removeClass("hidden");
+        }
       } else {
         toggleFieldVisibility("lti_1p3_launch_url", false);
         // Also hides the field-group-lti-configuration-details as it is empty in this case
+        $(element).find(".field-group-lti-configuration-details.l1p1").addClass("hidden");
         $(element).find(".field-group-lti-configuration-details.l1p3").addClass("hidden");
       }
     } else {
       // Reset visibility when switching away from external config.
       toggleFieldVisibility("lti_1p3_launch_url", true);
-      $(element).find(".field-group-lti-configuration-details.l1p3").removeClass("hidden");
+      if (version === "lti_1p1") {
+        $(element).find(".field-group-lti-configuration-details.l1p1").removeClass("hidden");
+      } else {
+        $(element).find(".field-group-lti-configuration-details.l1p3").removeClass("hidden");
+      }
     }
   }
 
