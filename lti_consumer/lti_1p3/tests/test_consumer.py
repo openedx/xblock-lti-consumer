@@ -2,27 +2,36 @@
 Unit tests for LTI 1.3 consumer implementation
 """
 
+import uuid
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
-import uuid
 
 import ddt
 import jwt
 from Cryptodome.PublicKey import RSA
 from django.conf import settings
 from django.test.testcases import TestCase
-from edx_django_utils.cache import get_cache_key, TieredCache
+from edx_django_utils.cache import TieredCache, get_cache_key
 from jwt.api_jwk import PyJWKSet
 
 from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_1p3 import exceptions
 from lti_consumer.lti_1p3.ags import LtiAgs
-from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
-from lti_consumer.lti_1p3.nprs import LtiNrps
-from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_TYPE, LTI_PROCTORING_DATA_KEYS
+from lti_consumer.lti_1p3.constants import (
+    LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR,
+    LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,
+    LTI_1P3_CONTEXT_ROLE_LEARNER,
+    LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT,
+    LTI_1P3_CONTEXT_TYPE,
+    LTI_1P3_INSTITUTION_ROLE_ADMINISTRATOR,
+    LTI_1P3_ROLE_BASE,
+    LTI_1P3_SYSTEM_ROLE_ADMINISTRATOR,
+    LTI_PROCTORING_DATA_KEYS,
+)
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3, LtiProctoringConsumer
+from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
-
+from lti_consumer.lti_1p3.nprs import LtiNrps
 
 # Variables required for testing and verification
 ISS = "http://test-platform.example/"
@@ -154,17 +163,31 @@ class TestLti1p3Consumer(TestCase):
             return self.lti_consumer._validate_preflight_response(preflight_response)  # pylint: disable=protected-access
 
     @ddt.data(
+        ('student', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
         (
-            'student',
-            ['http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student']
+            'global_staff',
+            LTI_1P3_SYSTEM_ROLE_ADMINISTRATOR +
+            LTI_1P3_INSTITUTION_ROLE_ADMINISTRATOR +
+            LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR,
         ),
-        (
-            'staff',
-            [
-                'http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator',
-                'http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor',
-            ]
-        )
+        ('staff', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
+        ('instructor', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
+        ('guest', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('limited_staff', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
+        ('finance_admin', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('sales_admin', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('beta_testers', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('library_user', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('ccx_coach', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('data_researcher', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('org_course_creator_group', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('course_creator_group', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('support', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Administrator', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Moderator', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
+        ('Group Moderator', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
+        ('Community TA', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
+        ('Student', LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
     )
     @ddt.unpack
     def test_get_user_roles(self, role, expected_output):
@@ -238,7 +261,9 @@ class TestLti1p3Consumer(TestCase):
             {
                 "sub": "1",
                 "https://purl.imsglobal.org/spec/lti/claim/roles": [
-                    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Student"
+                    "http://purl.imsglobal.org/vocab/lis/v2/system/person#None",
+                    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#None",
+                    "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner",
                 ]
             }
         ),
@@ -267,10 +292,14 @@ class TestLti1p3Consumer(TestCase):
         Check if setting user data works
         """
         self.lti_consumer.set_user_data(**data)
-        self.assertEqual(
-            self.lti_consumer.lti_claim_user_data,
-            expected_output
-        )
+
+        actual_output = self.lti_consumer.lti_claim_user_data.copy()
+        expected_output = expected_output.copy()
+        actual_roles = actual_output.pop("https://purl.imsglobal.org/spec/lti/claim/roles")
+        expected_roles = expected_output.pop("https://purl.imsglobal.org/spec/lti/claim/roles")
+
+        self.assertEqual(actual_output, expected_output)
+        self.assertCountEqual(actual_roles, expected_roles)
 
     def test_check_no_user_data_error(self):
         """

@@ -16,6 +16,12 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+11.1.0 - 2026-04-24
+--------------------
+* Update LTI 1.3 launch and NRPS role mapping to use context role URIs.
+* Include supported forum roles like `Community TA` and `Group Moderator` in LTI 1.3 launches and NRPS membership responses.
+* Add ADR documenting updated LTI 1.3 role mapping behavior.
+
 11.0.1 - 2026-04-23
 --------------------
 * Fix LTI 1.3 deep linking `target_link_uri` handling in both preflight and launch token generation.
