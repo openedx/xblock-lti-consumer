@@ -2048,9 +2048,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         mock_i18n_service = gettext.NullTranslations()
         mock_i18n_service.ugettext = mock_i18n_service.gettext
 
-        mock_config_service = Mock()
-        mock_config_service.configuration.lti_access_to_learners_editable.return_value = False
-
         def runtime_service_side_effect(_block, service_name):
             if service_name == 'i18n':
                 return mock_i18n_service
@@ -2084,9 +2081,6 @@ class TestLtiConsumer1p3XBlock(TestCase):
         # Mock runtime services used by studio view
         mock_i18n_service = gettext.NullTranslations()
         mock_i18n_service.ugettext = mock_i18n_service.gettext
-
-        mock_config_service = Mock()
-        mock_config_service.configuration.lti_access_to_learners_editable.return_value = False
 
         mock_get_course_by_id.return_value = None
 
