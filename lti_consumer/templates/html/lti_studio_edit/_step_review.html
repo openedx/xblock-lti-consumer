@@ -1,0 +1,353 @@
+{% load i18n %}
+<div class="step-review hidden">
+    <div class="field-group">
+        <ul class="list-input settings-list">
+            <!------------ display_name -------------->
+            <li class="field comp-setting-entry {% if fields.display_name.is_set %}is-set{% endif %}">
+                <label class="label setting-label">{{ fields.display_name.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.display_name.help }}"></span>
+                <input
+                    class="field-data-control"
+                    id="xb-field-edit-display_name"
+                    value="{{ fields.display_name.value }}"
+                    type="text"
+                />
+            </li>
+            <!-------------------------------------->
+        </ul>
+    </div>
+    <hr class="field-group-separator" />
+    <div class="field-group">
+        <h6 class="field-group-heading">
+            {% trans "Grading" %}
+        </h6>
+        <ul class="list-input settings-list">
+            <!------------ has_score -------------->
+            <li class="field comp-setting-entry {% if fields.has_score.is_set %}is-set{% endif %}">
+                <label class="label setting-label">{{ fields.has_score.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.has_score.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    <li>
+                        <input
+                            type="radio"
+                            name="has_score"
+                            id="has_score_option-true"
+                            value="true"
+                            {% if fields.has_score.value %}checked{% endif %}
+                        >
+                        <label for="has_score_option-true">{% trans "Graded" %}</label>
+                    </li>
+                    <li>
+                        <input
+                            type="radio"
+                            name="has_score"
+                            id="has_score_option-false"
+                            value="false"
+                            {% if not fields.has_score.value %}checked{% endif %}
+                        >
+                        <label for="has_score_option-false">{% trans "Ungraded" %}</label>
+                    </li>
+                    {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+            <!------------ weight -------------->
+            <li
+                class="field comp-setting-entry {% if fields.weight.is_set %}is-set{% endif %}"
+                data-field-name="weight"
+            >
+                <label class="label setting-label">{{ fields.weight.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.weight.help }}"></span>
+                <input
+                    class="field-data-control"
+                    id="xb-field-edit-weight"
+                    value="{{ fields.weight.value }}"
+                    type="text"
+                />
+            </li>
+            <!-------------------------------------->
+            <!------------ accept_grades_past_due -------------->
+            <li
+                class="field comp-setting-entry {% if fields.accept_grades_past_due.is_set %}is-set{% endif %}"
+                data-field-name="accept_grades_past_due"
+            >
+                <label class="label setting-label">{{ fields.accept_grades_past_due.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.accept_grades_past_due.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    <li>
+                        <input
+                            type="radio"
+                            name="accept_grades_past_due"
+                            id="accept_grades_past_due_option-true"
+                            value="true"
+                            {% if fields.accept_grades_past_due.value %}checked{% endif %}
+                        >
+                        <label for="accept_grades_past_due_option-true">{% trans "Enabled" %}</label>
+                    </li>
+                    <li>
+                        <input
+                            type="radio"
+                            name="accept_grades_past_due"
+                            id="accept_grades_past_due_option-false"
+                            value="false"
+                            {% if not fields.accept_grades_past_due.value %}checked{% endif %}
+                        >
+                        <label for="accept_grades_past_due_option-false">{% trans "Disabled" %}</label>
+                    </li>
+                    {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+        </ul>
+    </div>
+    <hr class="field-group-separator" />
+    <div class="field-group">
+        <h6 class="field-group-heading">
+            {% trans "Advanced Information Sharing" %}
+        </h6>
+        {% if pii_sharing_enabled %}
+            <ul class="list-input settings-list">
+                <!------------ ask_to_send_username -------------->
+                <li class="field comp-setting-entry {% if fields.ask_to_send_username.is_set %}is-set{% endif %}">
+                    <input
+                        class="field-data-control"
+                        id="xb-field-edit-ask_to_send_username"
+                        type="checkbox"
+                        {% if fields.ask_to_send_username.value %}checked{% endif %}
+                    />
+                    <label
+                      class="label checkbox-label"
+                      for="xb-field-edit-ask_to_send_username"
+                    >
+                        {{ fields.ask_to_send_username.display_name }}
+                    </label>
+                </li>
+                <!-------------------------------------->
+                <!------------ ask_to_send_full_name -------------->
+                <li class="field comp-setting-entry {% if fields.ask_to_send_full_name.is_set %}is-set{% endif %}">
+                    <input
+                        class="field-data-control"
+                        id="xb-field-edit-ask_to_send_full_name"
+                        type="checkbox"
+                        {% if fields.ask_to_send_full_name.value %}checked{% endif %}
+                    />
+                    <label
+                      class="label checkbox-label"
+                      for="xb-field-edit-ask_to_send_full_name"
+                    >
+                        {{ fields.ask_to_send_full_name.display_name }}
+                    </label>
+                </li>
+                <!-------------------------------------->
+                <!------------ ask_to_send_email -------------->
+                <li class="field comp-setting-entry {% if fields.ask_to_send_email.is_set %}is-set{% endif %}">
+                    <input
+                        class="field-data-control"
+                        id="xb-field-edit-ask_to_send_email"
+                        type="checkbox"
+                        {% if fields.ask_to_send_email.value %}checked{% endif %}
+                    />
+                    <label
+                      class="label checkbox-label"
+                      for="xb-field-edit-ask_to_send_email"
+                    >
+                        {{ fields.ask_to_send_email.display_name }}
+                    </label>
+                </li>
+                <!-------------------------------------->
+                <!------------ description -------------->
+                <li class="field comp-setting-entry {% if fields.description.is_set %}is-set{% endif %}">
+                    <label class="label setting-label">{{ fields.description.display_name }}</label>
+                    <span class="icon fa fa-question-circle" data-tooltip="{{ fields.description.help }}"></span>
+                    <input
+                        class="field-data-control"
+                        id="xb-field-edit-description"
+                        value="{{ fields.description.value }}"
+                        type="text"
+                    />
+                </li>
+                <!-------------------------------------->
+            </ul>
+        {% else %}
+            <span>{% trans "Administrators can enable advanced sharing options for LTI components." %}</span>
+            <a
+              href="https://docs.openedx.org/en/latest/educators/references/course_development/exercise_tools/allow_lti_share_pii.html#allow-sharing-pii-to-lti-components"
+              target="_blank"
+            >
+                {% trans "Learn more." %}
+            </a>
+        {% endif %}
+        <ul class="list-input settings-list">
+            <!------------ custom_parameters -------->
+            <li class="field comp-setting-entry {% if fields.custom_parameters.is_set %}is-set{% endif %}">
+                <label class="label setting-label">{{ fields.custom_parameters.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.custom_parameters.help }}"></span>
+                <textarea
+                    class="field-data-control"
+                    id="xb-field-edit-custom_parameters"
+                    rows="4"
+                >{{ fields.custom_parameters.value }}</textarea>
+            </li>
+            <!-------------------------------------->
+            <!------------ enable_processors ------------>
+            <li class="field comp-setting-entry {% if fields.enable_processors.is_set %}is-set{% endif %}">
+                <label class="label setting-label">{{ fields.enable_processors.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.enable_processors.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    <li>
+                        <input
+                            type="radio"
+                            name="enable_processors"
+                            id="enable_processors_option-true"
+                            value="true"
+                            {% if fields.enable_processors.value %}checked{% endif %}
+                        >
+                        <label for="enable_processors_option-true">{% trans "Enabled" %}</label>
+                    </li>
+                    <li>
+                        <input
+                            type="radio"
+                            name="enable_processors"
+                            id="enable_processors_option-false"
+                            value="false"
+                            {% if not fields.enable_processors.value %}checked{% endif %}
+                        >
+                        <label for="enable_processors_option-false">{% trans "Disabled" %}</label>
+                    </li>
+                    {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+        </ul>
+    </div>
+    <hr class="field-group-separator" />
+    <div class="field-group">
+        <h6 class="field-group-heading">
+            {% trans "Appearance Options" %}
+        </h6>
+        <ul class="list-input settings-list">
+            <!------------ hide_launch -------------->
+            <li class="field comp-setting-entry {% if fields.hide_launch.is_set %}is-set{% endif %}">
+                <label class="label setting-label">{{ fields.hide_launch.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.hide_launch.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    <li>
+                        <input
+                            type="radio"
+                            name="hide_launch"
+                            id="hide_launch_option-true"
+                            value="true"
+                            {% if fields.hide_launch.value %}checked{% endif %}
+                        >
+                        <label for="hide_launch_option-true">{% trans "True" %}</label>
+                    </li>
+                    <li>
+                        <input
+                            type="radio"
+                            name="hide_launch"
+                            id="hide_launch_option-false"
+                            value="false"
+                            {% if not fields.hide_launch.value %}checked{% endif %}
+                        >
+                        <label for="hide_launch_option-false">{% trans "False" %}</label>
+                    </li>
+                    {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+            <!------------ launch_target -------------->
+            <li
+                class="field comp-setting-entry {% if fields.launch_target.is_set %}is-set{% endif %}"
+                data-field-name="launch_target"
+            >
+                <label class="label setting-label">{{ fields.launch_target.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.launch_target.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    {% for option in fields.launch_target.values %}
+                        <li>
+                            <input
+                                type="radio"
+                                name="launch_target"
+                                id="launch_target_option-{{ option.value }}"
+                                value="{{ option.value }}"
+                                {% if fields.launch_target.value == option.value %}checked{% endif %}
+                            >
+                            <label for="launch_target_option-{{ option.value }}">{{ option.display_name }}</label>
+                        </li>
+                   {% endfor %}
+                   {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+            <!------------ inline_height ----------->
+            <li
+                class="field comp-setting-entry {% if fields.inline_height.is_set %}is-set{% endif %}"
+                data-field-name="inline_height"
+            >
+                <label class="label setting-label">{{ fields.inline_height.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.inline_height.help }}"></span>
+                <input
+                    class="field-data-control"
+                    id="xb-field-edit-inline_height"
+                    value="{{ fields.inline_height.value }}"
+                    type="text"
+                />
+            </li>
+            <!-------------------------------------->
+            <li>
+                <ul class="two-column">
+                    <!------------ modal_height ------------>
+                    <li
+                        class="field comp-setting-entry {% if fields.modal_height.is_set %}is-set{% endif %}"
+                        data-field-name="modal_height"
+                    >
+                        <label class="label setting-label">{{ fields.modal_height.display_name }}</label>
+                        <span class="icon fa fa-question-circle" data-tooltip="{{ fields.modal_height.help }}"></span>
+                        <input
+                            class="field-data-control"
+                            id="xb-field-edit-modal_height"
+                            value="{{ fields.modal_height.value }}"
+                            type="text"
+                        />
+                    </li>
+                    <!-------------------------------------->
+                    <!------------ modal_width ------------->
+                    <li
+                        class="field comp-setting-entry {% if fields.modal_width.is_set %}is-set{% endif %}"
+                        data-field-name="modal_width"
+                    >
+                        <label class="label setting-label">{{ fields.modal_width.display_name }}</label>
+                        <span class="icon fa fa-question-circle" data-tooltip="{{ fields.modal_width.help }}"></span>
+                        <input
+                            class="field-data-control"
+                            id="xb-field-edit-modal_width"
+                            value="{{ fields.modal_width.value }}"
+                            type="text"
+                        />
+                    </li>
+                    <!-------------------------------------->
+                </ul>
+            </li>
+            <!------------ button_text ------------->
+            <li
+                class="field comp-setting-entry {% if fields.button_text.is_set %}is-set{% endif %}"
+                data-field-name="button_text"
+            >
+                <label class="label setting-label">{{ fields.button_text.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.button_text.help }}"></span>
+                <input
+                    class="field-data-control"
+                    id="xb-field-edit-button_text"
+                    value="{{ fields.button_text.value }}"
+                    type="text"
+                />
+            </li>
+            <!-------------------------------------->
+        </ul>
+    </div>
+</div>

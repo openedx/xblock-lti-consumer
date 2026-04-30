@@ -1,0 +1,189 @@
+{% load i18n %}
+<div class="step-advantage hidden">
+    <div class="field-group">
+        <ul class="list-input settings-list">
+            <!------------ lti_advantage_deep_linking_enabled -------------->
+            <li class="field comp-setting-entry {% if fields.lti_advantage_deep_linking_enabled.is_set %}is-set{% endif %}">
+                <label class="label setting-label">{{ fields.lti_advantage_deep_linking_enabled.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{
+                    fields.lti_advantage_deep_linking_enabled.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    <li>
+                        <input
+                            type="radio"
+                            name="lti_advantage_deep_linking_enabled"
+                            id="lti_advantage_deep_linking_enabled_option-true"
+                            value="true"
+                            {% if fields.lti_advantage_deep_linking_enabled.value %}checked{% endif %}
+                        >
+                        <label for="lti_advantage_deep_linking_enabled_option-true">{% trans "Enabled" %}</label>
+                    </li>
+                    <li>
+                        <input
+                            type="radio"
+                            name="lti_advantage_deep_linking_enabled"
+                            id="lti_advantage_deep_linking_enabled_option-false"
+                            value="false"
+                            {% if not fields.lti_advantage_deep_linking_enabled.value %}checked{% endif %}
+                        >
+                        <label for="lti_advantage_deep_linking_enabled_option-false">{% trans "Disabled" %}</label>
+                    </li>
+                    {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+            <!------------ lti_advantage_deep_linking_launch_url -------------->
+            <li
+                class="field comp-setting-entry {% if fields.lti_advantage_deep_linking_launch_url.is_set %}is-set{% endif %}"
+                data-field-name="lti_advantage_deep_linking_launch_url"
+            >
+                <label class="label setting-label">{{ fields.lti_advantage_deep_linking_launch_url.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{
+                    fields.lti_advantage_deep_linking_launch_url.help }}"></span>
+                <input
+                    class="field-data-control"
+                    id="xb-field-edit-lti_advantage_deep_linking_launch_url"
+                    value="{{ fields.lti_advantage_deep_linking_launch_url.value }}"
+                    type="text"
+                />
+            </li>
+            <!-------------------------------------->
+        </ul>
+    </div>
+    <hr class="field-group-separator" />
+    <div class="field-group">
+        <ul class="list-input settings-list">
+            <!------------ lti_advantage_ags_mode -------------->
+            <li
+                class="field comp-setting-entry {% if fields.lti_advantage_ags_mode.is_set %}is-set{% endif %}"
+                data-field-name="lti_advantage_ags_mode"
+            >
+                <label class="label setting-label">{{ fields.lti_advantage_ags_mode.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_advantage_ags_mode.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    {% for option in fields.lti_advantage_ags_mode.values %}
+                        <li>
+                            <input
+                                type="radio"
+                                name="lti_advantage_ags_mode"
+                                id="lti_advantage_ags_mode_option-{{ option.value }}"
+                                value="{{ option.value }}"
+                                {% if fields.lti_advantage_ags_mode.value == option.value %}checked{% endif %}
+                            >
+                            <label for="lti_advantage_ags_mode_option-{{ option.value }}">{{ option.display_name }}</label>
+                        </li>
+                    {% endfor %}
+                    {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+        </ul>
+    </div>
+    <hr class="field-group-separator" />
+    <div class="field-group">
+        <ul class="list-input settings-list">
+            <!------------ lti_1p3_enable_nrps -------------->
+            <li
+                class="field comp-setting-entry {% if fields.lti_1p3_enable_nrps.is_set %}is-set{% endif %}"
+                data-field-name="lti_1p3_enable_nrps"
+            >
+                <label class="label setting-label">{{ fields.lti_1p3_enable_nrps.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_1p3_enable_nrps.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    <li>
+                        <input
+                            type="radio"
+                            name="lti_1p3_enable_nrps"
+                            id="lti_1p3_enable_nrps_option-true"
+                            value="true"
+                            {% if fields.lti_1p3_enable_nrps.value %}checked{% endif %}
+                        >
+                        <label for="lti_1p3_enable_nrps_option-true">{% trans "Enabled" %}</label>
+                    </li>
+                    <li>
+                        <input
+                            type="radio"
+                            name="lti_1p3_enable_nrps"
+                            id="lti_1p3_enable_nrps_option-false"
+                            value="false"
+                            {% if not fields.lti_1p3_enable_nrps.value %}checked{% endif %}
+                        >
+                        <label for="lti_1p3_enable_nrps_option-false">{% trans "Disabled" %}</label>
+                    </li>
+                    {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+        </ul>
+    </div>
+    <hr class="field-group-separator" />
+    <div class="field-group">
+        <ul class="list-input settings-list">
+            <!------------ lti_1p3_tool_key_mode -------------->
+            <li
+                class="field comp-setting-entry {% if fields.lti_1p3_tool_key_mode.is_set %}is-set{% endif %}"
+                data-field-name="lti_1p3_tool_key_mode"
+            >
+                <label class="label setting-label">{{ fields.lti_1p3_tool_key_mode.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_1p3_tool_key_mode.help }}"></span>
+                <ul class="button-select-options">
+                    {% spaceless %}
+                    <li>
+                        <input
+                            type="radio"
+                            name="lti_1p3_tool_key_mode"
+                            id="lti_1p3_tool_key_mode_option-public_key"
+                            value="public_key"
+                            {% if fields.lti_1p3_tool_key_mode.value == "public_key" %}checked{% endif %}
+                        >
+                        <label for="lti_1p3_tool_key_mode_option-public_key">{% trans "Public Key" %}</label>
+                    </li>
+                    <li>
+                        <input
+                            type="radio"
+                            name="lti_1p3_tool_key_mode"
+                            id="lti_1p3_tool_key_mode_option-keyset_url"
+                            value="keyset_url"
+                            {% if fields.lti_1p3_tool_key_mode.value == "keyset_url" %}checked{% endif %}
+                        >
+                        <label for="lti_1p3_tool_key_mode_option-keyset_url">{% trans "Keyset URL" %}</label>
+                    </li>
+                    {% endspaceless %}
+                </ul>
+            </li>
+            <!-------------------------------------->
+            <!------------ lti_1p3_tool_keyset_url -------------->
+            <li
+                class="field comp-setting-entry {% if fields.lti_1p3_tool_keyset_url.is_set %}is-set{% endif %}"
+                data-field-name="lti_1p3_tool_keyset_url"
+            >
+                <label class="label setting-label">{{ fields.lti_1p3_tool_keyset_url.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_1p3_tool_keyset_url.help }}"></span>
+                <input
+                    class="field-data-control"
+                    id="xb-field-edit-lti_1p3_tool_keyset_url"
+                    value="{{ fields.lti_1p3_tool_keyset_url.value }}"
+                    type="text"
+                />
+            </li>
+            <!-------------------------------------->
+            <!------------ lti_1p3_tool_public_key -------------->
+            <li
+                class="field comp-setting-entry {% if fields.lti_1p3_tool_public_key.is_set %}is-set{% endif %}"
+                data-field-name="lti_1p3_tool_public_key"
+            >
+                <label class="label setting-label">{{ fields.lti_1p3_tool_public_key.display_name }}</label>
+                <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_1p3_tool_public_key.help }}"></span>
+                <textarea
+                    class="field-data-control"
+                    id="xb-field-edit-lti_1p3_tool_public_key"
+                    rows="4"
+                >{{ fields.lti_1p3_tool_public_key.value }}</textarea>
+            </li>
+            <!-------------------------------------->
+        </ul>
+    </div>
+</div>
