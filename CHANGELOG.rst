@@ -14,7 +14,12 @@ Changelog
 Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/releases>`_ for the complete changelog.
 
 Unreleased
-~~~~~~~~~~
+----------
+
+11.2.0 - 2026-04-30
+--------------------
+* Replace the flat Studio editor with a multi-step wizard (Setup → Advantage Settings → Review Options).
+* Update field display names and help text throughout for clarity.
 
 11.1.0 - 2026-04-24
 --------------------
