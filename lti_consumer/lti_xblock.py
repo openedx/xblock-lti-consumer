@@ -418,9 +418,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         help=_(
             "Select the LTI passport ID for this tool. This is the ID of the LTI passport that "
             "you created on Advanced Settings page."
-        ).format(
-            docs_anchor_open=DOCS_ANCHOR_TAG_OPEN,
-            anchor_close="</a>"
         ),
         default='',
         scope=Scope.settings
@@ -429,9 +426,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         display_name=_("LTI URL"),
         help=_(
             "Enter the launch URL for this tool. For LTI 1.1/1.2, this is the URL Open edX uses to launch the tool."
-        ).format(
-            docs_anchor_open=DOCS_ANCHOR_TAG_OPEN,
-            anchor_close="</a>"
         ),
         default='',
         scope=Scope.settings
@@ -442,9 +436,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         display_name=_("Custom Parameters"),
         help=_(
             'Enter key-value pairs to send with each launch e.g. ["page=1", "color=white"].'
-        ).format(
-            docs_anchor_open=DOCS_ANCHOR_TAG_OPEN,
-            anchor_close="</a>"
         ),
         scope=Scope.settings
     )

@@ -330,6 +330,7 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       e.preventDefault();
       let nextStep;
       const version = getRadioButtonValue("lti_version");
+      let configType;
       try {
         configType = getFieldValue("config_type").value || "new";
       } catch (e) {
@@ -357,6 +358,13 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       e.preventDefault();
       let previousStep;
       const version = getRadioButtonValue("lti_version");
+      let configType;
+      try {
+        configType = getFieldValue("config_type").value || "new";
+      } catch (e) {
+        // The waffle flag is not enabled, so we default to "new".
+        configType = "new";
+      }
 
       if (currentStep === "setup") {
         throw new Error("This should never happen");

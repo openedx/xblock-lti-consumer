@@ -299,38 +299,40 @@
                 />
             </li>
             <!-------------------------------------->
-            <div class="two-column">
-                <!------------ modal_height ------------>
-                <li
-                    class="field comp-setting-entry {% if fields.modal_height.is_set %}is-set{% endif %}"
-                    data-field-name="modal_height"
-                >
-                    <label class="label setting-label">{{ fields.modal_height.display_name }}</label>
-                    <span class="icon fa fa-question-circle" data-tooltip="{{ fields.modal_height.help }}"></span>
-                    <input
-                        class="field-data-control"
-                        id="xb-field-edit-modal_height"
-                        value="{{ fields.modal_height.value }}"
-                        type="text"
-                    />
-                </li>
-                <!-------------------------------------->
-                <!------------ modal_width ------------->
-                <li
-                    class="field comp-setting-entry {% if fields.modal_width.is_set %}is-set{% endif %}"
-                    data-field-name="modal_width"
-                >
-                    <label class="label setting-label">{{ fields.modal_width.display_name }}</label>
-                    <span class="icon fa fa-question-circle" data-tooltip="{{ fields.modal_width.help }}"></span>
-                    <input
-                        class="field-data-control"
-                        id="xb-field-edit-modal_width"
-                        value="{{ fields.modal_width.value }}"
-                        type="text"
-                    />
-                </li>
-                <!-------------------------------------->
-            </div>
+            <li>
+                <ul class="two-column">
+                    <!------------ modal_height ------------>
+                    <li
+                        class="field comp-setting-entry {% if fields.modal_height.is_set %}is-set{% endif %}"
+                        data-field-name="modal_height"
+                    >
+                        <label class="label setting-label">{{ fields.modal_height.display_name }}</label>
+                        <span class="icon fa fa-question-circle" data-tooltip="{{ fields.modal_height.help }}"></span>
+                        <input
+                            class="field-data-control"
+                            id="xb-field-edit-modal_height"
+                            value="{{ fields.modal_height.value }}"
+                            type="text"
+                        />
+                    </li>
+                    <!-------------------------------------->
+                    <!------------ modal_width ------------->
+                    <li
+                        class="field comp-setting-entry {% if fields.modal_width.is_set %}is-set{% endif %}"
+                        data-field-name="modal_width"
+                    >
+                        <label class="label setting-label">{{ fields.modal_width.display_name }}</label>
+                        <span class="icon fa fa-question-circle" data-tooltip="{{ fields.modal_width.help }}"></span>
+                        <input
+                            class="field-data-control"
+                            id="xb-field-edit-modal_width"
+                            value="{{ fields.modal_width.value }}"
+                            type="text"
+                        />
+                    </li>
+                    <!-------------------------------------->
+                </ul>
+            </li>
             <!------------ button_text ------------->
             <li
                 class="field comp-setting-entry {% if fields.button_text.is_set %}is-set{% endif %}"

@@ -16,7 +16,6 @@ install: install-test
 
 compile-sass:  ## Compile the Sass assets
 	sass --no-cache --style compressed ./lti_consumer/static/sass/student.scss ./lti_consumer/static/css/student.css
-	sass --no-cache --style compressed ./lti_consumer/static/sass/xblock_studio_view.scss ./lti_consumer/static/css/xblock_studio_view.css
 
 quality:  ## Run the quality checks
 	pycodestyle --config=.pep8 lti_consumer
