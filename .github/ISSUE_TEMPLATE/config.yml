@@ -1,0 +1,8 @@
+# We have our own custom "Blank" template at
+# .github/ISSUE_TEMPLATE/blank-issue.md,
+# so no need to enable blank issues here.
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Open edX Community Support
+    url: https://discuss.openedx.org/
+    about: Please ask all questions, suggest all enhancements, and report all bugs on the community forum.
