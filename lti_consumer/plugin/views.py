@@ -323,7 +323,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         if launch_data.custom_parameters:
             lti_consumer.set_custom_parameters(launch_data.custom_parameters)
 
-        # Modify LTI Launch URL depending on launch type.
+        # Modify LTI launch parameters depending on launch type.
         # Deep Linking Launch - Configuration flow launched by
         # course creators to set up content.
         deep_linking_content_item_id = launch_data.deep_linking_content_item_id
@@ -333,8 +333,6 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             # If not, raise exception and display error page
             if user_role not in ['instructor', 'staff']:
                 raise AssertionError('Deep Linking can only be performed by instructors and staff.')
-            # Set deep linking launch
-            context.update({'launch_url': lti_consumer.dl.deep_linking_launch_url})
 
         # Deep Linking ltiResourceLink content presentation
         # When content type is `ltiResourceLink`, the tool will be launched with

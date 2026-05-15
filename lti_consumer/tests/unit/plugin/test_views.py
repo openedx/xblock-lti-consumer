@@ -417,13 +417,18 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
         # Check response
         self.assertEqual(response.status_code, 200)
 
-    @ddt.data(True, False)
-    def test_launch_callback_endpoint_deep_linking_database_config(self, dl_enabled):
+    @ddt.data(
+        (True, "LtiDeepLinkingRequest"),
+        (False, "LtiResourceLinkRequest"),
+    )
+    @ddt.unpack
+    def test_launch_callback_endpoint_deep_linking_database_config(self, dl_enabled, message_type):
         """
-        Test that Deep Linking is enabled and that the context is updated appropriately when using the 'database'
-        config_type.
+        Test that the form action for deep linking requests uses the tool-provided
+        redirect_uri, NOT the platform-configured deep_linking_launch_url.
         """
-        url = "http://tool.example/deep_linking_launch"
+        redirect_uri = "http://tool.example/lti-advantage-connect"
+        deep_link_url = "http://tool.example/lti-advantage-select"
         self._setup_deep_linking(user_role='staff')
 
         self.xblock.config_type = 'database'
@@ -433,15 +438,16 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
             lti_advantage_deep_linking_enabled=dl_enabled,
-            lti_advantage_deep_linking_launch_url=url,
+            lti_advantage_deep_linking_launch_url=deep_link_url,
+            lti_1p3_redirect_uris=[redirect_uri],
         )
         if dl_enabled:
-            self.xblock.lti_advantage_deep_linking_launch_url = url
-            self.launch_data.message_type = "LtiDeepLinkingRequest"
+            self.xblock.lti_advantage_deep_linking_launch_url = deep_link_url
+        self.launch_data.message_type = message_type
 
         params = {
             "client_id": self.config.lti_1p3_client_id,
-            "redirect_uri": "http://tool.example/launch",
+            "redirect_uri": redirect_uri,
             "state": "state_test_123",
             "nonce": "nonce",
             "login_hint": self.launch_data.user_id,
@@ -453,12 +459,9 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
         self.assertEqual(response.status_code, 200)
         response_body = response.content.decode('utf-8')
 
-        # If Deep Linking is enabled, test that deep linking launch URL is in the rendered template. Otherwise, test
-        # that it is not.
-        if dl_enabled:
-            self.assertIn(url, response_body)
-        else:
-            self.assertNotIn(url, response_body)
+        # Form action must be the tool-provided redirect_uri, not deep_linking_launch_url
+        self.assertIn(f'action="{redirect_uri}"', response_body)
+        self.assertNotIn(f'action="{deep_link_url}"', response_body)
 
     def test_launch_callback_endpoint_deep_linking_by_student(self):
         """
