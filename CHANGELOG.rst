@@ -16,6 +16,15 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.2.1 - 2026-05-18
+--------------------
+* Fix LTI 1.3 deep linking launches to POST the ``id_token`` to the tool-provided ``redirect_uri``
+  rather than the platform-configured ``deep_linking_launch_url``. Per
+  `IMS Security Framework §5.1.1.3 <https://www.imsglobal.org/spec/security/v1p0#step-3-authentication-response>`_
+  and `LTI Deep Linking 2.0 §2.1 <https://www.imsglobal.org/spec/lti-dl/v2p0#redirection-from-platform-to-tool>`_,
+  the OIDC authentication response must always POST to ``redirect_uri``; ``deep_linking_launch_url``
+  belongs in the JWT as ``target_link_uri`` only.
+
 11.2.0 - 2026-04-30
 --------------------
 * Replace the flat Studio editor with a multi-step wizard (Setup → Advantage Settings → Review Options).
