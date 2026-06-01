@@ -142,6 +142,58 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         self.assertEqual(self.lti_1p1_external.get_lti_consumer(), "consumer")
         mock_consumer.assert_called_once_with("https://example.com", "client_key", "secret")
 
+    @patch("lti_consumer.models.LtiConfiguration._get_lti_1p3_consumer")
+    @patch("lti_consumer.models.LtiConfiguration._get_lti_1p1_consumer")
+    @patch("lti_consumer.models.get_external_config_from_filter")
+    def test_get_lti_consumer_external_config_version_takes_priority(
+        self, mock_filter, mock_1p1, mock_1p3
+    ):
+        """
+        When config_store is external, the version from external config
+        should take priority over the stored version field.
+        """
+        # External config returns LTI 1.3, even though local version is LTI 1.1
+        mock_filter.return_value = {
+            "version": LtiConfiguration.LTI_1P3,
+            "lti_1p3_client_id": "test-client",
+        }
+        mock_1p3.return_value = "lti_1p3_consumer"
+        mock_1p1.return_value = "lti_1p1_consumer"
+
+        result = self.lti_1p1_external.get_lti_consumer()
+
+        self.assertEqual(result, "lti_1p3_consumer")
+        mock_1p3.assert_called_once()
+        mock_1p1.assert_not_called()
+
+    @patch("lti_consumer.models.get_external_config_from_filter")
+    def test_get_effective_version_falls_back_on_external_without_version(
+        self, mock_filter
+    ):
+        """
+        External config without a "version" key falls back to the
+        stored version field.
+        """
+        mock_filter.return_value = {"lti_1p3_client_id": "test"}
+        config = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P1,
+            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            external_id="test:x",
+            location='block-v1:course+test+2020+type@problem+block@effver-fallback',
+        )
+        self.assertEqual(config.get_effective_version(), LtiConfiguration.LTI_1P1)
+
+    def test_get_effective_version_non_external(self):
+        """
+        Non-external config_store returns the stored version directly.
+        """
+        config = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            location='block-v1:course+test+2020+type@problem+block@effver-non-ext',
+        )
+        self.assertEqual(config.get_effective_version(), LtiConfiguration.LTI_1P3)
+
     def test_repr(self):
         """
         Test String representation of model.

@@ -4,6 +4,50 @@
 function LtiConsumerXBlockInitStudio(runtime, element, data) {
   let currentStep = "setup";
 
+  // Cache for resolved external config versions (config_id -> version|null).
+  var _versionCache = {};
+  var _versionRequestId = 0;
+
+  /**
+   * Resolve the LTI version for a given external config ID via the
+   * server handler.  Caches results to avoid redundant requests.
+   * Calls callback(version) with the resolved version (or null on
+   * failure / unknown ID).  Uses a monotonically increasing request
+   * ID to discard stale responses from earlier requests.
+   */
+  function resolveExternalConfigVersion(configId, callback) {
+    if (_versionCache.hasOwnProperty(configId)) {
+      callback(_versionCache[configId]);
+      return;
+    }
+    // Global counter bumps on each async version lookup.
+    // Local requestId captures the incremented value via pre-increment.
+    // Later stale-response checks compare local vs global to ignore
+    // responses from superseded requests (see comments below).
+    var requestId = ++_versionRequestId;
+    var handlerUrl = runtime.handlerUrl(element, "resolve_external_config_version");
+
+    $.ajax({
+      type: "POST",
+      url: handlerUrl,
+      data: JSON.stringify({ config_id: configId }),
+      dataType: "json",
+      contentType: "application/json",
+      global: false,
+      success: function (response) {
+        if (requestId !== _versionRequestId) return; // stale
+        var version = response.found ? response.version : null;
+        _versionCache[configId] = version;
+        callback(version);
+      },
+      error: function () {
+        if (requestId !== _versionRequestId) return; // stale
+        _versionCache[configId] = null;
+        callback(null);
+      },
+    });
+  }
+
   /**
    * Query a field using the `data-field-name` attribute and hide/show it.
    *
@@ -39,10 +83,44 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
   }
 
   /**
+   * Return effective LTI version.
+   * When config_type is external, version is determined by the external
+   * re-usable config, not by the block's own lti_version field.
+   * Falls back to the radio button value otherwise.
+   */
+  function getEffectiveVersion() {
+    let configType;
+    try {
+      configType = getFieldValue("config_type").value || "new";
+    } catch (e) {
+      configType = "new";
+    }
+    if (configType === "external") {
+      const extField = getFieldValue("external_config");
+      const extValue = extField.value;
+
+      // 1) Input matches current saved config — use server-resolved version.
+      if (extValue === data.currentExternalConfig) {
+        return data.effectiveLtiVersion;
+      }
+
+      // 2) Check client-side cache from a previous handler response.
+      if (extValue && _versionCache.hasOwnProperty(extValue)) {
+        var cached = _versionCache[extValue];
+        return cached !== null ? cached : data.rawLtiVersion;
+      }
+
+      // 3) Unknown / not yet resolved — use block's stored lti_version.
+      return data.rawLtiVersion;
+    }
+    return getRadioButtonValue("lti_version");
+  }
+
+  /**
    * Show or hide components depending on the selected lti_version and config_type.
    */
   function toggleLtiComponents() {
-    const version = getRadioButtonValue("lti_version");
+    const version = getEffectiveVersion();
     let configType;
     try {
       configType = getFieldValue("config_type").value || "new";
@@ -69,9 +147,18 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
     if (configType === "new") {
       toggleFieldVisibility("lti_id", version === "lti_1p1");
       toggleFieldVisibility("external_config", false);
-    } else {
+      toggleFieldVisibility("lti_version", true);
+    } else if (configType === "external") {
       toggleFieldVisibility("lti_id", false);
       toggleFieldVisibility("external_config", true);
+      // Hide LTI version when using reusable/external config;
+      // version is determined by the external config, not the block.
+      toggleFieldVisibility("lti_version", false);
+    } else {
+      // database config — version set per-block, keep visible.
+      toggleFieldVisibility("lti_id", false);
+      toggleFieldVisibility("external_config", false);
+      toggleFieldVisibility("lti_version", true);
     }
 
     if (configType === "external") {
@@ -302,6 +389,28 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       toggleLtiComponents();
     });
 
+  // Bind to change event on external_config input.
+  // Fires once when the user commits a new value (tabs out / clicks away).
+  // Skips lookup for empty or unchanged values.
+  $(element)
+    .find("#xb-field-edit-external_config")
+    .bind("change", function () {
+      const configId = $(this).val();
+      if (!configId || configId === data.currentExternalConfig) {
+        // Empty or unchanged — use effectiveLtiVersion / rawLtiVersion fallback.
+        toggleLtiComponents();
+        return;
+      }
+
+      // Show UI with current fallback immediately while resolving.
+      toggleLtiComponents();
+
+      // Resolve asynchronously, then re-evaluate UI.
+      resolveExternalConfigVersion(configId, function (/* version */) {
+        toggleLtiComponents();
+      });
+    });
+
   $(element)
     .find(".cancel-button")
     .bind("click", function () {
@@ -329,7 +438,7 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
     .bind("click", function (e) {
       e.preventDefault();
       let nextStep;
-      const version = getRadioButtonValue("lti_version");
+      const version = getEffectiveVersion();
       let configType;
       try {
         configType = getFieldValue("config_type").value || "new";
@@ -357,7 +466,7 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
     .bind("click", function (e) {
       e.preventDefault();
       let previousStep;
-      const version = getRadioButtonValue("lti_version");
+      const version = getEffectiveVersion();
       let configType;
       try {
         configType = getFieldValue("config_type").value || "new";
@@ -457,7 +566,16 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
       const { editableFields } = data;
       const handlerUrl = runtime.handlerUrl(element, "submit_studio_edits");
       const submitData = { values: {}, defaults: [] };
+
+      // When config_type is external, lti_version is determined by the
+      // reusable config — skip submitting it to avoid overwriting the
+      // effective version with a stale radio-button value.
+      const saveConfigType = getFieldValue("config_type").value || "new";
+
       for (const field of editableFields) {
+        if (saveConfigType === "external" && field === "lti_version") {
+          continue;
+        }
         const { isSet, value } = getFieldValue(field);
         if (isSet) {
           submitData.values[field] = value;

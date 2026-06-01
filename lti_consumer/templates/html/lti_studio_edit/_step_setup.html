@@ -33,7 +33,7 @@
             {% endif %}
             <!-------------------------------------->
             <!----------- lti_version ----------->
-            <li class="field comp-setting-entry lti-version {% if fields.lti_version.is_set %}is-set{% endif %}">
+            <li class="field comp-setting-entry lti-version {% if fields.lti_version.is_set %}is-set{% endif %}" data-field-name="lti_version">
                 <label class="label setting-label">{{ fields.lti_version.display_name }}</label>
                 <span class="icon fa fa-question-circle" data-tooltip="{{ fields.lti_version.help }}"></span>
                 <ul class="button-select-options">

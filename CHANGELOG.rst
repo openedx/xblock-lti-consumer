@@ -16,7 +16,7 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
-11.2.1 - 2026-05-18
+11.3.1 - 2026-06-01
 --------------------
 * Fix LTI 1.3 deep linking launches to POST the ``id_token`` to the tool-provided ``redirect_uri``
   rather than the platform-configured ``deep_linking_launch_url``. Per
@@ -24,6 +24,12 @@ Unreleased
   and `LTI Deep Linking 2.0 §2.1 <https://www.imsglobal.org/spec/lti-dl/v2p0#redirection-from-platform-to-tool>`_,
   the OIDC authentication response must always POST to ``redirect_uri``; ``deep_linking_launch_url``
   belongs in the JWT as ``target_link_uri`` only.
+
+11.3.0 - 2026-05-29
+--------------------
+* Sync effective LTI version from external reusable configurations throughout XBlock runtime paths and Studio.
+* Hide LTI version selection in Studio for external and database-backed configurations to avoid stale version mismatches.
+* Show or hide LTI launch URL fields in Studio based on version resolved from external configuration.
 
 11.2.0 - 2026-04-30
 --------------------
