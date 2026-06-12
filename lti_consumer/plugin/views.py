@@ -69,6 +69,47 @@ from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
 from lti_consumer.track import track_event
 from lti_consumer.utils import _, get_data_from_cache, get_lti_1p3_context_types_claim, get_lti_api_base
 
+
+def _build_url_with_query(request, query_params):
+    """
+    Build an absolute URL from the request path, merging current query parameters
+    and overriding/removing keys as specified.
+
+    Args:
+        request: DRF request object.
+        query_params: dict of query parameter key/value pairs to set.
+            Keys set to ``None`` are removed from the result.
+
+    Returns:
+        str: Absolute URL with the resulting query parameters.
+    """
+    base_url = request.build_absolute_uri(request.path)
+    # Start from current query params and apply overrides/removals.
+    # Use .dict() (not dict()) to get single values from MultiValueDict.
+    merged = request.query_params.dict()
+    for key, value in query_params.items():
+        if value is None:
+            merged.pop(key, None)
+        else:
+            merged[key] = value
+    if merged:
+        return f"{base_url}?{urllib.parse.urlencode(merged)}"
+    return base_url
+
+
+def _format_link_header(url, rel):
+    """
+    Format an RFC 8288 Link header value.
+
+    Args:
+        url: The target URL.
+        rel: The link relation type (e.g. 'next').
+
+    Returns:
+        str: Formatted Link header value.
+    """
+    return f'<{url}>; rel="{rel}"'
+
 log = logging.getLogger(__name__)
 
 
@@ -871,6 +912,18 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
         """
         Overrides default list method of ModelViewSet. Calls LMS `get_course_members`
         API and returns result.
+
+        Supports manual pagination via ``limit`` and ``page`` query parameters
+        (per NRPS 2.0 §2.4.2):
+
+        * limit (positive integer): Maximum members per page.  When absent,
+          all members are returned and no pagination Link header is emitted.
+        * page (positive integer, default 1): 1-indexed page number.
+          Only consulted when ``limit`` is present and valid.
+
+        When ``limit`` is present and more members remain after the current
+        page, a ``Link`` header with ``rel="next"`` is included whose URL
+        carries the same ``limit`` and an incremented ``page``.
         """
 
         # get course key
@@ -881,18 +934,59 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
             compat.merge_course_forum_roles(course_key, data)
             self.attach_external_user_ids(data)
 
+            # Materialize members preserving dict insertion order.
+            members = list(data.values())
+            total_count = len(members)
+
+            # --- Manual pagination ---
+            limit_param = self.request.query_params.get('limit')
+            has_next = False
+            page = 1
+
+            if limit_param is not None:
+                # Parse limit; must be a positive integer, else skip pagination.
+                try:
+                    limit = int(limit_param)
+                    if limit <= 0:
+                        limit = None
+                except (ValueError, TypeError):
+                    limit = None
+
+                if limit is not None:
+                    # Parse page; must be a positive integer, else default to 1.
+                    try:
+                        page = int(self.request.query_params.get('page', 1))
+                        if page <= 0:
+                            page = 1
+                    except (ValueError, TypeError):
+                        page = 1
+
+                    start = (page - 1) * limit
+                    end = start + limit
+                    members = members[start:end]
+                    has_next = end < total_count
+
             # build correct format for the serializer
             result = {
                 'id': self.request.build_absolute_uri(),
                 'context': {
                     'id': course_key
                 },
-                'members': data.values(),
+                'members': members,
             }
 
             # Serialize and return data NRPS reponse.
             serializer = self.get_serializer_class()(result)
-            return Response(serializer.data)
+            response = Response(serializer.data)
+
+            if has_next:
+                next_url = _build_url_with_query(self.request, {
+                    'limit': limit,
+                    'page': page + 1,
+                })
+                response['Link'] = _format_link_header(next_url, 'next')
+
+            return response
 
         except LtiError as ex:
             log.warning("LTI NRPS Error: %s", ex)

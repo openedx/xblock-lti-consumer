@@ -370,3 +370,142 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         response = self.client.get(self.context_membership_endpoint)
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data['error'], 'above_response_limit')
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 4
+        })),
+    )
+    def test_limit_pagination_returns_bounded_page(self):
+        """
+        Test that when limit is provided, the response contains at most 'limit' members
+        and includes a Link header with rel="next" when more members remain.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(self.context_membership_endpoint, {'limit': 2})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']), 2)
+        self.assertTrue(response.has_header('Link'))
+        self.assertIn('rel="next"', response['Link'])
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 4
+        })),
+    )
+    def test_limit_pagination_next_url_has_limit_and_page(self):
+        """
+        Test that the Link header's next URL contains the same limit and page=2
+        and preserves unrelated query params.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(
+            self.context_membership_endpoint,
+            {'limit': 2, 'role': 'foo'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.has_header('Link'))
+
+        link_header = response['Link']
+        parsed_links = self._parse_link_headers(link_header)
+        self.assertIn('next', parsed_links)
+
+        next_url = parsed_links['next']
+        self.assertIn('limit=2', next_url)
+        self.assertIn('page=2', next_url)
+        self.assertIn('role=foo', next_url)
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 4
+        })),
+    )
+    def test_limit_pagination_last_page_omits_next(self):
+        """
+        Test that on the last page, no Link header with rel="next" is present.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(self.context_membership_endpoint, {'limit': 2, 'page': 2})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']), 2)
+        self.assertFalse(response.has_header('Link'))
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 4
+        })),
+    )
+    def test_limit_pagination_single_remaining(self):
+        """
+        Test that when limit=3 and page=2, only 1 member is returned and no next Link.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(self.context_membership_endpoint, {'limit': 3, 'page': 2})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']), 1)
+        self.assertFalse(response.has_header('Link'))
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 4
+        })),
+    )
+    def test_invalid_limit_returns_all_members(self):
+        """
+        Test that an invalid limit (non-positive or non-integer) returns all members
+        without pagination.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+
+        # Test with limit=0
+        response = self.client.get(self.context_membership_endpoint, {'limit': 0})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']), 4)
+        self.assertFalse(response.has_header('Link'))
+
+        # Test with negative limit
+        response = self.client.get(self.context_membership_endpoint, {'limit': -5})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']), 4)
+        self.assertFalse(response.has_header('Link'))
+
+        # Test with non-integer limit
+        response = self.client.get(self.context_membership_endpoint, {'limit': 'abc'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']), 4)
+        self.assertFalse(response.has_header('Link'))
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 4
+        })),
+    )
+    def test_invalid_page_defaults_to_one(self):
+        """
+        Test that an invalid page value defaults to page 1.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+
+        # Test with page=0
+        response = self.client.get(self.context_membership_endpoint, {'limit': 2, 'page': 0})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']), 2)
+        self.assertTrue(response.has_header('Link'))
+
+        # Test with non-integer page
+        response = self.client.get(self.context_membership_endpoint, {'limit': 2, 'page': 'abc'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']), 2)
+        self.assertTrue(response.has_header('Link'))
