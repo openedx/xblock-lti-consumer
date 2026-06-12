@@ -110,6 +110,31 @@ def _format_link_header(url, rel):
     """
     return f'<{url}>; rel="{rel}"'
 
+
+def _parse_positive_int(value, default=None):
+    """
+    Parse *value* (a string or ``None``) as a positive integer.
+
+    Returns *default* if *value* is ``None``, not an integer, or
+    non-positive.
+
+    Args:
+        value: Raw string or ``None``.
+        default: Fallback value (default ``None``).
+
+    Returns:
+        int or *default*.
+    """
+    if value is None:
+        return default
+    try:
+        parsed = int(value)
+    except (ValueError, TypeError):
+        return default
+    if parsed <= 0:
+        return default
+    return parsed
+
 log = logging.getLogger(__name__)
 
 
@@ -938,29 +963,17 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
             members = list(data.values())
             total_count = len(members)
 
-            # --- Manual pagination ---
             limit_param = self.request.query_params.get('limit')
             has_next = False
             page = 1
 
             if limit_param is not None:
-                # Parse limit; must be a positive integer, else skip pagination.
-                try:
-                    limit = int(limit_param)
-                    if limit <= 0:
-                        limit = None
-                except (ValueError, TypeError):
-                    limit = None
-
+                limit = _parse_positive_int(limit_param, default=None)
                 if limit is not None:
-                    # Parse page; must be a positive integer, else default to 1.
-                    try:
-                        page = int(self.request.query_params.get('page', 1))
-                        if page <= 0:
-                            page = 1
-                    except (ValueError, TypeError):
-                        page = 1
-
+                    page = _parse_positive_int(
+                        self.request.query_params.get('page'),
+                        default=1,
+                    )
                     start = (page - 1) * limit
                     end = start + limit
                     members = members[start:end]
