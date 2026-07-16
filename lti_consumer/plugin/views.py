@@ -960,8 +960,9 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
             compat.merge_course_forum_roles(course_key, data)
             self.attach_external_user_ids(data)
 
-            # Materialize members preserving dict insertion order.
-            members = list(data.values())
+            # The LMS combines unordered enrollment and role-only querysets, so
+            # dict insertion order can change between paginated requests.
+            members = sorted(data.values(), key=lambda m: m['id'])
             total_count = len(members)
 
             limit_param = self.request.query_params.get('limit')

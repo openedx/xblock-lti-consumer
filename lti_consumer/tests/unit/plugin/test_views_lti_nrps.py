@@ -16,6 +16,7 @@ from lti_consumer.lti_1p3.constants import (
 )
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
+from lti_consumer.plugin.views import LtiNrpsContextMembershipViewSet
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
 
@@ -509,3 +510,40 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['members']), 2)
         self.assertTrue(response.has_header('Link'))
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))
+    def test_pagination_sorts_by_id_for_stable_pages(self):
+        """Test pagination stays stable when member insertion order changes between requests.
+
+        The two page requests return the same members in opposite dictionary orders;
+        sorting by ID should still produce every member exactly once, without gaps or
+        duplicates.
+        """
+        members = [{'id': 2000 + i, 'username': f'user_{2000 + i}', 'roles': ['student']} for i in range(4)]
+        insertion_orders = [members, list(reversed(members))]
+
+        def get_members(_course_key):
+            return {member['id']: member for member in insertion_orders.pop(0)}
+
+        def attach_external_ids(data):
+            for member in data.values():
+                member['external_id'] = str(member['id'])
+
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+
+        with patch('lti_consumer.plugin.views.compat.get_course_members', side_effect=get_members), patch.object(
+            LtiNrpsContextMembershipViewSet,
+            'attach_external_user_ids',
+            side_effect=attach_external_ids,
+        ):
+            page_ids = []
+            for page in (1, 2):
+                response = self.client.get(
+                    self.context_membership_endpoint,
+                    {'limit': 2, 'page': page},
+                )
+                self.assertEqual(response.status_code, 200)
+                page_ids.extend(member['user_id'] for member in response.data['members'])
+
+        self.assertEqual(page_ids, ['2000', '2001', '2002', '2003'])
+        self.assertEqual(len(page_ids), len(set(page_ids)))
