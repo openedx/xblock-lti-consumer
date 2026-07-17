@@ -16,6 +16,12 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.0 - 2026-07-16
+--------------------
+* Add pagination support to the NRPS ``/context_membership`` endpoint, accepting
+  ``limit`` and ``page`` query parameters with RFC 8288 ``Link`` headers for
+  continuation.
+
 11.3.1 - 2026-06-01
 --------------------
 * Fix LTI 1.3 deep linking launches to POST the ``id_token`` to the tool-provided ``redirect_uri``
