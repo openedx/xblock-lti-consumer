@@ -1,0 +1,161 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm>8.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lti-consumer-xblock"
+dynamic = ["version"]
+description = "This XBlock implements the consumer side of the LTI specification."
+readme = "README.rst"
+license = "AGPL-3.0"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Open edX project", email = "oscm@edx.org"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "attrs",
+    "lxml",
+    "bleach>=6.0.0",
+    "django>=5.2",
+    "oauthlib",
+    "mako",
+    "lazy",
+    "XBlock",
+    "pyjwt",
+    "pycryptodomex",
+    "edx-opaque-keys[django]",
+    "edx-ccx-keys",
+    "django-filter",
+    "jsonfield",
+    "django-config-models",
+    "openedx-filters",
+    "django-statici18n",
+    "openedx-events",
+]
+
+[project.urls]
+Homepage = "https://github.com/openedx/xblock-lti-consumer"
+
+[project.entry-points."xblock.v1"]
+lti_consumer = "lti_consumer.lti_xblock:LtiConsumerXBlock"
+
+[project.entry-points."lms.djangoapp"]
+lti_consumer = "lti_consumer.apps:LTIConsumerApp"
+
+[project.entry-points."cms.djangoapp"]
+lti_consumer = "lti_consumer.apps:LTIConsumerApp"
+
+[tool.setuptools_scm]
+version_scheme = "only-version"
+local_scheme = "no-local-version"
+# fallback_version is used when building outside a git repo (e.g. Docker builds
+# from a source tarball). The placeholder keeps the build from failing.
+fallback_version = "0.0.0.dev0"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+lti_consumer = ["static/**/*", "templates/**/*", "public/**/*", "conf/locale/**"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["tests*", "*.tests*", "spec*", "*.spec*"]
+
+[tool.coverage.run]
+branch = true
+source_pkgs = ["lti_consumer"]
+omit = ["*/tests/*", "*/migrations/*", "*/__pycache__/*", "*/settings.py", "*/urls.py"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ---------------------------------------------------------------------------
+# Dependency groups (uv)
+# To add a new Django version to the matrix:
+#   1. Add a new group here (e.g. django60 = [...])
+#   2. Add it to [tool.uv].conflicts
+#   3. Add a tox env (e.g. py312-django60) and a CI matrix entry
+# ---------------------------------------------------------------------------
+[dependency-groups]
+test-base = [
+    "pytest",
+    "coverage",
+    "coveralls",
+    "cryptography",
+    "ddt",
+    "djangorestframework",
+    "edx-lint",
+    "mock",
+    "readme-renderer",
+    "twine",
+    "xblock-sdk",
+]
+test = [
+    {include-group = "test-base"},
+    "django>=5.2,<6.0",
+]
+quality = [
+    {include-group = "test"},
+    "pylint",
+    "pycodestyle",
+]
+doc = [
+    {include-group = "test"},
+    "edx-i18n-tools",
+]
+ci = [
+    "tox",
+    "tox-uv>=1",
+]
+dev = [
+    {include-group = "quality"},
+    {include-group = "ci"},
+    {include-group = "doc"},
+]
+
+[tool.uv]
+package = true
+conflicts = []
+
+# Populated by: uv run --with edx-lint edx_lint write_uv_constraints pyproject.toml
+# Do NOT edit this section manually.
+constraint-dependencies = [
+    "Django<6.0",
+    "elasticsearch<7.14.0",
+    "urllib3<1.27,>=1.25.4",
+]
+
+[tool.edx_lint]
+uv_constraints = [
+    "urllib3<1.27,>=1.25.4",
+]
+
+[tool.semantic_release]
+# Version is derived from git tags via setuptools-scm; PSR creates the tag,
+# and build_command uses SETUPTOOLS_SCM_PRETEND_VERSION to build with it.
+build_command = "python -m pip install --upgrade build && SETUPTOOLS_SCM_PRETEND_VERSION=$NEW_VERSION python -m build"
+# Prevent automatic 0.x → 1.0.0 bump; 1.x signals "first stable release" and
+# should be a deliberate choice, not triggered by a breaking-change commit.
+allow_zero_version = true
+major_on_zero = false
