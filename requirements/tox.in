@@ -1,4 +1,0 @@
-# Used for tests
--c constraints.txt
-
-tox
