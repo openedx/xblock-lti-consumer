@@ -104,7 +104,7 @@ pynacl==1.6.2
     # via edx-django-utils
 python-dateutil==2.9.0.post0
     # via xblock
-pytz==2026.2
+pytz==2026.3.post1
     # via xblock
 pyyaml==6.0.3
     # via xblock
