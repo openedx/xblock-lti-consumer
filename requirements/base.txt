@@ -10,18 +10,18 @@ asgiref==3.12.1
     # via django
 attrs==26.1.0
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   openedx-events
 bleach==6.4.0
-    # via -r requirements/base.in
+    # via -r base.in
 cffi==2.1.0
     # via pynacl
 click==8.4.2
     # via edx-django-utils
 django==5.2.16
     # via
-    #   -c requirements/common_constraints.txt
-    #   -r requirements/base.in
+    #   -c common_constraints.txt
+    #   -r base.in
     #   django-appconf
     #   django-config-models
     #   django-crum
@@ -36,13 +36,13 @@ django==5.2.16
 django-appconf==1.2.0
     # via django-statici18n
 django-config-models==3.0.0
-    # via -r requirements/base.in
+    # via -r base.in
 django-crum==0.7.9
     # via edx-django-utils
 django-filter==26.1
-    # via -r requirements/base.in
+    # via -r base.in
 django-statici18n==2.7.1
-    # via -r requirements/base.in
+    # via -r base.in
 django-waffle==5.0.0
     # via edx-django-utils
 djangorestframework==3.17.1
@@ -51,7 +51,7 @@ dnspython==2.8.0
     # via pymongo
 edx-ccx-keys==2.0.2
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   openedx-events
 edx-django-utils==8.0.1
     # via
@@ -59,7 +59,7 @@ edx-django-utils==8.0.1
     #   openedx-events
 edx-opaque-keys[django]==4.0.0
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   edx-ccx-keys
     #   openedx-events
     #   openedx-filters
@@ -69,35 +69,35 @@ fastavro==1.12.2
 fs==2.4.16
     # via xblock
 jsonfield==3.2.0
-    # via -r requirements/base.in
+    # via -r base.in
 lazy==2.0
-    # via -r requirements/base.in
+    # via -r base.in
 lxml==6.1.1
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   xblock
 mako==1.3.12
     # via
-    #   -r requirements/base.in
+    #   -r base.in
     #   xblock
 markupsafe==3.0.3
     # via
     #   mako
     #   xblock
 oauthlib==3.3.1
-    # via -r requirements/base.in
+    # via -r base.in
 openedx-events==11.2.0
-    # via -r requirements/base.in
+    # via -r base.in
 openedx-filters==3.8.0
-    # via -r requirements/base.in
+    # via -r base.in
 psutil==7.2.2
     # via edx-django-utils
 pycparser==3.0
     # via cffi
 pycryptodomex==3.23.0
-    # via -r requirements/base.in
+    # via -r base.in
 pyjwt==2.13.0
-    # via -r requirements/base.in
+    # via -r base.in
 pymongo==4.17.0
     # via edx-opaque-keys
 pynacl==1.6.2
@@ -115,7 +115,7 @@ six==1.17.0
     #   edx-ccx-keys
     #   fs
     #   python-dateutil
-sqlparse==0.5.5
+sqlparse==0.6.0
     # via django
 stevedore==5.9.0
     # via
@@ -128,7 +128,7 @@ webencodings==0.5.1
 webob==1.8.10
     # via xblock
 xblock==6.3.1
-    # via -r requirements/base.in
+    # via -r base.in
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
