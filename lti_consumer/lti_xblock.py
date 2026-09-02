@@ -1325,6 +1325,20 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         return fragment
 
+    @XBlock.handler
+    def submit_studio_edits(self, request, suffix=''):
+        """
+        Studio Save.
+
+        Reconciles the block's `lti_1p3_passport_id` field with the configuration
+        stored in the database, creating the configuration and its passport if they
+        don't exist yet. Doing it here means passport initialization never has to
+        write to the block from an LMS request, where Scope.settings is read-only.
+        """
+        from lti_consumer.api import sync_lti_passport_id_to_block  # pylint: disable=import-outside-toplevel
+        sync_lti_passport_id_to_block(self)
+        return super().submit_studio_edits(request, suffix)
+
     def author_view(self, context):
         """
         XBlock author view of this component.

@@ -19,6 +19,7 @@ from lti_consumer.api import (
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
     _get_or_create_local_lti_config,
+    sync_lti_passport_id_to_block,
     validate_lti_1p3_launch_data,
 )
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
@@ -341,17 +342,32 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.xblock.lti_1p3_tool_key_mode = 'public_key'
         self.xblock.lti_1p3_tool_public_key = 'new_key'
 
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
+        with patch('lti_consumer.plugin.compat.save_xblock') as save_xblock_mock:
+            lti_config = _get_or_create_local_lti_config(
+                lti_version=LtiConfiguration.LTI_1P3,
+                block=self.xblock
+            )
 
         # Original passport unchanged
         passport.refresh_from_db()
         self.assertEqual(passport.lti_1p3_tool_public_key, 'shared_key')
 
-        # Block has new passport
-        self.assertNotEqual(self.xblock.lti_1p3_passport_id, str(passport.passport_id))
+        # Configuration points at the new passport, and the block was not written to.
+        self.assertNotEqual(lti_config.lti_1p3_passport, passport)
+        self.assertEqual(lti_config.lti_1p3_passport.lti_1p3_tool_public_key, 'new_key')
+        save_xblock_mock.assert_not_called()
+
+    def test_sync_lti_passport_id_to_block(self):
+        """
+        Check that the block's passport_id field is synced from the configuration.
+        """
+        self.assertTrue(sync_lti_passport_id_to_block(self.xblock))
+
+        lti_config = LtiConfiguration.objects.get(location=self.location)
+        self.assertEqual(self.xblock.lti_1p3_passport_id, str(lti_config.lti_1p3_passport.passport_id))
+
+        # Nothing to do on a second call.
+        self.assertFalse(sync_lti_passport_id_to_block(self.xblock))
 
     def test_passport_unchanged_when_keys_match(self):
         """

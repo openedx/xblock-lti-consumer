@@ -404,6 +404,12 @@ class LtiConfiguration(models.Model):
     def get_or_create_lti_1p3_passport(self):
         """
         Create an LTI 1.3 Passport configuration for this course instance.
+
+        This never writes back to the XBlock: it runs from a post_save signal, which
+        also fires during LMS requests where blocks are bound to read-only field data
+        for Scope.settings. The configuration row is the authoritative link to the
+        passport; the block's `lti_1p3_passport_id` field is kept in sync from Studio
+        by `LtiConsumerXBlock.submit_studio_edits`.
         """
         passport = self.lti_1p3_passport
         block = None
@@ -429,9 +435,6 @@ class LtiConfiguration(models.Model):
                     passport.name = f"Passport of {block.display_name}"
                     passport.context_key = block.context_id
                     passport.save()
-                    block.lti_1p3_passport_id = str(passport.passport_id)
-                    block.save()
-                    compat.save_xblock(block)
             # We use update to avoid triggering post save signal as this function is itself
             # called from the post_save signal handler, this avoids double call to same function.
             LtiConfiguration.objects.filter(pk=self.pk).update(lti_1p3_passport=passport)

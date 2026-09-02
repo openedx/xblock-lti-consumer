@@ -517,6 +517,32 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
             external_config['lti_advantage_deep_linking_launch_url'],
         )
 
+    def test_get_or_create_lti_1p3_passport_does_not_write_to_block(self):
+        """
+        Test that creating a passport doesn't write back to the XBlock.
+
+        This runs from a post_save signal, which also fires during LMS requests, where
+        blocks are bound to read-only field data for Scope.settings.
+        """
+        xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        xblock.lti_1p3_passport_id = ''
+        self._load_block_patch.return_value = xblock
+
+        with patch.object(xblock, 'save') as block_save_mock, \
+                patch('lti_consumer.plugin.compat.save_xblock') as save_xblock_mock:
+            config = LtiConfiguration.objects.create(
+                location=xblock.scope_ids.usage_id,
+                version=LtiConfiguration.LTI_1P3,
+            )
+
+        # The passport is created and linked to the configuration, which is authoritative.
+        self.assertIsNotNone(config.lti_1p3_passport)
+        self.assertEqual(config.lti_1p3_passport.name, f"Passport of {xblock.display_name}")
+        # But the block is left untouched.
+        block_save_mock.assert_not_called()
+        save_xblock_mock.assert_not_called()
+        self.assertEqual(xblock.lti_1p3_passport_id, '')
+
     @patch.object(LtiConfiguration, 'sync_configurations')
     def test_save(self, sync_configurations_mock):
         """Test save method."""
