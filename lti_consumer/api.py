@@ -76,16 +76,15 @@ def _ensure_lti_passport(block, lti_config):
     )
 
     if key_mismatch:
-        from lti_consumer.plugin.compat import save_xblock  # pylint: disable=import-outside-toplevel
         passport = Lti1p3Passport.objects.create(
             lti_1p3_tool_public_key=block_public_key,
             lti_1p3_tool_keyset_url=block_keyset_url,
             name=f"Passport of {block.display_name}",
             context_key=block.context_id,
         )
-        # Persist new passport link on block so future loads use split passport.
-        block.lti_1p3_passport_id = str(passport.passport_id)
-        save_xblock(block)
+        # The caller links the split passport to the configuration, which is what future
+        # loads use. The block's `lti_1p3_passport_id` field is synced from Studio by
+        # `sync_lti_passport_id_to_block`, since writing it here would run in the LMS too.
         log.info("Created new LTI passport for %s", block.scope_ids.usage_id)
 
     return passport
@@ -120,6 +119,22 @@ def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigur
         lti_config.save()
 
     return lti_config
+
+
+def sync_lti_passport_id_to_block(block):
+    """
+    Copy the configuration's passport_id onto the block's `lti_1p3_passport_id` field.
+
+    Only safe to call from Studio: the LMS binds blocks to read-only field data for
+    Scope.settings, so writing the field there raises `InvalidScopeError`.
+
+    Returns True if the field was changed, False otherwise.
+    """
+    passport = _get_lti_config_for_block(block).lti_1p3_passport
+    if passport and block.lti_1p3_passport_id != str(passport.passport_id):
+        block.lti_1p3_passport_id = str(passport.passport_id)
+        return True
+    return False
 
 
 def _get_config_by_config_id(config_id):

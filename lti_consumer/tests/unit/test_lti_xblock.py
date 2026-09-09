@@ -781,6 +781,27 @@ class TestProperties(TestLtiConsumerXBlock):
             self.assertTrue(mock_timezone_now.called)
 
 
+class TestSubmitStudioEdits(TestLtiConsumerXBlock):
+    """
+    Unit tests for LtiConsumerXBlock.submit_studio_edits()
+    """
+
+    @patch("lti_consumer.lti_xblock.external_config_filter_enabled", return_value=False)
+    @patch("lti_consumer.lti_xblock.database_config_enabled", return_value=False)
+    def test_passport_id_synced_from_configuration(self, *_args):
+        """
+        Saving in Studio populates the block's passport_id from the configuration.
+        """
+        self.assertEqual(self.xblock.lti_1p3_passport_id, '')
+
+        request = make_request(json.dumps({'values': {}, 'defaults': []}), 'POST')
+        response = self.xblock.submit_studio_edits(request, '')
+
+        self.assertEqual(json.loads(response.body.decode('utf-8')), {'result': 'success'})
+        lti_config = LtiConfiguration.objects.get(location=self.xblock.scope_ids.usage_id)
+        self.assertEqual(self.xblock.lti_1p3_passport_id, str(lti_config.lti_1p3_passport.passport_id))
+
+
 @ddt.ddt
 class TestEditableFields(TestLtiConsumerXBlock):
     """

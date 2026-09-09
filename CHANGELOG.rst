@@ -16,6 +16,17 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.1 - 2026-09-02
+--------------------
+* Stop writing the LTI 1.3 passport id back to the XBlock from the
+  ``LtiConfiguration`` ``post_save`` signal. The signal also fires during LMS
+  requests, where blocks are bound to read-only field data for ``Scope.settings``,
+  so first-time passport creation raised ``InvalidScopeError`` and rolled back the
+  configuration row. The configuration is now the only writer during a launch.
+* Sync the block's ``lti_1p3_passport_id`` field from the database in a new
+  ``submit_studio_edits`` override on ``LtiConsumerXBlock``, so the field is only
+  written from Studio.
+
 11.4.0 - 2026-07-16
 --------------------
 * Add pagination support to the NRPS ``/context_membership`` endpoint, accepting
