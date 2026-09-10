@@ -336,6 +336,40 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         # Set sub and roles claims.
         user_id = launch_data.external_user_id if launch_data.external_user_id else launch_data.user_id
         user_role = launch_data.user_role
+
+        # custom_parameters is documented as a dict, but callers (and existing tests) also pass a
+        # list of "key=value" strings, so extract just the parameter names defensively either way.
+        custom_parameters = launch_data.custom_parameters
+        if isinstance(custom_parameters, dict):
+            custom_parameter_names = list(custom_parameters.keys())
+        elif isinstance(custom_parameters, (list, tuple)):
+            custom_parameter_names = [
+                param.split('=', 1)[0] for param in custom_parameters
+                if isinstance(param, str) and '=' in param
+            ]
+        else:
+            custom_parameter_names = []
+
+        log.info(
+            'LTI 1.3 launch data retrieved for lti_message_hint=%s: config_id=%s resource_link_id=%s '
+            'message_type=%s user_id=%s user_role=%s context_id=%s context_type=%s has_name=%s '
+            'has_email=%s has_preferred_username=%s custom_parameter_names=%s '
+            'deep_linking_content_item_id=%s.',
+            lti_message_hint,
+            config_id,
+            launch_data.resource_link_id,
+            launch_data.message_type,
+            user_id,
+            user_role,
+            launch_data.context_id,
+            launch_data.context_type,
+            bool(launch_data.name),
+            bool(launch_data.email),
+            bool(launch_data.preferred_username),
+            custom_parameter_names,
+            launch_data.deep_linking_content_item_id,
+        )
+
         lti_consumer.set_user_data(
             user_id=user_id,
             role=user_role,
@@ -382,6 +416,23 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
 
         # Retrieve preflight response.
         preflight_response = request_params.dict()
+
+        log.info(
+            # state/nonce are single-use, tool-generated correlation values (not credentials) --
+            # logging them lets a specific launch attempt be matched against the tool's own logs.
+            'LTI 1.3 authentication request (preflight response) received from tool for config_id=%s: '
+            'redirect_uri=%s client_id=%s state=%s nonce=%s response_type=%s response_mode=%s '
+            'scope=%s prompt=%s.',
+            config_id,
+            preflight_response.get('redirect_uri'),
+            preflight_response.get('client_id'),
+            preflight_response.get('state'),
+            preflight_response.get('nonce'),
+            preflight_response.get('response_type'),
+            preflight_response.get('response_mode'),
+            preflight_response.get('scope'),
+            preflight_response.get('prompt'),
+        )
 
         # Set LTI Launch URL.
         context.update({'launch_url': preflight_response.get("redirect_uri")})
@@ -457,6 +508,16 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             'launch_url': context['launch_url']
         }
         track_event('xblock.launch_request', event)
+
+        log.info(
+            'LTI 1.3 launch handed off to browser for config_id=%s resource_link_id=%s user_id=%s '
+            'launch_url=%s: Open edX finished building the launch successfully; any failure past this '
+            "point happens in the browser-to-tool POST and on the tool's own server, outside these logs.",
+            config_id,
+            launch_data.resource_link_id,
+            user_id,
+            context['launch_url'],
+        )
 
         return render(request, 'html/lti_1p3_launch.html', context)
     except Lti1p3Exception as exc:
@@ -765,6 +826,60 @@ def deep_linking_content_endpoint(request, lti_config_id):
     })
 
 
+# Fields that may carry PII or arbitrary tool-supplied free text (a persistent external user
+# identifier, and a free-text comment). Logged as a length only, never their content -- the rest
+# of the AGS fields are grading metadata (scores, progress enums, resource ids) safe to log as-is.
+_AGS_REDACTED_LOG_FIELDS = frozenset({'userId', 'comment'})
+
+
+def _truncate_for_log(value, max_len=200):
+    """
+    Stringify and truncate `value` to `max_len` characters, so a malformed or oversized
+    tool-supplied value can't blow up a log line.
+    """
+    return str(value)[:max_len]
+
+
+def _ags_field_value(payload, field, max_len=200):
+    """
+    Return a log-safe representation of `field` from an AGS request payload.
+
+    Truncated to `max_len` characters so a malformed or oversized tool-supplied payload can't
+    blow up the log line, and with newlines/carriage returns escaped so a tool-supplied value
+    can't be used to forge additional, fake-looking log lines. Returns 'n/a' if the payload
+    doesn't support key lookup, and 'missing' if the key is absent entirely -- as opposed to an
+    explicit `null`, which is returned as the string 'None' so the two remain distinguishable in
+    the log (e.g. an AGS "erase score" request explicitly nulls `scoreGiven` rather than omitting
+    it). See `_AGS_REDACTED_LOG_FIELDS` for fields logged as a length only.
+    """
+    if not hasattr(payload, 'get'):
+        return 'n/a'
+    if field not in payload:
+        return 'missing'
+    value = payload.get(field)
+    if field in _AGS_REDACTED_LOG_FIELDS:
+        return 'n/a' if value is None else f'<{len(str(value))} chars>'
+    text = _truncate_for_log(value, max_len)
+    return text.replace('\n', '\\n').replace('\r', '\\r')
+
+
+def _summarize_ags_error(response_data, max_len=200):
+    """
+    Build a short, log-safe summary of a DRF AGS error response body: for each
+    top-level key, the first error message truncated, so a malformed or huge
+    tool-supplied payload can't blow up the log line.
+    """
+    if isinstance(response_data, dict):
+        summary = {}
+        for key, value in response_data.items():
+            if isinstance(value, (list, tuple)) and value:
+                summary[key] = _truncate_for_log(value[0], max_len)
+            else:
+                summary[key] = _truncate_for_log(value, max_len)
+        return summary
+    return _truncate_for_log(response_data, max_len)
+
+
 class LtiAgsLineItemViewset(viewsets.ModelViewSet):
     """
     LineItem endpoint implementation from LTI Advantage.
@@ -793,6 +908,61 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         'resource_id',
         'tag'
     ]
+
+    def initial(self, request, *args, **kwargs):
+        """
+        Log a structured summary of every incoming LTI AGS request (line item
+        list/create/read/update/delete, score submission, result retrieval)
+        before authentication/permission checks run, so the request is logged
+        even when the tool's credentials or payload turn out to be invalid.
+        """
+        lti_config_id = self.kwargs.get('lti_config_id')
+        line_item_id = self.kwargs.get('pk')
+        payload = request.data if request.method in ('POST', 'PUT', 'PATCH') else request.query_params
+
+        log.info(
+            'LTI AGS request received: action=%s method=%s lti_config_id=%s line_item_id=%s '
+            'payload_keys=%s resourceId=%s resourceLinkId=%s scoreMaximum=%s userId=%s '
+            'scoreGiven=%s activityProgress=%s gradingProgress=%s comment=%s timestamp=%s.',
+            self.action,
+            request.method,
+            lti_config_id,
+            line_item_id,
+            list(payload.keys()) if hasattr(payload, 'keys') else [],
+            _ags_field_value(payload, 'resourceId'),
+            _ags_field_value(payload, 'resourceLinkId'),
+            _ags_field_value(payload, 'scoreMaximum'),
+            _ags_field_value(payload, 'userId'),
+            _ags_field_value(payload, 'scoreGiven'),
+            _ags_field_value(payload, 'activityProgress'),
+            _ags_field_value(payload, 'gradingProgress'),
+            _ags_field_value(payload, 'comment'),
+            _ags_field_value(payload, 'timestamp'),
+        )
+
+        super().initial(request, *args, **kwargs)
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        """
+        Log the outcome of every LTI AGS request (status code, and error
+        keys/messages when the response is an error) so a failed tool
+        integration call can be matched against what was logged in `initial`.
+        """
+        response = super().finalize_response(request, response, *args, **kwargs)
+
+        is_error = response.status_code >= 400
+        log.info(
+            'LTI AGS response returned: action=%s method=%s lti_config_id=%s line_item_id=%s '
+            'status_code=%s error=%s.',
+            getattr(self, 'action', None),
+            request.method,
+            self.kwargs.get('lti_config_id'),
+            self.kwargs.get('pk'),
+            response.status_code,
+            _summarize_ags_error(response.data) if is_error else None,
+        )
+
+        return response
 
     def get_queryset(self):
         lti_configuration = self.request.lti_configuration

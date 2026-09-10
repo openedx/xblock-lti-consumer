@@ -28,7 +28,12 @@ from lti_consumer.lti_1p3.constants import (
     LTI_1P3_SYSTEM_ROLE_ADMINISTRATOR,
     LTI_PROCTORING_DATA_KEYS,
 )
-from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiConsumer1p3, LtiProctoringConsumer
+from lti_consumer.lti_1p3.consumer import (
+    LtiAdvantageConsumer,
+    LtiConsumer1p3,
+    LtiProctoringConsumer,
+    redact_pii_claims,
+)
 from lti_consumer.lti_1p3.deep_linking import LtiDeepLinking
 from lti_consumer.lti_1p3.exceptions import InvalidClaimValue, MissingRequiredClaim
 from lti_consumer.lti_1p3.nprs import LtiNrps
@@ -300,6 +305,35 @@ class TestLti1p3Consumer(TestCase):
 
         self.assertEqual(actual_output, expected_output)
         self.assertCountEqual(actual_roles, expected_roles)
+
+    @patch('lti_consumer.lti_1p3.consumer.log')
+    def test_launch_message_log_redacts_pii(self, mock_log):
+        """
+        Check that the assembled launch message is logged with learner PII redacted.
+
+        The launch message is logged in full so tool-integration problems can be diagnosed from
+        the logs, which means the name/email claims must be scrubbed before they get there.
+        """
+        self._setup_lti_launch_data()
+        self.lti_consumer.set_user_data(
+            user_id="1",
+            role="student",
+            full_name="Ada Lovelace",
+            email_address="ada@example.com",
+        )
+        self._get_lti_message()
+
+        launch_log = next(
+            call for call in mock_log.info.call_args_list
+            if 'launch request assembled' in call.args[0]
+        )
+        logged_claims = launch_log.args[-1]
+
+        self.assertEqual(logged_claims['name'], '<redacted>')
+        self.assertEqual(logged_claims['email'], '<redacted>')
+        # Non-PII claims are still there, which is the point of logging the message.
+        self.assertEqual(logged_claims['sub'], "1")
+        self.assertIn('https://purl.imsglobal.org/spec/lti/claim/message_type', logged_claims)
 
     def test_check_no_user_data_error(self):
         """
@@ -712,6 +746,62 @@ class TestLti1p3Consumer(TestCase):
         """
         with self.assertRaises(ValueError):
             self.lti_consumer.set_extra_claim(test_value)
+
+
+class TestRedactPiiClaims(TestCase):
+    """
+    Unit tests for `redact_pii_claims`, which keeps launch-message logging free of learner PII.
+    """
+
+    def test_pii_claims_are_replaced(self):
+        """
+        Name, email and the other optional identity claims must never reach the logs.
+        """
+        redacted = redact_pii_claims({
+            'name': 'Ada Lovelace',
+            'email': 'ada@example.com',
+            'preferred_username': 'ada',
+            'picture': 'http://example.com/ada.png',
+        })
+
+        self.assertEqual(
+            redacted,
+            {
+                'name': '<redacted>',
+                'email': '<redacted>',
+                'preferred_username': '<redacted>',
+                'picture': '<redacted>',
+            },
+        )
+
+    def test_non_pii_claims_are_kept(self):
+        """
+        The point of logging the launch message is to see the claims, so everything that is not
+        PII is passed through untouched -- including `sub`, the opaque platform-generated user
+        identifier needed to correlate a launch with the tool's own logs.
+        """
+        claims = {
+            'sub': 'a2b4c6d8',
+            'https://purl.imsglobal.org/spec/lti/claim/message_type': 'LtiResourceLinkRequest',
+            'https://purl.imsglobal.org/spec/lti/claim/roles': ['http://purl.imsglobal.org/vocab/lis/v2/x'],
+        }
+        self.assertEqual(redact_pii_claims(claims), claims)
+
+    def test_input_is_not_mutated(self):
+        """
+        The claims dict is signed into the id_token after being logged, so redaction must not
+        touch the original.
+        """
+        claims = {'name': 'Ada Lovelace', 'sub': 'a2b4c6d8'}
+        redact_pii_claims(claims)
+        self.assertEqual(claims['name'], 'Ada Lovelace')
+
+    def test_non_dict_input_is_returned_as_is(self):
+        """
+        A log statement must not raise on an unexpected shape.
+        """
+        self.assertEqual(redact_pii_claims(None), None)
+        self.assertEqual(redact_pii_claims('not a dict'), 'not a dict')
 
 
 @ddt.ddt
