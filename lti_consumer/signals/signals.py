@@ -44,17 +44,54 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
         )
         return
 
-    # Before starting to publish grades to the LMS, check that:
-    # 1. The grade being submitted in the final one - `FullyGraded`
-    # 2. This LineItem is linked to a LMS grade - the `LtiResouceLinkId` field is set
-    # 3. There's a valid grade in this score - `scoreGiven` is set
-    if instance.grading_progress == LtiAgsScore.FULLY_GRADED \
-            and line_item.resource_link_id \
-            and instance.score_given:
-        try:
-            # Load block using LMS APIs and check if the block is graded and still accept grades.
-            block = compat.load_block_as_user(line_item.resource_link_id)
-            if block.has_score and (not block.is_past_due() or block.accept_grades_past_due):
+    # The grade being submitted must be the final one - `FullyGraded`. This is routine, expected
+    # tool behavior to not be the case yet (interim `Pending`/`InProgress` saves are far more
+    # common than the final one), so it's silently skipped here, not logged, to avoid flooding
+    # the logs.
+    if instance.grading_progress != LtiAgsScore.FULLY_GRADED:
+        return
+
+    # From here on the score is final, so failing to publish it is the actionable case worth
+    # logging below. Before publishing to the LMS, check that:
+    # 1. This LineItem is linked to a LMS grade - the `LtiResouceLinkId` field is set
+    # 2. There's a grade present in this score - `scoreGiven` is present
+    # 3. `scoreMaximum` is a usable, positive denominator for the normalized score below
+    # Note: (2) and (3) must be `is not None`/range checks, not truthiness checks, since a
+    # `scoreGiven` or `scoreMaximum` of 0 is falsy but a legitimate value for the former.
+    can_publish = (
+        bool(line_item.resource_link_id) and
+        instance.score_given is not None and
+        instance.score_maximum is not None and
+        instance.score_maximum > 0
+    )
+    if not can_publish:
+        log.info(
+            "LTI AGS grade publish skipped: score=%r grading_progress=%s resource_link_id=%s "
+            "score_given=%s score_maximum=%s.",
+            instance,
+            instance.grading_progress,
+            line_item.resource_link_id,
+            instance.score_given,
+            instance.score_maximum,
+        )
+        return
+
+    try:
+        # Load block using LMS APIs and check if the block is graded and still accept grades.
+        block = compat.load_block_as_user(line_item.resource_link_id)
+        if not block.has_score:
+            log.info(
+                "LTI AGS grade publish skipped: score=%r resource_link_id=%s has_score=%s.",
+                instance,
+                line_item.resource_link_id,
+                block.has_score,
+            )
+        else:
+            # Computed once and reused below: previously `is_past_due()`/`accept_grades_past_due`
+            # were never evaluated at all when `has_score` was False (short-circuited by `and`),
+            # so neither is touched here unless `has_score` is True.
+            is_past_due = block.is_past_due()
+            if not is_past_due or block.accept_grades_past_due:
                 # Map external ID to platform user
                 user = compat.get_user_from_external_user_id(instance.user_id)
 
@@ -73,17 +110,27 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                     score,
                 )
                 block.set_user_module_score(user, score, block.max_score(), instance.comment)
+            else:
+                log.info(
+                    "LTI AGS grade publish skipped: score=%r resource_link_id=%s has_score=%s "
+                    "is_past_due=%s accept_grades_past_due=%s.",
+                    instance,
+                    line_item.resource_link_id,
+                    block.has_score,
+                    is_past_due,
+                    block.accept_grades_past_due,
+                )
 
-        # This is a catch all exception to catch and log any issues related to loading the block
-        # from the modulestore and other LMS API calls
-        except Exception as exc:
-            log.exception(
-                "Error while publishing score %r to block %s to LMS: %s",
-                instance,
-                line_item.resource_link_id,
-                exc,
-            )
-            raise exc
+    # This is a catch all exception to catch and log any issues related to loading the block
+    # from the modulestore and other LMS API calls
+    except Exception as exc:
+        log.exception(
+            "Error while publishing score %r to block %s to LMS: %s",
+            instance,
+            line_item.resource_link_id,
+            exc,
+        )
+        raise exc
 
 
 @receiver(post_save, sender=LtiConfiguration, dispatch_uid='create_lti_1p3_passport')
