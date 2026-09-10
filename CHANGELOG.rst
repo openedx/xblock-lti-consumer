@@ -16,11 +16,27 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
-11.4.0 - 2026-07-16
+11.3.2 - 2026-09-15
 --------------------
+Backport for Verawood of the two LTI Advantage fixes missing from 11.3.1.
+
+* Publish AGS scores with a ``scoreGiven`` of ``0`` to the LMS gradebook. The
+  grade publishing signal tested ``scoreGiven`` for truthiness, so a valid zero
+  score was treated as a missing one and never reached the gradebook.
+* Reject a ``scoreMaximum`` that is unset or not positive whenever ``scoreGiven``
+  is present, in both ``LtiAgsScore.clean()`` and the AGS score serializer. Both
+  had the same truthiness bug, and a ``scoreMaximum`` of ``0`` is not a usable
+  denominator: it could be saved through the ORM or admin, was then silently
+  skipped by the publishing signal, yet was still reported as a successful result
+  by ``LtiAgsResultSerializer``.
+* Report an LTI 1.1 ``module_score`` of ``0`` from the result service instead of
+  omitting it, which reported a learner scored zero as ungraded.
+* Log the reason a grade publish was skipped -- grading progress, resource link id,
+  score given/maximum, and the block's ``has_score``/past-due state -- instead of
+  only ever logging a successful publish.
 * Add pagination support to the NRPS ``/context_membership`` endpoint, accepting
   ``limit`` and ``page`` query parameters with RFC 8288 ``Link`` headers for
-  continuation.
+  continuation (upstream 11.4.0).
 
 11.3.1 - 2026-06-01
 --------------------
