@@ -12,6 +12,7 @@ from django.utils import timezone
 from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
+from lti_consumer.plugin.views import _ags_field_value, _summarize_ags_error
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
@@ -80,6 +81,73 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase, TestBaseWithPatch):
         )
 
 
+class LtiAgsLogHelpersTest(TestBaseWithPatch):
+    """
+    Test the log-sanitizing helpers used by `LtiAgsLineItemViewset` request/response logging.
+    """
+
+    def test_ags_field_value_distinguishes_absent_from_null(self):
+        """
+        An absent key and an explicit `null` must not look the same in the log: an AGS
+        "erase score" request nulls `scoreGiven` rather than omitting it, and that difference
+        is what a reader of the log needs to see.
+        """
+        self.assertEqual(_ags_field_value({}, 'scoreGiven'), 'missing')
+        self.assertEqual(_ags_field_value({'scoreGiven': None}, 'scoreGiven'), 'None')
+
+    def test_ags_field_value_logs_zero(self):
+        """
+        A `scoreGiven` of 0 must be logged as 0, not swallowed by a falsy check.
+        """
+        self.assertEqual(_ags_field_value({'scoreGiven': 0}, 'scoreGiven'), '0')
+
+    def test_ags_field_value_redacts_pii_fields_to_a_length(self):
+        """
+        `userId` and `comment` can carry a persistent user identifier and arbitrary tool-supplied
+        free text, so only their length is logged.
+        """
+        self.assertEqual(_ags_field_value({'userId': 'abc123'}, 'userId'), '<6 chars>')
+        self.assertEqual(_ags_field_value({'comment': 'nice work'}, 'comment'), '<9 chars>')
+        self.assertEqual(_ags_field_value({'comment': None}, 'comment'), 'n/a')
+
+    def test_ags_field_value_escapes_newlines(self):
+        """
+        A tool-supplied value must not be able to forge extra log lines.
+        """
+        self.assertEqual(
+            _ags_field_value({'resourceId': 'real\nFAKE LOG LINE'}, 'resourceId'),
+            'real\\nFAKE LOG LINE',
+        )
+
+    def test_ags_field_value_truncates(self):
+        """
+        An oversized tool-supplied value must not blow up the log line.
+        """
+        self.assertEqual(len(_ags_field_value({'resourceId': 'x' * 500}, 'resourceId')), 200)
+
+    def test_ags_field_value_handles_non_mapping_payload(self):
+        """
+        `initial()` passes whatever the request carries; a payload with no key lookup is not an
+        error worth raising from a log statement.
+        """
+        self.assertEqual(_ags_field_value(['not', 'a', 'mapping'], 'scoreGiven'), 'n/a')
+
+    def test_summarize_ags_error_takes_first_message_per_key(self):
+        """
+        DRF error bodies map a field to a list of messages; the log needs the field names and a
+        representative message, not the whole structure.
+        """
+        summary = _summarize_ags_error({'scoreMaximum': ['is required', 'and must be positive']})
+        self.assertEqual(summary, {'scoreMaximum': 'is required'})
+
+    def test_summarize_ags_error_truncates_and_handles_non_dict(self):
+        """
+        Same oversized-payload protection as `_ags_field_value`, for error bodies of any shape.
+        """
+        self.assertEqual(len(_summarize_ags_error({'detail': ['x' * 500]})['detail']), 200)
+        self.assertEqual(_summarize_ags_error('plain string error'), 'plain string error')
+
+
 @ddt.ddt
 class LtiAgsViewSetTokenTests(LtiAgsLineItemViewSetTestCase):
     """
@@ -121,6 +189,56 @@ class LtiAgsViewSetTokenTests(LtiAgsLineItemViewSetTestCase):
         self._set_lti_token()
         response = self.client.get(self.lineitem_endpoint)
         self.assertEqual(response.status_code, 403)
+
+    @patch('lti_consumer.lti_1p3.consumer.log')
+    @patch('lti_consumer.plugin.views.log')
+    def test_denied_request_is_logged_with_a_reason(self, views_log, consumer_log):
+        """
+        A 403 must be explainable from the logs alone: the request is logged before
+        authentication runs, and the denial reason is logged by the scope check.
+
+        This is the case the logging exists for -- previously a tool integration failing here
+        produced only an access log line with a status code and no indication of why.
+        """
+        self._set_lti_token()
+
+        response = self.client.get(self.lineitem_endpoint)
+
+        self.assertEqual(response.status_code, 403)
+
+        views_output = ' '.join(str(call) for call in views_log.info.call_args_list)
+        self.assertIn('LTI AGS request received', views_output)
+        self.assertIn('LTI AGS response returned', views_output)
+        self.assertIn('403', views_output)
+
+        # The scope check says why, naming what was required versus what the token granted.
+        # Log arguments are left unformatted by design, so assert on them rather than the message.
+        scope_warning = consumer_log.warning.call_args
+        self.assertIn('LTI 1.3 token scope check', scope_warning.args[0])
+        self.assertFalse(scope_warning.args[-1])
+        required_scopes = scope_warning.args[-2]
+        self.assertIn('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem', required_scopes)
+
+    @patch('lti_consumer.plugin.views.log')
+    def test_accepted_request_is_logged_with_its_outcome(self, views_log):
+        """
+        An accepted request logs the same request/response pair, with no error summary.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly')
+
+        response = self.client.get(self.lineitem_endpoint)
+
+        self.assertEqual(response.status_code, 200)
+        views_output = ' '.join(str(call) for call in views_log.info.call_args_list)
+        self.assertIn('LTI AGS request received', views_output)
+        self.assertIn('LTI AGS response returned', views_output)
+        # `error` is the last positional argument of the response log line.
+        response_log = next(
+            call for call in views_log.info.call_args_list
+            if 'LTI AGS response returned' in str(call.args[0])
+        )
+        self.assertEqual(response_log.args[-2], 200)
+        self.assertIsNone(response_log.args[-1])
 
 
 @ddt.ddt
