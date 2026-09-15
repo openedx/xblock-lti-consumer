@@ -17,7 +17,7 @@ jobs:
     if: github.ref_name == 'master'
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-release
+      group: ${{ github.workflow }}-release-${{ github.ref_name }}
       cancel-in-progress: false
 
     permissions:
@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref_name }}
 
@@ -34,11 +34,27 @@ jobs:
 
       - name: Python Semantic Release
         id: release
-        uses: python-semantic-release/python-semantic-release@350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0 # v10.5.3
+        uses: python-semantic-release/python-semantic-release@9a026e9303981c866c3425723009becb2437c757 # v10.6.2
         with:
-          git_committer_name: "github-actions[bot]"
-          git_committer_email: "github-actions[bot]@users.noreply.github.com"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          git_committer_name: "github-actions"
+          git_committer_email: "actions@users.noreply.github.com"
           changelog: "false"
+          vcs_release: "false"
+
+      - name: Create GitHub Release with Assets
+        if: steps.release.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ steps.release.outputs.version }}
+          RELEASE_NOTES: ${{ steps.release.outputs.release_notes }}
+        run: |
+          printf '%s' "$RELEASE_NOTES" > /tmp/release_notes.md
+          gh release create "$TAG" \
+            --verify-tag \
+            --title "$TAG" \
+            --notes-file /tmp/release_notes.md \
+            dist/*
 
       - name: Upload dist artifacts
         if: steps.release.outputs.released == 'true'
@@ -48,12 +64,12 @@ jobs:
           path: dist/
 
     outputs:
-      released: ${{ steps.release.outputs.released }}
+      released: ${{ steps.release.outputs.released || 'false' }}
       version: ${{ steps.release.outputs.version }}
 
   publish_to_pypi:
     needs: release
-    if: needs.release.outputs.released == 'true'
+    if: github.ref_name == 'master' && needs.release.outputs.released == 'true'
     runs-on: ubuntu-latest
 
     permissions:
@@ -68,4 +84,4 @@ jobs:
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
