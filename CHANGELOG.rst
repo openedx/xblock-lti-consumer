@@ -16,6 +16,28 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.5.0 - 2026-09-10
+--------------------
+* Add structured logging across the LTI 1.3 launch and LTI Advantage AGS flows, so
+  a failed tool integration can be diagnosed from the logs alone:
+
+  * The OIDC launch start, the login redirect, the preflight response received from
+    the tool, the assembled launch message (including deep linking), and the final
+    hand-off to the browser.
+  * Access token issuance, recording requested versus granted scopes, and every
+    token scope check -- at ``WARNING`` when the check denies the request, naming
+    the required scopes against those the token carries. This is the most common
+    cause of an otherwise unexplained AGS ``403``.
+  * Every AGS request and its outcome, logged from ``initial()`` (before
+    authentication, so invalid credentials are logged too) and ``finalize_response()``,
+    with the error keys and messages summarized for error responses.
+
+  No JWTs, access tokens or client assertions are logged. Learner PII is kept out of
+  the logs: the ``name``/``email``/``preferred_username`` launch claims are redacted,
+  and the AGS ``userId`` and ``comment`` fields are logged as a length only. Values
+  are truncated and newline-escaped so a tool-supplied payload cannot bloat or forge
+  log lines.
+
 11.4.1 - 2026-09-02
 --------------------
 * Stop writing the LTI 1.3 passport id back to the XBlock from the
