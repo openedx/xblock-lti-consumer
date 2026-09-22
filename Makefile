@@ -1,4 +1,4 @@
-.PHONY: help all install-test install compile-sass quality test covreport upgrade
+.PHONY: help all install compile-sass quality test covreport upgrade
 
 help: ## display this help message
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -6,57 +6,33 @@ help: ## display this help message
 
 all: install compile-sass quality test
 
-install-test:
-	pip install -q -r requirements/test.txt
-
-install-dev:
-	pip install -q -r requirements/dev.txt
-
-install: install-test
+install: ## Install dev dependencies via uv
+	uv sync --group dev
 
 compile-sass:  ## Compile the Sass assets
-	sass --no-cache --style compressed ./lti_consumer/static/sass/student.scss ./lti_consumer/static/css/student.css
+	sass --no-cache --style compressed ./src/lti_consumer/static/sass/student.scss ./src/lti_consumer/static/css/student.css
 
 quality:  ## Run the quality checks
-	pycodestyle --config=.pep8 lti_consumer
-	pylint --rcfile=pylintrc lti_consumer
-	python setup.py -q sdist
-	twine check dist/*
+	pycodestyle src/lti_consumer
+	pylint --rcfile=pylintrc src/lti_consumer
 
 test:  ## Run the tests
 	mkdir -p var
 	rm -rf .coverage
-	python -m coverage run --rcfile=.coveragerc ./test.py --noinput
+	python -m coverage run ./test.py --noinput
+	python -m coverage xml
 
 covreport:  ## Show the coverage results
 	python -m coverage report -m --skip-covered
 
-COMMON_CONSTRAINTS_TXT=requirements/common_constraints.txt
-.PHONY: $(COMMON_CONSTRAINTS_TXT)
-$(COMMON_CONSTRAINTS_TXT):
-	wget -O "$(@)" https://raw.githubusercontent.com/openedx/edx-lint/master/edx_lint/files/common_constraints.txt
-
-upgrade: export CUSTOM_COMPILE_COMMAND=make upgrade
-upgrade: $(COMMON_CONSTRAINTS_TXT)  ## update the requirements/*.txt files with the latest packages satisfying requirements/*.in
-	pip install -q -r requirements/pip_tools.txt
-	pip-compile --upgrade --allow-unsafe -o requirements/pip.txt requirements/pip.in
-	pip-compile --upgrade -o requirements/pip_tools.txt requirements/pip_tools.in
-	pip install -qr requirements/pip.txt
-	pip install -qr requirements/pip_tools.txt
-	pip-compile --upgrade -o requirements/base.txt requirements/base.in
-	pip-compile --upgrade -o requirements/dev.txt requirements/dev.in
-	pip-compile --upgrade -o requirements/test.txt requirements/test.in
-	pip-compile --upgrade -o requirements/tox.txt requirements/tox.in
-	pip-compile --upgrade -o requirements/ci.txt requirements/ci.in
-	pip-compile --upgrade -o requirements/quality.txt requirements/quality.in
-	# Let tox control the Django version for tests
-	sed '/^[dD]jango==/d' requirements/test.txt > requirements/test.tmp
-	mv requirements/test.tmp requirements/test.txt
+upgrade: ## Update uv.lock and regenerate uv constraints
+	uv run --with edx-lint edx_lint write_uv_constraints pyproject.toml
+	uv lock --upgrade
 
 
 ## Localization targets
 
-WORKING_DIR := lti_consumer
+WORKING_DIR := src/lti_consumer
 EXTRACT_DIR := $(WORKING_DIR)/conf/locale/en/LC_MESSAGES
 JS_COMPILE_DIR := $(WORKING_DIR)/public/js/translations
 EXTRACTED_DJANGO_PARTIAL := $(EXTRACT_DIR)/django-partial.po
