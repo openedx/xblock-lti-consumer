@@ -2137,6 +2137,24 @@ class TestLtiConsumer1p3XBlock(TestCase):
         response = self.xblock.studio_view({})
         self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
 
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_resolved_lti_version')
+    def test_studio_view_passes_effective_lti_version(self, mock_resolved_version):
+        """
+        Test that the Studio JS receives the server-resolved LTI version.
+
+        The editor hides the `lti_version` select for reusable ("external") configs, so its
+        stored value is not the version the launch uses. The JS field filter reads this context
+        key instead; without it, an external config left at the `lti_1p1` default would hide
+        every LTI 1.3 field -- including `lti_1p3_launch_url`, which the config-type filter
+        deliberately keeps visible when external multiple launch URLs are enabled, leaving the
+        field unreachable in Studio.
+        """
+        mock_resolved_version.return_value = 'lti_1p3'
+
+        response = self.xblock.studio_view({})
+
+        self.assertEqual(response.json_init_args['EFFECTIVE_LTI_VERSION'], 'lti_1p3')
+
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data')
     @patch('lti_consumer.api.get_lti_1p3_launch_info')
     def test_author_view(self, mock_get_launch_info, mock_lti_get_1p3_launch_data):

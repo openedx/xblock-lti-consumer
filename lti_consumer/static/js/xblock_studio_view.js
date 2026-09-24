@@ -46,8 +46,22 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
      * Return fields that should be hidden based on the selected lti version.
      */
     function getFieldsToHideForLtiVersion() {
-        const ltiVersionField = $(element).find('#xb-field-edit-lti_version');
-        const selectedVersion = ltiVersionField.children("option:selected").val();
+        const configType = $(element).find('#xb-field-edit-config_type').val();
+        let selectedVersion;
+
+        if (configType === "external") {
+            // For reusable configs the `lti_version` select is hidden (see
+            // getFieldsToHideForLtiConfigType) and its stored value is not the version the
+            // launch actually uses, so filtering on it would hide fields based on a stale
+            // value -- including `lti_1p3_launch_url`, which that filter deliberately keeps
+            // visible when external multiple launch URLs are enabled. Use the version the
+            // server resolved from the reusable config instead.
+            selectedVersion = data.EFFECTIVE_LTI_VERSION;
+        } else {
+            const ltiVersionField = $(element).find('#xb-field-edit-lti_version');
+            selectedVersion = ltiVersionField.children("option:selected").val();
+        }
+
         const fieldsToHide = [];
 
         if (selectedVersion === undefined || selectedVersion === "lti_1p1") {

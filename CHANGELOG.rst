@@ -61,6 +61,13 @@ Unreleased
   "Reusable Configuration", and vice versa for "Configuration on block" /
   "Database Configuration", so the editor never shows an editable field
   that has no effect.
+* Studio editor: filter the LTI 1.1/1.3 field lists on the server-resolved effective
+  version for reusable configs, passed to the JS as ``EFFECTIVE_LTI_VERSION``, instead
+  of on the now-hidden ``lti_version`` select. Reading the hidden select meant a
+  reusable config left at the ``lti_1p1`` default hid every LTI 1.3 field, including
+  the ``lti_1p3_launch_url`` field that is deliberately kept visible when
+  ``lti_consumer.enable_external_multiple_launch_urls`` is enabled -- and with the
+  version select hidden there was no longer any way to reveal it.
 * Note: upstream PR #663 additionally reworked the Studio editor around a
   multi-step wizard (openedx#650) with live AJAX version resolution as you
   type a reusable config ID; this branch keeps its existing flat editor, so
@@ -72,13 +79,33 @@ Unreleased
 * Include supported forum roles like `Community TA` and `Group Moderator` in LTI 1.3 launches and NRPS membership responses.
 * Add ADR documenting updated LTI 1.3 role mapping behavior.
 
-9.14.4 - 2026-08-25
+9.14.6 - 2026-08-25
 -------------------
+This release line continues from 9.14.3. Upstream 9.14.4 and 9.14.5 are already published on
+PyPI with different contents, so this branch resumes at 9.14.6 rather than reusing those numbers.
+
+* Allow programmatic AGS line-item creation using ``resource_link_id`` when ``resource_id`` is
+  absent (PR #609; issue #605).
+* Pass the course context claim in deep linking launch requests and use the reusable config's
+  ``deployment_id`` rather than the XBlock default (PR #612; issues #610, #611).
 * Fix LTI 1.3 deep linking `target_link_uri` handling in both preflight and launch token generation.
 * Fix AGS results endpoint/serializer URL generation for optional `user_id`, including trailing-slash compatibility.
 * Allow AGS score `comment` to be blank and improve related API test coverage.
 * Use `get_lti_consumer()` OAuth credentials for LTI 1.1 signature/logging paths and align LTI 1.1 errors with shared `LtiError`.
 * Minor internal cleanup: public `get_lti_consumer()` rename, launch URL typing/casting, and fallback to block `lti_version` when config version is missing.
+
+.. note::
+
+   The first two items above are re-implementations, on top of 9.14.3, of fixes that published
+   9.14.4/9.14.5 already carry. What published 9.14.5 has and this line does **not** is PR #607,
+   which URL-quoted ``resource_link_id`` in the launch data. Upstream reverted that in PR #623,
+   and this line follows the revert. **A site running 9.14.5 that moves to a release cut from
+   this line loses that quoting.** That is intentional, but it is a behaviour change for tools
+   that depend on the quoted value.
+
+9.14.3 - 2025-10-22
+-------------------
+* fix: Convert UUIDField columns to uuid type for MariaDB
 
 9.14.2 - 2025-08-06
 -------------------

@@ -1277,7 +1277,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         js_context = {
             "EXTERNAL_MULTIPLE_LAUNCH_URLS_ENABLED": external_multiple_launch_urls_enabled(
                 self.scope_ids.usage_id.course_key
-            )
+            ),
+            # The effective version, resolved from the reusable config when `config_type` is
+            # "external". The editor hides the `lti_version` select for external configs, so the
+            # field's stored value is not what the launch uses; the JS filters on this instead of
+            # reading the hidden select. See `getFieldsToHideForLtiVersion`.
+            "EFFECTIVE_LTI_VERSION": self.get_resolved_lti_version(),
         }
         fragment.initialize_js('LtiConsumerXBlockInitStudio', js_context)
 
