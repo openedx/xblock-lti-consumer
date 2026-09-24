@@ -87,6 +87,15 @@ class LtiNrpsContextMembershipsPermissions(LTIBasePermissions):
     Context Membership scopes: https://www.imsglobal.org/spec/lti-nrps/v2p0#scope-and-service-security
     """
 
+    def has_permission(self, request, view):
+        """
+        Check that NRPS is enabled on the LTI configuration before
+        checking the token scopes.
+        """
+        if not request.lti_configuration.get_lti_advantage_nrps_enabled():
+            return False
+        return super().has_permission(request, view)
+
     def get_permission_scopes(self, request, view):
         """
         Return LTI NRPS Context Memberships allowed scopes.
