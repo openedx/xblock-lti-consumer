@@ -16,6 +16,103 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ~~~~~~~~~~
 
+9.16.1 - 2026-09-10
+-------------------
+* Publish AGS scores with a ``scoreGiven`` of ``0`` to the LMS gradebook. The
+  grade publishing signal tested ``scoreGiven`` for truthiness, so a valid zero
+  score was treated as a missing one and never reached the gradebook.
+* Reject a ``scoreMaximum`` that is unset or not positive whenever ``scoreGiven``
+  is present, in both ``LtiAgsScore.clean()`` and the AGS score serializer. Both
+  had the same truthiness bug, and a ``scoreMaximum`` of ``0`` is not a usable
+  denominator: it could be saved through the ORM or admin, was then silently
+  skipped by the publishing signal, yet was still reported as a successful result
+  by ``LtiAgsResultSerializer``.
+* Report an LTI 1.1 ``module_score`` of ``0`` from the result service instead of
+  omitting it, which reported a learner scored zero as ungraded.
+* Log the reason a grade publish was skipped -- grading progress, resource link id,
+  score given/maximum, and the block's ``has_score``/past-due state -- instead of
+  only ever logging a successful publish.
+
+  Matches upstream PR #701 (issue #695).
+
+9.16.0 - 2026-08-27
+-------------------
+* Add pagination support to the NRPS ``/context_membership`` endpoint, accepting
+  ``limit`` and ``page`` query parameters with RFC 8288 ``Link`` headers for
+  continuation.
+
+9.15.2 - 2026-08-27
+-------------------
+* Fix LTI 1.3 deep linking launches to POST the ``id_token`` to the tool-provided ``redirect_uri``
+  rather than the platform-configured ``deep_linking_launch_url``. Per
+  `IMS Security Framework §5.1.1.3 <https://www.imsglobal.org/spec/security/v1p0#step-3-authentication-response>`_
+  and `LTI Deep Linking 2.0 §2.1 <https://www.imsglobal.org/spec/lti-dl/v2p0#redirection-from-platform-to-tool>`_,
+  the OIDC authentication response must always POST to ``redirect_uri``; ``deep_linking_launch_url``
+  belongs in the JWT as ``target_link_uri`` only.
+
+9.15.1 - 2026-08-27
+-------------------
+* Fix LTI version conflicts for external (reusable) configs: resolve the
+  effective LTI version from the external config throughout XBlock runtime
+  paths (launch, access token, outcomes, context) instead of trusting a
+  possibly stale block-level ``lti_version`` field.
+* Studio editor: hide the ``LTI Version`` field and show the
+  ``LTI Reusable Configuration ID`` field when Configuration Type is set to
+  "Reusable Configuration", and vice versa for "Configuration on block" /
+  "Database Configuration", so the editor never shows an editable field
+  that has no effect.
+* Studio editor: filter the LTI 1.1/1.3 field lists on the effective version of the
+  reusable config instead of on the now-hidden ``lti_version`` select. Reading the
+  hidden select meant a reusable config left at the ``lti_1p1`` default hid every LTI
+  1.3 field, including the ``lti_1p3_launch_url`` field that is deliberately kept
+  visible when ``lti_consumer.enable_external_multiple_launch_urls`` is enabled -- and
+  with the version select hidden there was no longer any way to reveal it.
+
+  The version is seeded from the saved config as ``EFFECTIVE_LTI_VERSION`` and
+  re-resolved over the ``resolve_external_config_version`` handler whenever
+  Configuration Type or the reusable config ID changes, so switching to "Reusable
+  Configuration" in an unsaved editor session does not filter on the block's stale
+  ``lti_version``. While no version has been resolved -- no ID entered yet, or the
+  lookup failed -- no field is hidden on version grounds, so nothing becomes
+  unreachable on the strength of a value the editor does not have.
+* Note: upstream PR #663 additionally reworked the Studio editor around a
+  multi-step wizard (openedx#650); this branch keeps its existing flat editor, so
+  only the version-resolution and show/hide behaviour above was ported, not the wizard.
+
+9.15.0 - 2026-08-27
+-------------------
+* Update LTI 1.3 launch and NRPS role mapping to use context role URIs.
+* Include supported forum roles like `Community TA` and `Group Moderator` in LTI 1.3 launches and NRPS membership responses.
+* Add ADR documenting updated LTI 1.3 role mapping behavior.
+
+9.14.6 - 2026-08-25
+-------------------
+This release line continues from 9.14.3. Upstream 9.14.4 and 9.14.5 are already published on
+PyPI with different contents, so this branch resumes at 9.14.6 rather than reusing those numbers.
+
+* Allow programmatic AGS line-item creation using ``resource_link_id`` when ``resource_id`` is
+  absent (PR #609; issue #605).
+* Pass the course context claim in deep linking launch requests and use the reusable config's
+  ``deployment_id`` rather than the XBlock default (PR #612; issues #610, #611).
+* Fix LTI 1.3 deep linking `target_link_uri` handling in both preflight and launch token generation.
+* Fix AGS results endpoint/serializer URL generation for optional `user_id`, including trailing-slash compatibility.
+* Allow AGS score `comment` to be blank and improve related API test coverage.
+* Use `get_lti_consumer()` OAuth credentials for LTI 1.1 signature/logging paths and align LTI 1.1 errors with shared `LtiError`.
+* Minor internal cleanup: public `get_lti_consumer()` rename, launch URL typing/casting, and fallback to block `lti_version` when config version is missing.
+
+.. note::
+
+   The first two items above are re-implementations, on top of 9.14.3, of fixes that published
+   9.14.4/9.14.5 already carry. What published 9.14.5 has and this line does **not** is PR #607,
+   which URL-quoted ``resource_link_id`` in the launch data. Upstream reverted that in PR #623,
+   and this line follows the revert. **A site running 9.14.5 that moves to a release cut from
+   this line loses that quoting.** That is intentional, but it is a behaviour change for tools
+   that depend on the quoted value.
+
+9.14.3 - 2025-10-22
+-------------------
+* fix: Convert UUIDField columns to uuid type for MariaDB
+
 9.14.2 - 2025-08-06
 -------------------
 * Deprecation/Removal of pyjwkest

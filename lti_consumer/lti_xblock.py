@@ -74,6 +74,7 @@ except ModuleNotFoundError:  # For backward compatibility with releases older th
 
 from .data import Lti1p3LaunchData
 from .exceptions import LtiError
+from .filters import get_external_config_from_filter
 from .lti_1p1.consumer import LtiConsumer1p1, parse_result_json, LTI_PARAMETERS
 from .lti_1p1.oauth import log_authorization_header
 from .outcomes import OutcomeService
@@ -702,7 +703,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # a new LTI ID before they've added it to advanced settings, but we do want to warn them about it.
         # If we put this check in validate_field_data(), the settings editor wouldn't let them save changes.
         course = self.course
-        if course and self.lti_version == "lti_1p1" and self.lti_id:
+        if course and self.config_type == "new" and self.lti_version == "lti_1p1" and self.lti_id:
             lti_passport_ids = [lti_passport.split(':')[0].strip() for lti_passport in course.lti_passports]
             if self.lti_id.strip() not in lti_passport_ids:
                 validation.add(ValidationMessage(ValidationMessage.WARNING, str(
@@ -926,6 +927,32 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             raise LtiError(self.ugettext("Could not get user id for current request"))
         return str(user_id)
 
+    def _get_lti_1p3_user_role(self):
+        """
+        Return effective LTI 1.3 user role, including supported forum roles.
+        """
+        role = self.role
+
+        # Map Global staff to instance-admin LTI role set.
+        if self.user_is_staff:
+            return 'global_staff'
+
+        # Keep privileged course roles unchanged.
+        # `staff`, `instructor`, and `limited_staff` already map to stronger LTI roles
+        # than forum roles like `Community TA` or `Group Moderator`, so forum role
+        # should only override learner-like base roles.
+        if role in {'staff', 'instructor', 'limited_staff'}:
+            return role
+
+        forum_role = compat.get_user_course_forum_role(
+            self.lms_user_id,
+            self.scope_ids.usage_id.context_key,
+        )
+        if forum_role in {'Community TA', 'Group Moderator'}:
+            return forum_role
+
+        return role
+
     def get_lti_1p1_user_id(self):
         """
         Returns the user ID to send to an LTI tool during an LTI 1.1/2.0 launch. If the
@@ -1096,7 +1123,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             close_date = due_date
         return close_date is not None and timezone.now() > close_date
 
-    def _get_lti_consumer(self):
+    def get_lti_consumer(self):
         """
         Returns a preconfigured LTI consumer depending on the value.
 
@@ -1118,6 +1145,68 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         from lti_consumer.api import config_id_for_block, get_lti_consumer
 
         return get_lti_consumer(config_id_for_block(self))
+
+    def get_resolved_lti_version(self):
+        """
+        Return the effective LTI version for this block.
+
+        When `config_type` is `"external"`, the version is determined
+        by the external re-usable config's `version` key, not by the
+        block's own `lti_version` field.  Falls back to `self.lti_version`
+        for non-external configs or when external config has no version.
+
+        If the external config lookup raises (e.g. filter service
+        unavailable), the exception is logged and the block's own
+        `lti_version` is returned as a safe fallback.
+        """
+        if self.config_type != "external":
+            return self.lti_version
+
+        try:
+            config = get_external_config_from_filter(
+                {"course_key": self.scope_ids.usage_id.context_key},
+                self.external_config,
+            )
+        except Exception:  # pylint: disable=broad-except
+            log.exception(
+                "Failed to resolve external config version for config_id=%s; "
+                "falling back to block-level lti_version=%s",
+                self.external_config,
+                self.lti_version,
+            )
+            return self.lti_version
+
+        return config.get("version") or self.lti_version
+
+    @XBlock.json_handler
+    def resolve_external_config_version(self, data, suffix=''):  # pylint: disable=unused-argument
+        """
+        Handler for Studio to resolve the LTI version for a given
+        external config ID.  Returns only the version — no secrets
+        from the external configuration are exposed.
+
+        If the filter lookup raises (e.g. service unavailable), the
+        exception is logged and a safe fallback response is returned
+        so the Studio UI degrades gracefully.
+        """
+        config_id = data.get('config_id', '')
+        if not config_id:
+            return {'found': False, 'version': None}
+
+        try:
+            config = get_external_config_from_filter(
+                {"course_key": self.scope_ids.usage_id.context_key},
+                config_id,
+            )
+        except Exception:  # pylint: disable=broad-except
+            log.exception(
+                "Failed to resolve external config version for config_id=%s",
+                config_id,
+            )
+            return {'found': False, 'version': None}
+
+        version = config.get("version") if config else None
+        return {'found': version is not None, 'version': version}
 
     def extract_real_user_data(self):
         """
@@ -1188,7 +1277,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         js_context = {
             "EXTERNAL_MULTIPLE_LAUNCH_URLS_ENABLED": external_multiple_launch_urls_enabled(
                 self.scope_ids.usage_id.course_key
-            )
+            ),
+            # The effective version, resolved from the reusable config when `config_type` is
+            # "external". The editor hides the `lti_version` select for external configs, so the
+            # field's stored value is not what the launch uses; the JS filters on this instead of
+            # reading the hidden select. See `getFieldsToHideForLtiVersion`.
+            "EFFECTIVE_LTI_VERSION": self.get_resolved_lti_version(),
         }
         fragment.initialize_js('LtiConsumerXBlockInitStudio', js_context)
 
@@ -1202,7 +1296,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         If using LTI 1.3 it displays a fragment with parameters that
         need to be set on the LTI Tool to make the integration work.
         """
-        if self.lti_version == "lti_1p1":
+        if self.get_resolved_lti_version() == "lti_1p1":
             return self.student_view(context)
 
         # Render template
@@ -1240,7 +1334,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         # Prepend the author view for LTI1.3 when rendering student view to staff users in Studio.
         # This is needed so course staff can see the author view parameters when configuring within Libraries v2
-        if settings.SERVICE_VARIANT != 'lms' and self.lti_version == "lti_1p3" and self.user_is_staff:
+        if settings.SERVICE_VARIANT != 'lms' and self.get_resolved_lti_version() == "lti_1p3" and self.user_is_staff:
             self._add_author_view(context, loader, fragment)
 
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
@@ -1269,7 +1363,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response: HTML LTI launch form
         """
-        lti_consumer = self._get_lti_consumer()
+        lti_consumer = self.get_lti_consumer()
 
         # Occassionally, users try to do an LTI launch while they are unauthenticated. It is not known why this occurs.
         # Sometimes, it is due to a web crawlers; other times, it is due to actual users of the platform. Regardless,
@@ -1367,12 +1461,12 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             Sucess: https://tools.ietf.org/html/rfc6749#section-4.4.3
             Failure: https://tools.ietf.org/html/rfc6749#section-5.2
         """
-        if self.lti_version != "lti_1p3":
+        if self.get_resolved_lti_version() != "lti_1p3":
             return Response(status=404)
 
         # Asserting that the consumer can be created. This makes sure that the LtiConfiguration
         # object exists before calling the Django View
-        assert self._get_lti_consumer()
+        assert self.get_lti_consumer()
         # Runtime import because this can only be run in the LMS/Studio Django
         # environments. Importing the views on the top level will cause RuntimeErorr
         from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
@@ -1428,12 +1522,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response:  response to this request.  See above for details.
         """
-        lti_consumer = self._get_lti_consumer()
+        lti_consumer = self.get_lti_consumer()
         lti_consumer.set_outcome_service_url(self.outcome_service_url)
 
         if settings.DEBUG:
-            lti_provider_key, lti_provider_secret = self.lti_provider_key_secret
-            log_authorization_header(request, lti_provider_key, lti_provider_secret)
+            log_authorization_header(request, lti_consumer.oauth_key, lti_consumer.oauth_secret)
 
         if not self.accept_grades_past_due and self.is_past_due:
             return Response(status=404)  # have to do 404 due to spec, but 400 is better, with error msg in body
@@ -1487,7 +1580,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         self.runtime.service(self, 'rebind_user').rebind_noauth_module_to_user(self, user)
         args = []
-        if self.module_score:
+        # `is not None`, not a truthiness check: a `module_score` of 0 is falsy but a legitimate,
+        # already-graded score -- the same falsy-zero pattern fixed for LTI 1.3 AGS elsewhere.
+        if self.module_score is not None:
             args.extend([self.module_score, self.score_comment])
         return lti_consumer.get_result(*args)
 
@@ -1588,15 +1683,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         self.module_score = scaled_score
         self.score_comment = comment
 
-    def _get_lti_launch_url(self, consumer):
+    def _get_lti_launch_url(self, consumer) -> str:
         """
         Return the LTI launch URL.
         """
-        launch_url = self.launch_url
+        launch_url = str(self.launch_url)
 
         # The lti_launch_url property only exists on the LtiConsumer1p1. The LtiConsumer1p3 does not have an
         # attribute with this name, so ensure that we're accessing it on the appropriate consumer class.
-        if consumer and self.config_type in ("database", "external") and self.lti_version == "lti_1p1":
+        if consumer and self.config_type in ("database", "external") and self.get_resolved_lti_version() == "lti_1p1":
             launch_url = consumer.lti_launch_url
 
         return launch_url
@@ -1666,7 +1761,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         launch_data = Lti1p3LaunchData(
             user_id=self.lms_user_id,
-            user_role=self.role,
+            user_role=self._get_lti_1p3_user_role(),
             config_id=config_id,
             resource_link_id=str(location),
             external_user_id=self.external_user_id,
@@ -1698,7 +1793,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Return the LTI block launch handler.
         """
-        if self.lti_version == 'lti_1p1':
+        if self.get_resolved_lti_version() == 'lti_1p1':
             lti_block_launch_handler = self.runtime.handler_url(self, 'lti_launch_handler').rstrip('/?')
         else:
             launch_data = self.get_lti_1p3_launch_data()
@@ -1719,7 +1814,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         lti_1p3_launch_url = self.lti_1p3_launch_url.strip()
 
         # Get LTI launch URL from consumer if using database or external configuration type.
-        if consumer and self.lti_version == 'lti_1p3' and self.config_type in ('database', 'external'):
+        if consumer and self.get_resolved_lti_version() == 'lti_1p3' and self.config_type in ('database', 'external'):
             lti_1p3_launch_url = consumer.launch_url
 
         return lti_1p3_launch_url
@@ -1745,7 +1840,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Don't pull from the Django database unless the config_type is one that stores the LTI configuration in the
         # database.
         if self.config_type in ("database", "external"):
-            lti_consumer = self._get_lti_consumer()
+            lti_consumer = self.get_lti_consumer()
 
         launch_url = self._get_lti_launch_url(lti_consumer)
         lti_block_launch_handler = self._get_lti_block_launch_handler()
@@ -1778,7 +1873,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'modal_horizontal_offset': self._get_modal_position_offset(self.modal_width),
             'modal_width': self.modal_width,
             'accept_grades_past_due': self.accept_grades_past_due,
-            'lti_version': self.lti_version,
+            'lti_version': self.get_resolved_lti_version(),
         }
 
     def _get_modal_position_offset(self, viewport_percentage):

@@ -348,7 +348,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.mock_get_user_id_patcher_enabled.return_value = mock_user
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_consumer', Mock(return_value=Mock(oauth_secret='s')))
     @patch('lti_consumer.outcomes.parse_grade_xml_body', Mock(return_value=('', '', 0.5, 'replaceResultRequest')))
     def test_handle_replace_result_success(self):
         """
@@ -407,7 +407,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.assertIn('Request body XML parsing error', response)
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature')
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_consumer', Mock(return_value=Mock(oauth_secret='s')))
     @patch('lti_consumer.outcomes.parse_grade_xml_body', Mock(return_value=('', '', 0.5, 'replaceResultRequest')))
     def test_invalid_signature(self, mock_verify):
         """
@@ -422,7 +422,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.assertIn('failure', self.outcome_service.handle_request(request))
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_consumer', Mock(return_value=Mock(oauth_secret='s')))
     @patch('lti_consumer.outcomes.parse_grade_xml_body', Mock(return_value=('', '', 0.5, 'replaceResultRequest')))
     def test_user_not_found(self):
         """
@@ -437,7 +437,7 @@ class TestOutcomeService(TestLtiConsumerXBlock):
         self.assertIn('User not found', response)
 
     @patch('lti_consumer.outcomes.verify_oauth_body_signature', Mock(return_value=True))
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret', PropertyMock(return_value=('t', 's')))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_consumer', Mock(return_value=Mock(oauth_secret='s')))
     @patch('lti_consumer.outcomes.parse_grade_xml_body', Mock(return_value=('', '', 0.5, 'unsupportedRequest')))
     def test_unsupported_action(self):
         """

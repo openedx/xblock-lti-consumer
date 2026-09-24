@@ -133,6 +133,58 @@ class TestLtiConfigurationModel(TestCase):
         self.assertEqual(self.lti_1p1_external.get_lti_consumer(), "consumer")
         mock_consumer.assert_called_once_with("https://example.com", "client_key", "secret")
 
+    @patch("lti_consumer.models.LtiConfiguration._get_lti_1p3_consumer")
+    @patch("lti_consumer.models.LtiConfiguration._get_lti_1p1_consumer")
+    @patch("lti_consumer.models.get_external_config_from_filter")
+    def test_get_lti_consumer_external_config_version_takes_priority(
+        self, mock_filter, mock_1p1, mock_1p3
+    ):
+        """
+        When config_store is external, the version from external config
+        should take priority over the stored version field.
+        """
+        # External config returns LTI 1.3, even though local version is LTI 1.1
+        mock_filter.return_value = {
+            "version": LtiConfiguration.LTI_1P3,
+            "lti_1p3_client_id": "test-client",
+        }
+        mock_1p3.return_value = "lti_1p3_consumer"
+        mock_1p1.return_value = "lti_1p1_consumer"
+
+        result = self.lti_1p1_external.get_lti_consumer()
+
+        self.assertEqual(result, "lti_1p3_consumer")
+        mock_1p3.assert_called_once()
+        mock_1p1.assert_not_called()
+
+    @patch("lti_consumer.models.get_external_config_from_filter")
+    def test_get_effective_version_falls_back_on_external_without_version(
+        self, mock_filter
+    ):
+        """
+        External config without a "version" key falls back to the
+        stored version field.
+        """
+        mock_filter.return_value = {"lti_1p3_client_id": "test"}
+        config = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P1,
+            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            external_id="test:x",
+            location='block-v1:course+test+2020+type@problem+block@effver-fallback',
+        )
+        self.assertEqual(config.get_effective_version(), LtiConfiguration.LTI_1P1)
+
+    def test_get_effective_version_non_external(self):
+        """
+        Non-external config_store returns the stored version directly.
+        """
+        config = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            location='block-v1:course+test+2020+type@problem+block@effver-non-ext',
+        )
+        self.assertEqual(config.get_effective_version(), LtiConfiguration.LTI_1P3)
+
     def test_repr(self):
         """
         Test String representation of model.
@@ -636,6 +688,34 @@ class TestLtiAgsScoreModel(TestCase):
         with self.assertRaises(ValidationError):
             self.score.score_given = 10
             self.score.score_maximum = None
+            self.score.save()
+
+    def test_no_score_max_fails_when_setting_zero_score(self):
+        """
+        Test that the model raises the same exception for a `scoreGiven` of 0 without
+        `scoreMaximum`, not just for a truthy `scoreGiven`.
+
+        `clean()` previously checked `self.score_given` for truthiness, which let a
+        `scoreGiven` of 0 (falsy but valid) through without `scoreMaximum` set.
+        """
+        with self.assertRaises(ValidationError):
+            self.score.score_given = 0
+            self.score.score_maximum = None
+            self.score.save()
+
+    def test_score_max_fails_when_zero_with_score_given_set(self):
+        """
+        Test that the model rejects `scoreMaximum=0` alongside a set `scoreGiven`, not just
+        `scoreMaximum=None`.
+
+        A `scoreMaximum` of 0 isn't a usable denominator either, and previously `clean()` only
+        checked for `None`, so this combination could be saved via the ORM/admin -- silently
+        skipped by `publish_grade_on_score_update`, yet still reported as a fabricated
+        "successful" result (`resultMaximum: 1`) by `LtiAgsResultSerializer.get_resultMaximum`.
+        """
+        with self.assertRaises(ValidationError):
+            self.score.score_given = 10
+            self.score.score_maximum = 0
             self.score.save()
 
     def test_repr(self):

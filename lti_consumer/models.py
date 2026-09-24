@@ -599,9 +599,7 @@ class LtiConfiguration(models.Model):
                 lti_oidc_url=self.external_config.get('lti_1p3_oidc_url'),
                 lti_launch_url=lti_launch_url,
                 client_id=self.external_config.get('lti_1p3_client_id'),
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id='1',
+                deployment_id=self.external_config.get('lti_1p3_deployment_id', "1"),
                 rsa_key=self.external_config.get('lti_1p3_private_key'),
                 rsa_key_id=self.external_config.get('lti_1p3_private_key_id'),
                 # Registered redirect uris
@@ -621,12 +619,31 @@ class LtiConfiguration(models.Model):
 
         return consumer
 
+    def get_effective_version(self):
+        """
+        Return the effective LTI version for this configuration.
+
+        When ``config_store == CONFIG_EXTERNAL``, checks the external config
+        for a ``version`` key and returns it.  Falls back to ``self.version``.
+        """
+        if self.config_store == self.CONFIG_EXTERNAL:
+            ext_version = self.external_config.get('version')
+            if ext_version is not None:
+                return ext_version
+        return self.version
+
     @function_trace('lti_consumer.models.LtiConfiguration.get_lti_consumer')
     def get_lti_consumer(self):
         """
         Returns an instanced class of LTI 1.1 or 1.3 consumer.
+
+        When using external config, the version from the external config
+        takes priority over the locally stored version to avoid version
+        mismatch crashes.
         """
-        if self.version == self.LTI_1P3:
+        effective_version = self.get_effective_version()
+
+        if effective_version == self.LTI_1P3:
             return self._get_lti_1p3_consumer()
 
         return self._get_lti_1p1_consumer()
@@ -804,8 +821,15 @@ class LtiAgsScore(models.Model):
     def clean(self):
         super().clean()
 
-        # 'scoreMaximum' represents the denominator and MUST be present when 'scoreGiven' is present
-        if self.score_given and self.score_maximum is None:
+        # 'scoreMaximum' represents the denominator and MUST be a usable, positive value when
+        # 'scoreGiven' is present -- `score_maximum <= 0` can't be published either (see
+        # `publish_grade_on_score_update`), and letting it through here made it possible for
+        # `LtiAgsResultSerializer.get_resultMaximum` to report a fabricated "successful" result
+        # for a score that was never actually published to the gradebook.
+        # Note: this must be an `is not None` check on `score_given`, not a truthiness check,
+        # since a `scoreGiven` of 0 is falsy but a legitimate value that still requires a
+        # `scoreMaximum`.
+        if self.score_given is not None and not self.score_maximum:
             raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
 
     def save(self, *args, **kwargs):

@@ -3,17 +3,16 @@ Tests for LTI Advantage Assignments and Grades Service views.
 """
 import json
 from datetime import timedelta
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
-from Cryptodome.PublicKey import RSA
 import ddt
+from Cryptodome.PublicKey import RSA
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITransactionTestCase
 
-
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiConfiguration, LtiAgsLineItem, LtiAgsScore
+from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 from lti_consumer.tests.test_utils import make_xblock
 
 
@@ -178,10 +177,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
             response.data,
             [
                 {
-                    'id': 'http://testserver/lti_consumer/v1/lti/{}/lti-ags/{}'.format(
-                        self.lti_config.id,
-                        line_item.id
-                    ),
+                    'id': f'http://testserver/lti_consumer/v1/lti/{self.lti_config.id}/lti-ags/{line_item.id}',
                     'resourceId': 'test',
                     'scoreMaximum': 100,
                     'label': 'test label',
@@ -222,10 +218,7 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(
             response.data,
             {
-                'id': 'http://testserver/lti_consumer/v1/lti/{}/lti-ags/{}'.format(
-                    self.lti_config.id,
-                    line_item.id
-                ),
+                'id': f'http://testserver/lti_consumer/v1/lti/{self.lti_config.id}/lti-ags/{line_item.id}',
                 'resourceId': 'test',
                 'scoreMaximum': 100,
                 'label': 'test label',
@@ -234,6 +227,27 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
                 'startDateTime': None,
                 'endDateTime': None,
             }
+        )
+
+    def test_create_lti_lineitem_validation(self):
+        """
+        Test LTI LineItem Creation Validation.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem')
+
+        response = self.client.post(
+            self.lineitem_endpoint,
+            data=json.dumps({
+                'scoreMaximum': 100,
+                'label': 'test',
+                'tag': 'score',
+            }),
+            content_type="application/vnd.ims.lis.v2.lineitem+json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            str(response.data['non_field_errors'][0]),
+            'Must provide at least one of resource_id or resource_link_id'
         )
 
     def test_create_lineitem(self):
@@ -381,6 +395,43 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(score.grading_progress, LtiAgsScore.FULLY_GRADED)
         self.assertEqual(score.user_id, self.primary_user_id)
 
+    @ddt.data(None, "")
+    def test_create_score_without_comment(self, comment):
+        """
+        Test the LTI AGS LineItem Score Creation when comment is omitted or blank.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        data = {
+            "timestamp": self.early_timestamp,
+            "scoreGiven": 83,
+            "scoreMaximum": 100,
+            "activityProgress": LtiAgsScore.COMPLETED,
+            "gradingProgress": LtiAgsScore.FULLY_GRADED,
+            "userId": self.primary_user_id,
+        }
+        if comment is not None:
+            data["comment"] = comment
+
+        response = self.client.post(
+            self.scores_endpoint,
+            data=json.dumps(data),
+            content_type="application/vnd.ims.lis.v1.score+json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(LtiAgsScore.objects.filter(
+            line_item=self.line_item,
+            user_id=self.primary_user_id
+        ).count(), 1)
+
+        score = LtiAgsScore.objects.get(line_item=self.line_item, user_id=self.primary_user_id)
+        if comment is None:
+            self.assertIsNone(score.comment)
+        else:
+            self.assertEqual(score.comment, comment)
+        score.delete()
+
     def _post_lti_score(self, override_data=None):
         """
         Helper method to post a LTI score
@@ -447,6 +498,29 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
 
         call_args = self.xblock.set_user_module_score.call_args.args
         self.assertEqual(call_args, ('user_mock', 0.83, 1, 'This is exceptional work.'))
+
+    def test_xblock_grade_publish_with_zero_score(self):
+        """
+        Test that a `scoreGiven` of 0 is published to the LMS end-to-end, rather than being
+        silently skipped by the falsy-zero check this fix corrects.
+        """
+        # Set up LMS mocks
+        self._compat_mock.load_block_as_user.return_value = self.xblock
+        self._compat_mock.get_user_from_external_user_id.return_value = 'user_mock'
+        self.xblock.set_user_module_score = Mock()
+
+        # Set xblock attribute and make score request
+        self.xblock.has_score = True
+        self._post_lti_score({
+            "scoreGiven": 0,
+            "gradingProgress": "FullyGraded",
+        })
+
+        # Check if publish grade was called
+        self.xblock.set_user_module_score.assert_called_once()
+
+        call_args = self.xblock.set_user_module_score.call_args.args
+        self.assertEqual(call_args, ('user_mock', 0, 1, 'This is exceptional work.'))
 
     def test_grade_publish_score_bigger_than_maximum(self):
         """
@@ -772,6 +846,36 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(response.status_code, 400)
         assert 'scoreMaximum' in response.data.keys()
 
+    def test_create_score_with_zero_score_maximum(self):
+        """
+        Test invalid request with `scoreMaximum: 0` -- present, but not a usable denominator.
+
+        Distinct from `test_create_score_with_missing_score_maximum`: `scoreMaximum` here is not
+        absent, so `validate_scoreMaximum` must reject it via an explicit `value <= 0` check
+        rather than the `value is None` check alone, and report the more accurate "must be a
+        positive number" message rather than "is a required field".
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        response = self.client.post(
+            self.scores_endpoint,
+            data=json.dumps({
+                "timestamp": self.late_timestamp,
+                "scoreGiven": 0,
+                "scoreMaximum": 0,
+                "comment": "This is exceptional work.",
+                "activityProgress": LtiAgsScore.INITIALIZED,
+                "gradingProgress": LtiAgsScore.NOT_READY,
+                "userId": self.primary_user_id
+            }),
+            content_type="application/vnd.ims.lis.v1.score+json",
+        )
+
+        self.assertEqual(LtiAgsScore.objects.all().count(), 0)
+        self.assertEqual(response.status_code, 400)
+        assert 'scoreMaximum' in response.data.keys()
+        assert 'positive number' in str(response.data['scoreMaximum'])
+
     def test_erase_score(self):
         """
         Test erasing LTI AGS Scores by omitting scoreGiven and scoreMaximum.
@@ -916,11 +1020,14 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
 
         # Create Score
         response = self.client.get(self.results_endpoint)
+        response_with_trailing_slash = self.client.get(self.results_endpoint + '/')
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response_with_trailing_slash.status_code, 200)
 
         # There should be 2 results (not include the empty score user's result)
         self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response_with_trailing_slash.data), 2)
 
         # Check the data
         primary_user_results_endpoint = reverse(
@@ -963,7 +1070,7 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
 
     def test_retrieve_results_for_user_id(self):
         """
-        Test the LTI AGS LineItem Resul Retrieval for a single user.
+        Test the LTI AGS LineItem Result Retrieval for a single user.
         """
         self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly')
 
@@ -976,14 +1083,23 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
             }
         )
 
+        results_user_endpoint_with_trailing_slash = results_user_endpoint + '/'
+
         # Request results with userId
         response = self.client.get(results_user_endpoint, data={"userId": self.secondary_user_id})
+        response_with_trailing_slash = self.client.get(
+            results_user_endpoint_with_trailing_slash,
+            data={"userId": self.secondary_user_id},
+        )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response_with_trailing_slash.status_code, 200)
 
         # There should be 1 result for that user
         self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response_with_trailing_slash.data), 1)
         self.assertEqual(response.data[0]['userId'], self.secondary_user_id)
+        self.assertEqual(response_with_trailing_slash.data[0]['userId'], self.secondary_user_id)
 
     def test_retrieve_results_with_limit(self):
         """
@@ -1003,3 +1119,30 @@ class LtiAgsViewSetResultsTests(LtiAgsLineItemViewSetTestCase):
         # `primary_user_id` was assigned to the record with the `late_timestamp`
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['userId'], self.primary_user_id)
+
+    def test_results_serializer_id_includes_user_id_separator(self):
+        """
+        Test that the results serializer builds a valid URL for a user-specific result.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly')
+
+        results_user_endpoint = reverse(
+            'lti_consumer:lti-ags-view-results',
+            kwargs={
+                "lti_config_id": self.lti_config.id,
+                "pk": self.line_item.id,
+                "user_id": self.secondary_user_id,
+            }
+        )
+
+        response = self.client.get(results_user_endpoint, data={"userId": self.secondary_user_id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]['id'],
+            (
+                f'http://testserver/lti_consumer/v1/lti/{self.lti_config.id}/lti-ags'
+                f'/{self.line_item.id}/results/{self.secondary_user_id}'
+            ),
+        )

@@ -72,6 +72,92 @@ class TestLtiConsumerXBlock(TestCase):
         self.compat.get_course_by_id.return_value = course
         self.compat.get_user_role.return_value = "student"
         self.compat.get_external_id_for_user.return_value = "12345"
+        self.compat.get_user_course_forum_role.return_value = None
+
+
+class TestGetEffectiveLtiVersion(TestLtiConsumerXBlock):
+    """
+    Tests for LtiConsumerXBlock.get_resolved_lti_version().
+    """
+
+    def test_returns_external_version_key_when_external(self):
+        """
+        When config_type is external and external config has a "version"
+        key, that version takes priority over self.lti_version.
+        """
+        self.xblock.config_type = "external"
+        self.xblock.external_config = "test-plugin:test-id"
+        self.xblock.lti_version = "lti_1p1"
+
+        with patch("lti_consumer.lti_xblock.get_external_config_from_filter") as mock_filter:
+            mock_filter.return_value = {"version": "lti_1p3"}
+            self.assertEqual(self.xblock.get_resolved_lti_version(), "lti_1p3")
+            mock_filter.assert_called_once()
+
+    def test_falls_back_to_lti_version_when_no_external_version(self):
+        """
+        When external config has no "version" key, fall back to
+        self.lti_version.
+        """
+        self.xblock.config_type = "external"
+        self.xblock.external_config = "test-plugin:test-id"
+        self.xblock.lti_version = "lti_1p1"
+
+        with patch("lti_consumer.lti_xblock.get_external_config_from_filter") as mock_filter:
+            mock_filter.return_value = {"lti_1p3_client_id": "test"}
+            self.assertEqual(self.xblock.get_resolved_lti_version(), "lti_1p1")
+
+    def test_falls_back_on_filter_exception(self):
+        """
+        When get_external_config_from_filter raises, fall back to
+        self.lti_version instead of propagating the exception.
+        """
+        self.xblock.config_type = "external"
+        self.xblock.external_config = "test-plugin:test-id"
+        self.xblock.lti_version = "lti_1p1"
+
+        with patch("lti_consumer.lti_xblock.get_external_config_from_filter") as mock_filter:
+            mock_filter.side_effect = Exception("Filter service unavailable")
+            version = self.xblock.get_resolved_lti_version()
+            self.assertEqual(version, "lti_1p1")
+
+
+class TestResolveExternalConfigVersion(TestLtiConsumerXBlock):
+    """
+    Tests for LtiConsumerXBlock.resolve_external_config_version().
+    """
+
+    def _call_handler(self, config_id):
+        """Helper: build a JSON POST request, call handler, parse JSON body."""
+        body = json.dumps({'config_id': config_id}) if config_id is not None else '{}'
+        request = make_request(body, 'POST')
+        response = self.xblock.resolve_external_config_version(request)
+        return json.loads(response.body)  # pylint: disable=no-member
+
+    def test_returns_version_for_known_config(self):
+        """Returns version when config ID exists and has a version key."""
+        with patch('lti_consumer.lti_xblock.get_external_config_from_filter') as mock_filter:
+            mock_filter.return_value = {'version': 'lti_1p3'}
+            result = self._call_handler('test-plugin:test-id')
+            self.assertEqual(result, {'found': True, 'version': 'lti_1p3'})
+
+    def test_returns_no_version_for_empty_config_id(self):
+        """Returns found=False when config_id is empty; does not call filter."""
+        with patch('lti_consumer.lti_xblock.get_external_config_from_filter') as mock_filter:
+            result = self._call_handler('')
+            self.assertEqual(result, {'found': False, 'version': None})
+            mock_filter.assert_not_called()
+
+    def test_graceful_on_filter_exception(self):
+        """
+        When get_external_config_from_filter raises, handler returns
+        {'found': False, 'version': None} instead of 500.
+        """
+        with patch('lti_consumer.lti_xblock.get_external_config_from_filter') as mock_filter:
+            mock_filter.side_effect = Exception("Filter service unavailable")
+            result = self._call_handler('test-plugin:test-id')
+            self.assertEqual(result, {'found': False, 'version': None})
+            mock_filter.assert_called_once()
 
 
 class TestIndexibility(TestCase):
@@ -265,8 +351,11 @@ class TestProperties(TestLtiConsumerXBlock):
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     def test_validate_lti_id(self, mock_course):
         """
-        Test `lti_id` returns a warning if it's not set as an LTI passport in the course
+        Test `lti_id` returns a warning if it's not set as an LTI passport in the course.
+        Only applies when config_type is "new" and lti_version is "lti_1p1".
         """
+        self.xblock.config_type = "new"
+        self.xblock.lti_version = "lti_1p1"
         valid_provider = 'lti_provider'
         self.xblock.lti_id = valid_provider
         type(mock_course).lti_passports = PropertyMock(return_value=[f"{valid_provider}:key:secret"])
@@ -276,6 +365,22 @@ class TestProperties(TestLtiConsumerXBlock):
         self.xblock.lti_id = "nonexistent"
         validation = self.xblock.validate()
         self.assertFalse(validation.empty)
+
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
+    @ddt.data('external', 'database')
+    def test_validate_lti_id_non_new_config(self, config_type, mock_course):
+        """
+        Non-'new' config types (external, database) should not trigger
+        LTI passport warning even when lti_version=lti_1p1 and lti_id
+        is invalid.
+        """
+        self.xblock.config_type = config_type
+        self.xblock.lti_version = "lti_1p1"
+        self.xblock.external_config = "test:x" if config_type == "external" else None
+        self.xblock.lti_id = "nonexistent"
+        type(mock_course).lti_passports = PropertyMock(return_value=["valid:key:secret"])
+        validation = self.xblock.validate()
+        self.assertTrue(validation.empty, f"{config_type} config should not produce LTI passport warning")
 
     def test_role(self):
         """
@@ -316,6 +421,43 @@ class TestProperties(TestLtiConsumerXBlock):
         }
         with self.assertRaises(LtiError):
             _ = self.xblock.role
+
+    @ddt.data(
+        ('student', False, None, 'student'),
+        ('guest', False, 'Community TA', 'Community TA'),
+        ('student', False, 'Group Moderator', 'Group Moderator'),
+        ('student', True, 'Group Moderator', 'global_staff'),
+        ('staff', False, 'Community TA', 'staff'),
+        ('limited_staff', False, 'Group Moderator', 'limited_staff'),
+        ('instructor', False, 'Community TA', 'instructor'),
+    )
+    @ddt.unpack
+    def test_get_lti_1p3_user_role(self, base_role, user_is_staff, forum_role, expected_role):
+        """
+        Test effective LTI 1.3 role includes global staff and supported forum roles.
+        """
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_id': FAKE_USER_ID,
+            'edx-platform.user_role': base_role,
+            'edx-platform.user_is_staff': user_is_staff,
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.compat.get_user_course_forum_role.return_value = forum_role
+
+        # pylint: disable=protected-access
+        self.assertEqual(self.xblock._get_lti_1p3_user_role(), expected_role)
+
+        if base_role in {'staff', 'instructor', 'limited_staff'} or user_is_staff:
+            self.compat.get_user_course_forum_role.assert_not_called()
+        else:
+            self.compat.get_user_course_forum_role.assert_called_once_with(
+                FAKE_USER_ID,
+                self.xblock.scope_ids.usage_id.context_key,
+            )
+
+        self.compat.get_user_course_forum_role.reset_mock()
 
     def test_user_is_staff(self):
         """
@@ -742,7 +884,7 @@ class TestEditableFields(TestLtiConsumerXBlock):
 
 class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
     """
-    Unit tests for LtiConsumerXBlock._get_lti_consumer()
+    Unit tests for LtiConsumerXBlock.get_lti_consumer()
     """
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
     @patch('lti_consumer.models.LtiConsumer1p1')
@@ -757,7 +899,7 @@ class TestGetLti1p1Consumer(TestLtiConsumerXBlock):
         type(mock_course).lti_passports = PropertyMock(return_value=[f"{provider}:{key}:{secret}"])
 
         with patch('lti_consumer.plugin.compat.load_enough_xblock', return_value=self.xblock):
-            self.xblock._get_lti_consumer()  # pylint: disable=protected-access
+            self.xblock.get_lti_consumer()
 
         mock_lti_consumer.assert_called_with(self.xblock.launch_url, key, secret)
 
@@ -989,7 +1131,7 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
                 'roles': 'Student',
             })
         )
-        self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)
         self.xblock.due = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
 
@@ -1156,7 +1298,7 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.lti_provider_secret = 'secret'
         self.xblock.accept_grades_past_due = True
         self.mock_lti_consumer = Mock()
-        self.xblock._get_lti_consumer = Mock(return_value=self.mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)
 
         mock_user = Mock()
         mock_id = PropertyMock(return_value=1)
@@ -1165,12 +1307,13 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
     @override_settings(DEBUG=True)
     @patch('lti_consumer.lti_xblock.log_authorization_header')
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.lti_provider_key_secret')
-    def test_runtime_debug_true(self, mock_lti_provider_key_secret, mock_log_auth_header):
+    def test_runtime_debug_true(self, mock_log_auth_header):
         """
         Test `log_authorization_header` is called when settings.DEBUG is True
         """
-        mock_lti_provider_key_secret.__get__ = Mock(return_value=(self.lti_provider_key, self.lti_provider_secret))
+        self.mock_lti_consumer.oauth_key = self.lti_provider_key
+        self.mock_lti_consumer.oauth_secret = self.lti_provider_secret
+
         request = make_request('', 'GET')
         self.xblock.result_service_handler(request)
 
@@ -1338,6 +1481,25 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
         self.xblock._result_service_get(mock_lti_consumer, mock_user)  # pylint: disable=protected-access
 
         mock_lti_consumer.get_result.assert_called_with(0.5, 'test')
+
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.module_score', PropertyMock(return_value=0))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.score_comment', PropertyMock(return_value='test'))
+    def test_consumer_get_result_called_with_zero_score(self):
+        """
+        Test LtiConsumer.get_result is called with a `module_score` of 0, rather than that score
+        being silently omitted.
+
+        `module_score` is falsy for a real, graded score of 0.0; `_result_service_get` previously
+        checked it for truthiness, so a learner scored 0 was reported as ungraded (no
+        `resultScore` in the response) instead of graded 0 -- the same falsy-zero pattern fixed
+        for LTI 1.3 AGS elsewhere in this change.
+        """
+        mock_lti_consumer = Mock()
+        mock_user = Mock()
+
+        self.xblock._result_service_get(mock_lti_consumer, mock_user)  # pylint: disable=protected-access
+
+        mock_lti_consumer.get_result.assert_called_with(0, 'test')
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.clear_user_module_score', Mock(return_value=True))
     @patch('lti_consumer.lti_xblock.parse_result_json')
@@ -1641,7 +1803,7 @@ class TestGetContext(TestLtiConsumerXBlock):
         lti_launch_url = 'www.example.org'
         mock_lti_consumer = Mock()
         type(mock_lti_consumer).lti_launch_url = PropertyMock(return_value=lti_launch_url)
-        self.xblock._get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=mock_lti_consumer)
 
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
         self.assertEqual(context['launch_url'], lti_launch_url)
@@ -1661,7 +1823,7 @@ class TestGetContext(TestLtiConsumerXBlock):
         lti_1p3_launch_url = 'www.example.org'
         mock_lti_consumer = Mock()
         type(mock_lti_consumer).launch_url = PropertyMock(return_value=lti_1p3_launch_url)
-        self.xblock._get_lti_consumer = Mock(return_value=mock_lti_consumer)  # pylint: disable=protected-access
+        self.xblock.get_lti_consumer = Mock(return_value=mock_lti_consumer)
 
         # Calling _get_lti_block_launch_handler raises an error because the mocked XBlock location attribute does not
         # act like a UsageKey, so mock out get_lti_1p3_launch_data to avoid accessing it.
@@ -1927,6 +2089,34 @@ class TestLtiConsumer1p3XBlock(TestCase):
         )
         self.xblock.get_lti_1p3_custom_parameters.assert_called_once_with()
 
+    @patch('lti_consumer.lti_xblock.compat.get_user_course_forum_role')
+    def test_get_lti_1p3_launch_data_uses_forum_role(self, mock_get_user_course_forum_role):
+        """
+        Test that get_lti_1p3_launch_data uses forum role for supported non-staff users.
+        """
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_id': 1,
+            'edx-platform.user_role': 'student',
+            'edx-platform.is_authenticated': True,
+            'edx-platform.username': 'fake_username',
+        }
+
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.xblock.runtime.service(self, 'user').get_external_user_id = Mock(return_value="external_user_id")
+        self.xblock.get_context_title = Mock(return_value="context_title")
+        self.xblock.get_pii_sharing_enabled = Mock(return_value=False)
+        self.xblock.get_lti_1p3_custom_parameters = Mock(return_value={})
+        mock_get_user_course_forum_role.return_value = 'Community TA'
+
+        launch_data = self.xblock.get_lti_1p3_launch_data()
+
+        self.assertEqual(launch_data.user_role, 'Community TA')
+        mock_get_user_course_forum_role.assert_called_once_with(
+            1,
+            self.xblock.scope_ids.usage_id.context_key,
+        )
+
     @patch('lti_consumer.plugin.compat.get_course_by_id')
     def test_get_context_title(self, mock_get_course_by_id):
         """
@@ -1946,6 +2136,24 @@ class TestLtiConsumer1p3XBlock(TestCase):
         """
         response = self.xblock.studio_view({})
         self.assertEqual(response.js_init_fn, 'LtiConsumerXBlockInitStudio')
+
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_resolved_lti_version')
+    def test_studio_view_passes_effective_lti_version(self, mock_resolved_version):
+        """
+        Test that the Studio JS receives the server-resolved LTI version.
+
+        The editor hides the `lti_version` select for reusable ("external") configs, so its
+        stored value is not the version the launch uses. The JS field filter reads this context
+        key instead; without it, an external config left at the `lti_1p1` default would hide
+        every LTI 1.3 field -- including `lti_1p3_launch_url`, which the config-type filter
+        deliberately keeps visible when external multiple launch URLs are enabled, leaving the
+        field unreachable in Studio.
+        """
+        mock_resolved_version.return_value = 'lti_1p3'
+
+        response = self.xblock.studio_view({})
+
+        self.assertEqual(response.json_init_args['EFFECTIVE_LTI_VERSION'], 'lti_1p3')
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data')
     @patch('lti_consumer.api.get_lti_1p3_launch_info')
@@ -2335,27 +2543,6 @@ class TestLti1p3AccessTokenJWK(TestCase):
         response = self.xblock.lti_1p3_access_token(self.request)
         self.assertEqual(response.status_code, 400)
         self.assertJSONEqual(response.content, {'error': 'invalid_client'})
-
-
-class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
-    """
-    Unit tests for LtiConsumerXBlock.submit_studio_edits()
-    """
-
-    def setUp(self):
-        super().setUp()
-        self.xblock.lti_version = "lti_1p3"
-
-        db_config_waffle_patcher = patch('lti_consumer.lti_xblock.database_config_enabled', return_value=True)
-        db_config_waffle_patcher.start()
-        self.addCleanup(db_config_waffle_patcher.stop)
-
-        external_config_flag_patcher = patch(
-            'lti_consumer.lti_xblock.external_config_filter_enabled',
-            return_value=False
-        )
-        external_config_flag_patcher.start()
-        self.addCleanup(external_config_flag_patcher.stop)
 
 
 @ddt.ddt
