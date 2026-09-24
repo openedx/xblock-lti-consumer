@@ -61,17 +61,23 @@ Unreleased
   "Reusable Configuration", and vice versa for "Configuration on block" /
   "Database Configuration", so the editor never shows an editable field
   that has no effect.
-* Studio editor: filter the LTI 1.1/1.3 field lists on the server-resolved effective
-  version for reusable configs, passed to the JS as ``EFFECTIVE_LTI_VERSION``, instead
-  of on the now-hidden ``lti_version`` select. Reading the hidden select meant a
-  reusable config left at the ``lti_1p1`` default hid every LTI 1.3 field, including
-  the ``lti_1p3_launch_url`` field that is deliberately kept visible when
-  ``lti_consumer.enable_external_multiple_launch_urls`` is enabled -- and with the
-  version select hidden there was no longer any way to reveal it.
+* Studio editor: filter the LTI 1.1/1.3 field lists on the effective version of the
+  reusable config instead of on the now-hidden ``lti_version`` select. Reading the
+  hidden select meant a reusable config left at the ``lti_1p1`` default hid every LTI
+  1.3 field, including the ``lti_1p3_launch_url`` field that is deliberately kept
+  visible when ``lti_consumer.enable_external_multiple_launch_urls`` is enabled -- and
+  with the version select hidden there was no longer any way to reveal it.
+
+  The version is seeded from the saved config as ``EFFECTIVE_LTI_VERSION`` and
+  re-resolved over the ``resolve_external_config_version`` handler whenever
+  Configuration Type or the reusable config ID changes, so switching to "Reusable
+  Configuration" in an unsaved editor session does not filter on the block's stale
+  ``lti_version``. While no version has been resolved -- no ID entered yet, or the
+  lookup failed -- no field is hidden on version grounds, so nothing becomes
+  unreachable on the strength of a value the editor does not have.
 * Note: upstream PR #663 additionally reworked the Studio editor around a
-  multi-step wizard (openedx#650) with live AJAX version resolution as you
-  type a reusable config ID; this branch keeps its existing flat editor, so
-  only the show/hide behavior above was ported, not the live preview.
+  multi-step wizard (openedx#650); this branch keeps its existing flat editor, so
+  only the version-resolution and show/hide behaviour above was ported, not the wizard.
 
 9.15.0 - 2026-08-27
 -------------------

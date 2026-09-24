@@ -11,6 +11,14 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
         "launch_url"
     ];
 
+    // The effective LTI version for a reusable ("external") config. Seeded with the value the
+    // server resolved for the *saved* config, then refreshed over the handler whenever
+    // config_type or external_config changes, so switching to "Reusable Configuration" in an
+    // unsaved editor session does not filter on the block's stale `lti_version`.
+    // `null` means "not resolved yet" and suppresses version-based filtering entirely, so a
+    // field is never hidden on the strength of a value we do not have.
+    let effectiveLtiVersion = data.EFFECTIVE_LTI_VERSION;
+
     const lti1P3FieldList = [
         "lti_1p3_launch_url",
         "lti_1p3_redirect_uris",
@@ -54,9 +62,12 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
             // getFieldsToHideForLtiConfigType) and its stored value is not the version the
             // launch actually uses, so filtering on it would hide fields based on a stale
             // value -- including `lti_1p3_launch_url`, which that filter deliberately keeps
-            // visible when external multiple launch URLs are enabled. Use the version the
-            // server resolved from the reusable config instead.
-            selectedVersion = data.EFFECTIVE_LTI_VERSION;
+            // visible when external multiple launch URLs are enabled. Use the resolved
+            // version instead, and hide nothing on version grounds until we have one.
+            if (effectiveLtiVersion === null || effectiveLtiVersion === undefined) {
+                return [];
+            }
+            selectedVersion = effectiveLtiVersion;
         } else {
             const ltiVersionField = $(element).find('#xb-field-edit-lti_version');
             selectedVersion = ltiVersionField.children("option:selected").val();
@@ -183,6 +194,50 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
         }
     }
 
+    /**
+     * Refresh the effective LTI version for a reusable config, then re-apply the filters.
+     *
+     * The server can only resolve the version of the *saved* config, so switching Configuration
+     * Type to "Reusable Configuration" - or editing the config ID - within one editor session
+     * would otherwise keep filtering on a stale version, with the `lti_version` select hidden
+     * and no way to correct it. This asks the block to resolve the ID currently in the form.
+     */
+    function refreshEffectiveLtiVersion() {
+        const configType = $(element).find('#xb-field-edit-config_type').val();
+
+        if (configType !== "external") {
+            // Non-external configs filter on the visible `lti_version` select, so nothing to
+            // resolve. Drop any previously resolved value so returning to "external" re-resolves.
+            effectiveLtiVersion = null;
+            toggleLtiFields();
+            return;
+        }
+
+        const configId = $(element).find('#xb-field-edit-external_config').val();
+        if (!configId) {
+            // No ID to resolve yet. Leave the version unresolved rather than guessing, so the
+            // LTI 1.3 fields stay reachable while the author is still filling the form in.
+            effectiveLtiVersion = null;
+            toggleLtiFields();
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: runtime.handlerUrl(element, 'resolve_external_config_version'),
+            data: JSON.stringify({config_id: configId}),
+            contentType: "application/json",
+            dataType: "json"
+        }).done(function (response) {
+            effectiveLtiVersion = (response && response.found) ? response.version : null;
+        }).fail(function () {
+            // Lookup unavailable: stay unresolved rather than filtering on a guess.
+            effectiveLtiVersion = null;
+        }).always(function () {
+            toggleLtiFields();
+        });
+    }
+
     // Call once component is instanced to hide fields
     toggleLtiFields();
 
@@ -196,7 +251,14 @@ function LtiConsumerXBlockInitStudio(runtime, element, data) {
         toggleLtiFields();
     });
 
+    // Configuration Type drives which config the version comes from, so re-resolve rather
+    // than just re-filtering. refreshEffectiveLtiVersion() calls toggleLtiFields() itself.
     $(element).find('#xb-field-edit-config_type').bind('change', function () {
-        toggleLtiFields();
+        refreshEffectiveLtiVersion();
+    });
+
+    // Editing the reusable config ID changes which config the version comes from.
+    $(element).find('#xb-field-edit-external_config').bind('change', function () {
+        refreshEffectiveLtiVersion();
     });
 }
