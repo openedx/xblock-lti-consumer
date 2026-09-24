@@ -16,6 +16,9 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+* Omit the LTI 1.3 ``resource_link`` claim from Deep Linking request
+  launches, per the IMS Deep Linking 2.0 specification.
+
 11.4.1 - 2026-09-02
 --------------------
 * Stop writing the LTI 1.3 passport id back to the XBlock from the

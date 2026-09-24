@@ -844,6 +844,10 @@ class TestLtiAdvantageConsumer(TestCase):
             decoded_token['https://purl.imsglobal.org/spec/lti/claim/message_type'],
             "LtiDeepLinkingRequest",
         )
+        self.assertNotIn(
+            'https://purl.imsglobal.org/spec/lti/claim/resource_link',
+            decoded_token,
+        )
         self.assertEqual(
             decoded_token['https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings']['deep_link_return_url'],
             "return-url"
