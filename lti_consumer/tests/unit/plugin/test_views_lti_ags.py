@@ -501,8 +501,7 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
 
     def test_xblock_grade_publish_with_zero_score(self):
         """
-        Test that a `scoreGiven` of 0 is published to the LMS end-to-end, rather than being
-        silently skipped by the falsy-zero check this fix corrects.
+        Test that a `scoreGiven` of 0 is published to the LMS end-to-end.
         """
         # Set up LMS mocks
         self._compat_mock.load_block_as_user.return_value = self.xblock

@@ -122,10 +122,6 @@ class PublishGradeOnScoreUpdateTest(TestCase):
     def test_grade_publish_with_zero_score(self):
         """
         Test that a `scoreGiven` of 0 is published like any other score.
-
-        `score_given` is falsy for a `FloatField` value of `0.0`. Before this fix, the guard used
-        a truthiness check (`and instance.score_given`) and silently skipped a legitimate zero
-        score; it must now use `is not None` so 0 is treated as a present, valid grade.
         """
         line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
@@ -151,12 +147,7 @@ class PublishGradeOnScoreUpdateTest(TestCase):
 
     def test_grade_publish_not_done_when_score_given_missing(self):
         """
-        Test that grade publish is still skipped (not errored) when `score_given` is absent, e.g.
-        an AGS "erase score" request that nulls out `scoreGiven`/`scoreMaximum`.
-
-        Unlike the zero-score case above, this is unchanged behavior: `score_given=None` was
-        already falsy under the old truthiness check, and is also caught by the new
-        `is not None` check, so this is a lock-in test rather than a new assertion.
+        Test that a score with no `scoreGiven` is skipped, e.g. an AGS "erase score" request.
         """
         line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
@@ -181,21 +172,8 @@ class PublishGradeOnScoreUpdateTest(TestCase):
 
     def test_grade_publish_not_done_when_score_maximum_zero(self):
         """
-        Test that `score_maximum=0` alongside a set `score_given` is rejected at save time,
-        never reaching the publish signal at all.
-
-        This combination can't be produced through the AGS API (the serializer rejects a
-        `scoreMaximum` of 0). It previously could still be produced via the Django admin or
-        direct ORM access -- `MinValueValidator(0)` and the old `LtiAgsScore.clean()` both
-        permitted it (0 is a valid, non-`None` value) -- reaching this signal, whose normalized-
-        score division would otherwise crash on it (worked around, at the time, by a
-        `score_maximum > 0` guard in the signal itself).
-
-        `LtiAgsScore.clean()` now rejects `score_maximum <= 0` whenever `score_given` is set
-        (not just `score_maximum is None`), closing the gap at the source: this state can no
-        longer be saved at all, so the signal's own guard is never exercised by it. See
-        `lti_consumer.tests.unit.test_models.TestLtiAgsScoreModel.
-        test_score_max_fails_when_zero_with_score_given_set` for the model-level assertion.
+        Test that `score_maximum=0` with a set `score_given` is rejected at save time, so it
+        never reaches the publish signal, whose division would raise `ZeroDivisionError`.
         """
         line_item = LtiAgsLineItem.objects.create(
             lti_configuration=self.lti_config,
