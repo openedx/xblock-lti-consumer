@@ -947,16 +947,14 @@ class LtiAgsScore(models.Model):
     def clean(self):
         super().clean()
 
-        # 'scoreMaximum' represents the denominator and MUST be a usable, positive value when
-        # 'scoreGiven' is present -- `score_maximum <= 0` can't be published either (see
-        # `publish_grade_on_score_update`), and letting it through here made it possible for
-        # `LtiAgsResultSerializer.get_resultMaximum` to report a fabricated "successful" result
-        # for a score that was never actually published to the gradebook.
-        # Note: this must be an `is not None` check on `score_given`, not a truthiness check,
-        # since a `scoreGiven` of 0 is falsy but a legitimate value that still requires a
-        # `scoreMaximum`.
+        # 'scoreMaximum' is the denominator, so it has to be present and positive whenever
+        # 'scoreGiven' is present.  'scoreGiven' is tested with `is not None` because 0 is
+        # a valid grade; 'scoreMaximum' is tested for falsiness because both None and 0
+        # are rejected.
         if self.score_given is not None and not self.score_maximum:
-            raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
+            raise ValidationError(
+                {'score_maximum': 'must be a positive number when score_given is set'}
+            )
 
     def save(self, *args, **kwargs):
         self.full_clean()

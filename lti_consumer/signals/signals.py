@@ -44,20 +44,13 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
         )
         return
 
-    # The grade being submitted must be the final one - `FullyGraded`. This is routine, expected
-    # tool behavior to not be the case yet (interim `Pending`/`InProgress` saves are far more
-    # common than the final one), so it's silently skipped here, not logged, to avoid flooding
-    # the logs.
+    # Only the final grade is published. Interim saves are routine, so they are not logged.
     if instance.grading_progress != LtiAgsScore.FULLY_GRADED:
         return
 
-    # From here on the score is final, so failing to publish it is the actionable case worth
-    # logging below. Before publishing to the LMS, check that:
-    # 1. This LineItem is linked to a LMS grade - the `LtiResouceLinkId` field is set
-    # 2. There's a grade present in this score - `scoreGiven` is present
-    # 3. `scoreMaximum` is a usable, positive denominator for the normalized score below
-    # Note: (2) and (3) must be `is not None`/range checks, not truthiness checks, since a
-    # `scoreGiven` or `scoreMaximum` of 0 is falsy but a legitimate value for the former.
+    # The score is final from here, so a failure to publish it is worth logging. The line item
+    # must be linked to an LMS grade, and the score must have a grade and a positive denominator.
+    # `score_given` is tested with `is not None` because 0 is a valid grade.
     can_publish = (
         bool(line_item.resource_link_id) and
         instance.score_given is not None and
@@ -66,13 +59,9 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
     )
     if not can_publish:
         log.info(
-            "LTI AGS grade publish skipped: score=%r grading_progress=%s resource_link_id=%s "
-            "score_given=%s score_maximum=%s.",
+            "LTI AGS grade publish skipped: score=%r resource_link_id=%s.",
             instance,
-            instance.grading_progress,
             line_item.resource_link_id,
-            instance.score_given,
-            instance.score_maximum,
         )
         return
 
@@ -87,9 +76,7 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                 block.has_score,
             )
         else:
-            # Computed once and reused below: previously `is_past_due()`/`accept_grades_past_due`
-            # were never evaluated at all when `has_score` was False (short-circuited by `and`),
-            # so neither is touched here unless `has_score` is True.
+            # Only evaluated when the block is graded, and reused by the log below.
             is_past_due = block.is_past_due()
             if not is_past_due or block.accept_grades_past_due:
                 # Map external ID to platform user

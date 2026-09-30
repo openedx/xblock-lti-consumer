@@ -1539,13 +1539,8 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.score_comment', PropertyMock(return_value='test'))
     def test_consumer_get_result_called_with_zero_score(self):
         """
-        Test LtiConsumer.get_result is called with a `module_score` of 0, rather than that score
-        being silently omitted.
-
-        `module_score` is falsy for a real, graded score of 0.0; `_result_service_get` previously
-        checked it for truthiness, so a learner scored 0 was reported as ungraded (no
-        `resultScore` in the response) instead of graded 0 -- the same falsy-zero pattern fixed
-        for LTI 1.3 AGS elsewhere in this change.
+        Test LtiConsumer.get_result is called with a `module_score` of 0, so a learner scored
+        zero is reported as graded 0 rather than ungraded.
         """
         mock_lti_consumer = Mock()
         mock_user = Mock()
