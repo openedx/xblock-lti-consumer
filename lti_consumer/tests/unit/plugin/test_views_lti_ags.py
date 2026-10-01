@@ -875,6 +875,34 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         assert 'scoreMaximum' in response.data.keys()
         assert 'positive number' in str(response.data['scoreMaximum'])
 
+    def test_create_score_with_negative_score_maximum(self):
+        """
+        Test invalid request with a negative `scoreMaximum`.
+
+        A negative value passed master's truthiness check and reached the model, where
+        `MinValueValidator(0)` raised a Django `ValidationError` that DRF does not convert,
+        so it escaped the view as a 500. The `value <= 0` check rejects it as a 400.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        response = self.client.post(
+            self.scores_endpoint,
+            data=json.dumps({
+                "timestamp": self.late_timestamp,
+                "scoreGiven": 10,
+                "scoreMaximum": -5,
+                "comment": "This is exceptional work.",
+                "activityProgress": LtiAgsScore.INITIALIZED,
+                "gradingProgress": LtiAgsScore.NOT_READY,
+                "userId": self.primary_user_id
+            }),
+            content_type="application/vnd.ims.lis.v1.score+json",
+        )
+
+        self.assertEqual(LtiAgsScore.objects.all().count(), 0)
+        self.assertEqual(response.status_code, 400)
+        assert 'positive number' in str(response.data['scoreMaximum'])
+
     def test_erase_score(self):
         """
         Test erasing LTI AGS Scores by omitting scoreGiven and scoreMaximum.
