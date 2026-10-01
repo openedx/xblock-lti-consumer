@@ -5,6 +5,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 from ddt import data, ddt, unpack
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from opaque_keys.edx.keys import UsageKey
 from openedx_events.content_authoring.data import DuplicatedXBlockData, LibraryBlockData, XBlockData
@@ -117,6 +118,84 @@ class PublishGradeOnScoreUpdateTest(TestCase):
         self._block_mock.set_user_module_score.assert_called_once()
         self._signals_compat_mock.get_user_from_external_user_id.assert_called_once()
         self._signals_compat_mock.load_block_as_user.assert_called_once()
+
+    def test_grade_publish_with_zero_score(self):
+        """
+        Test that a `scoreGiven` of 0 is published like any other score.
+        """
+        line_item = LtiAgsLineItem.objects.create(
+            lti_configuration=self.lti_config,
+            resource_id="test",
+            resource_link_id=self.location,
+            label="test label",
+            score_maximum=100
+        )
+
+        LtiAgsScore.objects.create(
+            line_item=line_item,
+            score_given=0,
+            score_maximum=100,
+            activity_progress=LtiAgsScore.COMPLETED,
+            grading_progress=LtiAgsScore.FULLY_GRADED,
+            user_id="test",
+            timestamp=datetime.now(),
+        )
+
+        self._block_mock.set_user_module_score.assert_called_once()
+        call_args = self._block_mock.set_user_module_score.call_args.args
+        self.assertEqual(call_args[1], 0)
+
+    def test_grade_publish_not_done_when_score_given_missing(self):
+        """
+        Test that a score with no `scoreGiven` is skipped, e.g. an AGS "erase score" request.
+        """
+        line_item = LtiAgsLineItem.objects.create(
+            lti_configuration=self.lti_config,
+            resource_id="test",
+            resource_link_id=self.location,
+            label="test label",
+            score_maximum=100
+        )
+
+        LtiAgsScore.objects.create(
+            line_item=line_item,
+            score_given=None,
+            score_maximum=None,
+            activity_progress=LtiAgsScore.COMPLETED,
+            grading_progress=LtiAgsScore.FULLY_GRADED,
+            user_id="test",
+            timestamp=datetime.now(),
+        )
+
+        self._block_mock.set_user_module_score.assert_not_called()
+        self._signals_compat_mock.load_block_as_user.assert_not_called()
+
+    def test_grade_publish_not_done_when_score_maximum_zero(self):
+        """
+        Test that `score_maximum=0` with a set `score_given` is rejected at save time, so it
+        never reaches the publish signal, whose division would raise `ZeroDivisionError`.
+        """
+        line_item = LtiAgsLineItem.objects.create(
+            lti_configuration=self.lti_config,
+            resource_id="test",
+            resource_link_id=self.location,
+            label="test label",
+            score_maximum=100
+        )
+
+        with self.assertRaises(ValidationError):
+            LtiAgsScore.objects.create(
+                line_item=line_item,
+                score_given=10,
+                score_maximum=0,
+                activity_progress=LtiAgsScore.COMPLETED,
+                grading_progress=LtiAgsScore.FULLY_GRADED,
+                user_id="test",
+                timestamp=datetime.now(),
+            )
+
+        self._block_mock.set_user_module_score.assert_not_called()
+        self._signals_compat_mock.load_block_as_user.assert_not_called()
 
 
 @ddt

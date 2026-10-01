@@ -16,6 +16,31 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.2 - 2026-09-10
+--------------------
+* Publish AGS scores with a ``scoreGiven`` of ``0`` to the LMS gradebook. The
+  grade publishing signal tested ``scoreGiven`` for truthiness, so a valid zero
+  score was treated as a missing one and never reached the gradebook.
+* Reject a ``scoreMaximum`` that is unset or not positive whenever ``scoreGiven``
+  is present. ``LtiAgsScore.clean()`` had the same truthiness bug, and a
+  ``scoreMaximum`` of ``0`` is not a usable denominator: the AGS API rejects it before
+  the model, but it could still be saved through the ORM or the Django admin, and the
+  publishing signal then raised ``ZeroDivisionError`` normalizing the score, out of
+  ``LtiAgsScore.save()``.
+* Reject an AGS ``scoreMaximum`` of ``0`` or less at the API, with a "must be a
+  positive number" error rather than the misleading "is a required field". A negative
+  ``scoreMaximum`` passed the serializer's truthiness check and failed instead at the
+  model's ``MinValueValidator``, raising a Django ``ValidationError`` that DRF does not
+  convert, so it escaped the view as an HTTP 500.
+* Report an LTI 1.1 ``module_score`` of ``0`` from ``result_service_handler``, the
+  LTI 2.0 JSON result service, instead of omitting it, which reported a learner
+  scored zero as ungraded. Same falsy-zero pattern, on the LTI 1.1 side. The Basic
+  Outcomes XML service (``outcome_service_handler``) passes the score through
+  unconditionally and never had this bug.
+* Log why a final grade was not published -- the score, its resource link id, and the
+  block's ``has_score``/past-due state -- instead of only ever logging a successful
+  publish.
+
 11.4.1 - 2026-09-02
 --------------------
 * Stop writing the LTI 1.3 passport id back to the XBlock from the

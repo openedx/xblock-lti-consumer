@@ -947,9 +947,14 @@ class LtiAgsScore(models.Model):
     def clean(self):
         super().clean()
 
-        # 'scoreMaximum' represents the denominator and MUST be present when 'scoreGiven' is present
-        if self.score_given and self.score_maximum is None:
-            raise ValidationError({'score_maximum': 'cannot be unset when score_given is set'})
+        # 'scoreMaximum' is the denominator, so it has to be present and positive whenever
+        # 'scoreGiven' is present.  'scoreGiven' is tested with `is not None` because 0 is
+        # a valid grade; 'scoreMaximum' is tested for falsiness because both None and 0
+        # are rejected.
+        if self.score_given is not None and not self.score_maximum:
+            raise ValidationError(
+                {'score_maximum': 'must be a positive number when score_given is set'}
+            )
 
     def save(self, *args, **kwargs):
         self.full_clean()

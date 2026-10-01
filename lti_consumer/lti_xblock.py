@@ -1631,7 +1631,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         self.runtime.service(self, 'rebind_user').rebind_noauth_module_to_user(self, user)
         args = []
-        if self.module_score:
+        # `is not None`, not a truthiness check: a `module_score` of 0 is a graded score.
+        if self.module_score is not None:
             args.extend([self.module_score, self.score_comment])
         return lti_consumer.get_result(*args)
 
