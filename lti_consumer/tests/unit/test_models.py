@@ -9,12 +9,17 @@ import ddt
 from ccx_keys.locator import CCXBlockUsageLocator
 from Cryptodome.PublicKey import RSA
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
+from django.test import TestCase
 from edx_django_utils.cache import RequestCache
 from opaque_keys.edx.locator import CourseLocator
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import (
     CourseAllowPIISharingInLTIFlag,
+    ReusableLtiConfiguration,
+    ReusableLtiConfigurationCourse,
+    ReusableLtiConfigurationOrganization,
     LtiAgsLineItem,
     LtiAgsScore,
     LtiConfiguration,
@@ -24,6 +29,54 @@ from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
 LAUNCH_URL = 'http://tool.example/launch'
 DEEP_LINK_URL = 'http://tool.example/deep-link/launch'
+
+
+class TestReusableLtiConfigurationModels(TestCase):
+    """Storage invariants for the initial reusable catalog schema."""
+
+    def make_configuration(self, name='My Tool'):
+        return ReusableLtiConfiguration.objects.create(
+            name=name,
+            version=ReusableLtiConfiguration.LTI_1P1,
+        )
+
+    def test_name_key_is_trimmed_and_casefolded_on_save(self):
+        configuration = self.make_configuration('  Stra\u00dfe  ')
+        self.assertEqual(configuration.normalized_name, 'strasse')
+
+        configuration.name = '  RENAMED  '
+        configuration.save(update_fields={'name'})
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.normalized_name, 'renamed')
+
+    def test_normalized_name_is_unique(self):
+        self.make_configuration('Tool Name')
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            self.make_configuration('  TOOL NAME ')
+
+    def test_course_and_organization_grants_are_unique_per_configuration(self):
+        configuration = self.make_configuration()
+        course_key = 'course-v1:Org+Course+Run'
+        ReusableLtiConfigurationCourse.objects.create(
+            configuration=configuration,
+            course_key=course_key,
+        )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ReusableLtiConfigurationCourse.objects.create(
+                configuration=configuration,
+                course_key=course_key,
+            )
+
+        organization = ReusableLtiConfigurationOrganization.objects.create(
+            configuration=configuration,
+            organization='Org',
+        )
+        self.assertEqual(organization.organization, 'org')
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ReusableLtiConfigurationOrganization.objects.create(
+                configuration=configuration,
+                organization='org',
+            )
 
 
 @ddt.ddt
