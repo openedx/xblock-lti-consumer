@@ -165,6 +165,81 @@ class Lti1p3Passport(models.Model):
         app_label = 'lti_consumer'
 
 
+class ReusableLtiConfiguration(models.Model):
+    """Catalog and scope record for an LTI configuration independent of placements."""
+
+    LTI_1P1 = 'lti_1p1'
+    LTI_1P3 = 'lti_1p3'
+    LTI_VERSION_CHOICES = [
+        (LTI_1P1, 'LTI 1.1'),
+        (LTI_1P3, 'LTI 1.3'),
+    ]
+
+    config_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    name = models.CharField(max_length=255)
+    normalized_name = models.CharField(max_length=768, unique=True, editable=False)
+    description = models.TextField(blank=True)
+    version = models.CharField(max_length=10, choices=LTI_VERSION_CHOICES)
+    site_wide = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.normalized_name = self.name.strip().casefold()
+        if kwargs.get('update_fields') is not None:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'normalized_name'}
+        super().save(*args, **kwargs)
+
+    class Meta:
+        app_label = 'lti_consumer'
+
+
+class ReusableLtiConfigurationCourse(models.Model):
+    """Explicit course availability grant for a reusable configuration."""
+
+    configuration = models.ForeignKey(
+        ReusableLtiConfiguration,
+        on_delete=models.CASCADE,
+        related_name='course_grants',
+    )
+    course_key = CourseKeyField(max_length=255)
+
+    class Meta:
+        app_label = 'lti_consumer'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('configuration', 'course_key'),
+                name='uniq_reusable_config_course',
+            ),
+        ]
+        indexes = [models.Index(fields=('course_key',), name='reusable_course_lookup')]
+
+
+class ReusableLtiConfigurationOrganization(models.Model):
+    """Organization availability grant, keyed by normalized registered short name."""
+
+    configuration = models.ForeignKey(
+        ReusableLtiConfiguration,
+        on_delete=models.CASCADE,
+        related_name='organization_grants',
+    )
+    organization = models.CharField(max_length=255)
+
+    def save(self, *args, **kwargs):
+        self.organization = self.organization.lower()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        app_label = 'lti_consumer'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('configuration', 'organization'),
+                name='uniq_reusable_config_organization',
+            ),
+        ]
+        indexes = [models.Index(fields=('organization',), name='reusable_org_lookup')]
+
+
 class LtiConfiguration(models.Model):
     """
     Model to store LTI Configuration for LTI 1.1 and 1.3.
