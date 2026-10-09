@@ -93,7 +93,7 @@ class Lti1p3Passport(models.Model):
                   'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
     )
 
-    def _generate_lti_1p3_keys_if_missing(self):
+    def generate_lti_1p3_keys_if_missing(self):
         """
         Generate LTI 1.3 RSA256 keys if missing.
 
@@ -130,7 +130,7 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return self.lti_1p3_internal_private_key
 
     @property
@@ -138,7 +138,7 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's private key ID used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return self.lti_1p3_internal_private_key_id
 
     @property
@@ -146,7 +146,7 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's public keys used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return json.loads(self.lti_1p3_internal_public_jwk)
 
     def __str__(self):
