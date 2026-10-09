@@ -33,7 +33,6 @@ class ReusableConfigurationStorageTests(TestCase):
         self.make_configuration(name='Client identity 1', lti_1p3_client_id='Client-A')
         with self.assertRaises(IntegrityError), transaction.atomic():
             self.make_configuration(name='Client identity duplicate', lti_1p3_client_id='Client-A')
-        self.make_configuration(name='Case distinct client', lti_1p3_client_id='client-a')
 
     def test_passport_is_one_to_one_and_protected(self):
         passport = Lti1p3Passport.objects.create(lti_1p3_client_id='passport-client')

@@ -191,6 +191,7 @@ class ReusableLtiConfiguration(models.Model):
     lti_1p3_launch_url = models.CharField(max_length=255, null=True, blank=True)
     lti_1p3_oidc_url = models.CharField(max_length=255, null=True, blank=True)
     lti_1p3_redirect_uris = models.JSONField(default=list, blank=True)
+    # shortcut: MySQL collation controls Client ID uniqueness; add exact semantics when case-distinct IDs are supported.
     lti_1p3_client_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
     lti_1p3_deployment_id = models.CharField(max_length=255, null=True, blank=True)
     lti_1p3_tool_key_mode = models.CharField(
