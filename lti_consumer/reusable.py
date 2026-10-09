@@ -6,9 +6,9 @@ validation, organization-registry validation, updates, and serialization belong
 to their respective layers.
 """
 
-from dataclasses import dataclass
 import secrets
 import uuid
+from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -34,29 +34,16 @@ def _invalid(message):
     raise ValidationError(message)
 
 
-def _validate_input(data):  # pylint: disable=too-many-statements
-    """Check service-boundary consistency for already-validated input."""
-    if not isinstance(data, dict):
-        _invalid('Invalid reusable configuration.')
+def _is_nonblank_string(value):
+    """Return whether a value is a non-empty string after trimming."""
+    return isinstance(value, str) and bool(value.strip())
 
-    version = data.get('version')
-    if version not in (ReusableLtiConfiguration.LTI_1P1, ReusableLtiConfiguration.LTI_1P3):
-        _invalid('A supported LTI version is required.')
-    expected_section = version
-    other_section = 'lti_1p3' if version == 'lti_1p1' else 'lti_1p1'
-    section = data.get(expected_section)
-    if not isinstance(section, dict) or other_section in data:
-        _invalid('The connection settings must match the selected LTI version.')
 
-    name = data.get('name')
-    if not isinstance(name, str) or not name.strip():
-        _invalid('A non-empty name is required.')
-    if len(name.strip()) > ReusableLtiConfiguration._meta.get_field('name').max_length:
-        _invalid('The name is too long.')
-
-    scope = data.get('scope')
+def _validate_scope(scope):
+    """Validate and normalize the creation scope."""
     if not isinstance(scope, dict):
         _invalid('At least one scope grant is required.')
+
     course_keys = scope.get('course_keys', [])
     organization_keys = scope.get('organization_keys', [])
     site_wide = scope.get('site_wide', False)
@@ -64,49 +51,94 @@ def _validate_input(data):  # pylint: disable=too-many-statements
         _invalid('Scope grants must be lists.')
     if not isinstance(site_wide, bool) or not (course_keys or organization_keys or site_wide):
         _invalid('At least one scope grant is required.')
-    if any(not isinstance(value, str) or not value.strip() for value in (*course_keys, *organization_keys)):
+    if any(not _is_nonblank_string(value) for value in (*course_keys, *organization_keys)):
         _invalid('Scope grants must be non-empty strings.')
 
-    launch_url = section.get('launch_url')
-    if not isinstance(launch_url, str) or not launch_url.strip():
-        _invalid('A launch URL is required.')
-    if version == ReusableLtiConfiguration.LTI_1P1:
-        for key in ('client_key', 'client_secret'):
-            value = section.get(key)
-            if value is not None and (not isinstance(value, str) or not value.strip()):
-                _invalid('Credential overrides must be non-empty strings.')
-    else:
-        if not isinstance(section.get('oidc_url'), str) or not section['oidc_url'].strip():
-            _invalid('An OIDC URL is required.')
-        mode = section.get('tool_key_mode')
-        if mode == 'public_key':
-            has_material = isinstance(section.get('tool_public_key'), str) and bool(section['tool_public_key'].strip())
-            if not has_material or section.get('tool_keyset_url'):
-                _invalid('The LTI 1.3 public-key mode requires only a tool public key.')
-        elif mode == 'keyset_url':
-            has_material = isinstance(section.get('tool_keyset_url'), str) and bool(section['tool_keyset_url'].strip())
-            if not has_material or section.get('tool_public_key'):
-                _invalid('The LTI 1.3 keyset mode requires only a tool keyset URL.')
-        else:
-            _invalid('A supported LTI 1.3 tool-key mode and material are required.')
-        for key in ('client_id', 'deployment_id'):
-            value = section.get(key)
-            if value is not None and (not isinstance(value, str) or not value.strip()):
-                _invalid('Registration identity overrides must be non-empty strings.')
-        redirects = section.get('redirect_uris', [])
-        if not isinstance(redirects, (list, tuple)):
-            _invalid('Redirect URIs must be a list.')
-        if any(not isinstance(uri, str) or not uri.strip() for uri in redirects):
-            _invalid('Redirect URIs must be non-empty strings.')
-
     return (
-        name.strip(),
-        version,
-        section,
         list(dict.fromkeys(course_keys)),
         list(dict.fromkeys(key.lower() for key in organization_keys)),
         site_wide,
     )
+
+
+def _validate_lti_1p1(section):
+    """Validate LTI 1.1 connection and optional credentials."""
+    if not _is_nonblank_string(section.get('launch_url')):
+        _invalid('A launch URL is required.')
+    for key in ('client_key', 'client_secret'):
+        value = section.get(key)
+        if value is not None and not _is_nonblank_string(value):
+            _invalid('Credential overrides must be non-empty strings.')
+
+
+def _validate_lti_1p3(section):
+    """Validate LTI 1.3 connection, identity overrides, and tool-key mode."""
+    if not _is_nonblank_string(section.get('launch_url')):
+        _invalid('A launch URL is required.')
+    if not _is_nonblank_string(section.get('oidc_url')):
+        _invalid('An OIDC URL is required.')
+
+    mode = section.get('tool_key_mode')
+    if mode == 'public_key':
+        has_material = _is_nonblank_string(section.get('tool_public_key'))
+        if not has_material or section.get('tool_keyset_url'):
+            _invalid('The LTI 1.3 public-key mode requires only a tool public key.')
+    elif mode == 'keyset_url':
+        has_material = _is_nonblank_string(section.get('tool_keyset_url'))
+        if not has_material or section.get('tool_public_key'):
+            _invalid('The LTI 1.3 keyset mode requires only a tool keyset URL.')
+    else:
+        _invalid('A supported LTI 1.3 tool-key mode and material are required.')
+
+    for key in ('client_id', 'deployment_id'):
+        value = section.get(key)
+        if value is not None and not _is_nonblank_string(value):
+            _invalid('Registration identity overrides must be non-empty strings.')
+
+    redirects = section.get('redirect_uris', [])
+    if not isinstance(redirects, (list, tuple)):
+        _invalid('Redirect URIs must be a list.')
+    if any(not _is_nonblank_string(uri) for uri in redirects):
+        _invalid('Redirect URIs must be non-empty strings.')
+
+
+def _validate_input(data):
+    """Validate service-boundary consistency for already-validated input.
+
+    Example::
+
+        {
+            'name': 'Tool',
+            'version': 'lti_1p1',
+            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
+            'lti_1p1': {'launch_url': 'https://tool.example/launch'},
+        }
+    """
+    if not isinstance(data, dict):
+        _invalid('Invalid reusable configuration.')
+
+    version = data.get('version')
+    if version not in (ReusableLtiConfiguration.LTI_1P1, ReusableLtiConfiguration.LTI_1P3):
+        _invalid('A supported LTI version is required.')
+
+    section = data.get(version)
+    other_sections = (ReusableLtiConfiguration.LTI_1P1, ReusableLtiConfiguration.LTI_1P3)
+    if not isinstance(section, dict) or any(key in data for key in other_sections if key != version):
+        _invalid('The connection settings must match the selected LTI version.')
+
+    name = data.get('name')
+    if not _is_nonblank_string(name):
+        _invalid('A non-empty name is required.')
+    if len(name.strip()) > ReusableLtiConfiguration._meta.get_field('name').max_length:
+        _invalid('The name is too long.')
+
+    course_keys, organization_keys, site_wide = _validate_scope(data.get('scope'))
+    if version == ReusableLtiConfiguration.LTI_1P1:
+        _validate_lti_1p1(section)
+    else:
+        _validate_lti_1p3(section)
+
+    return name.strip(), version, section, course_keys, organization_keys, site_wide
 
 
 def create_reusable_configuration(validated_data):
@@ -161,21 +193,21 @@ def create_reusable_configuration(validated_data):
         'ags_mode': 'lti_advantage_ags_mode',
         'nrps_enabled': 'lti_advantage_enable_nrps',
     }
-    default_fields = {
-        'display_name': 'display_name',
-        'enable_grading': 'enable_grading',
-        'grade_weight': 'grade_weight',
-        'accept_grades_after_due_date': 'accept_grades_after_due_date',
-        'open_tool_in': 'open_tool_in',
-        'inline_height': 'inline_height',
-        'modal_height': 'modal_height',
-        'modal_width': 'modal_width',
-        'launch_button_text': 'launch_button_text',
-        'send_extra_parameters': 'send_extra_parameters',
-        'custom_parameters': 'custom_parameters',
-    }
+    default_fields = (
+        'display_name',
+        'enable_grading',
+        'grade_weight',
+        'accept_grades_after_due_date',
+        'open_tool_in',
+        'inline_height',
+        'modal_height',
+        'modal_width',
+        'launch_button_text',
+        'send_extra_parameters',
+        'custom_parameters',
+    )
     config_values.update({field: services[key] for key, field in service_fields.items() if key in services})
-    config_values.update({field: defaults[key] for key, field in default_fields.items() if key in defaults})
+    config_values.update({field: defaults[field] for field in default_fields if field in defaults})
 
     try:
         with transaction.atomic():
@@ -191,8 +223,8 @@ def create_reusable_configuration(validated_data):
                     'lti_1p3_tool_keyset_url': section.get('tool_keyset_url', '') or '',
                 }
                 passport = Lti1p3Passport.objects.create(**passport_values)
-                # Call the generator method, never its lazy read properties.
-                passport._generate_lti_1p3_keys_if_missing()  # pylint: disable=protected-access
+                # Ensure the platform RSA key and JWK exist before committing.
+                passport.generate_lti_1p3_keys_if_missing()
                 config_values['lti_1p3_passport'] = passport
 
             configuration = ReusableLtiConfiguration.objects.create(**config_values)
