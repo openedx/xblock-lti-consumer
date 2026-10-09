@@ -12,6 +12,7 @@ from lti_consumer.models import (
     LtiAgsScore,
     LtiConfiguration,
     LtiDlContentItem,
+    ReusableLtiConfiguration,
 )
 
 
@@ -56,6 +57,22 @@ class Lti1p3PassportAdmin(admin.ModelAdmin):
         'lti_1p3_client_id',
     )
     inlines = [LtiConfigurationInline]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(reusable_configuration__isnull=True)
+
+    @staticmethod
+    def _is_reusable_passport(obj):
+        return obj is not None and ReusableLtiConfiguration.objects.filter(lti_1p3_passport_id=obj.pk).exists()
+
+    def has_view_permission(self, request, obj=None):
+        return not self._is_reusable_passport(obj) and super().has_view_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        return not self._is_reusable_passport(obj) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return not self._is_reusable_passport(obj) and super().has_delete_permission(request, obj)
 
 
 @admin.register(CourseAllowPIISharingInLTIFlag)
