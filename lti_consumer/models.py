@@ -181,6 +181,63 @@ class ReusableLtiConfiguration(models.Model):
     description = models.TextField(blank=True)
     version = models.CharField(max_length=10, choices=LTI_VERSION_CHOICES)
     site_wide = models.BooleanField(default=False)
+
+    # LTI 1.1 connection and credentials.
+    lti_1p1_launch_url = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p1_client_key = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p1_client_secret = models.CharField(max_length=255, null=True, blank=True)
+
+    # LTI 1.3 tool connection and immutable registration identity.
+    lti_1p3_launch_url = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p3_oidc_url = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p3_redirect_uris = models.JSONField(default=list, blank=True)
+    lti_1p3_client_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    lti_1p3_deployment_id = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p3_tool_key_mode = models.CharField(
+        max_length=20,
+        choices=[('public_key', 'Public Key'), ('keyset_url', 'Keyset URL')],
+        null=True,
+        blank=True,
+    )
+    lti_1p3_passport = models.OneToOneField(
+        Lti1p3Passport,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='reusable_configuration',
+    )
+
+    # Shared LTI Advantage service settings.
+    lti_advantage_deep_linking_enabled = models.BooleanField(default=False)
+    lti_advantage_deep_linking_launch_url = models.CharField(max_length=225, blank=True, default='')
+    lti_advantage_ags_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('disabled', 'Disabled'),
+            ('declarative', 'Allow tools to submit grades only (declarative)'),
+            ('programmatic', 'Allow tools to manage and submit grade (programmatic)'),
+        ],
+        default='declarative',
+    )
+    lti_advantage_enable_nrps = models.BooleanField(default=False)
+
+    # Shared placement defaults; placements and placement-specific data are not stored here.
+    display_name = models.CharField(max_length=255, default='LTI Consumer')
+    enable_grading = models.BooleanField(default=False)
+    grade_weight = models.FloatField(default=1.0, validators=[MinValueValidator(0)])
+    accept_grades_after_due_date = models.BooleanField(default=True)
+    open_tool_in = models.CharField(
+        max_length=20,
+        choices=[('iframe', 'Inline'), ('modal', 'Modal'), ('new_window', 'New Window')],
+        default='iframe',
+    )
+    inline_height = models.IntegerField(default=800)
+    modal_height = models.IntegerField(default=80)
+    modal_width = models.IntegerField(default=80)
+    launch_button_text = models.CharField(max_length=255, blank=True, default='')
+    send_extra_parameters = models.BooleanField(default=False)
+    custom_parameters = models.JSONField(default=list, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
