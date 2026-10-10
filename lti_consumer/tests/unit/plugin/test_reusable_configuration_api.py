@@ -203,6 +203,47 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(self.client.get(self.url).status_code, 403)
         self.course_access.assert_not_called()
 
+    def test_detail_uses_list_visibility_and_safe_scope_projection(self):
+        visible = self.create('Visible', course_keys=[str(self.course_key)])
+        hidden = self.create('Hidden', course_keys=[str(self.other_key)])
+        visible_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': visible.config_id},
+        )
+        hidden_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': hidden.config_id},
+        )
+
+        response = self.client.get(visible_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['name'], 'Visible')
+        self.assertFalse(response.data['can_manage'])
+        self.assertEqual(response.data['scope'], {
+            'site_wide': False,
+            'summary': {'site_wide': False, 'course_count': 1, 'organization_count': 0},
+        })
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        self.assertNotIn('client_secret', response.data)
+        self.assertNotIn('secret-not-for-list', response.content.decode())
+        self.assertNotIn(str(self.course_key), response.content.decode())
+        self.assertEqual(self.client.get(hidden_url).status_code, 404)
+
+    def test_detail_returns_explicit_grants_only_to_managers(self):
+        configuration = self.create('Managed', course_keys=[str(self.course_key)])
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        response = self.client.get(detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['can_manage'])
+        self.assertEqual(response.data['scope']['course_keys'], [str(self.course_key)])
+        self.assertEqual(response.data['launch_url'], 'https://tool.example/launch')
+        self.assertNotIn('secret-not-for-list', response.content.decode())
+        self.assertNotIn('not-for-list', response.content.decode())
+
     def test_can_manage_requires_admin_of_every_explicit_course(self):
         self.create('Managed', course_keys=[str(self.course_key)])
         self.create('Shared', course_keys=[str(self.course_key), str(self.other_key)])
