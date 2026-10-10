@@ -89,6 +89,16 @@ class ReusableCreateInputSerializerTests(TestCase):
         payload['lti_1p3']['tool_public_key'] = '-----BEGIN PUBLIC KEY-----\nkey'
         self.assertTrue(ReusableCreateInputSerializer(data=payload).is_valid())
 
+    def test_course_keys_are_parsed_and_libraries_rejected(self):
+        serializer = ReusableCreateInputSerializer(data=self.lti11_payload())
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['scope']['course_keys'], ['course-v1:Org+Course+Run'])
+
+        for course_key in ('not-a-course-key', 'library-v1:Org+Library'):
+            with self.subTest(course_key=course_key):
+                payload = self.lti11_payload(scope={'course_keys': [course_key]})
+                self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
+
     def test_scope_and_shared_defaults_are_validated(self):
         self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
             scope={'course_keys': [], 'organization_keys': [], 'site_wide': False}
