@@ -256,6 +256,7 @@ class ReusableConfigurationListApiTests(TestCase):
             'name': 'After',
             'description': 'Updated description',
             'launch_url': 'https://tool.example/new-launch',
+            'services': {'nrps_enabled': True},
             'defaults': {'display_name': 'Updated display'},
         }, format='json')
 
@@ -265,6 +266,9 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(configuration.description, 'Updated description')
         self.assertEqual(configuration.lti_1p1_launch_url, 'https://tool.example/new-launch')
         self.assertEqual(configuration.display_name, 'Updated display')
+        self.assertEqual(configuration.custom_parameters, ['secret=value'])
+        self.assertEqual(configuration.lti_advantage_ags_mode, 'declarative')
+        self.assertTrue(configuration.lti_advantage_enable_nrps)
         self.assertEqual(configuration.lti_1p1_client_secret, client_secret)
         self.assertNotIn(client_secret, response.content.decode())
         self.assertEqual(response['Cache-Control'], 'no-store')

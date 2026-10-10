@@ -174,6 +174,7 @@ class ReusableConfigurationDetailView(APIView):
 
                 serializer = ReusableUpdateInputSerializer(
                     data=request.data,
+                    partial=True,
                     context={
                         'configuration': configuration,
                         'existing_organization_keys': set(current_scope['organization_keys']),
