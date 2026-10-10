@@ -4,7 +4,6 @@ from urllib.parse import urlsplit
 
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
-from opaque_keys.edx.locator import CourseLocator
 from rest_framework import serializers
 
 from lti_consumer.models import ReusableLtiConfiguration
@@ -41,8 +40,6 @@ class CourseKeyStringField(serializers.CharField):
             course_key = CourseKey.from_string(value)
         except InvalidKeyError as err:
             raise serializers.ValidationError('Invalid course key.') from err
-        if not isinstance(course_key, CourseLocator):
-            raise serializers.ValidationError('A course key is required; libraries are not supported.')
         return str(course_key)
 
 
