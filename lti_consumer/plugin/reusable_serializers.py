@@ -7,6 +7,7 @@ from opaque_keys.edx.keys import CourseKey
 from rest_framework import serializers
 
 from lti_consumer.models import ReusableLtiConfiguration
+from lti_consumer.plugin import compat
 from lti_consumer.utils import get_lti_api_base, get_lti_view_base
 
 
@@ -57,6 +58,19 @@ class ReusableScopeInputSerializer(StrictSerializer):
         attrs['organization_keys'] = list(dict.fromkeys(key.strip().lower() for key in attrs['organization_keys']))
         if any(not key for key in (*attrs['course_keys'], *attrs['organization_keys'])):
             raise serializers.ValidationError('Scope grants must be non-empty strings.')
+        if attrs['organization_keys']:
+            registered = {}
+            for organization in compat.get_active_organizations():
+                short_name = organization.get('short_name')
+                if isinstance(short_name, str):
+                    registered.setdefault(short_name.lower(), set()).add(short_name)
+
+            ambiguous = [key for key in attrs['organization_keys'] if len(registered.get(key, ())) > 1]
+            unknown = [key for key in attrs['organization_keys'] if key not in registered]
+            if ambiguous or unknown:
+                raise serializers.ValidationError({
+                    'organization_keys': ['Organization must match one unambiguous active registered organization.']
+                })
         return attrs
 
 

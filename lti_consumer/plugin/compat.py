@@ -259,6 +259,13 @@ def user_has_studio_write_access(*args, **kwargs):  # pragma: nocover
     return has_studio_write_access(*args, **kwargs)
 
 
+def get_active_organizations():
+    """Return active organizations through the supported organizations API."""
+    # pylint: disable=import-error,import-outside-toplevel
+    from organizations.api import get_organizations
+    return get_organizations()
+
+
 def user_is_course_admin(user, course_key):  # pragma: nocover
     """Check the platform's course-team Admin/Instructor role for a course."""
     # pylint: disable=import-error,import-outside-toplevel

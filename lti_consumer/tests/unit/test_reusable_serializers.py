@@ -1,4 +1,6 @@
 """Tests for reusable configuration request validation and safe response fields."""
+from unittest.mock import patch
+
 from django.test import TestCase
 
 from lti_consumer.plugin.reusable_serializers import (
@@ -29,7 +31,7 @@ class ReusableCreateInputSerializerTests(TestCase):
         payload = {
             'name': 'Example Tool',
             'version': 'lti_1p3',
-            'scope': {'organization_keys': ['Org']},
+            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
             'lti_1p3': {
                 'launch_url': 'https://tool.example/launch',
                 'oidc_url': 'https://tool.example/oidc',
@@ -102,6 +104,32 @@ class ReusableCreateInputSerializerTests(TestCase):
 
         payload = self.lti11_payload(scope={'course_keys': ['not-a-course-key']})
         self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
+
+    @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
+    def test_organization_grants_match_one_active_registered_short_name(self, get_organizations):
+        get_organizations.return_value = [{'short_name': 'Org-A', 'name': 'Organization A'}]
+        payload = self.lti11_payload(scope={'organization_keys': [' ORG-A ', 'org-a']})
+        serializer = ReusableCreateInputSerializer(data=payload)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['scope']['organization_keys'], ['org-a'])
+        get_organizations.assert_called_once_with()
+
+        get_organizations.reset_mock()
+        get_organizations.return_value = [{'short_name': 'Other-Org'}]
+        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
+            scope={'organization_keys': ['unknown-org']}
+        )).is_valid())
+        get_organizations.assert_called_once_with()
+
+    @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
+    def test_ambiguous_case_normalized_organization_names_fail_closed(self, get_organizations):
+        get_organizations.return_value = [{'short_name': 'Org-A'}, {'short_name': 'org-a'}]
+        serializer = ReusableCreateInputSerializer(data=self.lti11_payload(
+            scope={'organization_keys': ['ORG-A']}
+        ))
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('organization_keys', serializer.errors['scope'])
+        get_organizations.assert_called_once_with()
 
     def test_scope_and_shared_defaults_are_validated(self):
         self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
