@@ -244,6 +244,124 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertNotIn('secret-not-for-list', response.content.decode())
         self.assertNotIn('not-for-list', response.content.decode())
 
+    def test_patch_updates_editable_metadata_without_rotating_credentials(self):
+        configuration = self.create('Before', course_keys=[str(self.course_key)])
+        client_secret = configuration.lti_1p1_client_secret
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        response = self.client.patch(detail_url, {
+            'name': 'After',
+            'description': 'Updated description',
+            'launch_url': 'https://tool.example/new-launch',
+            'defaults': {'display_name': 'Updated display'},
+        }, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'After')
+        self.assertEqual(configuration.description, 'Updated description')
+        self.assertEqual(configuration.lti_1p1_launch_url, 'https://tool.example/new-launch')
+        self.assertEqual(configuration.display_name, 'Updated display')
+        self.assertEqual(configuration.lti_1p1_client_secret, client_secret)
+        self.assertNotIn(client_secret, response.content.decode())
+        self.assertEqual(response['Cache-Control'], 'no-store')
+
+    def test_patch_adds_scope_grants_idempotently_and_never_removes(self):
+        configuration = self.create('Expandable', course_keys=[str(self.course_key)])
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+        patch_data = {'scope': {'course_keys': [str(self.other_key)]}}
+
+        first = self.client.patch(detail_url, patch_data, format='json')
+        second = self.client.patch(detail_url, patch_data, format='json')
+
+        self.assertEqual(first.status_code, 200, first.data)
+        self.assertEqual(second.status_code, 200, second.data)
+        self.assertEqual(
+            set(configuration.course_grants.values_list('course_key', flat=True)),
+            {self.course_key, self.other_key},
+        )
+        self.assertEqual(configuration.course_grants.count(), 2)
+        self.assertEqual(self.client.patch(detail_url, {'scope': {'course_keys': []}}, format='json').status_code, 200)
+
+    def test_patch_authorizes_proposed_scope_and_rejects_identity_fields(self):
+        configuration = self.create('Protected', course_keys=[str(self.course_key)])
+        self.course_admin.side_effect = lambda user, key: key == self.course_key
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        denied = self.client.patch(detail_url, {
+            'scope': {'course_keys': [str(self.other_key)]},
+        }, format='json')
+        invalid = self.client.patch(detail_url, {'client_secret': 'replacement'}, format='json')
+
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(configuration.course_grants.count(), 1)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'Protected')
+
+    @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
+    def test_non_superuser_cannot_add_org_scope_before_registry_lookup(self, get_organizations):
+        configuration = self.create('Course only', course_keys=[str(self.course_key)])
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        response = self.client.patch(detail_url, {
+            'scope': {'organization_keys': ['org']},
+        }, format='json')
+
+        self.assertEqual(response.status_code, 403)
+        get_organizations.assert_not_called()
+        self.assertEqual(configuration.organization_grants.count(), 0)
+
+    @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
+    def test_patch_retains_inactive_org_grants_and_validates_new_orgs(self, get_organizations):
+        self.user.is_superuser = True
+        self.user.save()
+        configuration = self.create('Organizations', organization_keys=['inactive-org'])
+        get_organizations.return_value = [{'short_name': 'New-Org'}]
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        response = self.client.patch(detail_url, {
+            'scope': {'organization_keys': ['inactive-org', 'NEW-ORG']},
+        }, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['scope']['organization_keys'], ['inactive-org', 'new-org'])
+        get_organizations.assert_called_once_with()
+
+    def test_patch_requires_valid_deep_link_url_and_cannot_reduce_site_scope(self):
+        configuration = self.create('Deep link', course_keys=[str(self.course_key)])
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+        invalid = self.client.patch(detail_url, {
+            'services': {'deep_linking_enabled': True},
+        }, format='json')
+        self.assertEqual(invalid.status_code, 400)
+        self.assertFalse(configuration.lti_advantage_deep_linking_enabled)
+
+        self.user.is_superuser = True
+        self.user.save()
+        configuration.site_wide = True
+        configuration.save(update_fields=['site_wide'])
+        reduced = self.client.patch(detail_url, {'scope': {'site_wide': False}}, format='json')
+        self.assertEqual(reduced.status_code, 400)
+        configuration.refresh_from_db()
+        self.assertTrue(configuration.site_wide)
+
     def test_can_manage_requires_admin_of_every_explicit_course(self):
         self.create('Managed', course_keys=[str(self.course_key)])
         self.create('Shared', course_keys=[str(self.course_key), str(self.other_key)])

@@ -1,5 +1,6 @@
 """CMS-only management views for reusable LTI configurations."""
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError, transaction
 from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
@@ -20,6 +21,7 @@ from lti_consumer.plugin.reusable_serializers import (
     ReusableCreateResponseSerializer,
     ReusableDetailSerializer,
     ReusableListSerializer,
+    ReusableUpdateInputSerializer,
 )
 from lti_consumer.reusable import create_reusable_configuration
 
@@ -141,5 +143,112 @@ class ReusableConfigurationDetailView(APIView):
             context={'can_manage': can_manage},
         )
         response = Response(serializer.data)
+        response['Cache-Control'] = 'no-store'
+        return response
+
+    def patch(self, request, config_id):
+        """Update editable metadata and add grants without permitting scope reduction."""
+        try:
+            with transaction.atomic():
+                configuration = get_object_or_404(
+                    _visible_configurations(request.user).select_for_update(),
+                    config_id=config_id,
+                )
+                current_scope = {
+                    'course_keys': [
+                        str(key) for key in configuration.course_grants.values_list('course_key', flat=True)
+                    ],
+                    'organization_keys': list(
+                        configuration.organization_grants.values_list('organization', flat=True)
+                    ),
+                    'site_wide': configuration.site_wide,
+                }
+                if not can_manage_reusable_scope(request.user, current_scope):
+                    return Response(status=status.HTTP_403_FORBIDDEN)
+
+                raw_scope = request.data.get('scope')
+                if isinstance(raw_scope, dict) and (
+                    raw_scope.get('organization_keys') or raw_scope.get('site_wide')
+                ) and not request.user.is_superuser:
+                    return Response(status=status.HTTP_403_FORBIDDEN)
+
+                serializer = ReusableUpdateInputSerializer(
+                    data=request.data,
+                    context={
+                        'configuration': configuration,
+                        'existing_organization_keys': set(current_scope['organization_keys']),
+                    },
+                )
+                serializer.is_valid(raise_exception=True)
+                changes = serializer.validated_data
+                requested_scope = changes.get('scope', {})
+                if (
+                    current_scope['site_wide'] and isinstance(raw_scope, dict) and
+                    raw_scope.get('site_wide') is False
+                ):
+                    raise serializers.ValidationError({'scope': 'Scope reductions are not supported.'})
+
+                proposed_scope = {
+                    'course_keys': list(dict.fromkeys(
+                        current_scope['course_keys'] + requested_scope.get('course_keys', [])
+                    )),
+                    'organization_keys': list(dict.fromkeys(
+                        current_scope['organization_keys'] + requested_scope.get('organization_keys', [])
+                    )),
+                    'site_wide': current_scope['site_wide'] or requested_scope.get('site_wide', False),
+                }
+                if not can_manage_reusable_scope(request.user, proposed_scope):
+                    return Response(status=status.HTTP_403_FORBIDDEN)
+
+                scalar_fields = {
+                    'name': 'name',
+                    'description': 'description',
+                    'launch_url': (
+                        'lti_1p1_launch_url' if configuration.version == ReusableLtiConfiguration.LTI_1P1
+                        else 'lti_1p3_launch_url'
+                    ),
+                    'oidc_url': 'lti_1p3_oidc_url',
+                    'redirect_uris': 'lti_1p3_redirect_uris',
+                }
+                service_fields = {
+                    'deep_linking_enabled': 'lti_advantage_deep_linking_enabled',
+                    'deep_linking_launch_url': 'lti_advantage_deep_linking_launch_url',
+                    'ags_mode': 'lti_advantage_ags_mode',
+                    'nrps_enabled': 'lti_advantage_enable_nrps',
+                }
+                for key, field in scalar_fields.items():
+                    if key in changes:
+                        value = changes[key]
+                        if key == 'description' and value is None:
+                            value = ''
+                        setattr(configuration, field, value)
+                for key, field in service_fields.items():
+                    if key in changes.get('services', {}):
+                        value = changes['services'][key]
+                        if key == 'deep_linking_launch_url' and value is None:
+                            value = ''
+                        setattr(configuration, field, value)
+                for key, value in changes.get('defaults', {}).items():
+                    setattr(configuration, key, value)
+                configuration.site_wide = proposed_scope['site_wide']
+                configuration.save()
+
+                existing_courses = set(current_scope['course_keys'])
+                ReusableLtiConfigurationCourse.objects.bulk_create([
+                    ReusableLtiConfigurationCourse(configuration=configuration, course_key=key)
+                    for key in proposed_scope['course_keys'] if key not in existing_courses
+                ])
+                existing_organizations = set(current_scope['organization_keys'])
+                ReusableLtiConfigurationOrganization.objects.bulk_create([
+                    ReusableLtiConfigurationOrganization(configuration=configuration, organization=key)
+                    for key in proposed_scope['organization_keys'] if key not in existing_organizations
+                ])
+        except IntegrityError:
+            raise serializers.ValidationError('The update conflicts with an existing configuration.') from None
+
+        can_manage = _can_manage(request.user, configuration, {})
+        response = Response(ReusableDetailSerializer(
+            configuration, context={'can_manage': can_manage},
+        ).data)
         response['Cache-Control'] = 'no-store'
         return response
