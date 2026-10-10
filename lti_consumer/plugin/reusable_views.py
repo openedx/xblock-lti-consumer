@@ -1,24 +1,86 @@
 """CMS-only management views for reusable LTI configurations."""
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Exists, OuterRef, Q
 from rest_framework import serializers, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from lti_consumer.models import (
+    ReusableLtiConfiguration,
+    ReusableLtiConfigurationCourse,
+    ReusableLtiConfigurationOrganization,
+)
+from lti_consumer.plugin import compat
 from lti_consumer.plugin.reusable_permissions import can_manage_reusable_scope
 from lti_consumer.plugin.reusable_serializers import (
     ReusableCreateInputSerializer,
     ReusableCreateResponseSerializer,
+    ReusableListSerializer,
 )
 from lti_consumer.reusable import create_reusable_configuration
 
 
-class ReusableConfigurationCreateView(APIView):
-    """Create a reusable configuration after checking authorization for its scope."""
+class ReusableConfigurationPagination(PageNumberPagination):
+    """Bound the cross-course catalog response regardless of deployment defaults."""
+
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class ReusableConfigurationListCreateView(APIView):
+    """List visible configurations and authorize creation against the full scope."""
 
     permission_classes = (IsAuthenticated,)
 
+    def get(self, request):
+        """Paginate safe metadata for configurations visible through Studio scope."""
+        configurations = ReusableLtiConfiguration.objects.all()
+        if not request.user.is_superuser:
+            course_keys = compat.get_studio_accessible_course_keys(request.user)
+            if not course_keys:
+                configurations = configurations.none()
+            else:
+                organization_keys = {key.org.lower() for key in course_keys}
+                # shortcut: Scope equality uses database collation; review exact matching before deployment
+                course_grants = ReusableLtiConfigurationCourse.objects.filter(
+                    configuration_id=OuterRef('pk'), course_key__in=course_keys,
+                )
+                organization_grants = ReusableLtiConfigurationOrganization.objects.filter(
+                    configuration_id=OuterRef('pk'), organization__in=organization_keys,
+                )
+                configurations = configurations.alias(
+                    has_course=Exists(course_grants), has_organization=Exists(organization_grants),
+                ).filter(Q(site_wide=True) | Q(has_course=True) | Q(has_organization=True))
+
+        search = request.query_params.get('search')
+        if search:
+            configurations = configurations.filter(name__icontains=search)
+        version = request.query_params.get('version')
+        if version:
+            configurations = configurations.filter(version=version)
+
+        configurations = configurations.order_by('name', 'pk').prefetch_related(
+            'course_grants', 'organization_grants',
+        )
+        paginator = ReusableConfigurationPagination()
+        page = paginator.paginate_queryset(configurations, request, view=self)
+        course_admin_cache = {}
+
+        def can_manage(configuration):
+            return can_manage_reusable_scope(request.user, {
+                'course_keys': [str(grant.course_key) for grant in configuration.course_grants.all()],
+                'organization_keys': [grant.organization for grant in configuration.organization_grants.all()],
+                'site_wide': configuration.site_wide,
+            }, course_admin_cache=course_admin_cache)
+
+        serializer = ReusableListSerializer(page, many=True, context={'can_manage': can_manage})
+        return paginator.get_paginated_response(serializer.data)
+
     def post(self, request):
+        """Validate and atomically create a complete scope-authorized configuration."""
         raw_scope = request.data.get('scope') if hasattr(request.data, 'get') else None
         # Organization and site-wide scopes are superuser-only; reject before
         # consulting the organization registry for unauthorized callers.
