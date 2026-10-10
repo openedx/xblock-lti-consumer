@@ -180,6 +180,108 @@ class ReusableCreateInputSerializer(StrictSerializer):
         return attrs
 
 
+class ReusableScopeAdditionInputSerializer(StrictSerializer):
+    """Accept only additive grants; omitted fields never imply scope removal."""
+
+    course_keys = serializers.ListField(child=CourseKeyStringField(allow_blank=False), required=False, default=list)
+    organization_keys = serializers.ListField(
+        child=serializers.CharField(allow_blank=False), required=False, default=list
+    )
+    site_wide = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        attrs['course_keys'] = list(dict.fromkeys(key.strip() for key in attrs['course_keys']))
+        attrs['organization_keys'] = list(dict.fromkeys(key.strip().lower() for key in attrs['organization_keys']))
+        if any(not key for key in (*attrs['course_keys'], *attrs['organization_keys'])):
+            raise serializers.ValidationError('Scope grants must be non-empty strings.')
+        existing = self.context.get('existing_organization_keys', set())
+        additions = set(attrs['organization_keys']) - existing
+        if additions:
+            registered = {}
+            for organization in compat.get_active_organizations():
+                short_name = organization.get('short_name')
+                if isinstance(short_name, str):
+                    registered.setdefault(short_name.lower(), set()).add(short_name)
+            if any(len(registered.get(key, ())) != 1 for key in additions):
+                raise serializers.ValidationError({
+                    'organization_keys': ['New grants must match one unambiguous active registered organization.']
+                })
+        return attrs
+
+
+class ReusableServicesPatchSerializer(StrictSerializer):
+    deep_linking_enabled = serializers.BooleanField(required=False)
+    deep_linking_launch_url = HttpUrlField(max_length=225, required=False, allow_blank=True, allow_null=True)
+    ags_mode = serializers.ChoiceField(choices=('disabled', 'declarative', 'programmatic'), required=False)
+    nrps_enabled = serializers.BooleanField(required=False)
+
+
+class ReusableDefaultsPatchSerializer(StrictSerializer):
+    display_name = serializers.CharField(max_length=255, required=False)
+    enable_grading = serializers.BooleanField(required=False)
+    grade_weight = serializers.FloatField(min_value=0, required=False)
+    accept_grades_after_due_date = serializers.BooleanField(required=False)
+    open_tool_in = serializers.ChoiceField(choices=('iframe', 'modal', 'new_window'), required=False)
+    inline_height = serializers.IntegerField(min_value=0, required=False)
+    modal_height = serializers.IntegerField(min_value=0, max_value=100, required=False)
+    modal_width = serializers.IntegerField(min_value=0, max_value=100, required=False)
+    launch_button_text = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    send_extra_parameters = serializers.BooleanField(required=False)
+    custom_parameters = serializers.ListField(child=serializers.CharField(), required=False)
+
+    def validate_grade_weight(self, value):
+        if not isfinite(value):
+            raise serializers.ValidationError('A finite grade weight is required.')
+        return value
+
+    def validate_custom_parameters(self, values):
+        if any('=' not in value or not value.partition('=')[0] for value in values):
+            raise serializers.ValidationError('Custom parameters must use the form key=value.')
+        return values
+
+
+class ReusableUpdateInputSerializer(StrictSerializer):
+    """Validate the editable subset without accepting identity or credential fields."""
+
+    name = serializers.CharField(max_length=255, required=False)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    scope = ReusableScopeAdditionInputSerializer(required=False)
+    launch_url = HttpUrlField(max_length=255, required=False)
+    oidc_url = HttpUrlField(max_length=255, required=False)
+    redirect_uris = serializers.ListField(child=HttpUrlField(), required=False)
+    services = ReusableServicesPatchSerializer(required=False)
+    defaults = ReusableDefaultsPatchSerializer(required=False)
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('A non-empty name is required.')
+        return value
+
+    def validate(self, attrs):
+        configuration = self.context['configuration']
+        if configuration.version == ReusableLtiConfiguration.LTI_1P1 and any(
+            key in attrs for key in ('oidc_url', 'redirect_uris')
+        ):
+            raise serializers.ValidationError('LTI 1.3 settings cannot be changed on an LTI 1.1 configuration.')
+        if configuration.version == ReusableLtiConfiguration.LTI_1P3 and 'redirect_uris' in attrs:
+            if not attrs['redirect_uris']:
+                raise serializers.ValidationError({'redirect_uris': 'At least one redirect URI is required.'})
+
+        services = attrs.get('services', {})
+        deep_linking_enabled = services.get(
+            'deep_linking_enabled', configuration.lti_advantage_deep_linking_enabled,
+        )
+        deep_linking_url = services.get(
+            'deep_linking_launch_url', configuration.lti_advantage_deep_linking_launch_url,
+        )
+        if deep_linking_enabled and not deep_linking_url:
+            raise serializers.ValidationError({
+                'services': {'deep_linking_launch_url': 'Required when Deep Linking is enabled.'}
+            })
+        return attrs
+
+
 class ReusableListSerializer(serializers.Serializer):
     """Allowlisted metadata safe for any user authorized to see a configuration."""
 
