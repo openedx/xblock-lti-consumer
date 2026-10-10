@@ -2,6 +2,9 @@
 from math import isfinite
 from urllib.parse import urlsplit
 
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.locator import CourseLocator
 from rest_framework import serializers
 
 from lti_consumer.models import ReusableLtiConfiguration
@@ -29,8 +32,22 @@ class HttpUrlField(serializers.URLField):
         return value
 
 
+class CourseKeyStringField(serializers.CharField):
+    """Validate a course opaque key and keep the service's string input contract."""
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        try:
+            course_key = CourseKey.from_string(value)
+        except InvalidKeyError as err:
+            raise serializers.ValidationError('Invalid course key.') from err
+        if not isinstance(course_key, CourseLocator):
+            raise serializers.ValidationError('A course key is required; libraries are not supported.')
+        return str(course_key)
+
+
 class ReusableScopeInputSerializer(StrictSerializer):
-    course_keys = serializers.ListField(child=serializers.CharField(allow_blank=False), required=False, default=list)
+    course_keys = serializers.ListField(child=CourseKeyStringField(allow_blank=False), required=False, default=list)
     organization_keys = serializers.ListField(
         child=serializers.CharField(allow_blank=False), required=False, default=list
     )
