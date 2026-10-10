@@ -190,8 +190,10 @@ class ReusableScopeAdditionInputSerializer(StrictSerializer):
     site_wide = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
-        attrs['course_keys'] = list(dict.fromkeys(key.strip() for key in attrs['course_keys']))
-        attrs['organization_keys'] = list(dict.fromkeys(key.strip().lower() for key in attrs['organization_keys']))
+        attrs['course_keys'] = list(dict.fromkeys(key.strip() for key in attrs.get('course_keys', [])))
+        attrs['organization_keys'] = list(dict.fromkeys(
+            key.strip().lower() for key in attrs.get('organization_keys', [])
+        ))
         if any(not key for key in (*attrs['course_keys'], *attrs['organization_keys'])):
             raise serializers.ValidationError('Scope grants must be non-empty strings.')
         existing = self.context.get('existing_organization_keys', set())
@@ -209,37 +211,6 @@ class ReusableScopeAdditionInputSerializer(StrictSerializer):
         return attrs
 
 
-class ReusableServicesPatchSerializer(StrictSerializer):
-    deep_linking_enabled = serializers.BooleanField(required=False)
-    deep_linking_launch_url = HttpUrlField(max_length=225, required=False, allow_blank=True, allow_null=True)
-    ags_mode = serializers.ChoiceField(choices=('disabled', 'declarative', 'programmatic'), required=False)
-    nrps_enabled = serializers.BooleanField(required=False)
-
-
-class ReusableDefaultsPatchSerializer(StrictSerializer):
-    display_name = serializers.CharField(max_length=255, required=False)
-    enable_grading = serializers.BooleanField(required=False)
-    grade_weight = serializers.FloatField(min_value=0, required=False)
-    accept_grades_after_due_date = serializers.BooleanField(required=False)
-    open_tool_in = serializers.ChoiceField(choices=('iframe', 'modal', 'new_window'), required=False)
-    inline_height = serializers.IntegerField(min_value=0, required=False)
-    modal_height = serializers.IntegerField(min_value=0, max_value=100, required=False)
-    modal_width = serializers.IntegerField(min_value=0, max_value=100, required=False)
-    launch_button_text = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    send_extra_parameters = serializers.BooleanField(required=False)
-    custom_parameters = serializers.ListField(child=serializers.CharField(), required=False)
-
-    def validate_grade_weight(self, value):
-        if not isfinite(value):
-            raise serializers.ValidationError('A finite grade weight is required.')
-        return value
-
-    def validate_custom_parameters(self, values):
-        if any('=' not in value or not value.partition('=')[0] for value in values):
-            raise serializers.ValidationError('Custom parameters must use the form key=value.')
-        return values
-
-
 class ReusableUpdateInputSerializer(StrictSerializer):
     """Validate the editable subset without accepting identity or credential fields."""
 
@@ -249,8 +220,8 @@ class ReusableUpdateInputSerializer(StrictSerializer):
     launch_url = HttpUrlField(max_length=255, required=False)
     oidc_url = HttpUrlField(max_length=255, required=False)
     redirect_uris = serializers.ListField(child=HttpUrlField(), required=False)
-    services = ReusableServicesPatchSerializer(required=False)
-    defaults = ReusableDefaultsPatchSerializer(required=False)
+    services = ReusableServicesInputSerializer(required=False)
+    defaults = ReusableDefaultsInputSerializer(required=False)
 
     def validate_name(self, value):
         value = value.strip()
