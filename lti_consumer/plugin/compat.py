@@ -259,6 +259,13 @@ def user_has_studio_write_access(*args, **kwargs):  # pragma: nocover
     return has_studio_write_access(*args, **kwargs)
 
 
+def user_is_course_admin(user, course_key):  # pragma: nocover
+    """Check the platform's course-team Admin/Instructor role for a course."""
+    # pylint: disable=import-error,import-outside-toplevel
+    from common.djangoapps.student.roles import CourseInstructorRole
+    return CourseInstructorRole(course_key).has_user(user)
+
+
 def get_course_by_id(course_key):  # pragma: nocover
     """
     Import and run `get_course_by_id` from LMS
