@@ -3,6 +3,9 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.locator import CourseLocator
 from rest_framework import serializers, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -34,15 +37,18 @@ class ReusableConfigurationPagination(PageNumberPagination):
     max_page_size = 100
 
 
-def _visible_configurations(user):
-    """Return the same catalog visibility set used by list and detail endpoints."""
+def _visible_configurations(user, course_key=None):
+    """Return configurations visible through Studio access, optionally for one course."""
     configurations = ReusableLtiConfiguration.objects.all()
     if user.is_superuser:
-        return configurations
-
-    course_keys = compat.get_studio_accessible_course_keys(user)
-    if not course_keys:
-        return configurations.none()
+        if course_key is None:
+            return configurations
+        course_keys = [course_key]
+    else:
+        accessible_course_keys = compat.get_studio_accessible_course_keys(user)
+        if not accessible_course_keys or (course_key is not None and course_key not in accessible_course_keys):
+            return configurations.none()
+        course_keys = [course_key] if course_key is not None else accessible_course_keys
 
     organization_keys = {key.org.lower() for key in course_keys}
     # shortcut: Scope equality uses database collation; review exact matching before deployment
@@ -72,7 +78,30 @@ class ReusableConfigurationListCreateView(APIView):
 
     def get(self, request):
         """Paginate safe metadata for configurations visible through Studio scope."""
-        configurations = _visible_configurations(request.user)
+        raw_course_key = request.query_params.get('course_key')
+        course_key = None
+        if raw_course_key is not None:
+            try:
+                course_key = CourseKey.from_string(raw_course_key)
+            except InvalidKeyError as err:
+                raise serializers.ValidationError({'course_key': 'Invalid course key.'}) from err
+            if not isinstance(course_key, CourseLocator):
+                raise serializers.ValidationError({'course_key': 'A course key is required.'})
+        configurations = _visible_configurations(request.user, course_key=course_key)
+
+        scope = request.query_params.get('scope')
+        if scope not in (None, 'course', 'organization', 'site_wide'):
+            raise serializers.ValidationError({'scope': 'Use course, organization, or site_wide.'})
+        if scope == 'course':
+            configurations = configurations.filter(Exists(
+                ReusableLtiConfigurationCourse.objects.filter(configuration_id=OuterRef('pk'))
+            ))
+        elif scope == 'organization':
+            configurations = configurations.filter(Exists(
+                ReusableLtiConfigurationOrganization.objects.filter(configuration_id=OuterRef('pk'))
+            ))
+        elif scope == 'site_wide':
+            configurations = configurations.filter(site_wide=True)
 
         search = request.query_params.get('search')
         if search:

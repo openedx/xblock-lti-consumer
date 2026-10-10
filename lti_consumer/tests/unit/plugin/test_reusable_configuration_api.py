@@ -397,6 +397,51 @@ class ReusableConfigurationListApiTests(TestCase):
         response = self.client.get(self.url, {'version': 'lti_1p3'})
         self.assertEqual(response.data['results'], [])
 
+    def test_course_filter_narrows_visibility_and_does_not_widen_user_access(self):
+        second_course = CourseKey.from_string('course-v1:Second+Course+Run')
+        self.course_access.return_value = [self.course_key, second_course]
+        self.create('Selected', course_keys=[str(self.course_key)])
+        self.create('Other course', course_keys=[str(second_course)])
+        self.create('Organization', organization_keys=['org'])
+        self.create('Site', site_wide=True)
+
+        response = self.client.get(self.url, {'course_key': str(self.course_key)})
+        inaccessible = self.client.get(self.url, {'course_key': str(self.other_key)})
+
+        self.assertEqual([row['name'] for row in response.data['results']], ['Organization', 'Selected', 'Site'])
+        self.assertEqual(inaccessible.data['count'], 0)
+        self.assertEqual(inaccessible.data['results'], [])
+
+    def test_scope_filter_matches_grant_type_without_widening_visibility(self):
+        self.create('Course', course_keys=[str(self.course_key)])
+        self.create('Organization', organization_keys=['org'])
+        self.create('Site', site_wide=True)
+        self.create('Mixed', course_keys=[str(self.course_key)], organization_keys=['org'])
+
+        organization = self.client.get(self.url, {'scope': 'organization'})
+        site_wide = self.client.get(self.url, {'scope': 'site_wide'})
+        invalid = self.client.get(self.url, {'scope': 'unknown'})
+
+        self.assertEqual([row['name'] for row in organization.data['results']], ['Mixed', 'Organization'])
+        self.assertEqual([row['name'] for row in site_wide.data['results']], ['Site'])
+        self.assertEqual(invalid.status_code, 400)
+
+    def test_superuser_course_filter_does_not_enumerate_courses(self):
+        self.user.is_superuser = True
+        self.user.save()
+        self.create('Selected', course_keys=[str(self.course_key)])
+        self.create('Other', course_keys=[str(self.other_key)])
+
+        response = self.client.get(self.url, {'course_key': str(self.other_key)})
+
+        self.assertEqual([row['name'] for row in response.data['results']], ['Other'])
+        self.course_access.assert_not_called()
+
+    def test_invalid_course_filter_is_rejected(self):
+        response = self.client.get(self.url, {'course_key': 'not-a-course'})
+        self.assertEqual(response.status_code, 400)
+        self.course_access.assert_not_called()
+
     def test_pagination_is_stable_without_duplicate_join_rows(self):
         self.create('Alpha', course_keys=[str(self.course_key)], organization_keys=['org'], site_wide=True)
         self.create('Beta', course_keys=[str(self.course_key)])
