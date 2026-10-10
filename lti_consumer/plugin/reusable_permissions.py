@@ -6,13 +6,14 @@ from opaque_keys.edx.locator import CourseLocator
 from lti_consumer.plugin import compat
 
 
-def can_manage_reusable_scope(user, scope):
-    """Return whether ``user`` may create a configuration with this initial scope.
+def can_manage_reusable_scope(user, scope, *, course_admin_cache=None):
+    """Return whether ``user`` may manage a configuration with this scope.
 
     Course admins must administer every explicitly scoped course. Organization
     and site-wide scopes are superuser-only. Library scope remains unavailable
     at the management boundary until its authorization/availability policy is
     defined, although the lower-level serializer and storage can parse it.
+    ``course_admin_cache`` is shared only within a single user's request.
     """
     if not getattr(user, 'is_authenticated', False) or not isinstance(scope, dict):
         return False
@@ -36,4 +37,11 @@ def can_manage_reusable_scope(user, scope):
         return False
     if user.is_superuser:
         return True
-    return all(compat.user_is_course_admin(user, key) for key in parsed_course_keys)
+    if course_admin_cache is None:
+        course_admin_cache = {}
+    for key in parsed_course_keys:
+        if key not in course_admin_cache:
+            course_admin_cache[key] = compat.user_is_course_admin(user, key)
+        if not course_admin_cache[key]:
+            return False
+    return True
