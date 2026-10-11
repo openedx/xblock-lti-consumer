@@ -16,6 +16,9 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+* Omit the LTI 1.3 ``resource_link`` claim from Deep Linking request
+  launches, per the IMS Deep Linking 2.0 specification.
+
 11.4.2 - 2026-09-10
 --------------------
 * Publish AGS scores with a ``scoreGiven`` of ``0`` to the LMS gradebook. The
