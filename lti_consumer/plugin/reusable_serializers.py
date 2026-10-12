@@ -90,7 +90,7 @@ class ReusableLti13InputSerializer(StrictSerializer):
     redirect_uris = serializers.ListField(child=HttpUrlField(), required=False, default=list)
     tool_key_mode = serializers.ChoiceField(choices=('public_key', 'keyset_url'))
     tool_public_key = serializers.CharField(required=False, allow_blank=False)
-    tool_keyset_url = HttpUrlField(required=False)
+    tool_keyset_url = HttpUrlField(max_length=500, required=False)
     client_id = serializers.CharField(max_length=255, required=False, allow_blank=False)
     deployment_id = serializers.CharField(max_length=255, required=False, allow_blank=False)
 
@@ -229,7 +229,7 @@ class ReusableLti13UpdateInputSerializer(StrictSerializer):
     redirect_uris = serializers.ListField(child=HttpUrlField(), required=False)
     tool_key_mode = serializers.ChoiceField(choices=('public_key', 'keyset_url'), required=False)
     tool_public_key = serializers.CharField(required=False, allow_blank=False)
-    tool_keyset_url = HttpUrlField(max_length=255, required=False)
+    tool_keyset_url = HttpUrlField(max_length=500, required=False)
 
 
 class ReusableUpdateInputSerializer(StrictSerializer):

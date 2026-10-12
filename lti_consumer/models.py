@@ -87,7 +87,7 @@ class Lti1p3Passport(models.Model):
 
     lti_1p3_tool_keyset_url = models.CharField(
         "LTI 1.3 Tool Keyset URL",
-        max_length=255,
+        max_length=500,
         blank=True,
         help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
                   'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'

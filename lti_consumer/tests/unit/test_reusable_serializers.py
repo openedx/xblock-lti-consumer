@@ -92,6 +92,20 @@ class ReusableCreateInputSerializerTests(TestCase):
         payload['lti_1p3']['tool_public_key'] = '-----BEGIN PUBLIC KEY-----\nkey'
         self.assertTrue(ReusableCreateInputSerializer(data=payload).is_valid())
 
+    def test_keyset_url_limit_is_500_characters(self):
+        prefix = 'https://tool.example/'
+        accepted_url = prefix + 'k' * (300 - len(prefix))
+        rejected_url = prefix + 'k' * (501 - len(prefix))
+        payload = self.lti13_payload()
+        payload['lti_1p3']['tool_keyset_url'] = accepted_url
+
+        serializer = ReusableCreateInputSerializer(data=payload)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['lti_1p3']['tool_keyset_url'], accepted_url)
+
+        payload['lti_1p3']['tool_keyset_url'] = rejected_url
+        self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
+
     def test_course_keys_are_parsed_and_library_keys_are_preserved(self):
         serializer = ReusableCreateInputSerializer(data=self.lti11_payload())
         self.assertTrue(serializer.is_valid(), serializer.errors)
@@ -234,6 +248,18 @@ class ReusableUpdateInputSerializerTests(TestCase):
         }})
         self.assertTrue(valid, serializer.errors)
         self.assertEqual(serializer.validated_data['lti_1p3']['tool_keyset_url'], 'https://new.example/jwks')
+
+        prefix = 'https://tool.example/'
+        accepted_url = prefix + 'k' * (300 - len(prefix))
+        rejected_url = prefix + 'k' * (501 - len(prefix))
+        valid, serializer = self.validate_patch({'lti_1p3': {
+            'tool_key_mode': 'keyset_url', 'tool_keyset_url': accepted_url,
+        }})
+        self.assertTrue(valid, serializer.errors)
+        self.assertEqual(serializer.validated_data['lti_1p3']['tool_keyset_url'], accepted_url)
+        self.assertFalse(self.validate_patch({'lti_1p3': {
+            'tool_key_mode': 'keyset_url', 'tool_keyset_url': rejected_url,
+        }})[0])
 
     def test_invalid_stored_urls_and_redirects_fail_resulting_state_validation(self):
         self.configuration.lti_1p3_launch_url = 'javascript:bad'
