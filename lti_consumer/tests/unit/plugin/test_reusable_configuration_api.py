@@ -4,12 +4,13 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 from opaque_keys.edx.keys import CourseKey
 from rest_framework.test import APIClient
 
-from lti_consumer.models import ReusableLtiConfiguration
+from lti_consumer.models import ReusableLtiConfiguration, ReusableLtiConfigurationCourse
 from lti_consumer.reusable import create_reusable_configuration
 
 
@@ -363,6 +364,30 @@ class ReusableConfigurationListApiTests(TestCase):
         )
         self.assertEqual(configuration.course_grants.count(), 2)
         self.assertEqual(self.client.patch(detail_url, {'scope': {'course_keys': []}}, format='json').status_code, 200)
+
+    def test_patch_rolls_back_metadata_when_scope_grant_insert_fails(self):
+        configuration = self.create('Atomic update', course_keys=[str(self.course_key)])
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+        updated_at = configuration.updated_at
+
+        with patch.object(
+            ReusableLtiConfigurationCourse.objects, 'bulk_create',
+            side_effect=IntegrityError('injected grant failure'),
+        ):
+            response = self.client.patch(detail_url, {
+                'name': 'Must roll back', 'scope': {'course_keys': [str(self.other_key)]},
+            }, format='json')
+
+        self.assertEqual(response.status_code, 400, response.data)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'Atomic update')
+        self.assertEqual(configuration.updated_at, updated_at)
+        self.assertEqual(
+            set(configuration.course_grants.values_list('course_key', flat=True)), {self.course_key},
+        )
 
     def test_patch_authorizes_proposed_scope_and_rejects_identity_fields(self):
         configuration = self.create('Protected', course_keys=[str(self.course_key)])
