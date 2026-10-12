@@ -175,25 +175,65 @@ class ReusableUpdateInputSerializerTests(TestCase):
 
     def test_empty_redirects_use_merged_launch_and_deep_link_urls(self):
         valid, serializer = self.validate_patch({
-            'redirect_uris': [], 'launch_url': 'https://tool.example/new-launch',
+            'lti_1p3': {
+                'redirect_uris': [], 'launch_url': 'https://tool.example/new-launch',
+            },
             'services': {'deep_linking_launch_url': 'https://tool.example/deep'},
         })
         self.assertTrue(valid, serializer.errors)
-        self.assertEqual(serializer.validated_data['redirect_uris'], [
+        self.assertEqual(serializer.validated_data['lti_1p3']['redirect_uris'], [
             'https://tool.example/new-launch', 'https://tool.example/deep',
         ])
 
     def test_nonempty_redirects_are_authoritative_and_omission_is_preserved(self):
-        valid, serializer = self.validate_patch({'redirect_uris': ['https://only.example/callback']})
+        valid, serializer = self.validate_patch({
+            'lti_1p3': {'redirect_uris': ['https://only.example/callback']},
+        })
         self.assertTrue(valid, serializer.errors)
-        self.assertEqual(serializer.validated_data['redirect_uris'], ['https://only.example/callback'])
-        valid, serializer = self.validate_patch({'launch_url': 'https://tool.example/new-launch'})
+        self.assertEqual(
+            serializer.validated_data['lti_1p3']['redirect_uris'], ['https://only.example/callback'],
+        )
+        valid, serializer = self.validate_patch({'lti_1p3': {'launch_url': 'https://tool.example/new-launch'}})
         self.assertTrue(valid, serializer.errors)
-        self.assertNotIn('redirect_uris', serializer.validated_data)
+        self.assertNotIn('redirect_uris', serializer.validated_data['lti_1p3'])
         self.configuration.lti_1p3_redirect_uris = []
         valid, serializer = self.validate_patch({'name': 'metadata only'})
         self.assertTrue(valid, serializer.errors)
-        self.assertNotIn('redirect_uris', serializer.validated_data)
+        self.assertNotIn('lti_1p3', serializer.validated_data)
+
+    def test_connection_updates_are_versioned_and_reject_immutable_identity(self):
+        valid, serializer = self.validate_patch({'lti_1p3': {'launch_url': 'https://tool.example/new'}})
+        self.assertTrue(valid, serializer.errors)
+        for payload in (
+            {'launch_url': 'https://tool.example/new'},
+            {'lti_1p1': {'launch_url': 'https://tool.example/new'}},
+            {'lti_1p3': {'client_id': 'replacement'}},
+            {'lti_1p3': {'deployment_id': 'replacement'}},
+        ):
+            with self.subTest(payload=payload):
+                self.assertFalse(self.validate_patch(payload)[0])
+
+    def test_tool_verification_updates_require_matching_safe_key_material(self):
+        public_key = '-----BEGIN PUBLIC KEY-----\\npublic material'
+        valid, serializer = self.validate_patch({'lti_1p3': {
+            'tool_key_mode': 'public_key', 'tool_public_key': public_key,
+        }})
+        self.assertTrue(valid, serializer.errors)
+        self.assertEqual(serializer.validated_data['lti_1p3']['tool_key_mode'], 'public_key')
+
+        for connection in (
+            {'tool_key_mode': 'public_key'},
+            {'tool_key_mode': 'public_key', 'tool_public_key': '-----BEGIN PRIVATE KEY-----\\nprivate'},
+            {'tool_public_key': public_key},
+        ):
+            with self.subTest(connection=connection):
+                self.assertFalse(self.validate_patch({'lti_1p3': connection})[0])
+
+        valid, serializer = self.validate_patch({'lti_1p3': {
+            'tool_key_mode': 'keyset_url', 'tool_keyset_url': 'https://new.example/jwks',
+        }})
+        self.assertTrue(valid, serializer.errors)
+        self.assertEqual(serializer.validated_data['lti_1p3']['tool_keyset_url'], 'https://new.example/jwks')
 
     def test_invalid_stored_urls_and_redirects_fail_resulting_state_validation(self):
         self.configuration.lti_1p3_launch_url = 'javascript:bad'
@@ -230,7 +270,7 @@ class ReusableUpdateInputSerializerTests(TestCase):
             'deep_linking_enabled': False, 'deep_linking_launch_url': '',
         }})
         self.assertTrue(valid, serializer.errors)
-        valid, serializer = self.validate_patch({'launch_url': 'https://tool.example/changed'})
+        valid, serializer = self.validate_patch({'lti_1p3': {'launch_url': 'https://tool.example/changed'}})
         self.assertTrue(valid, serializer.errors)
         self.assertNotIn('services', serializer.validated_data)
 

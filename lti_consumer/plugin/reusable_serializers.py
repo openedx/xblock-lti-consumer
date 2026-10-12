@@ -215,15 +215,31 @@ class ReusableScopeAdditionInputSerializer(StrictSerializer):
         return attrs
 
 
+class ReusableLti11UpdateInputSerializer(StrictSerializer):
+    """Accept editable LTI 1.1 connection settings, but not credentials."""
+
+    launch_url = HttpUrlField(max_length=255, required=False)
+
+
+class ReusableLti13UpdateInputSerializer(StrictSerializer):
+    """Accept editable LTI 1.3 tool settings, but not registration identity."""
+
+    launch_url = HttpUrlField(max_length=255, required=False)
+    oidc_url = HttpUrlField(max_length=255, required=False)
+    redirect_uris = serializers.ListField(child=HttpUrlField(), required=False)
+    tool_key_mode = serializers.ChoiceField(choices=('public_key', 'keyset_url'), required=False)
+    tool_public_key = serializers.CharField(required=False, allow_blank=False)
+    tool_keyset_url = HttpUrlField(max_length=255, required=False)
+
+
 class ReusableUpdateInputSerializer(StrictSerializer):
-    """Validate the editable subset without accepting identity or credential fields."""
+    """Validate editable metadata and versioned settings without identity writes."""
 
     name = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     scope = ReusableScopeAdditionInputSerializer(required=False)
-    launch_url = HttpUrlField(max_length=255, required=False)
-    oidc_url = HttpUrlField(max_length=255, required=False)
-    redirect_uris = serializers.ListField(child=HttpUrlField(), required=False)
+    lti_1p1 = ReusableLti11UpdateInputSerializer(required=False)
+    lti_1p3 = ReusableLti13UpdateInputSerializer(required=False)
     services = ReusableServicesInputSerializer(required=False)
     defaults = ReusableDefaultsInputSerializer(required=False)
 
@@ -236,27 +252,78 @@ class ReusableUpdateInputSerializer(StrictSerializer):
     def validate(self, attrs):
         configuration = self.context['configuration']
         is_lti13 = configuration.version == ReusableLtiConfiguration.LTI_1P3
-        if not is_lti13 and any(key in attrs for key in ('oidc_url', 'redirect_uris')):
-            raise serializers.ValidationError('LTI 1.3 settings cannot be changed on an LTI 1.1 configuration.')
+        connection_name = 'lti_1p3' if is_lti13 else 'lti_1p1'
+        other_connection_name = 'lti_1p1' if is_lti13 else 'lti_1p3'
+        if other_connection_name in attrs:
+            raise serializers.ValidationError({
+                other_connection_name: 'Connection settings must match the configuration version.'
+            })
 
+        connection = attrs.get(connection_name, {})
+        connection_fields = self.fields[connection_name].fields
         launch_field = 'lti_1p3_launch_url' if is_lti13 else 'lti_1p1_launch_url'
-        launch_url = self.fields['launch_url'].run_validation(
-            attrs.get('launch_url', getattr(configuration, launch_field))
+        launch_url = connection_fields['launch_url'].run_validation(
+            connection.get('launch_url', getattr(configuration, launch_field))
         )
         if is_lti13:
-            self.fields['oidc_url'].run_validation(attrs.get('oidc_url', configuration.lti_1p3_oidc_url))
-            redirects = attrs.get('redirect_uris', configuration.lti_1p3_redirect_uris)
+            try:
+                connection_fields['oidc_url'].run_validation(
+                    connection.get('oidc_url', configuration.lti_1p3_oidc_url)
+                )
+            except serializers.ValidationError as err:
+                raise serializers.ValidationError({connection_name: {'oidc_url': err.detail}}) from err
+
+            redirects = connection.get('redirect_uris', configuration.lti_1p3_redirect_uris)
             redirects = choose_lti_1p3_redirect_uris(
                 redirects, launch_url, attrs.get('services', {}).get(
                     'deep_linking_launch_url', configuration.lti_advantage_deep_linking_launch_url,
                 )
             )
             try:
-                redirects = self.fields['redirect_uris'].run_validation(redirects)
+                redirects = connection_fields['redirect_uris'].run_validation(redirects)
             except serializers.ValidationError as err:
-                raise serializers.ValidationError({'redirect_uris': err.detail}) from err
-            if 'redirect_uris' in attrs:
-                attrs['redirect_uris'] = redirects
+                raise serializers.ValidationError({connection_name: {'redirect_uris': err.detail}}) from err
+            if 'redirect_uris' in connection:
+                connection['redirect_uris'] = redirects
+
+            passport = configuration.lti_1p3_passport
+            try:
+                mode = connection_fields['tool_key_mode'].run_validation(
+                    connection.get('tool_key_mode', configuration.lti_1p3_tool_key_mode)
+                )
+            except serializers.ValidationError as err:
+                raise serializers.ValidationError({connection_name: {'tool_key_mode': err.detail}}) from err
+
+            if mode == 'public_key':
+                if 'tool_keyset_url' in connection:
+                    raise serializers.ValidationError({
+                        connection_name: {'tool_keyset_url': 'Not accepted in public-key mode.'}
+                    })
+                try:
+                    public_key = connection_fields['tool_public_key'].run_validation(
+                        connection.get('tool_public_key', passport.lti_1p3_tool_public_key)
+                    )
+                except serializers.ValidationError as err:
+                    raise serializers.ValidationError({connection_name: {'tool_public_key': err.detail}}) from err
+                if not public_key.strip() or 'PRIVATE KEY' in public_key:
+                    raise serializers.ValidationError({
+                        connection_name: {'tool_public_key': 'A public key is required; private keys are not accepted.'}
+                    })
+            else:
+                if 'tool_public_key' in connection:
+                    raise serializers.ValidationError({
+                        connection_name: {'tool_public_key': 'Not accepted in keyset URL mode.'}
+                    })
+                try:
+                    tool_keyset_url = connection_fields['tool_keyset_url'].run_validation(
+                        connection.get('tool_keyset_url', passport.lti_1p3_tool_keyset_url)
+                    )
+                except serializers.ValidationError as err:
+                    raise serializers.ValidationError({connection_name: {'tool_keyset_url': err.detail}}) from err
+                if not tool_keyset_url:
+                    raise serializers.ValidationError({
+                        connection_name: {'tool_keyset_url': 'Required in keyset URL mode.'}
+                    })
 
         services = {
             'deep_linking_enabled': configuration.lti_advantage_deep_linking_enabled,
