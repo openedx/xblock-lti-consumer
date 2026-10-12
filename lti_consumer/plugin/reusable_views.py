@@ -1,7 +1,8 @@
 """CMS-only management views for reusable LTI configurations."""
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import BinaryField, Exists, OuterRef, Q
+from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
@@ -37,6 +38,14 @@ class ReusableConfigurationPagination(PageNumberPagination):
     max_page_size = 100
 
 
+class _ExactTextCast(Cast):  # pylint: disable=abstract-method
+    """Cast text to bytes so database collation cannot broaden scope equality."""
+
+    def as_mysql(self, compiler, connection, **extra_context):
+        # MySQL accepts BINARY here; Django's BinaryField cast type (LONGBLOB) is invalid in CAST().
+        return self.as_sql(compiler, connection, template='CAST(%(expressions)s AS BINARY)', **extra_context)
+
+
 def _visible_configurations(user, course_key=None):
     """Return configurations visible through Studio access, optionally for one course."""
     configurations = ReusableLtiConfiguration.objects.all()
@@ -51,12 +60,17 @@ def _visible_configurations(user, course_key=None):
         course_keys = [course_key] if course_key is not None else accessible_course_keys
 
     organization_keys = {key.org.lower() for key in course_keys}
-    # shortcut: Scope equality uses database collation; review exact matching before deployment
-    course_grants = ReusableLtiConfigurationCourse.objects.filter(
-        configuration_id=OuterRef('pk'), course_key__in=course_keys,
+    course_grants = ReusableLtiConfigurationCourse.objects.alias(
+        exact_course_key=_ExactTextCast('course_key', output_field=BinaryField()),
+    ).filter(
+        configuration_id=OuterRef('pk'),
+        exact_course_key__in=[str(key).encode('utf-8') for key in course_keys],
     )
-    organization_grants = ReusableLtiConfigurationOrganization.objects.filter(
-        configuration_id=OuterRef('pk'), organization__in=organization_keys,
+    organization_grants = ReusableLtiConfigurationOrganization.objects.alias(
+        exact_organization=_ExactTextCast('organization', output_field=BinaryField()),
+    ).filter(
+        configuration_id=OuterRef('pk'),
+        exact_organization__in=[key.encode('utf-8') for key in organization_keys],
     )
     return configurations.alias(
         has_course=Exists(course_grants), has_organization=Exists(organization_grants),

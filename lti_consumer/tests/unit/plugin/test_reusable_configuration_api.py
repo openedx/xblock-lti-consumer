@@ -179,6 +179,45 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertNotIn(str(self.other_key), response.content.decode())
         self.course_access.assert_called_once_with(self.user)
 
+    def test_near_match_scope_identifiers_do_not_leak_catalog_access(self):
+        case_variant_key = CourseKey.from_string('course-v1:org+Course+Run')
+        accent_variant_key = CourseKey.from_string('course-v1:cafe+Course+Run')
+        self.course_access.return_value = [case_variant_key, accent_variant_key]
+
+        case_mismatch = self.create('Case mismatch', course_keys=[str(self.course_key)])
+        exact_course = self.create('Exact course', course_keys=[str(case_variant_key)])
+        accent_mismatch = self.create('Accent mismatch', organization_keys=['café'])
+        exact_organization = self.create('Exact organization', organization_keys=['cafe'])
+        padded_organization = self.create('Padded organization', organization_keys=['org '])
+
+        response = self.client.get(self.url)
+        self.assertEqual(
+            [row['name'] for row in response.data['results']],
+            ['Exact course', 'Exact organization'],
+        )
+        for configuration in (case_mismatch, accent_mismatch, padded_organization):
+            detail_url = reverse(
+                'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+            )
+            with self.subTest(name=configuration.name):
+                self.assertEqual(self.client.get(detail_url).status_code, 404)
+                self.assertEqual(
+                    self.client.patch(detail_url, {'description': 'hidden'}, format='json').status_code,
+                    404,
+                )
+
+        self.assertEqual(self.client.get(reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': exact_course.config_id},
+        )).status_code, 200)
+        self.assertEqual(self.client.get(reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': exact_organization.config_id},
+        )).status_code, 200)
+        self.course_admin.return_value = True
+        self.assertEqual(self.client.patch(
+            reverse('reusable_lti:reusable_configuration_detail', kwargs={'config_id': exact_course.config_id}),
+            {'description': 'visible'}, format='json',
+        ).status_code, 200)
+
     def test_no_studio_access_returns_no_records_even_for_site_scope(self):
         self.create('Site', site_wide=True)
         self.course_access.return_value = []
