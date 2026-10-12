@@ -440,11 +440,14 @@ class ReusableConfigurationListApiTests(TestCase):
         )
 
         response = self.client.patch(detail_url, {
-            'scope': {'organization_keys': ['inactive-org', 'NEW-ORG']},
+            'scope': {'organization_keys': ['NEW-ORG']},
         }, format='json')
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['scope']['organization_keys'], ['inactive-org', 'new-org'])
+        empty = self.client.patch(detail_url, {'scope': {'organization_keys': []}}, format='json')
+        self.assertEqual(empty.status_code, 200, empty.data)
+        self.assertEqual(empty.data['scope']['organization_keys'], ['inactive-org', 'new-org'])
         get_organizations.assert_called_once_with()
 
     def test_patch_requires_valid_deep_link_url_and_cannot_reduce_site_scope(self):
