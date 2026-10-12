@@ -45,6 +45,7 @@ class ReusableConfigurationCreateApiTests(TestCase):
     def test_lti13_create_returns_registration_identity_without_credentials(self):
         client = APIClient()
         client.force_authenticate(self.user)
+        keyset_url = 'https://tool.example/' + 'k' * 280
         payload = {
             'name': 'API-created LTI 1.3 tool',
             'version': 'lti_1p3',
@@ -53,7 +54,7 @@ class ReusableConfigurationCreateApiTests(TestCase):
                 'launch_url': 'https://tool.example/launch',
                 'oidc_url': 'https://tool.example/oidc',
                 'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/jwks',
+                'tool_keyset_url': keyset_url,
             },
         }
         with patch('lti_consumer.plugin.reusable_views.can_manage_reusable_scope', return_value=True):
@@ -64,6 +65,8 @@ class ReusableConfigurationCreateApiTests(TestCase):
         self.assertTrue(response.data['deployment_id'])
         self.assertNotIn('one_time_credentials', response.data)
         self.assertNotIn('lti_1p3_private_key', response.data)
+        configuration = ReusableLtiConfiguration.objects.get()
+        self.assertEqual(configuration.lti_1p3_passport.lti_1p3_tool_keyset_url, keyset_url)
         self.assertEqual(response['Cache-Control'], 'no-store')
 
     def test_unauthenticated_and_unauthorized_requests_do_not_create(self):
