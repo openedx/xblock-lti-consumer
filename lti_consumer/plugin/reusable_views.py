@@ -227,16 +227,20 @@ class ReusableConfigurationDetailView(APIView):
                 if not can_manage_reusable_scope(request.user, proposed_scope):
                     return Response(status=status.HTTP_403_FORBIDDEN)
 
-                scalar_fields = {
-                    'name': 'name',
-                    'description': 'description',
-                    'launch_url': (
-                        'lti_1p1_launch_url' if configuration.version == ReusableLtiConfiguration.LTI_1P1
-                        else 'lti_1p3_launch_url'
-                    ),
-                    'oidc_url': 'lti_1p3_oidc_url',
-                    'redirect_uris': 'lti_1p3_redirect_uris',
-                }
+                scalar_fields = {'name': 'name', 'description': 'description'}
+                if configuration.version == ReusableLtiConfiguration.LTI_1P1:
+                    connection_changes = changes.get('lti_1p1', {})
+                    connection_fields = {'launch_url': 'lti_1p1_launch_url'}
+                else:
+                    connection_changes = changes.get('lti_1p3', {})
+                    connection_fields = {
+                        'launch_url': 'lti_1p3_launch_url',
+                        'oidc_url': 'lti_1p3_oidc_url',
+                        'redirect_uris': 'lti_1p3_redirect_uris',
+                    }
+                    if 'tool_key_mode' in connection_changes:
+                        configuration.lti_1p3_tool_key_mode = connection_changes['tool_key_mode']
+                scalar_fields.update(connection_fields)
                 service_fields = {
                     'deep_linking_enabled': 'lti_advantage_deep_linking_enabled',
                     'deep_linking_launch_url': 'lti_advantage_deep_linking_launch_url',
@@ -244,8 +248,9 @@ class ReusableConfigurationDetailView(APIView):
                     'nrps_enabled': 'lti_advantage_enable_nrps',
                 }
                 for key, field in scalar_fields.items():
-                    if key in changes:
-                        value = changes[key]
+                    values = connection_changes if key in connection_fields else changes
+                    if key in values:
+                        value = values[key]
                         if key == 'description' and value is None:
                             value = ''
                         setattr(configuration, field, value)
@@ -259,6 +264,23 @@ class ReusableConfigurationDetailView(APIView):
                     setattr(configuration, key, value)
                 configuration.site_wide = proposed_scope['site_wide']
                 configuration.save()
+
+                if configuration.version == ReusableLtiConfiguration.LTI_1P3 and any(
+                    key in connection_changes for key in ('tool_key_mode', 'tool_public_key', 'tool_keyset_url')
+                ):
+                    passport = configuration.lti_1p3_passport
+                    mode = connection_changes.get('tool_key_mode', configuration.lti_1p3_tool_key_mode)
+                    if mode == 'public_key':
+                        passport.lti_1p3_tool_public_key = connection_changes.get(
+                            'tool_public_key', passport.lti_1p3_tool_public_key,
+                        )
+                        passport.lti_1p3_tool_keyset_url = ''
+                    else:
+                        passport.lti_1p3_tool_public_key = ''
+                        passport.lti_1p3_tool_keyset_url = connection_changes.get(
+                            'tool_keyset_url', passport.lti_1p3_tool_keyset_url,
+                        )
+                    passport.save(update_fields=['lti_1p3_tool_public_key', 'lti_1p3_tool_keyset_url'])
 
                 existing_courses = set(current_scope['course_keys'])
                 ReusableLtiConfigurationCourse.objects.bulk_create([

@@ -257,7 +257,7 @@ class ReusableConfigurationListApiTests(TestCase):
         response = self.client.patch(detail_url, {
             'name': 'After',
             'description': 'Updated description',
-            'launch_url': 'https://tool.example/new-launch',
+            'lti_1p1': {'launch_url': 'https://tool.example/new-launch'},
             'services': {'nrps_enabled': True},
             'defaults': {'display_name': 'Updated display'},
         }, format='json')
@@ -274,6 +274,12 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(configuration.lti_1p1_client_secret, client_secret)
         self.assertNotIn(client_secret, response.content.decode())
         self.assertEqual(response['Cache-Control'], 'no-store')
+        invalid = self.client.patch(detail_url, {
+            'lti_1p1': {'client_secret': 'replacement-secret'},
+        }, format='json')
+        self.assertEqual(invalid.status_code, 400)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.lti_1p1_client_secret, client_secret)
 
     def test_lti13_patch_persists_effective_empty_redirect_fallback_and_preserves_omitted_settings(self):
         configuration = create_reusable_configuration({
@@ -296,7 +302,7 @@ class ReusableConfigurationListApiTests(TestCase):
         )
 
         omitted = self.client.patch(detail_url, {
-            'launch_url': 'https://tool.example/new-launch',
+            'lti_1p3': {'launch_url': 'https://tool.example/new-launch'},
             'services': {'nrps_enabled': True},
             'defaults': {'display_name': 'Updated'},
         }, format='json')
@@ -307,7 +313,7 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(configuration.custom_parameters, ['keep=this'])
         self.assertEqual(configuration.display_name, 'Updated')
 
-        fallback = self.client.patch(detail_url, {'redirect_uris': []}, format='json')
+        fallback = self.client.patch(detail_url, {'lti_1p3': {'redirect_uris': []}}, format='json')
         self.assertEqual(fallback.status_code, 200, fallback.data)
         configuration.refresh_from_db()
         self.assertEqual(configuration.lti_1p3_redirect_uris, [
@@ -329,7 +335,7 @@ class ReusableConfigurationListApiTests(TestCase):
 
         response = self.client.patch(detail_url, {
             'name': 'Must not persist',
-            'launch_url': 'https://tool.example/new-launch',
+            'lti_1p1': {'launch_url': 'https://tool.example/new-launch'},
             'services': {'nrps_enabled': True},
             'defaults': {'display_name': 'Must not persist'},
             'scope': {'course_keys': [str(self.other_key)]},
@@ -620,9 +626,11 @@ class ReusableConfigurationListApiTests(TestCase):
         with patch('lti_consumer.models.Lti1p3Passport.generate_lti_1p3_keys_if_missing') as generate_keys:
             response = self.client.patch(detail_url, {
                 'name': 'Updated LTI 1.3',
-                'launch_url': 'https://tool.example/new-launch',
-                'oidc_url': 'https://tool.example/new-oidc',
-                'redirect_uris': ['https://tool.example/redirect'],
+                'lti_1p3': {
+                    'launch_url': 'https://tool.example/new-launch',
+                    'oidc_url': 'https://tool.example/new-oidc',
+                    'redirect_uris': ['https://tool.example/redirect'],
+                },
                 'services': {'nrps_enabled': True},
                 'defaults': {'display_name': 'Updated display'},
             }, format='json')
@@ -656,6 +664,12 @@ class ReusableConfigurationListApiTests(TestCase):
             with self.subTest(field=field):
                 invalid = self.client.patch(detail_url, {'name': 'Rejected edit', field: value}, format='json')
                 self.assertEqual(invalid.status_code, 400)
+        for field in ('client_id', 'deployment_id'):
+            with self.subTest(nested_identity_field=field):
+                invalid = self.client.patch(detail_url, {
+                    'name': 'Rejected edit', 'lti_1p3': {field: 'replacement'},
+                }, format='json')
+                self.assertEqual(invalid.status_code, 400)
         configuration.refresh_from_db()
         passport.refresh_from_db()
         self.assertEqual(configuration.name, 'Updated LTI 1.3')
@@ -666,6 +680,119 @@ class ReusableConfigurationListApiTests(TestCase):
             field for field, value in passport_state.items() if getattr(passport, field) != value
         ], [])
         self.assertEqual(configuration.lti_1p3_client_id, passport.lti_1p3_client_id)
+
+    def test_patch_updates_tool_verification_settings_without_exposing_key_material(self):
+        configuration = create_reusable_configuration({
+            'name': 'Editable tool key',
+            'version': 'lti_1p3',
+            'scope': {'course_keys': [str(self.course_key)]},
+            'lti_1p3': {
+                'launch_url': 'https://tool.example/launch',
+                'oidc_url': 'https://tool.example/oidc',
+                'tool_key_mode': 'keyset_url',
+                'tool_keyset_url': 'https://tool.example/original-jwks',
+            },
+        }).configuration
+        passport = configuration.lti_1p3_passport
+        immutable_identity = {
+            'config_id': configuration.config_id,
+            'client_id': configuration.lti_1p3_client_id,
+            'deployment_id': configuration.lti_1p3_deployment_id,
+            'passport_id': passport.passport_id,
+            'passport_client_id': passport.lti_1p3_client_id,
+            'private_key': passport.lti_1p3_internal_private_key,
+            'private_key_id': passport.lti_1p3_internal_private_key_id,
+            'public_jwk': passport.lti_1p3_internal_public_jwk,
+        }
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+        public_key = '-----BEGIN PUBLIC KEY-----\\nreplacement-tool-key'
+
+        public_response = self.client.patch(detail_url, {'lti_1p3': {
+            'tool_key_mode': 'public_key', 'tool_public_key': public_key,
+        }}, format='json')
+        self.assertEqual(public_response.status_code, 200, public_response.data)
+        self.assertEqual(public_response.data['tool_key_mode'], 'public_key')
+        self.assertNotIn('replacement-tool-key', public_response.content.decode())
+        configuration.refresh_from_db()
+        passport.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_tool_key_mode, 'public_key')
+        self.assertEqual(passport.lti_1p3_tool_public_key, public_key)
+        self.assertEqual(passport.lti_1p3_tool_keyset_url, '')
+
+        keyset_url = 'https://tool.example/updated-jwks'
+        keyset_response = self.client.patch(detail_url, {'lti_1p3': {
+            'tool_key_mode': 'keyset_url', 'tool_keyset_url': keyset_url,
+        }}, format='json')
+        self.assertEqual(keyset_response.status_code, 200, keyset_response.data)
+        self.assertEqual(keyset_response.data['tool_key_mode'], 'keyset_url')
+        self.assertNotIn(keyset_url, keyset_response.content.decode())
+        configuration.refresh_from_db()
+        passport.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_tool_key_mode, 'keyset_url')
+        self.assertEqual(passport.lti_1p3_tool_public_key, '')
+        self.assertEqual(passport.lti_1p3_tool_keyset_url, keyset_url)
+
+        invalid = self.client.patch(detail_url, {'lti_1p3': {'tool_key_mode': 'public_key'}}, format='json')
+        self.assertEqual(invalid.status_code, 400)
+        configuration.refresh_from_db()
+        passport.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_tool_key_mode, 'keyset_url')
+        self.assertEqual(passport.lti_1p3_tool_keyset_url, keyset_url)
+        self.assertEqual(configuration.config_id, immutable_identity['config_id'])
+        self.assertEqual(configuration.lti_1p3_client_id, immutable_identity['client_id'])
+        self.assertEqual(configuration.lti_1p3_deployment_id, immutable_identity['deployment_id'])
+        self.assertEqual(passport.passport_id, immutable_identity['passport_id'])
+        self.assertEqual(passport.lti_1p3_client_id, immutable_identity['passport_client_id'])
+        self.assertEqual(passport.lti_1p3_internal_private_key, immutable_identity['private_key'])
+        self.assertEqual(passport.lti_1p3_internal_private_key_id, immutable_identity['private_key_id'])
+        self.assertEqual(passport.lti_1p3_internal_public_jwk, immutable_identity['public_jwk'])
+
+    def test_patch_rolls_back_tool_key_updates_when_grant_insert_fails(self):
+        configuration = create_reusable_configuration({
+            'name': 'Atomic tool-key update',
+            'version': 'lti_1p3',
+            'scope': {'course_keys': [str(self.course_key)]},
+            'lti_1p3': {
+                'launch_url': 'https://tool.example/launch',
+                'oidc_url': 'https://tool.example/oidc',
+                'tool_key_mode': 'keyset_url',
+                'tool_keyset_url': 'https://tool.example/original-jwks',
+            },
+        }).configuration
+        passport = configuration.lti_1p3_passport
+        updated_at = configuration.updated_at
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        with patch.object(
+            ReusableLtiConfigurationCourse.objects, 'bulk_create',
+            side_effect=IntegrityError('injected grant failure'),
+        ):
+            response = self.client.patch(detail_url, {
+                'name': 'Must roll back',
+                'scope': {'course_keys': [str(self.other_key)]},
+                'lti_1p3': {
+                    'tool_key_mode': 'public_key',
+                    'tool_public_key': '-----BEGIN PUBLIC KEY-----\\nreplacement',
+                },
+            }, format='json')
+
+        self.assertEqual(response.status_code, 400, response.data)
+        configuration.refresh_from_db()
+        passport.refresh_from_db()
+        self.assertEqual(configuration.name, 'Atomic tool-key update')
+        self.assertEqual(configuration.updated_at, updated_at)
+        self.assertEqual(configuration.lti_1p3_tool_key_mode, 'keyset_url')
+        self.assertEqual(passport.lti_1p3_tool_public_key, '')
+        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'https://tool.example/original-jwks')
+        self.assertEqual(
+            set(configuration.course_grants.values_list('course_key', flat=True)), {self.course_key},
+        )
 
     def test_can_manage_requires_admin_of_every_explicit_course(self):
         self.create('Managed', course_keys=[str(self.course_key)])
