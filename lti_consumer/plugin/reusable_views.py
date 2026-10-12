@@ -195,7 +195,7 @@ class ReusableConfigurationDetailView(APIView):
                 if not can_manage_reusable_scope(request.user, current_scope):
                     return Response(status=status.HTTP_403_FORBIDDEN)
 
-                raw_scope = request.data.get('scope')
+                raw_scope = request.data.get('scope') if isinstance(request.data, dict) else None
                 if isinstance(raw_scope, dict) and (
                     raw_scope.get('organization_keys') or raw_scope.get('site_wide')
                 ) and not request.user.is_superuser:
@@ -212,10 +212,7 @@ class ReusableConfigurationDetailView(APIView):
                 serializer.is_valid(raise_exception=True)
                 changes = serializer.validated_data
                 requested_scope = changes.get('scope', {})
-                if (
-                    current_scope['site_wide'] and isinstance(raw_scope, dict) and
-                    raw_scope.get('site_wide') is False
-                ):
+                if current_scope['site_wide'] and requested_scope.get('site_wide') is False:
                     raise serializers.ValidationError({'scope': 'Scope reductions are not supported.'})
 
                 proposed_scope = {
