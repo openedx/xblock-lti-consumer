@@ -8,7 +8,11 @@ from rest_framework import serializers
 
 from lti_consumer.models import ReusableLtiConfiguration
 from lti_consumer.plugin import compat
-from lti_consumer.utils import get_lti_api_base, get_lti_view_base
+from lti_consumer.utils import (
+    choose_lti_1p3_redirect_uris,
+    get_lti_api_base,
+    get_lti_view_base,
+)
 
 
 class StrictSerializer(serializers.Serializer):
@@ -231,22 +235,41 @@ class ReusableUpdateInputSerializer(StrictSerializer):
 
     def validate(self, attrs):
         configuration = self.context['configuration']
-        if configuration.version == ReusableLtiConfiguration.LTI_1P1 and any(
-            key in attrs for key in ('oidc_url', 'redirect_uris')
-        ):
+        is_lti13 = configuration.version == ReusableLtiConfiguration.LTI_1P3
+        if not is_lti13 and any(key in attrs for key in ('oidc_url', 'redirect_uris')):
             raise serializers.ValidationError('LTI 1.3 settings cannot be changed on an LTI 1.1 configuration.')
-        if configuration.version == ReusableLtiConfiguration.LTI_1P3 and 'redirect_uris' in attrs:
-            if not attrs['redirect_uris']:
-                raise serializers.ValidationError({'redirect_uris': 'At least one redirect URI is required.'})
 
-        services = attrs.get('services', {})
-        deep_linking_enabled = services.get(
-            'deep_linking_enabled', configuration.lti_advantage_deep_linking_enabled,
+        launch_field = 'lti_1p3_launch_url' if is_lti13 else 'lti_1p1_launch_url'
+        launch_url = self.fields['launch_url'].run_validation(
+            attrs.get('launch_url', getattr(configuration, launch_field))
         )
-        deep_linking_url = services.get(
-            'deep_linking_launch_url', configuration.lti_advantage_deep_linking_launch_url,
-        )
-        if deep_linking_enabled and not deep_linking_url:
+        if is_lti13:
+            self.fields['oidc_url'].run_validation(attrs.get('oidc_url', configuration.lti_1p3_oidc_url))
+            redirects = attrs.get('redirect_uris', configuration.lti_1p3_redirect_uris)
+            redirects = choose_lti_1p3_redirect_uris(
+                redirects, launch_url, attrs.get('services', {}).get(
+                    'deep_linking_launch_url', configuration.lti_advantage_deep_linking_launch_url,
+                )
+            )
+            try:
+                redirects = self.fields['redirect_uris'].run_validation(redirects)
+            except serializers.ValidationError as err:
+                raise serializers.ValidationError({'redirect_uris': err.detail}) from err
+            if 'redirect_uris' in attrs:
+                attrs['redirect_uris'] = redirects
+
+        services = {
+            'deep_linking_enabled': configuration.lti_advantage_deep_linking_enabled,
+            'deep_linking_launch_url': configuration.lti_advantage_deep_linking_launch_url,
+            'ags_mode': configuration.lti_advantage_ags_mode,
+            'nrps_enabled': configuration.lti_advantage_enable_nrps,
+        }
+        services.update(attrs.get('services', {}))
+        validated_services = ReusableServicesInputSerializer(data=services)
+        validated_services.is_valid(raise_exception=True)
+        if validated_services.validated_data['deep_linking_enabled'] and not validated_services.validated_data.get(
+            'deep_linking_launch_url'
+        ):
             raise serializers.ValidationError({
                 'services': {'deep_linking_launch_url': 'Required when Deep Linking is enabled.'}
             })
