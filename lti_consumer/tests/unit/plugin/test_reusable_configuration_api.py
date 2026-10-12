@@ -274,6 +274,76 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertNotIn(client_secret, response.content.decode())
         self.assertEqual(response['Cache-Control'], 'no-store')
 
+    def test_lti13_patch_persists_effective_empty_redirect_fallback_and_preserves_omitted_settings(self):
+        configuration = create_reusable_configuration({
+            'name': 'Redirect fallback',
+            'version': 'lti_1p3',
+            'scope': {'course_keys': [str(self.course_key)]},
+            'lti_1p3': {
+                'launch_url': 'https://tool.example/launch',
+                'oidc_url': 'https://tool.example/oidc',
+                'redirect_uris': ['https://tool.example/old-redirect'],
+                'tool_key_mode': 'keyset_url',
+                'tool_keyset_url': 'https://tool.example/jwks',
+            },
+            'services': {'deep_linking_launch_url': 'https://tool.example/deep'},
+            'defaults': {'custom_parameters': ['keep=this']},
+        }).configuration
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        omitted = self.client.patch(detail_url, {
+            'launch_url': 'https://tool.example/new-launch',
+            'services': {'nrps_enabled': True},
+            'defaults': {'display_name': 'Updated'},
+        }, format='json')
+        self.assertEqual(omitted.status_code, 200, omitted.data)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_redirect_uris, ['https://tool.example/old-redirect'])
+        self.assertEqual(configuration.lti_advantage_deep_linking_launch_url, 'https://tool.example/deep')
+        self.assertEqual(configuration.custom_parameters, ['keep=this'])
+        self.assertEqual(configuration.display_name, 'Updated')
+
+        fallback = self.client.patch(detail_url, {'redirect_uris': []}, format='json')
+        self.assertEqual(fallback.status_code, 200, fallback.data)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_redirect_uris, [
+            'https://tool.example/new-launch', 'https://tool.example/deep',
+        ])
+
+    def test_invalid_combined_patch_makes_no_writes(self):
+        configuration = self.create('No partial writes', course_keys=[str(self.course_key)])
+        invalid_stored_url = 'javascript:stored-invalid'
+        ReusableLtiConfiguration.objects.filter(pk=configuration.pk).update(
+            lti_advantage_deep_linking_launch_url=invalid_stored_url,
+        )
+        configuration.refresh_from_db()
+        updated_at = configuration.updated_at
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        response = self.client.patch(detail_url, {
+            'name': 'Must not persist',
+            'launch_url': 'https://tool.example/new-launch',
+            'services': {'nrps_enabled': True},
+            'defaults': {'display_name': 'Must not persist'},
+            'scope': {'course_keys': [str(self.other_key)]},
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'No partial writes')
+        self.assertEqual(configuration.lti_1p1_launch_url, 'https://tool.example/launch')
+        self.assertEqual(configuration.lti_advantage_deep_linking_launch_url, invalid_stored_url)
+        self.assertFalse(configuration.lti_advantage_enable_nrps)
+        self.assertEqual(configuration.display_name, 'LTI Consumer')
+        self.assertEqual(configuration.updated_at, updated_at)
+        self.assertEqual(set(configuration.course_grants.values_list('course_key', flat=True)), {self.course_key})
+
     def test_patch_adds_scope_grants_idempotently_and_never_removes(self):
         configuration = self.create('Expandable', course_keys=[str(self.course_key)])
         self.course_admin.return_value = True

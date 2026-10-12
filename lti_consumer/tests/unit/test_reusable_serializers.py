@@ -8,6 +8,7 @@ from lti_consumer.plugin.reusable_serializers import (
     ReusableCreateResponseSerializer,
     ReusableDetailSerializer,
     ReusableListSerializer,
+    ReusableUpdateInputSerializer,
 )
 from lti_consumer.reusable import create_reusable_configuration
 
@@ -147,6 +148,91 @@ class ReusableCreateInputSerializerTests(TestCase):
         self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
             defaults={'modal_width': 101}
         )).is_valid())
+
+
+class ReusableUpdateInputSerializerTests(TestCase):
+    """PATCH validation uses the complete resulting connection and service settings."""
+
+    def setUp(self):
+        self.configuration = create_reusable_configuration({
+            'name': 'Patch validation',
+            'version': 'lti_1p3',
+            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
+            'lti_1p3': {
+                'launch_url': 'https://tool.example/launch',
+                'oidc_url': 'https://tool.example/oidc',
+                'redirect_uris': ['https://tool.example/redirect'],
+                'tool_key_mode': 'keyset_url',
+                'tool_keyset_url': 'https://tool.example/jwks',
+            },
+        }).configuration
+
+    def validate_patch(self, data):
+        serializer = ReusableUpdateInputSerializer(
+            data=data, partial=True, context={'configuration': self.configuration},
+        )
+        return serializer.is_valid(), serializer
+
+    def test_empty_redirects_use_merged_launch_and_deep_link_urls(self):
+        valid, serializer = self.validate_patch({
+            'redirect_uris': [], 'launch_url': 'https://tool.example/new-launch',
+            'services': {'deep_linking_launch_url': 'https://tool.example/deep'},
+        })
+        self.assertTrue(valid, serializer.errors)
+        self.assertEqual(serializer.validated_data['redirect_uris'], [
+            'https://tool.example/new-launch', 'https://tool.example/deep',
+        ])
+
+    def test_nonempty_redirects_are_authoritative_and_omission_is_preserved(self):
+        valid, serializer = self.validate_patch({'redirect_uris': ['https://only.example/callback']})
+        self.assertTrue(valid, serializer.errors)
+        self.assertEqual(serializer.validated_data['redirect_uris'], ['https://only.example/callback'])
+        valid, serializer = self.validate_patch({'launch_url': 'https://tool.example/new-launch'})
+        self.assertTrue(valid, serializer.errors)
+        self.assertNotIn('redirect_uris', serializer.validated_data)
+        self.configuration.lti_1p3_redirect_uris = []
+        valid, serializer = self.validate_patch({'name': 'metadata only'})
+        self.assertTrue(valid, serializer.errors)
+        self.assertNotIn('redirect_uris', serializer.validated_data)
+
+    def test_invalid_stored_urls_and_redirects_fail_resulting_state_validation(self):
+        self.configuration.lti_1p3_launch_url = 'javascript:bad'
+        valid, _ = self.validate_patch({'name': 'change'})
+        self.assertFalse(valid)
+        self.configuration.lti_1p3_launch_url = 'https://tool.example/launch'
+        self.configuration.lti_1p3_oidc_url = 'javascript:bad'
+        valid, _ = self.validate_patch({'name': 'change'})
+        self.assertFalse(valid)
+        self.configuration.lti_1p3_oidc_url = 'https://tool.example/oidc'
+        self.configuration.lti_1p3_redirect_uris = ['javascript:bad']
+        valid, _ = self.validate_patch({'name': 'change'})
+        self.assertFalse(valid)
+
+    def test_deep_linking_requires_valid_url_only_when_enabled_and_no_inheritance(self):
+        self.configuration.lti_advantage_deep_linking_launch_url = 'javascript:bad'
+        valid, _ = self.validate_patch({'name': 'disabled with invalid stored URL'})
+        self.assertFalse(valid)
+
+        valid, serializer = self.validate_patch({'services': {
+            'deep_linking_enabled': True,
+            'deep_linking_launch_url': 'https://tool.example/deep',
+        }})
+        self.assertTrue(valid, serializer.errors)
+        valid, _ = self.validate_patch({'services': {'deep_linking_enabled': True}})
+        self.assertFalse(valid)
+        valid, _ = self.validate_patch({'services': {
+            'deep_linking_enabled': True, 'deep_linking_launch_url': 'javascript:bad',
+        }})
+        self.assertFalse(valid)
+
+        self.configuration.lti_advantage_deep_linking_launch_url = ''
+        valid, serializer = self.validate_patch({'services': {
+            'deep_linking_enabled': False, 'deep_linking_launch_url': '',
+        }})
+        self.assertTrue(valid, serializer.errors)
+        valid, serializer = self.validate_patch({'launch_url': 'https://tool.example/changed'})
+        self.assertTrue(valid, serializer.errors)
+        self.assertNotIn('services', serializer.validated_data)
 
 
 class ReusableSerializerServiceIntegrationTests(TestCase):
