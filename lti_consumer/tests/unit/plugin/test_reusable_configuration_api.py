@@ -1,4 +1,5 @@
 """API tests for CMS reusable-configuration listing and creation."""
+import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -365,6 +366,211 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(reduced.status_code, 400)
         configuration.refresh_from_db()
         self.assertTrue(configuration.site_wide)
+
+    def test_patch_rejects_malformed_bodies_without_writes(self):
+        configuration = self.create('Unchanged', course_keys=[str(self.course_key)])
+        updated_at = configuration.updated_at
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+        payloads = (
+            None, False, 1, 'invalid', [], [{'name': 'Changed'}],
+            {'name': 'Changed', 'scope': []},
+            {'name': 'Changed', 'services': []},
+            {'name': 'Changed', 'defaults': []},
+        )
+
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                response = self.client.patch(
+                    detail_url, data=json.dumps(payload), content_type='application/json',
+                )
+                self.assertEqual(response.status_code, 400)
+                configuration.refresh_from_db()
+                self.assertEqual(configuration.name, 'Unchanged')
+                self.assertEqual(configuration.updated_at, updated_at)
+                self.assertEqual(configuration.course_grants.count(), 1)
+                self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
+
+    def test_patch_rejects_validated_false_site_scope_values(self):
+        self.user.is_superuser = True
+        self.user.save()
+        configuration = self.create('Site scoped', course_keys=[str(self.course_key)], site_wide=True)
+        updated_at = configuration.updated_at
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        for value in (False, 0, 'false', 'False', '0', 'off'):
+            with self.subTest(value=value):
+                response = self.client.patch(detail_url, {
+                    'description': 'Must not persist',
+                    'scope': {'site_wide': value},
+                }, format='json')
+                self.assertEqual(response.status_code, 400)
+                self.assertIn('Scope reductions', str(response.data['scope']))
+                configuration.refresh_from_db()
+                self.assertTrue(configuration.site_wide)
+                self.assertEqual(configuration.description, '')
+                self.assertEqual(configuration.updated_at, updated_at)
+
+        retained = self.client.patch(detail_url, {
+            'description': 'Metadata update', 'scope': {},
+        }, format='json')
+        self.assertEqual(retained.status_code, 200, retained.data)
+        configuration.refresh_from_db()
+        self.assertTrue(configuration.site_wide)
+        self.assertEqual(configuration.description, 'Metadata update')
+        self.assertEqual(configuration.course_grants.count(), 1)
+
+    def test_patch_hides_invisible_ids_and_requires_current_scope_management(self):
+        configuration = self.create('Read only', course_keys=[str(self.course_key), str(self.other_key)])
+        hidden = self.create('Hidden', course_keys=[str(self.other_key)])
+        self.course_admin.side_effect = lambda user, key: key == self.course_key
+
+        for record, expected_status in ((configuration, 403), (hidden, 404)):
+            detail_url = reverse(
+                'reusable_lti:reusable_configuration_detail', kwargs={'config_id': record.config_id},
+            )
+            for payload in ({'name': 'Changed', 'scope': {'course_keys': [str(self.course_key)]}}, []):
+                with self.subTest(config_id=record.config_id, payload=payload):
+                    response = self.client.patch(
+                        detail_url, data=json.dumps(payload), content_type='application/json',
+                    )
+                    self.assertEqual(response.status_code, expected_status)
+
+        configuration.refresh_from_db()
+        hidden.refresh_from_db()
+        self.assertEqual(configuration.name, 'Read only')
+        self.assertEqual(configuration.course_grants.count(), 2)
+        self.assertEqual(hidden.name, 'Hidden')
+        self.assertEqual(hidden.course_grants.count(), 1)
+
+    def test_session_authenticated_patch_requires_csrf(self):
+        configuration = self.create('Session update', course_keys=[str(self.course_key)])
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+        client = APIClient(enforce_csrf_checks=True)
+        client.force_login(self.user)
+        payload = {'name': 'Updated with CSRF'}
+
+        denied = client.patch(detail_url, payload, format='json')
+        self.assertEqual(denied.status_code, 403)
+        self.assertIn('CSRF', str(denied.data['detail']))
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'Session update')
+
+        csrf_token = 'a' * 32
+        client.cookies['csrftoken'] = csrf_token
+        allowed = client.patch(detail_url, payload, format='json', HTTP_X_CSRFTOKEN=csrf_token)
+        self.assertEqual(allowed.status_code, 200, allowed.data)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'Updated with CSRF')
+
+    def test_patch_rename_conflict_is_non_disclosing_and_preserves_state(self):
+        configuration = self.create('Original', course_keys=[str(self.course_key)])
+        hidden = self.create('Hidden conflict', course_keys=[str(self.other_key)])
+        updated_at = configuration.updated_at
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        response = self.client.patch(detail_url, {
+            'name': ' hidden CONFLICT ',
+            'description': 'Must not persist',
+            'scope': {'course_keys': [str(self.other_key)]},
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn(str(hidden.config_id), response.content.decode())
+        self.assertNotIn(hidden.name, response.content.decode())
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'Original')
+        self.assertEqual(configuration.normalized_name, 'original')
+        self.assertEqual(configuration.description, '')
+        self.assertEqual(configuration.updated_at, updated_at)
+        self.assertEqual(list(configuration.course_grants.values_list('course_key', flat=True)), [self.course_key])
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), 2)
+
+    def test_lti13_patch_preserves_identity_and_keys_and_rejects_immutable_writes(self):
+        configuration = create_reusable_configuration({
+            'name': 'LTI 1.3 before update',
+            'version': 'lti_1p3',
+            'scope': {'course_keys': [str(self.course_key)]},
+            'lti_1p3': {
+                'launch_url': 'https://tool.example/launch',
+                'oidc_url': 'https://tool.example/oidc',
+                'tool_key_mode': 'keyset_url',
+                'tool_keyset_url': 'https://tool.example/jwks',
+            },
+        }).configuration
+        passport = configuration.lti_1p3_passport
+        identity = {field: getattr(configuration, field) for field in (
+            'config_id', 'version', 'lti_1p3_client_id', 'lti_1p3_deployment_id', 'lti_1p3_passport_id',
+        )}
+        passport_state = {field: getattr(passport, field) for field in (
+            'passport_id', 'lti_1p3_client_id', 'lti_1p3_internal_private_key',
+            'lti_1p3_internal_private_key_id', 'lti_1p3_internal_public_jwk',
+            'lti_1p3_tool_public_key', 'lti_1p3_tool_keyset_url',
+        )}
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        with patch('lti_consumer.models.Lti1p3Passport.generate_lti_1p3_keys_if_missing') as generate_keys:
+            response = self.client.patch(detail_url, {
+                'name': 'Updated LTI 1.3',
+                'launch_url': 'https://tool.example/new-launch',
+                'oidc_url': 'https://tool.example/new-oidc',
+                'redirect_uris': ['https://tool.example/redirect'],
+                'services': {'nrps_enabled': True},
+                'defaults': {'display_name': 'Updated display'},
+            }, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        generate_keys.assert_not_called()
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        self.assertNotIn('one_time_credentials', response.data)
+        self.assertEqual(
+            response.content.count(json.dumps(passport_state['lti_1p3_internal_private_key']).encode()), 0,
+        )
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'Updated LTI 1.3')
+        self.assertEqual(configuration.normalized_name, 'updated lti 1.3')
+        self.assertEqual(configuration.lti_1p3_launch_url, 'https://tool.example/new-launch')
+        self.assertEqual(configuration.lti_1p3_oidc_url, 'https://tool.example/new-oidc')
+        self.assertEqual(configuration.lti_1p3_redirect_uris, ['https://tool.example/redirect'])
+        self.assertTrue(configuration.lti_advantage_enable_nrps)
+        self.assertEqual(configuration.display_name, 'Updated display')
+        updated_at = configuration.updated_at
+
+        immutable_writes = {
+            'version': 'lti_1p1',
+            'config_id': str(configuration.config_id),
+            'client_id': 'replacement-client',
+            'deployment_id': 'replacement-deployment',
+            'passport_id': str(passport.passport_id),
+            'lti_1p3_internal_private_key': 'not-a-key',
+            'registration_urls': {'jwks_url': 'https://tool.example/replacement'},
+        }
+        for field, value in immutable_writes.items():
+            with self.subTest(field=field):
+                invalid = self.client.patch(detail_url, {'name': 'Rejected edit', field: value}, format='json')
+                self.assertEqual(invalid.status_code, 400)
+        configuration.refresh_from_db()
+        passport.refresh_from_db()
+        self.assertEqual(configuration.name, 'Updated LTI 1.3')
+        self.assertEqual(configuration.updated_at, updated_at)
+        for field, value in identity.items():
+            self.assertEqual(getattr(configuration, field), value)
+        self.assertEqual([
+            field for field, value in passport_state.items() if getattr(passport, field) != value
+        ], [])
+        self.assertEqual(configuration.lti_1p3_client_id, passport.lti_1p3_client_id)
 
     def test_can_manage_requires_admin_of_every_explicit_course(self):
         self.create('Managed', course_keys=[str(self.course_key)])
