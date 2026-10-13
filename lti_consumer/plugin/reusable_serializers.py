@@ -9,7 +9,6 @@ from lti_consumer.models import ReusableLtiConfiguration
 from lti_consumer.plugin import compat
 from lti_consumer.plugin.reusable_keys import normalize_course_key
 from lti_consumer.utils import (
-    choose_lti_1p3_redirect_uris,
     get_lti_api_base,
     get_lti_view_base,
 )
@@ -245,7 +244,7 @@ class ReusableUpdateInputSerializer(StrictSerializer):
         connection = attrs.get(connection_name, {})
         connection_fields = self.fields[connection_name].fields
         launch_field = 'lti_1p3_launch_url' if is_lti13 else 'lti_1p1_launch_url'
-        launch_url = connection_fields['launch_url'].run_validation(
+        connection_fields['launch_url'].run_validation(
             connection.get('launch_url', getattr(configuration, launch_field))
         )
         if is_lti13:
@@ -257,11 +256,6 @@ class ReusableUpdateInputSerializer(StrictSerializer):
                 raise serializers.ValidationError({connection_name: {'oidc_url': err.detail}}) from err
 
             redirects = connection.get('redirect_uris', configuration.lti_1p3_redirect_uris)
-            redirects = choose_lti_1p3_redirect_uris(
-                redirects, launch_url, attrs.get('services', {}).get(
-                    'deep_linking_launch_url', configuration.lti_advantage_deep_linking_launch_url,
-                )
-            )
             try:
                 redirects = connection_fields['redirect_uris'].run_validation(redirects)
             except serializers.ValidationError as err:

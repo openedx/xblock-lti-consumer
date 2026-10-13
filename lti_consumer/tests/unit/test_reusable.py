@@ -141,6 +141,20 @@ class ReusableCreationTests(TestCase):
         self.assertEqual(result.configuration.lti_1p3_passport.lti_1p3_client_id, 'CaseSensitive-ID')
         self.assertIsNone(result.one_time_credentials)
 
+    def test_accent_equivalent_client_ids_follow_database_collation(self):
+        data = self.lti13_input()
+        data['lti_1p3']['client_id'] = 'Cafe'
+        create_reusable_configuration(data)
+
+        if not ReusableLtiConfiguration.objects.filter(lti_1p3_client_id='Café').exists():
+            self.skipTest('Database collation distinguishes accented Client IDs.')
+
+        duplicate = self.lti13_input(name='Different Client ID spelling')
+        duplicate['lti_1p3']['client_id'] = 'Café'
+        with self.assertRaises(ValidationError):
+            create_reusable_configuration(duplicate)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
+
     def test_legacy_passport_client_collision_is_non_disclosing(self):
         Lti1p3Passport.objects.create(lti_1p3_client_id='legacy-client')
         data = self.lti13_input()

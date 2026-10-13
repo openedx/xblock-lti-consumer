@@ -403,7 +403,7 @@ class ReusableConfigurationListApiTests(TestCase):
         configuration.refresh_from_db()
         self.assertEqual(configuration.lti_1p1_client_secret, client_secret)
 
-    def test_lti13_patch_persists_effective_empty_redirect_fallback_and_preserves_omitted_settings(self):
+    def test_lti13_patch_clears_redirects_and_preserves_omitted_settings(self):
         configuration = self.create_lti13(
             'Redirect fallback',
             connection_overrides={'redirect_uris': ['https://tool.example/old-redirect']},
@@ -427,12 +427,11 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(configuration.custom_parameters, ['keep=this'])
         self.assertEqual(configuration.display_name, 'Updated')
 
-        fallback = self.client.patch(detail_url, {'lti_1p3': {'redirect_uris': []}}, format='json')
-        self.assertEqual(fallback.status_code, 200, fallback.data)
+        cleared = self.client.patch(detail_url, {'lti_1p3': {'redirect_uris': []}}, format='json')
+        self.assertEqual(cleared.status_code, 200, cleared.data)
+        self.assertEqual(cleared.data['redirect_uris'], [])
         configuration.refresh_from_db()
-        self.assertEqual(configuration.lti_1p3_redirect_uris, [
-            'https://tool.example/new-launch', 'https://tool.example/deep',
-        ])
+        self.assertEqual(configuration.lti_1p3_redirect_uris, [])
 
     def test_invalid_combined_patch_makes_no_writes(self):
         configuration = self.create('No partial writes', course_keys=[str(self.course_key)])
