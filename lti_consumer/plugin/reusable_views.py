@@ -1,11 +1,9 @@
 """CMS-only management views for reusable LTI configurations."""
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import BinaryField, Exists, OuterRef, Q
-from django.db.models.functions import Cast
+from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import CourseLocator
 from rest_framework import serializers, status
 from rest_framework.pagination import PageNumberPagination
@@ -19,6 +17,7 @@ from lti_consumer.models import (
     ReusableLtiConfigurationOrganization,
 )
 from lti_consumer.plugin import compat
+from lti_consumer.plugin.reusable_keys import normalize_course_key
 from lti_consumer.plugin.reusable_permissions import can_manage_reusable_scope
 from lti_consumer.plugin.reusable_serializers import (
     ReusableCreateInputSerializer,
@@ -38,39 +37,39 @@ class ReusableConfigurationPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class _ExactTextCast(Cast):  # pylint: disable=abstract-method
-    """Cast text to bytes so database collation cannot broaden scope equality."""
-
-    def as_mysql(self, compiler, connection, **extra_context):
-        # MySQL accepts BINARY here; Django's BinaryField cast type (LONGBLOB) is invalid in CAST().
-        return self.as_sql(compiler, connection, template='CAST(%(expressions)s AS BINARY)', **extra_context)
-
-
 def _visible_configurations(user, course_key=None):
     """Return configurations visible through Studio access, optionally for one course."""
     configurations = ReusableLtiConfiguration.objects.all()
+    if course_key is not None:
+        try:
+            course_key = normalize_course_key(course_key)
+        except (InvalidKeyError, TypeError, ValueError):
+            return configurations.none()
+        if not isinstance(course_key, CourseLocator):
+            return configurations.none()
+
     if user.is_superuser:
         if course_key is None:
             return configurations
         course_keys = [course_key]
     else:
-        accessible_course_keys = compat.get_studio_accessible_course_keys(user)
-        if not accessible_course_keys or (course_key is not None and course_key not in accessible_course_keys):
+        try:
+            accessible_course_keys = [
+                normalize_course_key(key) for key in compat.get_studio_accessible_course_keys(user)
+            ]
+        except (InvalidKeyError, TypeError, ValueError):
             return configurations.none()
-        course_keys = [course_key] if course_key is not None else accessible_course_keys
+        course_keys = [key for key in accessible_course_keys if isinstance(key, CourseLocator)]
+        if not course_keys or (course_key is not None and course_key not in course_keys):
+            return configurations.none()
+        course_keys = [course_key] if course_key is not None else course_keys
 
     organization_keys = {key.org.lower() for key in course_keys}
-    course_grants = ReusableLtiConfigurationCourse.objects.alias(
-        exact_course_key=_ExactTextCast('course_key', output_field=BinaryField()),
-    ).filter(
-        configuration_id=OuterRef('pk'),
-        exact_course_key__in=[str(key).encode('utf-8') for key in course_keys],
+    course_grants = ReusableLtiConfigurationCourse.objects.filter(
+        configuration_id=OuterRef('pk'), course_key__in=course_keys,
     )
-    organization_grants = ReusableLtiConfigurationOrganization.objects.alias(
-        exact_organization=_ExactTextCast('organization', output_field=BinaryField()),
-    ).filter(
-        configuration_id=OuterRef('pk'),
-        exact_organization__in=[key.encode('utf-8') for key in organization_keys],
+    organization_grants = ReusableLtiConfigurationOrganization.objects.filter(
+        configuration_id=OuterRef('pk'), organization__in=organization_keys,
     )
     return configurations.alias(
         has_course=Exists(course_grants), has_organization=Exists(organization_grants),
@@ -96,8 +95,8 @@ class ReusableConfigurationListCreateView(APIView):
         course_key = None
         if raw_course_key is not None:
             try:
-                course_key = CourseKey.from_string(raw_course_key)
-            except InvalidKeyError as err:
+                course_key = normalize_course_key(raw_course_key)
+            except (InvalidKeyError, TypeError, ValueError) as err:
                 raise serializers.ValidationError({'course_key': 'Invalid course key.'}) from err
             if not isinstance(course_key, CourseLocator):
                 raise serializers.ValidationError({'course_key': 'A course key is required.'})

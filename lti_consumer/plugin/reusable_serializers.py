@@ -3,11 +3,11 @@ from math import isfinite
 from urllib.parse import urlsplit
 
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import CourseKey
 from rest_framework import serializers
 
 from lti_consumer.models import ReusableLtiConfiguration
 from lti_consumer.plugin import compat
+from lti_consumer.plugin.reusable_keys import normalize_course_key
 from lti_consumer.utils import (
     choose_lti_1p3_redirect_uris,
     get_lti_api_base,
@@ -42,10 +42,13 @@ class CourseKeyStringField(serializers.CharField):
     def to_internal_value(self, data):
         value = super().to_internal_value(data)
         try:
-            course_key = CourseKey.from_string(value)
-        except InvalidKeyError as err:
+            course_key = normalize_course_key(value)
+        except (InvalidKeyError, TypeError, ValueError) as err:
             raise serializers.ValidationError('Invalid course key.') from err
-        return str(course_key)
+        serialized_key = str(course_key)
+        if len(serialized_key) > 255:
+            raise serializers.ValidationError('Course key must not exceed 255 characters.')
+        return serialized_key
 
 
 class ReusableScopeInputSerializer(StrictSerializer):
@@ -122,7 +125,7 @@ class ReusableDefaultsInputSerializer(StrictSerializer):
     grade_weight = serializers.FloatField(min_value=0, required=False)
     accept_grades_after_due_date = serializers.BooleanField(required=False)
     open_tool_in = serializers.ChoiceField(choices=('iframe', 'modal', 'new_window'), required=False)
-    inline_height = serializers.IntegerField(min_value=0, required=False)
+    inline_height = serializers.IntegerField(min_value=0, max_value=2147483647, required=False)
     modal_height = serializers.IntegerField(min_value=0, max_value=100, required=False)
     modal_width = serializers.IntegerField(min_value=0, max_value=100, required=False)
     launch_button_text = serializers.CharField(max_length=255, required=False, allow_blank=True)

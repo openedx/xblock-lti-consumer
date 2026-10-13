@@ -36,6 +36,17 @@ class ReusableScopePermissionTests(SimpleTestCase):
         self.assertFalse(can_manage_reusable_scope(user, self.course_scope))
 
     @patch('lti_consumer.plugin.reusable_permissions.compat.user_is_course_admin')
+    def test_branch_scope_uses_the_persisted_course_identity(self, is_admin):
+        is_admin.return_value = True
+        branch_key = CourseKey.from_string('course-v1:Org+Course+Run+branch@draft')
+        base_key = CourseKey.from_string('course-v1:Org+Course+Run')
+
+        self.assertTrue(can_manage_reusable_scope(
+            self.user(), {'course_keys': [str(branch_key)]},
+        ))
+        is_admin.assert_called_once_with(self.user(), base_key)
+
+    @patch('lti_consumer.plugin.reusable_permissions.compat.user_is_course_admin')
     def test_organization_and_site_scopes_are_superuser_only(self, is_admin):
         for scope in (
             {'organization_keys': ['org']},
@@ -63,6 +74,9 @@ class ReusableScopePermissionTests(SimpleTestCase):
     @patch('lti_consumer.plugin.reusable_permissions.compat.user_is_course_admin')
     def test_invalid_or_empty_scope_is_denied(self, is_admin):
         self.assertFalse(can_manage_reusable_scope(self.user(), {'course_keys': ['invalid']}))
+        self.assertFalse(can_manage_reusable_scope(self.user(superuser=True), {
+            'course_keys': ['course-v1:version@519665f6223ebd6980884f2b'],
+        }))
         self.assertFalse(can_manage_reusable_scope(self.user(superuser=True), {'site_wide': False}))
         is_admin.assert_not_called()
 
