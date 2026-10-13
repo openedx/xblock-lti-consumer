@@ -29,6 +29,22 @@ class ReusableCreationResult:
     one_time_credentials: dict | None = None
 
 
+_REUSABLE_SERVICE_FIELDS = {
+    'deep_linking_enabled': 'lti_advantage_deep_linking_enabled',
+    'deep_linking_launch_url': 'lti_advantage_deep_linking_launch_url',
+    'ags_mode': 'lti_advantage_ags_mode',
+    'nrps_enabled': 'lti_advantage_enable_nrps',
+}
+
+
+def service_configuration_values(services):
+    """Map provided service settings to model fields, normalizing nullable URLs."""
+    return {
+        field: '' if key == 'deep_linking_launch_url' and services[key] is None else services[key]
+        for key, field in _REUSABLE_SERVICE_FIELDS.items() if key in services
+    }
+
+
 def _invalid(message):
     """Raise a field-independent validation error."""
     raise ValidationError(message)
@@ -159,7 +175,6 @@ def create_reusable_configuration(validated_data):
         _invalid('Invalid reusable configuration settings.')
 
     credentials = None
-    passport = None
     config_values = {
         'name': name,
         'description': validated_data.get('description') or '',
@@ -187,12 +202,6 @@ def create_reusable_configuration(validated_data):
             lti_1p3_tool_key_mode=section['tool_key_mode'],
         )
 
-    service_fields = {
-        'deep_linking_enabled': 'lti_advantage_deep_linking_enabled',
-        'deep_linking_launch_url': 'lti_advantage_deep_linking_launch_url',
-        'ags_mode': 'lti_advantage_ags_mode',
-        'nrps_enabled': 'lti_advantage_enable_nrps',
-    }
     default_fields = (
         'display_name',
         'enable_grading',
@@ -206,10 +215,7 @@ def create_reusable_configuration(validated_data):
         'send_extra_parameters',
         'custom_parameters',
     )
-    config_values.update({
-        field: '' if key == 'deep_linking_launch_url' and services[key] is None else services[key]
-        for key, field in service_fields.items() if key in services
-    })
+    config_values.update(service_configuration_values(services))
     config_values.update({field: defaults[field] for field in default_fields if field in defaults})
 
     try:
@@ -236,7 +242,7 @@ def create_reusable_configuration(validated_data):
                 for key in course_keys
             ])
             ReusableLtiConfigurationOrganization.objects.bulk_create([
-                ReusableLtiConfigurationOrganization(configuration=configuration, organization=key.lower())
+                ReusableLtiConfigurationOrganization(configuration=configuration, organization=key)
                 for key in organization_keys
             ])
     except IntegrityError:

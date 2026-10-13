@@ -1,7 +1,7 @@
 """Tests for reusable configuration request validation and safe response fields."""
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from lti_consumer.plugin.reusable_serializers import (
     ReusableCreateInputSerializer,
@@ -13,7 +13,28 @@ from lti_consumer.plugin.reusable_serializers import (
 from lti_consumer.reusable import create_reusable_configuration
 
 
-class ReusableCreateInputSerializerTests(TestCase):
+def lti13_payload(**overrides):
+    """Return a valid LTI 1.3 payload, with optional connection-field overrides."""
+    connection = overrides.pop('lti_1p3', {})
+    payload = {
+        'name': 'Example Tool',
+        'version': 'lti_1p3',
+        'scope': {'course_keys': ['course-v1:Org+Course+Run']},
+        'lti_1p3': {
+            'launch_url': 'https://tool.example/launch',
+            'oidc_url': 'https://tool.example/oidc',
+            'tool_key_mode': 'keyset_url',
+            'tool_keyset_url': 'https://tool.example/jwks',
+        },
+    }
+    payload['lti_1p3'].update(connection)
+    if payload['lti_1p3']['tool_key_mode'] == 'public_key':
+        payload['lti_1p3'].pop('tool_keyset_url', None)
+    payload.update(overrides)
+    return payload
+
+
+class ReusableCreateInputSerializerTests(SimpleTestCase):
     """Strict, version-aware create payload validation."""
 
     def lti11_payload(self, **overrides):
@@ -27,28 +48,24 @@ class ReusableCreateInputSerializerTests(TestCase):
         payload.update(overrides)
         return payload
 
-    def lti13_payload(self, **overrides):
-        """Return a valid minimal LTI 1.3 payload."""
-        payload = {
-            'name': 'Example Tool',
-            'version': 'lti_1p3',
-            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
-                'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/jwks',
-            },
-        }
-        payload.update(overrides)
-        return payload
-
     def test_valid_payload_is_normalized_and_defaults_sections(self):
         serializer = ReusableCreateInputSerializer(data=self.lti11_payload())
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['name'], 'Example Tool')
         self.assertEqual(serializer.validated_data['services']['ags_mode'], 'declarative')
         self.assertEqual(serializer.validated_data['defaults'], {})
+
+    def test_field_validation_rejects_blank_names_and_redirect_uris(self):
+        for name in ('', '   ', 'x' * 256):
+            with self.subTest(name=name):
+                serializer = ReusableCreateInputSerializer(data=self.lti11_payload(name=name))
+                self.assertFalse(serializer.is_valid())
+                self.assertIn('name', serializer.errors)
+
+        payload = lti13_payload(lti_1p3={'redirect_uris': ['']})
+        serializer = ReusableCreateInputSerializer(data=payload)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('redirect_uris', serializer.errors['lti_1p3'])
 
     def test_unknown_fields_rejected_at_each_level(self):
         cases = (
@@ -71,7 +88,7 @@ class ReusableCreateInputSerializerTests(TestCase):
     def test_only_http_urls_are_accepted_and_deep_linking_requires_its_url(self):
         payload = self.lti11_payload(lti_1p1={'launch_url': 'javascript:alert(1)'})
         self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
-        payload = self.lti13_payload(services={'deep_linking_enabled': True})
+        payload = lti13_payload(services={'deep_linking_enabled': True})
         self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
         payload['services']['deep_linking_launch_url'] = 'https://tool.example/deep-link'
         self.assertTrue(ReusableCreateInputSerializer(data=payload).is_valid())
@@ -82,7 +99,7 @@ class ReusableCreateInputSerializerTests(TestCase):
         )).is_valid())
 
     def test_lti13_requires_exactly_one_non_private_tool_key_source(self):
-        payload = self.lti13_payload(lti_1p3={
+        payload = lti13_payload(lti_1p3={
             'launch_url': 'https://tool.example/launch',
             'oidc_url': 'https://tool.example/oidc',
             'tool_key_mode': 'public_key',
@@ -96,7 +113,7 @@ class ReusableCreateInputSerializerTests(TestCase):
         prefix = 'https://tool.example/'
         accepted_url = prefix + 'k' * (300 - len(prefix))
         rejected_url = prefix + 'k' * (501 - len(prefix))
-        payload = self.lti13_payload()
+        payload = lti13_payload()
         payload['lti_1p3']['tool_keyset_url'] = accepted_url
 
         serializer = ReusableCreateInputSerializer(data=payload)
@@ -156,9 +173,14 @@ class ReusableCreateInputSerializerTests(TestCase):
 
         get_organizations.reset_mock()
         get_organizations.return_value = [{'short_name': 'Other-Org'}]
-        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
+        serializer = ReusableCreateInputSerializer(data=self.lti11_payload(
             scope={'organization_keys': ['unknown-org']}
-        )).is_valid())
+        ))
+        self.assertFalse(serializer.is_valid())
+        self.assertEqual(
+            serializer.errors['scope']['organization_keys'][0],
+            'Organization must match one unambiguous active registered organization.',
+        )
         get_organizations.assert_called_once_with()
 
     @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
@@ -199,18 +221,9 @@ class ReusableUpdateInputSerializerTests(TestCase):
     """PATCH validation uses the complete resulting connection and service settings."""
 
     def setUp(self):
-        self.configuration = create_reusable_configuration({
-            'name': 'Patch validation',
-            'version': 'lti_1p3',
-            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
-                'redirect_uris': ['https://tool.example/redirect'],
-                'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/jwks',
-            },
-        }).configuration
+        payload = lti13_payload(name='Patch validation')
+        payload['lti_1p3']['redirect_uris'] = ['https://tool.example/redirect']
+        self.configuration = create_reusable_configuration(payload).configuration
 
     def validate_patch(self, data):
         serializer = ReusableUpdateInputSerializer(
@@ -263,6 +276,16 @@ class ReusableUpdateInputSerializerTests(TestCase):
         valid, serializer = self.validate_patch({'scope': {'course_keys': [version_only_key]}})
         self.assertFalse(valid)
         self.assertIn('scope', serializer.errors)
+
+    @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
+    def test_invalid_new_organization_grant_keeps_patch_specific_error(self, get_organizations):
+        get_organizations.return_value = [{'short_name': 'registered'}]
+        valid, serializer = self.validate_patch({'scope': {'organization_keys': ['unknown']}})
+        self.assertFalse(valid)
+        self.assertEqual(
+            serializer.errors['scope']['organization_keys'][0],
+            'New grants must match one unambiguous active registered organization.',
+        )
 
     def test_tool_verification_updates_require_matching_safe_key_material(self):
         public_key = '-----BEGIN PUBLIC KEY-----\\npublic material'
@@ -343,17 +366,7 @@ class ReusableSerializerServiceIntegrationTests(TestCase):
 
     def test_lti13_validated_payload_stores_library_scope_and_passport_identity(self):
         library_key = 'library-v1:Org+Library'
-        payload = {
-            'name': 'Integrated 1.3',
-            'version': 'lti_1p3',
-            'scope': {'course_keys': [library_key]},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
-                'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/jwks',
-            },
-        }
+        payload = lti13_payload(name='Integrated 1.3', scope={'course_keys': [library_key]})
         serializer = ReusableCreateInputSerializer(data=payload)
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
@@ -405,17 +418,9 @@ class ReusableResponseSerializerTests(TestCase):
         self.assertEqual(detail['scope']['course_keys'], ['course-v1:Org+Course+Run'])
 
     def test_lti13_registration_urls_use_existing_reusable_api_keys(self):
-        configuration = create_reusable_configuration({
-            'name': 'Registration metadata',
-            'version': 'lti_1p3',
-            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
-                'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/jwks',
-            },
-        }).configuration
+        configuration = create_reusable_configuration(
+            lti13_payload(name='Registration metadata'),
+        ).configuration
 
         with patch(
             'lti_consumer.plugin.reusable_serializers.get_lti_view_base',
@@ -433,17 +438,14 @@ class ReusableResponseSerializerTests(TestCase):
         })
 
     def test_lti13_detail_never_serializes_tool_or_platform_key_material(self):
-        payload = {
-            'name': 'Safe 1.3 Tool',
-            'version': 'lti_1p3',
-            'scope': {'site_wide': True},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
+        payload = lti13_payload(
+            name='Safe 1.3 Tool',
+            scope={'site_wide': True},
+            lti_1p3={
                 'tool_key_mode': 'public_key',
                 'tool_public_key': '-----BEGIN PUBLIC KEY-----\\nPUBLIC MATERIAL',
             },
-        }
+        )
         configuration = create_reusable_configuration(payload).configuration
         private_key = configuration.lti_1p3_passport.lti_1p3_internal_private_key
         data = ReusableDetailSerializer(configuration, context={'can_manage': True}).data

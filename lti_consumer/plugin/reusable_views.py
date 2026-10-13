@@ -26,7 +26,7 @@ from lti_consumer.plugin.reusable_serializers import (
     ReusableListSerializer,
     ReusableUpdateInputSerializer,
 )
-from lti_consumer.reusable import create_reusable_configuration
+from lti_consumer.reusable import create_reusable_configuration, service_configuration_values
 
 
 class ReusableConfigurationPagination(PageNumberPagination):
@@ -254,12 +254,6 @@ class ReusableConfigurationDetailView(APIView):
                     if 'tool_key_mode' in connection_changes:
                         configuration.lti_1p3_tool_key_mode = connection_changes['tool_key_mode']
                 scalar_fields.update(connection_fields)
-                service_fields = {
-                    'deep_linking_enabled': 'lti_advantage_deep_linking_enabled',
-                    'deep_linking_launch_url': 'lti_advantage_deep_linking_launch_url',
-                    'ags_mode': 'lti_advantage_ags_mode',
-                    'nrps_enabled': 'lti_advantage_enable_nrps',
-                }
                 for key, field in scalar_fields.items():
                     values = connection_changes if key in connection_fields else changes
                     if key in values:
@@ -267,12 +261,8 @@ class ReusableConfigurationDetailView(APIView):
                         if key == 'description' and value is None:
                             value = ''
                         setattr(configuration, field, value)
-                for key, field in service_fields.items():
-                    if key in changes.get('services', {}):
-                        value = changes['services'][key]
-                        if key == 'deep_linking_launch_url' and value is None:
-                            value = ''
-                        setattr(configuration, field, value)
+                for field, value in service_configuration_values(changes.get('services', {})).items():
+                    setattr(configuration, field, value)
                 for key, value in changes.get('defaults', {}).items():
                     setattr(configuration, key, value)
                 configuration.site_wide = proposed_scope['site_wide']

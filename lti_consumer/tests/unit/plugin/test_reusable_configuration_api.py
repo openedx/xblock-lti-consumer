@@ -19,9 +19,9 @@ class ReusableConfigurationCreateApiTests(TestCase):
 
     def setUp(self):
         user_model = get_user_model()
-        self.user = user_model.objects.create_user(username='author', password='password')
+        self.user = user_model.objects.create_user(username='author', password=None)
         self.superuser = user_model.objects.create_superuser(
-            username='admin', email='admin@example.com', password='password'
+            username='admin', email='admin@example.com', password=None
         )
         self.url = reverse('reusable_lti:reusable_configuration_create')
         self.payload = {
@@ -362,7 +362,7 @@ class ReusableConfigurationListApiTests(TestCase):
             'name': 'After',
             'description': 'Updated description',
             'lti_1p1': {'launch_url': 'https://tool.example/new-launch'},
-            'services': {'nrps_enabled': True},
+            'services': {'nrps_enabled': True, 'deep_linking_launch_url': None},
             'defaults': {'display_name': 'Updated display'},
         }, format='json')
 
@@ -371,6 +371,7 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(configuration.name, 'After')
         self.assertEqual(configuration.description, 'Updated description')
         self.assertEqual(configuration.lti_1p1_launch_url, 'https://tool.example/new-launch')
+        self.assertEqual(configuration.lti_advantage_deep_linking_launch_url, '')
         self.assertEqual(configuration.display_name, 'Updated display')
         self.assertEqual(configuration.custom_parameters, ['secret=value'])
         self.assertEqual(configuration.lti_advantage_ags_mode, 'declarative')

@@ -4,6 +4,7 @@ from unittest.mock import patch
 import uuid
 
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from lti_consumer.models import (
@@ -60,6 +61,16 @@ class ReusableCreationTests(TestCase):
         self.assertIsNone(config.lti_1p3_client_id)
         self.assertEqual(ReusableLtiConfigurationCourse.objects.filter(configuration=config).count(), 1)
 
+        config.name = '  Straße  '
+        config.save(update_fields={'name'})
+        config.refresh_from_db()
+        self.assertEqual(config.normalized_name, 'strasse')
+
+        config.name = '  RENAMED  '
+        config.save(update_fields={'name'})
+        config.refresh_from_db()
+        self.assertEqual(config.normalized_name, 'renamed')
+
     def test_repeated_course_grants_are_deduplicated(self):
         data = self.lti11_input(scope={
             'course_keys': ['course-v1:Org+Course+Run', 'course-v1:Org+Course+Run'],
@@ -69,6 +80,10 @@ class ReusableCreationTests(TestCase):
             [str(key) for key in config.course_grants.values_list('course_key', flat=True)],
             ['course-v1:Org+Course+Run'],
         )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ReusableLtiConfigurationCourse.objects.create(
+                configuration=config, course_key='course-v1:Org+Course+Run',
+            )
 
     def test_organization_grants_are_lowercased_before_deduplication(self):
         data = self.lti13_input(scope={
@@ -79,6 +94,10 @@ class ReusableCreationTests(TestCase):
             list(config.organization_grants.values_list('organization', flat=True)),
             ['org'],
         )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ReusableLtiConfigurationOrganization.objects.create(
+                configuration=config, organization='org',
+            )
 
     def test_lti11_accepts_overridden_credentials(self):
         data = self.lti11_input()
@@ -171,8 +190,8 @@ class ReusableCreationTests(TestCase):
         self.assertEqual(Lti1p3Passport.objects.count(), 0)
 
     def test_duplicate_normalized_name_translates_integrity_error(self):
-        create_reusable_configuration(self.lti11_input())
-        duplicate = self.lti11_input(name='ONE ONE')
+        create_reusable_configuration(self.lti11_input(name='Straße'))
+        duplicate = self.lti11_input(name='STRASSE')
         with self.assertRaisesMessage(ValidationError, 'conflicts with an existing record'):
             create_reusable_configuration(duplicate)
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
