@@ -231,7 +231,7 @@ class ReusableUpdateInputSerializerTests(TestCase):
         )
         return serializer.is_valid(), serializer
 
-    def test_empty_redirects_use_merged_launch_and_deep_link_urls(self):
+    def test_empty_redirects_are_preserved_without_fallback(self):
         valid, serializer = self.validate_patch({
             'lti_1p3': {
                 'redirect_uris': [], 'launch_url': 'https://tool.example/new-launch',
@@ -239,9 +239,7 @@ class ReusableUpdateInputSerializerTests(TestCase):
             'services': {'deep_linking_launch_url': 'https://tool.example/deep'},
         })
         self.assertTrue(valid, serializer.errors)
-        self.assertEqual(serializer.validated_data['lti_1p3']['redirect_uris'], [
-            'https://tool.example/new-launch', 'https://tool.example/deep',
-        ])
+        self.assertEqual(serializer.validated_data['lti_1p3']['redirect_uris'], [])
 
     def test_nonempty_redirects_are_authoritative_and_omission_is_preserved(self):
         valid, serializer = self.validate_patch({
