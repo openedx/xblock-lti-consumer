@@ -15,6 +15,16 @@ from lti_consumer.utils import (
 )
 
 
+def _unambiguous_active_organization_keys():
+    """Return normalized keys for unique, active organization short names."""
+    registered = {}
+    for organization in compat.get_active_organizations():
+        short_name = organization.get('short_name')
+        if isinstance(short_name, str):
+            registered.setdefault(short_name.lower(), set()).add(short_name)
+    return {key for key, names in registered.items() if len(names) == 1}
+
+
 class StrictSerializer(serializers.Serializer):
     """Reject unknown keys instead of silently dropping potentially sensitive input."""
 
@@ -66,15 +76,8 @@ class ReusableScopeInputSerializer(StrictSerializer):
         if any(not key for key in (*attrs['course_keys'], *attrs['organization_keys'])):
             raise serializers.ValidationError('Scope grants must be non-empty strings.')
         if attrs['organization_keys']:
-            registered = {}
-            for organization in compat.get_active_organizations():
-                short_name = organization.get('short_name')
-                if isinstance(short_name, str):
-                    registered.setdefault(short_name.lower(), set()).add(short_name)
-
-            ambiguous = [key for key in attrs['organization_keys'] if len(registered.get(key, ())) > 1]
-            unknown = [key for key in attrs['organization_keys'] if key not in registered]
-            if ambiguous or unknown:
+            registered = _unambiguous_active_organization_keys()
+            if any(key not in registered for key in attrs['organization_keys']):
                 raise serializers.ValidationError({
                     'organization_keys': ['Organization must match one unambiguous active registered organization.']
                 })
@@ -155,12 +158,6 @@ class ReusableCreateInputSerializer(StrictSerializer):
     services = ReusableServicesInputSerializer(required=False, default=dict)
     defaults = ReusableDefaultsInputSerializer(required=False, default=dict)
 
-    def validate_name(self, value):
-        value = value.strip()
-        if not value:
-            raise serializers.ValidationError('A non-empty name is required.')
-        return value
-
     def validate(self, attrs):
         version = attrs['version']
         expected = 'lti_1p1' if version == ReusableLtiConfiguration.LTI_1P1 else 'lti_1p3'
@@ -177,13 +174,6 @@ class ReusableCreateInputSerializer(StrictSerializer):
             raise serializers.ValidationError({
                 'services': {'deep_linking_launch_url': 'Required when Deep Linking is enabled.'}
             })
-        if expected == 'lti_1p3':
-            connection = attrs[expected]
-            redirects = connection['redirect_uris'] or [connection['launch_url']]
-            if services.get('deep_linking_launch_url') and services['deep_linking_enabled']:
-                redirects = redirects + [services['deep_linking_launch_url']]
-            if any(not url for url in redirects):
-                raise serializers.ValidationError({expected: {'redirect_uris': 'A valid redirect URI is required.'}})
         return attrs
 
 
@@ -206,12 +196,8 @@ class ReusableScopeAdditionInputSerializer(StrictSerializer):
         existing = self.context.get('existing_organization_keys', set())
         additions = set(attrs['organization_keys']) - existing
         if additions:
-            registered = {}
-            for organization in compat.get_active_organizations():
-                short_name = organization.get('short_name')
-                if isinstance(short_name, str):
-                    registered.setdefault(short_name.lower(), set()).add(short_name)
-            if any(len(registered.get(key, ())) != 1 for key in additions):
+            registered = _unambiguous_active_organization_keys()
+            if any(key not in registered for key in additions):
                 raise serializers.ValidationError({
                     'organization_keys': ['New grants must match one unambiguous active registered organization.']
                 })
@@ -245,12 +231,6 @@ class ReusableUpdateInputSerializer(StrictSerializer):
     lti_1p3 = ReusableLti13UpdateInputSerializer(required=False)
     services = ReusableServicesInputSerializer(required=False)
     defaults = ReusableDefaultsInputSerializer(required=False)
-
-    def validate_name(self, value):
-        value = value.strip()
-        if not value:
-            raise serializers.ValidationError('A non-empty name is required.')
-        return value
 
     def validate(self, attrs):
         configuration = self.context['configuration']

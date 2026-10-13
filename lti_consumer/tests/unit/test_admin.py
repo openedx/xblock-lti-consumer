@@ -15,7 +15,7 @@ urlpatterns = [path('admin/', admin.site.urls)]
 class Lti1p3PassportAdminTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_superuser(
-            username='admin-test', email='admin-test@example.com', password='password',
+            username='admin-test', email='admin-test@example.com', password=None,
         )
         self.request = RequestFactory().get('/admin/')
         self.request.user = self.user
