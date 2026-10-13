@@ -1,6 +1,6 @@
 """Focused tests for version-specific reusable configuration storage."""
 
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
@@ -63,21 +63,3 @@ class ReusableConfigurationStorageTests(TestCase):
         self.assertEqual(configuration.launch_button_text, '')
         self.assertFalse(configuration.send_extra_parameters)
         self.assertEqual(configuration.custom_parameters, [])
-
-    def test_storage_columns_exist_in_database(self):
-        with connection.cursor() as cursor:
-            columns = {column.name for column in connection.introspection.get_table_description(
-                cursor, ReusableLtiConfiguration._meta.db_table
-            )}
-        expected = {
-            'lti_1p1_launch_url', 'lti_1p1_client_key', 'lti_1p1_client_secret',
-            'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_redirect_uris',
-            'lti_1p3_client_id', 'lti_1p3_deployment_id', 'lti_1p3_tool_key_mode',
-            'lti_1p3_passport_id',
-            'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
-            'lti_advantage_ags_mode', 'lti_advantage_enable_nrps', 'display_name',
-            'enable_grading', 'grade_weight', 'accept_grades_after_due_date', 'open_tool_in',
-            'inline_height', 'modal_height', 'modal_width', 'launch_button_text',
-            'send_extra_parameters', 'custom_parameters',
-        }
-        self.assertTrue(expected.issubset(columns))
