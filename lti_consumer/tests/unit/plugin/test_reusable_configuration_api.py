@@ -394,24 +394,38 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(set(configuration.course_grants.values_list('course_key', flat=True)), {self.course_key})
 
     def test_patch_adds_scope_grants_idempotently_and_never_removes(self):
-        configuration = self.create('Expandable', course_keys=[str(self.course_key)])
+        configuration = self.create(
+            'Expandable', course_keys=[str(self.course_key), str(self.other_key)],
+        )
         self.course_admin.return_value = True
         detail_url = reverse(
             'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
         )
-        patch_data = {'scope': {'course_keys': [str(self.other_key)]}}
 
+        shortened = self.client.patch(detail_url, {
+            'scope': {'course_keys': [str(self.other_key)]},
+        }, format='json')
+        self.assertEqual(shortened.status_code, 200, shortened.data)
+        self.assertEqual(
+            set(configuration.course_grants.values_list('course_key', flat=True)),
+            {self.course_key, self.other_key},
+        )
+
+        added_key = 'course-v1:Org+Third+Run'
+        patch_data = {'scope': {'course_keys': [added_key]}}
         first = self.client.patch(detail_url, patch_data, format='json')
         second = self.client.patch(detail_url, patch_data, format='json')
 
         self.assertEqual(first.status_code, 200, first.data)
         self.assertEqual(second.status_code, 200, second.data)
         self.assertEqual(
-            set(configuration.course_grants.values_list('course_key', flat=True)),
-            {self.course_key, self.other_key},
+            {str(key) for key in configuration.course_grants.values_list('course_key', flat=True)},
+            {str(self.course_key), str(self.other_key), added_key},
         )
-        self.assertEqual(configuration.course_grants.count(), 2)
-        self.assertEqual(self.client.patch(detail_url, {'scope': {'course_keys': []}}, format='json').status_code, 200)
+        self.assertEqual(configuration.course_grants.count(), 3)
+        empty = self.client.patch(detail_url, {'scope': {'course_keys': []}}, format='json')
+        self.assertEqual(empty.status_code, 200, empty.data)
+        self.assertEqual(configuration.course_grants.count(), 3)
 
     def test_patch_rolls_back_metadata_when_scope_grant_insert_fails(self):
         configuration = self.create('Atomic update', course_keys=[str(self.course_key)])
