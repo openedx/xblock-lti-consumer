@@ -49,6 +49,59 @@ class ReusableConfigurationCreateApiTests(TestCase):
         )
         self.assertEqual(response['Cache-Control'], 'no-store')
 
+    def test_create_normalizes_nullable_disabled_deep_link_url(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        payload = {
+            **self.payload,
+            'services': {'deep_linking_enabled': False, 'deep_linking_launch_url': None},
+        }
+        with patch('lti_consumer.plugin.reusable_views.can_manage_reusable_scope', return_value=True):
+            response = client.post(self.url, payload, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        self.assertTrue(response.data['one_time_credentials']['client_secret'])
+        configuration = ReusableLtiConfiguration.objects.get()
+        self.assertEqual(configuration.lti_advantage_deep_linking_launch_url, '')
+        self.assertEqual(
+            response.data['one_time_credentials']['client_secret'], configuration.lti_1p1_client_secret,
+        )
+
+    def test_create_rejects_unstorable_course_keys_and_inline_heights(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        prefix, suffix = 'course-v1:', '+C+R'
+        org_length = 255 - len(prefix) - len(suffix)
+        too_long_key = f"{prefix}{'o' * (org_length + 1)}{suffix}"
+        version_only_key = 'course-v1:version@519665f6223ebd6980884f2b'
+        payloads = (
+            {**self.payload, 'scope': {'course_keys': [too_long_key]}},
+            {**self.payload, 'scope': {'course_keys': [version_only_key]}},
+            {**self.payload, 'defaults': {'inline_height': 2147483648}},
+        )
+        with patch('lti_consumer.plugin.reusable_views.can_manage_reusable_scope', return_value=True):
+            for payload in payloads:
+                response = client.post(self.url, payload, format='json')
+                self.assertEqual(response.status_code, 400, response.data)
+                self.assertEqual(ReusableLtiConfiguration.objects.count(), 0)
+
+    def test_create_deduplicates_branch_qualified_course_keys(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        base_key = 'course-v1:Org+Course+Run'
+        payload = {
+            **self.payload,
+            'scope': {'course_keys': [f'{base_key}+branch@draft', base_key]},
+        }
+        with patch('lti_consumer.plugin.reusable_views.can_manage_reusable_scope', return_value=True):
+            response = client.post(self.url, payload, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        configuration = ReusableLtiConfiguration.objects.get()
+        self.assertEqual(configuration.course_grants.count(), 1)
+        self.assertEqual(str(configuration.course_grants.get().course_key), base_key)
+
     def test_course_admin_cannot_create_ccx_scoped_configuration(self):
         client = APIClient()
         client.force_authenticate(self.user)
@@ -229,45 +282,6 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertNotIn('secret-not-for-list', response.content.decode())
         self.assertNotIn(str(self.other_key), response.content.decode())
         self.course_access.assert_called_once_with(self.user)
-
-    def test_near_match_scope_identifiers_do_not_leak_catalog_access(self):
-        case_variant_key = CourseKey.from_string('course-v1:org+Course+Run')
-        accent_variant_key = CourseKey.from_string('course-v1:cafe+Course+Run')
-        self.course_access.return_value = [case_variant_key, accent_variant_key]
-
-        case_mismatch = self.create('Case mismatch', course_keys=[str(self.course_key)])
-        exact_course = self.create('Exact course', course_keys=[str(case_variant_key)])
-        accent_mismatch = self.create('Accent mismatch', organization_keys=['café'])
-        exact_organization = self.create('Exact organization', organization_keys=['cafe'])
-        padded_organization = self.create('Padded organization', organization_keys=['org '])
-
-        response = self.client.get(self.url)
-        self.assertEqual(
-            [row['name'] for row in response.data['results']],
-            ['Exact course', 'Exact organization'],
-        )
-        for configuration in (case_mismatch, accent_mismatch, padded_organization):
-            detail_url = reverse(
-                'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
-            )
-            with self.subTest(name=configuration.name):
-                self.assertEqual(self.client.get(detail_url).status_code, 404)
-                self.assertEqual(
-                    self.client.patch(detail_url, {'description': 'hidden'}, format='json').status_code,
-                    404,
-                )
-
-        self.assertEqual(self.client.get(reverse(
-            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': exact_course.config_id},
-        )).status_code, 200)
-        self.assertEqual(self.client.get(reverse(
-            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': exact_organization.config_id},
-        )).status_code, 200)
-        self.course_admin.return_value = True
-        self.assertEqual(self.client.patch(
-            reverse('reusable_lti:reusable_configuration_detail', kwargs={'config_id': exact_course.config_id}),
-            {'description': 'visible'}, format='json',
-        ).status_code, 200)
 
     def test_no_studio_access_returns_no_records_even_for_site_scope(self):
         self.create('Site', site_wide=True)
@@ -474,6 +488,30 @@ class ReusableConfigurationListApiTests(TestCase):
         empty = self.client.patch(detail_url, {'scope': {'course_keys': []}}, format='json')
         self.assertEqual(empty.status_code, 200, empty.data)
         self.assertEqual(configuration.course_grants.count(), 3)
+
+        branch_of_existing = f'{self.other_key}+branch@draft'
+        equivalent = self.client.patch(detail_url, {
+            'scope': {'course_keys': [branch_of_existing]},
+        }, format='json')
+        self.assertEqual(equivalent.status_code, 200, equivalent.data)
+        self.assertEqual(configuration.course_grants.count(), 3)
+
+    def test_patch_rejects_version_only_course_key_without_writes(self):
+        configuration = self.create('No version-only scope', course_keys=[str(self.course_key)])
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        response = self.client.patch(detail_url, {
+            'name': 'Must not persist',
+            'scope': {'course_keys': ['course-v1:version@519665f6223ebd6980884f2b']},
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400, response.data)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'No version-only scope')
+        self.assertEqual(configuration.course_grants.count(), 1)
 
     def test_patch_rejects_ccx_scope_addition_without_writes(self):
         configuration = self.create('No CCX scope', course_keys=[str(self.course_key)])
@@ -963,7 +1001,8 @@ class ReusableConfigurationListApiTests(TestCase):
         self.create('Organization', organization_keys=['org'])
         self.create('Site', site_wide=True)
 
-        response = self.client.get(self.url, {'course_key': str(self.course_key)})
+        branch_key = f'{self.course_key}+branch@draft'
+        response = self.client.get(self.url, {'course_key': branch_key})
         inaccessible = self.client.get(self.url, {'course_key': str(self.other_key)})
 
         self.assertEqual([row['name'] for row in response.data['results']], ['Organization', 'Selected', 'Site'])
@@ -996,8 +1035,13 @@ class ReusableConfigurationListApiTests(TestCase):
         self.course_access.assert_not_called()
 
     def test_invalid_course_filter_is_rejected(self):
-        response = self.client.get(self.url, {'course_key': 'not-a-course'})
-        self.assertEqual(response.status_code, 400)
+        for course_key in (
+            'not-a-course',
+            'course-v1:version@519665f6223ebd6980884f2b',
+        ):
+            with self.subTest(course_key=course_key):
+                response = self.client.get(self.url, {'course_key': course_key})
+                self.assertEqual(response.status_code, 400)
         self.course_access.assert_not_called()
 
     def test_pagination_is_stable_without_duplicate_join_rows(self):

@@ -106,19 +106,44 @@ class ReusableCreateInputSerializerTests(TestCase):
         payload['lti_1p3']['tool_keyset_url'] = rejected_url
         self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
 
-    def test_course_keys_are_parsed_and_library_keys_are_preserved(self):
+    def test_course_keys_match_stored_identity_and_respect_storage_limit(self):
         serializer = ReusableCreateInputSerializer(data=self.lti11_payload())
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['scope']['course_keys'], ['course-v1:Org+Course+Run'])
 
-        library_key = 'library-v1:Org+Library'
-        payload = self.lti11_payload(scope={'course_keys': [library_key]})
+        base_key = 'course-v1:Org+Course+Run'
+        branch_key = f'{base_key}+branch@draft'
+        payload = self.lti11_payload(scope={'course_keys': [branch_key, base_key]})
         serializer = ReusableCreateInputSerializer(data=payload)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['scope']['course_keys'], [base_key])
+
+        version_only_key = 'course-v1:version@519665f6223ebd6980884f2b'
+        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
+            scope={'course_keys': [version_only_key]}
+        )).is_valid())
+
+        library_key = 'library-v1:Org+Library'
+        serializer = ReusableCreateInputSerializer(data=self.lti11_payload(
+            scope={'course_keys': [library_key]}
+        ))
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['scope']['course_keys'], [library_key])
 
-        payload = self.lti11_payload(scope={'course_keys': ['not-a-course-key']})
-        self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
+        prefix, suffix = 'course-v1:', '+C+R'
+        org_length = 255 - len(prefix) - len(suffix)
+        max_length_key = f"{prefix}{'o' * org_length}{suffix}"
+        too_long_key = f"{prefix}{'o' * (org_length + 1)}{suffix}"
+        self.assertEqual(len(max_length_key), 255)
+        self.assertTrue(ReusableCreateInputSerializer(data=self.lti11_payload(
+            scope={'course_keys': [max_length_key]}
+        )).is_valid())
+        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
+            scope={'course_keys': [too_long_key]}
+        )).is_valid())
+        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
+            scope={'course_keys': ['not-a-course-key']}
+        )).is_valid())
 
     @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
     def test_organization_grants_match_one_active_registered_short_name(self, get_organizations):
@@ -161,6 +186,12 @@ class ReusableCreateInputSerializerTests(TestCase):
         )).is_valid())
         self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
             defaults={'modal_width': 101}
+        )).is_valid())
+        self.assertTrue(ReusableCreateInputSerializer(data=self.lti11_payload(
+            defaults={'inline_height': 2147483647}
+        )).is_valid())
+        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
+            defaults={'inline_height': 2147483648}
         )).is_valid())
 
 
@@ -226,6 +257,12 @@ class ReusableUpdateInputSerializerTests(TestCase):
         ):
             with self.subTest(payload=payload):
                 self.assertFalse(self.validate_patch(payload)[0])
+
+    def test_scope_addition_rejects_version_only_course_keys(self):
+        version_only_key = 'course-v1:version@519665f6223ebd6980884f2b'
+        valid, serializer = self.validate_patch({'scope': {'course_keys': [version_only_key]}})
+        self.assertFalse(valid)
+        self.assertIn('scope', serializer.errors)
 
     def test_tool_verification_updates_require_matching_safe_key_material(self):
         public_key = '-----BEGIN PUBLIC KEY-----\\npublic material'

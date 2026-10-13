@@ -206,7 +206,10 @@ def create_reusable_configuration(validated_data):
         'send_extra_parameters',
         'custom_parameters',
     )
-    config_values.update({field: services[key] for key, field in service_fields.items() if key in services})
+    config_values.update({
+        field: '' if key == 'deep_linking_launch_url' and services[key] is None else services[key]
+        for key, field in service_fields.items() if key in services
+    })
     config_values.update({field: defaults[field] for field in default_fields if field in defaults})
 
     try:
