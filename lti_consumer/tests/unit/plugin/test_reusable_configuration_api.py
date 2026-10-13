@@ -259,6 +259,23 @@ class ReusableConfigurationListApiTests(TestCase):
             'defaults': {'custom_parameters': ['secret=value']},
         }).configuration
 
+    def create_lti13(self, name, *, connection_overrides=None, services=None, defaults=None):
+        connection = {
+            'launch_url': 'https://tool.example/launch',
+            'oidc_url': 'https://tool.example/oidc',
+            'tool_key_mode': 'keyset_url',
+            'tool_keyset_url': 'https://tool.example/jwks',
+        }
+        connection.update(connection_overrides or {})
+        return create_reusable_configuration({
+            'name': name,
+            'version': 'lti_1p3',
+            'scope': {'course_keys': [str(self.course_key)]},
+            'lti_1p3': connection,
+            'services': services or {},
+            'defaults': defaults or {},
+        }).configuration
+
     def test_scope_union_returns_only_visible_records_with_safe_fields(self):
         self.create('Course', course_keys=[str(self.course_key)])
         self.create('Organization', organization_keys=['ORG'])
@@ -387,20 +404,12 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(configuration.lti_1p1_client_secret, client_secret)
 
     def test_lti13_patch_persists_effective_empty_redirect_fallback_and_preserves_omitted_settings(self):
-        configuration = create_reusable_configuration({
-            'name': 'Redirect fallback',
-            'version': 'lti_1p3',
-            'scope': {'course_keys': [str(self.course_key)]},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
-                'redirect_uris': ['https://tool.example/old-redirect'],
-                'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/jwks',
-            },
-            'services': {'deep_linking_launch_url': 'https://tool.example/deep'},
-            'defaults': {'custom_parameters': ['keep=this']},
-        }).configuration
+        configuration = self.create_lti13(
+            'Redirect fallback',
+            connection_overrides={'redirect_uris': ['https://tool.example/old-redirect']},
+            services={'deep_linking_launch_url': 'https://tool.example/deep'},
+            defaults={'custom_parameters': ['keep=this']},
+        )
         self.course_admin.return_value = True
         detail_url = reverse(
             'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
@@ -767,17 +776,7 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 2)
 
     def test_lti13_patch_preserves_identity_and_keys_and_rejects_immutable_writes(self):
-        configuration = create_reusable_configuration({
-            'name': 'LTI 1.3 before update',
-            'version': 'lti_1p3',
-            'scope': {'course_keys': [str(self.course_key)]},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
-                'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/jwks',
-            },
-        }).configuration
+        configuration = self.create_lti13('LTI 1.3 before update')
         passport = configuration.lti_1p3_passport
         identity = {field: getattr(configuration, field) for field in (
             'config_id', 'version', 'lti_1p3_client_id', 'lti_1p3_deployment_id', 'lti_1p3_passport_id',
@@ -851,17 +850,10 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(configuration.lti_1p3_client_id, passport.lti_1p3_client_id)
 
     def test_patch_updates_tool_verification_settings_without_exposing_key_material(self):
-        configuration = create_reusable_configuration({
-            'name': 'Editable tool key',
-            'version': 'lti_1p3',
-            'scope': {'course_keys': [str(self.course_key)]},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
-                'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/original-jwks',
-            },
-        }).configuration
+        configuration = self.create_lti13(
+            'Editable tool key',
+            connection_overrides={'tool_keyset_url': 'https://tool.example/original-jwks'},
+        )
         passport = configuration.lti_1p3_passport
         immutable_identity = {
             'config_id': configuration.config_id,
@@ -920,17 +912,10 @@ class ReusableConfigurationListApiTests(TestCase):
         self.assertEqual(passport.lti_1p3_internal_public_jwk, immutable_identity['public_jwk'])
 
     def test_patch_rolls_back_tool_key_updates_when_grant_insert_fails(self):
-        configuration = create_reusable_configuration({
-            'name': 'Atomic tool-key update',
-            'version': 'lti_1p3',
-            'scope': {'course_keys': [str(self.course_key)]},
-            'lti_1p3': {
-                'launch_url': 'https://tool.example/launch',
-                'oidc_url': 'https://tool.example/oidc',
-                'tool_key_mode': 'keyset_url',
-                'tool_keyset_url': 'https://tool.example/original-jwks',
-            },
-        }).configuration
+        configuration = self.create_lti13(
+            'Atomic tool-key update',
+            connection_overrides={'tool_keyset_url': 'https://tool.example/original-jwks'},
+        )
         passport = configuration.lti_1p3_passport
         updated_at = configuration.updated_at
         self.course_admin.return_value = True
