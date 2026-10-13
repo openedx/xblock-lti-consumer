@@ -40,7 +40,55 @@ class ReusableConfigurationCreateApiTests(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
         self.assertTrue(response.data['one_time_credentials']['client_secret'])
+        configuration = ReusableLtiConfiguration.objects.get()
+        self.assertEqual(configuration.lti_1p1_launch_url, 'https://tool.example/launch')
+        self.assertEqual(configuration.lti_advantage_ags_mode, 'declarative')
+        self.assertEqual(str(configuration.course_grants.get().course_key), 'course-v1:Org+Course+Run')
+        self.assertEqual(
+            response.data['one_time_credentials']['client_secret'], configuration.lti_1p1_client_secret,
+        )
         self.assertEqual(response['Cache-Control'], 'no-store')
+
+    def test_course_admin_cannot_create_ccx_scoped_configuration(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        payload = {
+            **self.payload,
+            'scope': {'course_keys': ['ccx-v1:Org+Course+Run+ccx@1']},
+        }
+        with patch('lti_consumer.plugin.reusable_permissions.compat.user_is_course_admin', return_value=True) as is_admin:
+            response = client.post(self.url, payload, format='json')
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), 0)
+        is_admin.assert_not_called()
+
+    def test_superuser_can_create_list_retrieve_and_update_ccx_scope(self):
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+        payload = {
+            **self.payload,
+            'scope': {'course_keys': ['ccx-v1:Org+Course+Run+ccx@1']},
+        }
+
+        created = client.post(self.url, payload, format='json')
+
+        self.assertEqual(created.status_code, 201, created.data)
+        config_id = created.data['config_id']
+        listed = client.get(self.url)
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.data['count'], 1)
+        self.assertEqual([row['config_id'] for row in listed.data['results']], [config_id])
+        detail_url = reverse('reusable_lti:reusable_configuration_detail', kwargs={'config_id': config_id})
+        detail = client.get(detail_url)
+        self.assertEqual(detail.status_code, 200)
+        self.assertTrue(detail.data['can_manage'])
+        updated = client.patch(detail_url, {'description': 'Updated by superuser'}, format='json')
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertEqual(
+            ReusableLtiConfiguration.objects.get(config_id=config_id).description,
+            'Updated by superuser',
+        )
 
     def test_lti13_create_returns_registration_identity_without_credentials(self):
         client = APIClient()
@@ -426,6 +474,29 @@ class ReusableConfigurationListApiTests(TestCase):
         empty = self.client.patch(detail_url, {'scope': {'course_keys': []}}, format='json')
         self.assertEqual(empty.status_code, 200, empty.data)
         self.assertEqual(configuration.course_grants.count(), 3)
+
+    def test_patch_rejects_ccx_scope_addition_without_writes(self):
+        configuration = self.create('No CCX scope', course_keys=[str(self.course_key)])
+        self.course_admin.return_value = True
+        detail_url = reverse(
+            'reusable_lti:reusable_configuration_detail', kwargs={'config_id': configuration.config_id},
+        )
+
+        response = self.client.patch(detail_url, {
+            'name': 'Must not persist',
+            'scope': {'course_keys': ['ccx-v1:Org+Course+Run+ccx@1']},
+        }, format='json')
+
+        self.assertEqual(response.status_code, 403)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'No CCX scope')
+        self.assertEqual(
+            {str(key) for key in configuration.course_grants.values_list('course_key', flat=True)},
+            {str(self.course_key)},
+        )
+        ccx_key = CourseKey.from_string('ccx-v1:Org+Course+Run+ccx@1')
+        checked_keys = [args.args[1] for args in self.course_admin.call_args_list]
+        self.assertNotIn(ccx_key, checked_keys)
 
     def test_patch_rolls_back_metadata_when_scope_grant_insert_fails(self):
         configuration = self.create('Atomic update', course_keys=[str(self.course_key)])

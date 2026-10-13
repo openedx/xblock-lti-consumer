@@ -54,6 +54,13 @@ class ReusableScopePermissionTests(SimpleTestCase):
         is_admin.assert_not_called()
 
     @patch('lti_consumer.plugin.reusable_permissions.compat.user_is_course_admin')
+    def test_ccx_scope_is_superuser_only(self, is_admin):
+        scope = {'course_keys': ['ccx-v1:Org+Course+Run+ccx@1']}
+        self.assertFalse(can_manage_reusable_scope(self.user(), scope))
+        self.assertTrue(can_manage_reusable_scope(self.user(superuser=True), scope))
+        is_admin.assert_not_called()
+
+    @patch('lti_consumer.plugin.reusable_permissions.compat.user_is_course_admin')
     def test_invalid_or_empty_scope_is_denied(self, is_admin):
         self.assertFalse(can_manage_reusable_scope(self.user(), {'course_keys': ['invalid']}))
         self.assertFalse(can_manage_reusable_scope(self.user(superuser=True), {'site_wide': False}))

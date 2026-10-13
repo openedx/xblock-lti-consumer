@@ -304,23 +304,6 @@ class ReusableUpdateInputSerializerTests(TestCase):
 class ReusableSerializerServiceIntegrationTests(TestCase):
     """Ensure validated create payloads match the atomic service contract."""
 
-    def test_lti11_validated_payload_creates_configuration_and_one_time_credentials(self):
-        payload = {
-            'name': 'Integrated 1.1',
-            'version': 'lti_1p1',
-            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
-            'lti_1p1': {'launch_url': 'https://tool.example/launch'},
-        }
-        serializer = ReusableCreateInputSerializer(data=payload)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-
-        result = create_reusable_configuration(serializer.validated_data)
-        configuration = result.configuration
-        self.assertEqual(configuration.lti_1p1_launch_url, 'https://tool.example/launch')
-        self.assertEqual(configuration.lti_advantage_ags_mode, 'declarative')
-        self.assertEqual(str(configuration.course_grants.get().course_key), 'course-v1:Org+Course+Run')
-        self.assertEqual(result.one_time_credentials['client_secret'], configuration.lti_1p1_client_secret)
-
     def test_lti13_validated_payload_stores_library_scope_and_passport_identity(self):
         library_key = 'library-v1:Org+Library'
         payload = {
