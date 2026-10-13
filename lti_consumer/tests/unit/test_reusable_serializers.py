@@ -384,7 +384,7 @@ class ReusableResponseSerializerTests(TestCase):
         self.assertNotIn('lti_1p3_internal_private_key', str(detail))
         self.assertEqual(detail['scope']['course_keys'], ['course-v1:Org+Course+Run'])
 
-    def test_lti13_registration_urls_match_existing_launch_info_field_names(self):
+    def test_lti13_registration_urls_use_existing_reusable_api_keys(self):
         configuration = create_reusable_configuration({
             'name': 'Registration metadata',
             'version': 'lti_1p3',
@@ -407,9 +407,9 @@ class ReusableResponseSerializerTests(TestCase):
             data = ReusableDetailSerializer(configuration, context={'can_manage': True}).data
 
         self.assertEqual(data['registration_urls'], {
-            'oidc_callback': 'https://lms.example/api/lti_consumer/v1/launch/',
+            'login_url': 'https://lms.example/api/lti_consumer/v1/launch/',
             'jwks_url': 'https://api.example/api/lti_consumer/v1/public_keysets',
-            'token_url': 'https://api.example/api/lti_consumer/v1/token',
+            'access_token_url': 'https://api.example/api/lti_consumer/v1/token',
         })
 
     def test_lti13_detail_never_serializes_tool_or_platform_key_material(self):
