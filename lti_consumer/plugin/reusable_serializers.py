@@ -430,9 +430,9 @@ class ReusableDetailSerializer(ReusableListSerializer):
         if obj.version != ReusableLtiConfiguration.LTI_1P3:
             return {}
         return {
-            'oidc_callback': f'{get_lti_view_base()}/api/lti_consumer/v1/launch/',
+            'login_url': f'{get_lti_view_base()}/api/lti_consumer/v1/launch/',
             'jwks_url': f'{get_lti_api_base()}/api/lti_consumer/v1/public_keysets',
-            'token_url': f'{get_lti_api_base()}/api/lti_consumer/v1/token',
+            'access_token_url': f'{get_lti_api_base()}/api/lti_consumer/v1/token',
         }
 
 
