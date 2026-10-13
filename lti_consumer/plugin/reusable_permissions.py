@@ -1,4 +1,5 @@
 """Authorization helpers for reusable LTI configuration management."""
+from ccx_keys.locator import CCXLocator
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import CourseLocator
@@ -9,7 +10,8 @@ from lti_consumer.plugin import compat
 def can_manage_reusable_scope(user, scope, *, course_admin_cache=None):
     """Return whether ``user`` may manage a configuration with this scope.
 
-    Course admins must administer every explicitly scoped course. Organization
+    Course admins must administer every explicitly scoped course. CCX scope is
+    superuser-only because Studio's course catalog excludes CCX keys. Organization
     and site-wide scopes are superuser-only. Library scope remains unavailable
     at the management boundary until its authorization/availability policy is
     defined, although the lower-level serializer and storage can parse it.
@@ -26,6 +28,8 @@ def can_manage_reusable_scope(user, scope, *, course_admin_cache=None):
         for value in course_keys:
             course_key = CourseKey.from_string(value)
             if not isinstance(course_key, CourseLocator):
+                return False
+            if isinstance(course_key, CCXLocator) and not user.is_superuser:
                 return False
             parsed_course_keys.append(course_key)
     except (InvalidKeyError, TypeError):
