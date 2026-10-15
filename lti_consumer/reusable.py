@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.utils.translation import gettext_lazy as _
 
 from lti_consumer.models import (
     Lti1p3Passport,
@@ -58,17 +59,17 @@ def _is_nonblank_string(value):
 def _validate_scope(scope):
     """Validate and normalize the creation scope."""
     if not isinstance(scope, dict):
-        _invalid('At least one scope grant is required.')
+        _invalid(_('At least one scope grant is required.'))
 
     course_keys = scope.get('course_keys', [])
     organization_keys = scope.get('organization_keys', [])
     site_wide = scope.get('site_wide', False)
     if not isinstance(course_keys, (list, tuple)) or not isinstance(organization_keys, (list, tuple)):
-        _invalid('Scope grants must be lists.')
+        _invalid(_('Scope grants must be lists.'))
     if not isinstance(site_wide, bool) or not (course_keys or organization_keys or site_wide):
-        _invalid('At least one scope grant is required.')
+        _invalid(_('At least one scope grant is required.'))
     if any(not _is_nonblank_string(value) for value in (*course_keys, *organization_keys)):
-        _invalid('Scope grants must be non-empty strings.')
+        _invalid(_('Scope grants must be non-empty strings.'))
 
     return (
         list(dict.fromkeys(course_keys)),
@@ -80,42 +81,42 @@ def _validate_scope(scope):
 def _validate_lti_1p1(section):
     """Validate LTI 1.1 connection and optional credentials."""
     if not _is_nonblank_string(section.get('launch_url')):
-        _invalid('A launch URL is required.')
+        _invalid(_('A launch URL is required.'))
     for key in ('client_key', 'client_secret'):
         value = section.get(key)
         if value is not None and not _is_nonblank_string(value):
-            _invalid('Credential overrides must be non-empty strings.')
+            _invalid(_('Credential overrides must be non-empty strings.'))
 
 
 def _validate_lti_1p3(section):
     """Validate LTI 1.3 connection, identity overrides, and tool-key mode."""
     if not _is_nonblank_string(section.get('launch_url')):
-        _invalid('A launch URL is required.')
+        _invalid(_('A launch URL is required.'))
     if not _is_nonblank_string(section.get('oidc_url')):
-        _invalid('An OIDC URL is required.')
+        _invalid(_('An OIDC URL is required.'))
 
     mode = section.get('tool_key_mode')
     if mode == 'public_key':
         has_material = _is_nonblank_string(section.get('tool_public_key'))
         if not has_material or section.get('tool_keyset_url'):
-            _invalid('The LTI 1.3 public-key mode requires only a tool public key.')
+            _invalid(_('The LTI 1.3 public-key mode requires only a tool public key.'))
     elif mode == 'keyset_url':
         has_material = _is_nonblank_string(section.get('tool_keyset_url'))
         if not has_material or section.get('tool_public_key'):
-            _invalid('The LTI 1.3 keyset mode requires only a tool keyset URL.')
+            _invalid(_('The LTI 1.3 keyset mode requires only a tool keyset URL.'))
     else:
-        _invalid('A supported LTI 1.3 tool-key mode and material are required.')
+        _invalid(_('A supported LTI 1.3 tool-key mode and material are required.'))
 
     for key in ('client_id', 'deployment_id'):
         value = section.get(key)
         if value is not None and not _is_nonblank_string(value):
-            _invalid('Registration identity overrides must be non-empty strings.')
+            _invalid(_('Registration identity overrides must be non-empty strings.'))
 
     redirects = section.get('redirect_uris', [])
     if not isinstance(redirects, (list, tuple)):
-        _invalid('Redirect URIs must be a list.')
+        _invalid(_('Redirect URIs must be a list.'))
     if any(not _is_nonblank_string(uri) for uri in redirects):
-        _invalid('Redirect URIs must be non-empty strings.')
+        _invalid(_('Redirect URIs must be non-empty strings.'))
 
 
 def _validate_input(data):
@@ -131,22 +132,22 @@ def _validate_input(data):
         }
     """
     if not isinstance(data, dict):
-        _invalid('Invalid reusable configuration.')
+        _invalid(_('Invalid reusable configuration.'))
 
     version = data.get('version')
     if version not in (ReusableLtiConfiguration.LTI_1P1, ReusableLtiConfiguration.LTI_1P3):
-        _invalid('A supported LTI version is required.')
+        _invalid(_('A supported LTI version is required.'))
 
     section = data.get(version)
     other_sections = (ReusableLtiConfiguration.LTI_1P1, ReusableLtiConfiguration.LTI_1P3)
     if not isinstance(section, dict) or any(key in data for key in other_sections if key != version):
-        _invalid('The connection settings must match the selected LTI version.')
+        _invalid(_('The connection settings must match the selected LTI version.'))
 
     name = data.get('name')
     if not _is_nonblank_string(name):
-        _invalid('A non-empty name is required.')
+        _invalid(_('A non-empty name is required.'))
     if len(name.strip()) > ReusableLtiConfiguration._meta.get_field('name').max_length:
-        _invalid('The name is too long.')
+        _invalid(_('The name is too long.'))
 
     course_keys, organization_keys, site_wide = _validate_scope(data.get('scope'))
     if version == ReusableLtiConfiguration.LTI_1P1:
@@ -172,7 +173,7 @@ def create_reusable_configuration(validated_data):
     services = validated_data.get('services') or {}
     defaults = validated_data.get('defaults') or {}
     if not isinstance(services, dict) or not isinstance(defaults, dict):
-        _invalid('Invalid reusable configuration settings.')
+        _invalid(_('Invalid reusable configuration settings.'))
 
     credentials = None
     config_values = {
@@ -224,7 +225,7 @@ def create_reusable_configuration(validated_data):
                 # Best-effort cross-table collision check: legacy passport writes
                 # do not share a database uniqueness constraint with this table.
                 if Lti1p3Passport.objects.filter(lti_1p3_client_id=client_id).exists():
-                    _invalid('The requested configuration conflicts with an existing identity.')
+                    _invalid(_('The requested configuration conflicts with an existing identity.'))
                 passport_values = {
                     'name': name,
                     'lti_1p3_client_id': client_id,
@@ -247,6 +248,6 @@ def create_reusable_configuration(validated_data):
             ])
     except IntegrityError:
         # Translate only after atomic has rolled back and the connection is usable.
-        raise ValidationError('A reusable configuration conflicts with an existing record.') from None
+        raise ValidationError(_('A reusable configuration conflicts with an existing record.')) from None
 
     return ReusableCreationResult(configuration=configuration, one_time_credentials=credentials)

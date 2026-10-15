@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.locator import CourseLocator
 from rest_framework import serializers, status
@@ -97,14 +98,15 @@ class ReusableConfigurationListCreateView(APIView):
             try:
                 course_key = normalize_course_key(raw_course_key)
             except (InvalidKeyError, TypeError, ValueError) as err:
-                raise serializers.ValidationError({'course_key': 'Invalid course key.'}) from err
+                raise serializers.ValidationError({'course_key': _('Invalid course key.')}) from err
             if not isinstance(course_key, CourseLocator):
-                raise serializers.ValidationError({'course_key': 'A course key is required.'})
+                raise serializers.ValidationError({'course_key': _('A course key is required.')})
         configurations = _visible_configurations(request.user, course_key=course_key)
 
         scope = request.query_params.get('scope')
         if scope not in (None, 'course', 'organization', 'site_wide'):
-            raise serializers.ValidationError({'scope': 'Use course, organization, or site_wide.'})
+            # Translators: course, organization and site_wide are literal API values; do not translate them.
+            raise serializers.ValidationError({'scope': _('Use course, organization, or site_wide.')})
         if scope == 'course':
             configurations = configurations.filter(Exists(
                 ReusableLtiConfigurationCourse.objects.filter(configuration_id=OuterRef('pk'))
@@ -226,7 +228,7 @@ class ReusableConfigurationDetailView(APIView):
                 changes = serializer.validated_data
                 requested_scope = changes.get('scope', {})
                 if current_scope['site_wide'] and requested_scope.get('site_wide') is False:
-                    raise serializers.ValidationError({'scope': 'Scope reductions are not supported.'})
+                    raise serializers.ValidationError({'scope': _('Scope reductions are not supported.')})
 
                 proposed_scope = {
                     'course_keys': list(dict.fromkeys(
@@ -296,7 +298,7 @@ class ReusableConfigurationDetailView(APIView):
                     for key in proposed_scope['organization_keys'] if key not in existing_organizations
                 ])
         except IntegrityError:
-            raise serializers.ValidationError('The update conflicts with an existing configuration.') from None
+            raise serializers.ValidationError(_('The update conflicts with an existing configuration.')) from None
 
         can_manage = _can_manage(request.user, configuration, {})
         response = Response(ReusableDetailSerializer(

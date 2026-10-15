@@ -171,32 +171,35 @@ class ReusableLtiConfiguration(models.Model):
     LTI_1P1 = 'lti_1p1'
     LTI_1P3 = 'lti_1p3'
     LTI_VERSION_CHOICES = [
-        (LTI_1P1, 'LTI 1.1'),
-        (LTI_1P3, 'LTI 1.3'),
+        (LTI_1P1, _('LTI 1.1')),
+        (LTI_1P3, _('LTI 1.3')),
     ]
 
-    config_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    name = models.CharField(max_length=255)
+    config_id = models.UUIDField(_("Configuration ID"), default=uuid.uuid4, unique=True, editable=False)
+    name = models.CharField(_("Name"), max_length=255)
     normalized_name = models.CharField(max_length=768, unique=True, editable=False)
-    description = models.TextField(blank=True)
-    version = models.CharField(max_length=10, choices=LTI_VERSION_CHOICES)
-    site_wide = models.BooleanField(default=False)
+    description = models.TextField(_("Description"), blank=True)
+    version = models.CharField(_("LTI Version"), max_length=10, choices=LTI_VERSION_CHOICES)
+    site_wide = models.BooleanField(_("Site wide"), default=False)
 
     # LTI 1.1 connection and credentials.
-    lti_1p1_launch_url = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p1_launch_url = models.CharField(_("LTI 1.1 Launch URL"), max_length=255, null=True, blank=True)
     lti_1p1_client_key = models.CharField(max_length=255, null=True, blank=True)
     lti_1p1_client_secret = models.CharField(max_length=255, null=True, blank=True)
 
     # LTI 1.3 tool connection and immutable registration identity.
-    lti_1p3_launch_url = models.CharField(max_length=255, null=True, blank=True)
-    lti_1p3_oidc_url = models.CharField(max_length=255, null=True, blank=True)
-    lti_1p3_redirect_uris = models.JSONField(default=list, blank=True)
+    lti_1p3_launch_url = models.CharField(_("LTI 1.3 Launch URL"), max_length=255, null=True, blank=True)
+    lti_1p3_oidc_url = models.CharField(
+        _("LTI 1.3 OpenID Connect (OIDC) Login URL"), max_length=255, null=True, blank=True,
+    )
+    lti_1p3_redirect_uris = models.JSONField(_("LTI 1.3 Redirect URIs"), default=list, blank=True)
     # shortcut: Client ID equality follows DB collation; add portable matching only if cross-backend consistency is required.
-    lti_1p3_client_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
-    lti_1p3_deployment_id = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p3_client_id = models.CharField(_("LTI 1.3 Client ID"), max_length=255, null=True, blank=True, unique=True)
+    lti_1p3_deployment_id = models.CharField(_("LTI 1.3 Deployment ID"), max_length=255, null=True, blank=True)
     lti_1p3_tool_key_mode = models.CharField(
+        _("LTI 1.3 Tool Key Mode"),
         max_length=20,
-        choices=[('public_key', 'Public Key'), ('keyset_url', 'Keyset URL')],
+        choices=[('public_key', _('Public Key')), ('keyset_url', _('Keyset URL'))],
         null=True,
         blank=True,
     )
@@ -209,38 +212,44 @@ class ReusableLtiConfiguration(models.Model):
     )
 
     # Shared LTI Advantage service settings.
-    lti_advantage_deep_linking_enabled = models.BooleanField(default=False)
-    lti_advantage_deep_linking_launch_url = models.CharField(max_length=225, blank=True, default='')
+    lti_advantage_deep_linking_enabled = models.BooleanField(_("Enable LTI Advantage Deep Linking"), default=False)
+    lti_advantage_deep_linking_launch_url = models.CharField(
+        _("LTI Advantage Deep Linking launch URL"), max_length=225, blank=True, default='',
+    )
     lti_advantage_ags_mode = models.CharField(
+        _("LTI Advantage Assignment and Grade Services Mode"),
         max_length=20,
         choices=[
-            ('disabled', 'Disabled'),
-            ('declarative', 'Allow tools to submit grades only (declarative)'),
-            ('programmatic', 'Allow tools to manage and submit grade (programmatic)'),
+            ('disabled', _('Disabled')),
+            ('declarative', _('Allow tools to submit grades only (declarative)')),
+            ('programmatic', _('Allow tools to manage and submit grade (programmatic)')),
         ],
         default='declarative',
     )
-    lti_advantage_enable_nrps = models.BooleanField(default=False)
+    lti_advantage_enable_nrps = models.BooleanField(
+        _("Enable LTI Advantage Names and Role Provisioning Services"), default=False,
+    )
 
     # Shared placement defaults; placements and placement-specific data are not stored here.
-    display_name = models.CharField(max_length=255, default='LTI Consumer')
-    enable_grading = models.BooleanField(default=False)
-    grade_weight = models.FloatField(default=1.0, validators=[MinValueValidator(0)])
-    accept_grades_after_due_date = models.BooleanField(default=True)
+    display_name = models.CharField(_("Display Name"), max_length=255, default='LTI Consumer')
+    enable_grading = models.BooleanField(_("Enable grading"), default=False)
+    grade_weight = models.FloatField(_("Grade Weight"), default=1.0, validators=[MinValueValidator(0)])
+    accept_grades_after_due_date = models.BooleanField(_("Accept grades after due date"), default=True)
     open_tool_in = models.CharField(
+        _("Open tool in"),
         max_length=20,
-        choices=[('iframe', 'Inline'), ('modal', 'Modal'), ('new_window', 'New Window')],
+        choices=[('iframe', _('Inline')), ('modal', _('Modal')), ('new_window', _('New Window'))],
         default='iframe',
     )
-    inline_height = models.IntegerField(default=800)
-    modal_height = models.IntegerField(default=80)
-    modal_width = models.IntegerField(default=80)
-    launch_button_text = models.CharField(max_length=255, blank=True, default='')
-    send_extra_parameters = models.BooleanField(default=False)
-    custom_parameters = models.JSONField(default=list, blank=True)
+    inline_height = models.IntegerField(_("Inline Height (px)"), default=800)
+    modal_height = models.IntegerField(_("Modal Height (%)"), default=80)
+    modal_width = models.IntegerField(_("Modal Width (%)"), default=80)
+    launch_button_text = models.CharField(_("Launch Button Text"), max_length=255, blank=True, default='')
+    send_extra_parameters = models.BooleanField(_("Send extra parameters"), default=False)
+    custom_parameters = models.JSONField(_("Custom Parameters"), default=list, blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated at"), auto_now=True)
 
     def save(self, *args, **kwargs):
         self.normalized_name = self.name.strip().casefold()
@@ -250,6 +259,8 @@ class ReusableLtiConfiguration(models.Model):
 
     class Meta:
         app_label = 'lti_consumer'
+        verbose_name = _("Reusable LTI configuration")
+        verbose_name_plural = _("Reusable LTI configurations")
 
 
 class ReusableLtiConfigurationCourse(models.Model):
@@ -260,10 +271,12 @@ class ReusableLtiConfigurationCourse(models.Model):
         on_delete=models.CASCADE,
         related_name='course_grants',
     )
-    course_key = CourseKeyField(max_length=255)
+    course_key = CourseKeyField(_("Course Key"), max_length=255)
 
     class Meta:
         app_label = 'lti_consumer'
+        verbose_name = _("Course grant")
+        verbose_name_plural = _("Course grants")
         constraints = [
             models.UniqueConstraint(
                 fields=('configuration', 'course_key'),
@@ -281,7 +294,7 @@ class ReusableLtiConfigurationOrganization(models.Model):
         on_delete=models.CASCADE,
         related_name='organization_grants',
     )
-    organization = models.CharField(max_length=255)
+    organization = models.CharField(_("Organization"), max_length=255)
 
     def save(self, *args, **kwargs):
         self.organization = self.organization.lower()
@@ -289,6 +302,8 @@ class ReusableLtiConfigurationOrganization(models.Model):
 
     class Meta:
         app_label = 'lti_consumer'
+        verbose_name = _("Organization grant")
+        verbose_name_plural = _("Organization grants")
         constraints = [
             models.UniqueConstraint(
                 fields=('configuration', 'organization'),
