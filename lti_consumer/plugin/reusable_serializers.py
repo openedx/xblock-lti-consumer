@@ -2,6 +2,7 @@
 from math import isfinite
 from urllib.parse import urlsplit
 
+from django.utils.translation import gettext_lazy as _
 from opaque_keys import InvalidKeyError
 from rest_framework import serializers
 
@@ -31,7 +32,7 @@ class StrictSerializer(serializers.Serializer):
         if isinstance(data, dict):
             unknown = set(data) - set(self.fields)
             if unknown:
-                raise serializers.ValidationError({key: ['Unknown field.'] for key in sorted(unknown)})
+                raise serializers.ValidationError({key: [_('Unknown field.')] for key in sorted(unknown)})
         return super().to_internal_value(data)
 
 
@@ -41,7 +42,7 @@ class HttpUrlField(serializers.URLField):
     def to_internal_value(self, data):
         value = super().to_internal_value(data)
         if urlsplit(value).scheme.lower() not in ('http', 'https'):
-            raise serializers.ValidationError('Enter a valid HTTP(S) URL.')
+            raise serializers.ValidationError(_('Enter a valid HTTP(S) URL.'))
         return value
 
 
@@ -53,10 +54,10 @@ class CourseKeyStringField(serializers.CharField):
         try:
             course_key = normalize_course_key(value)
         except (InvalidKeyError, TypeError, ValueError) as err:
-            raise serializers.ValidationError('Invalid course key.') from err
+            raise serializers.ValidationError(_('Invalid course key.')) from err
         serialized_key = str(course_key)
         if len(serialized_key) > 255:
-            raise serializers.ValidationError('Course key must not exceed 255 characters.')
+            raise serializers.ValidationError(_('Course key must not exceed 255 characters.'))
         return serialized_key
 
 
@@ -69,16 +70,16 @@ class ReusableScopeInputSerializer(StrictSerializer):
 
     def validate(self, attrs):
         if not (attrs['course_keys'] or attrs['organization_keys'] or attrs['site_wide']):
-            raise serializers.ValidationError('At least one scope grant is required.')
+            raise serializers.ValidationError(_('At least one scope grant is required.'))
         attrs['course_keys'] = list(dict.fromkeys(key.strip() for key in attrs['course_keys']))
         attrs['organization_keys'] = list(dict.fromkeys(key.strip().lower() for key in attrs['organization_keys']))
         if any(not key for key in (*attrs['course_keys'], *attrs['organization_keys'])):
-            raise serializers.ValidationError('Scope grants must be non-empty strings.')
+            raise serializers.ValidationError(_('Scope grants must be non-empty strings.'))
         if attrs['organization_keys']:
             registered = _unambiguous_active_organization_keys()
             if any(key not in registered for key in attrs['organization_keys']):
                 raise serializers.ValidationError({
-                    'organization_keys': ['Organization must match one unambiguous active registered organization.']
+                    'organization_keys': [_('Organization must match one unambiguous active registered organization.')]
                 })
         return attrs
 
@@ -104,11 +105,11 @@ class ReusableLti13InputSerializer(StrictSerializer):
         if mode == 'public_key':
             key = attrs.get('tool_public_key', '')
             if not key or attrs.get('tool_keyset_url'):
-                raise serializers.ValidationError('Public-key mode requires only a tool public key.')
+                raise serializers.ValidationError(_('Public-key mode requires only a tool public key.'))
             if 'PRIVATE KEY' in key:
-                raise serializers.ValidationError({'tool_public_key': 'Private keys are not accepted.'})
+                raise serializers.ValidationError({'tool_public_key': _('Private keys are not accepted.')})
         elif not attrs.get('tool_keyset_url') or attrs.get('tool_public_key'):
-            raise serializers.ValidationError('Keyset mode requires only a tool keyset URL.')
+            raise serializers.ValidationError(_('Keyset mode requires only a tool keyset URL.'))
         return attrs
 
 
@@ -138,12 +139,13 @@ class ReusableDefaultsInputSerializer(StrictSerializer):
 
     def validate_grade_weight(self, value):
         if not isfinite(value):
-            raise serializers.ValidationError('A finite grade weight is required.')
+            raise serializers.ValidationError(_('A finite grade weight is required.'))
         return value
 
     def validate_custom_parameters(self, values):
         if any('=' not in value or not value.partition('=')[0] for value in values):
-            raise serializers.ValidationError('Custom parameters must use the form key=value.')
+            # Translators: 'key=value' is the literal required syntax; keep it unchanged.
+            raise serializers.ValidationError(_('Custom parameters must use the form key=value.'))
         return values
 
 
@@ -162,7 +164,7 @@ class ReusableCreateInputSerializer(StrictSerializer):
         expected = 'lti_1p1' if version == ReusableLtiConfiguration.LTI_1P1 else 'lti_1p3'
         other = 'lti_1p3' if expected == 'lti_1p1' else 'lti_1p1'
         if expected not in attrs or other in attrs:
-            raise serializers.ValidationError({expected: 'Connection settings must match the selected version.'})
+            raise serializers.ValidationError({expected: _('Connection settings must match the selected version.')})
 
         services = attrs.setdefault('services', {})
         services.setdefault('deep_linking_enabled', False)
@@ -171,7 +173,7 @@ class ReusableCreateInputSerializer(StrictSerializer):
         attrs.setdefault('defaults', {})
         if services['deep_linking_enabled'] and not services.get('deep_linking_launch_url'):
             raise serializers.ValidationError({
-                'services': {'deep_linking_launch_url': 'Required when Deep Linking is enabled.'}
+                'services': {'deep_linking_launch_url': _('Required when Deep Linking is enabled.')}
             })
         return attrs
 
@@ -191,14 +193,14 @@ class ReusableScopeAdditionInputSerializer(StrictSerializer):
             key.strip().lower() for key in attrs.get('organization_keys', [])
         ))
         if any(not key for key in (*attrs['course_keys'], *attrs['organization_keys'])):
-            raise serializers.ValidationError('Scope grants must be non-empty strings.')
+            raise serializers.ValidationError(_('Scope grants must be non-empty strings.'))
         existing = self.context.get('existing_organization_keys', set())
         additions = set(attrs['organization_keys']) - existing
         if additions:
             registered = _unambiguous_active_organization_keys()
             if any(key not in registered for key in additions):
                 raise serializers.ValidationError({
-                    'organization_keys': ['New grants must match one unambiguous active registered organization.']
+                    'organization_keys': [_('New grants must match one unambiguous active registered organization.')]
                 })
         return attrs
 
@@ -238,7 +240,7 @@ class ReusableUpdateInputSerializer(StrictSerializer):
         other_connection_name = 'lti_1p1' if is_lti13 else 'lti_1p3'
         if other_connection_name in attrs:
             raise serializers.ValidationError({
-                other_connection_name: 'Connection settings must match the configuration version.'
+                other_connection_name: _('Connection settings must match the configuration version.')
             })
 
         connection = attrs.get(connection_name, {})
@@ -274,7 +276,7 @@ class ReusableUpdateInputSerializer(StrictSerializer):
             if mode == 'public_key':
                 if 'tool_keyset_url' in connection:
                     raise serializers.ValidationError({
-                        connection_name: {'tool_keyset_url': 'Not accepted in public-key mode.'}
+                        connection_name: {'tool_keyset_url': _('Not accepted in public-key mode.')}
                     })
                 try:
                     public_key = connection_fields['tool_public_key'].run_validation(
@@ -284,12 +286,14 @@ class ReusableUpdateInputSerializer(StrictSerializer):
                     raise serializers.ValidationError({connection_name: {'tool_public_key': err.detail}}) from err
                 if not public_key.strip() or 'PRIVATE KEY' in public_key:
                     raise serializers.ValidationError({
-                        connection_name: {'tool_public_key': 'A public key is required; private keys are not accepted.'}
+                        connection_name: {
+                            'tool_public_key': _('A public key is required; private keys are not accepted.'),
+                        }
                     })
             else:
                 if 'tool_public_key' in connection:
                     raise serializers.ValidationError({
-                        connection_name: {'tool_public_key': 'Not accepted in keyset URL mode.'}
+                        connection_name: {'tool_public_key': _('Not accepted in keyset URL mode.')}
                     })
                 try:
                     tool_keyset_url = connection_fields['tool_keyset_url'].run_validation(
@@ -299,7 +303,7 @@ class ReusableUpdateInputSerializer(StrictSerializer):
                     raise serializers.ValidationError({connection_name: {'tool_keyset_url': err.detail}}) from err
                 if not tool_keyset_url:
                     raise serializers.ValidationError({
-                        connection_name: {'tool_keyset_url': 'Required in keyset URL mode.'}
+                        connection_name: {'tool_keyset_url': _('Required in keyset URL mode.')}
                     })
 
         services = {
@@ -315,7 +319,7 @@ class ReusableUpdateInputSerializer(StrictSerializer):
             'deep_linking_launch_url'
         ):
             raise serializers.ValidationError({
-                'services': {'deep_linking_launch_url': 'Required when Deep Linking is enabled.'}
+                'services': {'deep_linking_launch_url': _('Required when Deep Linking is enabled.')}
             })
         return attrs
 

@@ -4,6 +4,7 @@ Admin views for LTI related models.
 from config_models.admin import KeyedConfigurationModelAdmin
 from django.contrib import admin
 from django.contrib.admin.utils import flatten_fieldsets
+from django.utils.translation import gettext_lazy as _
 
 from lti_consumer.forms import CourseAllowPIISharingInLTIAdminForm
 from lti_consumer.models import (
@@ -62,6 +63,7 @@ class Lti1p3PassportAdmin(admin.ModelAdmin):
     inlines = [LtiConfigurationInline]
 
     def get_queryset(self, request):
+        # hide passports related to reusable configurations
         return super().get_queryset(request).filter(reusable_configuration__isnull=True)
 
     @staticmethod
@@ -131,16 +133,17 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
 
     # Explicit safe allowlist; readonly_fields is derived to stay in sync with it.
     fieldsets = (
-        ('Identity', {
+        (_('Identity'), {
             'fields': ('name', 'description', 'config_id', 'version', 'created_at', 'updated_at'),
         }),
-        ('Scope', {
+        # Translators: "Scope" means the courses, organizations or the whole site it applies to, not OAuth scopes.
+        (_('Scope'), {
             'fields': ('site_wide',),
         }),
-        ('LTI 1.1 connection', {
+        (_('LTI 1.1 connection'), {
             'fields': ('lti_1p1_launch_url',),
         }),
-        ('LTI 1.3 connection and registration', {
+        (_('LTI 1.3 connection and registration'), {
             'fields': (
                 'lti_1p3_launch_url',
                 'lti_1p3_oidc_url',
@@ -150,7 +153,8 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
                 'lti_1p3_tool_key_mode',
             ),
         }),
-        ('Services', {
+        # Translators: "Services" means the LTI Advantage services (deep linking, AGS, NRPS) enabled here.
+        (_('Services'), {
             'fields': (
                 'lti_advantage_deep_linking_enabled',
                 'lti_advantage_deep_linking_launch_url',
@@ -158,7 +162,7 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
                 'lti_advantage_enable_nrps',
             ),
         }),
-        ('Placement defaults', {
+        (_('Placement defaults'), {
             'fields': (
                 'display_name',
                 'enable_grading',
