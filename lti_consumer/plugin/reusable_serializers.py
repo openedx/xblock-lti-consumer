@@ -2,27 +2,16 @@
 from math import isfinite
 from urllib.parse import urlsplit
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext_lazy as _
-from opaque_keys import InvalidKeyError
 from rest_framework import serializers
 
 from lti_consumer.models import ReusableLtiConfiguration
-from lti_consumer.plugin import compat
-from lti_consumer.plugin.reusable_keys import normalize_course_key
+from lti_consumer.reusable import validate_reusable_context
 from lti_consumer.utils import (
     get_lti_api_base,
     get_lti_view_base,
 )
-
-
-def _unambiguous_active_organization_keys():
-    """Return normalized keys for unique, active organization short names."""
-    registered = {}
-    for organization in compat.get_active_organizations():
-        short_name = organization.get('short_name')
-        if isinstance(short_name, str):
-            registered.setdefault(short_name.lower(), set()).add(short_name)
-    return {key for key, names in registered.items() if len(names) == 1}
 
 
 class StrictSerializer(serializers.Serializer):
@@ -46,42 +35,20 @@ class HttpUrlField(serializers.URLField):
         return value
 
 
-class CourseKeyStringField(serializers.CharField):
-    """Validate a course opaque key and keep the service's string input contract."""
+class ReusableContextInputSerializer(StrictSerializer):
+    """Accept exactly one create-only context and return its canonical form."""
 
-    def to_internal_value(self, data):
-        value = super().to_internal_value(data)
-        try:
-            course_key = normalize_course_key(value)
-        except (InvalidKeyError, TypeError, ValueError) as err:
-            raise serializers.ValidationError(_('Invalid course key.')) from err
-        serialized_key = str(course_key)
-        if len(serialized_key) > 255:
-            raise serializers.ValidationError(_('Course key must not exceed 255 characters.'))
-        return serialized_key
-
-
-class ReusableScopeInputSerializer(StrictSerializer):
-    course_keys = serializers.ListField(child=CourseKeyStringField(allow_blank=False), required=False, default=list)
-    organization_keys = serializers.ListField(
-        child=serializers.CharField(allow_blank=False), required=False, default=list
-    )
-    site_wide = serializers.BooleanField(required=False, default=False)
+    type = serializers.ChoiceField(choices=('course', 'organization', 'site'))
+    key = serializers.CharField(required=False, allow_blank=False)
 
     def validate(self, attrs):
-        if not (attrs['course_keys'] or attrs['organization_keys'] or attrs['site_wide']):
-            raise serializers.ValidationError(_('At least one scope grant is required.'))
-        attrs['course_keys'] = list(dict.fromkeys(key.strip() for key in attrs['course_keys']))
-        attrs['organization_keys'] = list(dict.fromkeys(key.strip().lower() for key in attrs['organization_keys']))
-        if any(not key for key in (*attrs['course_keys'], *attrs['organization_keys'])):
-            raise serializers.ValidationError(_('Scope grants must be non-empty strings.'))
-        if attrs['organization_keys']:
-            registered = _unambiguous_active_organization_keys()
-            if any(key not in registered for key in attrs['organization_keys']):
-                raise serializers.ValidationError({
-                    'organization_keys': [_('Organization must match one unambiguous active registered organization.')]
-                })
-        return attrs
+        context = {'type': attrs['type']}
+        if 'key' in attrs:
+            context['key'] = attrs['key']
+        try:
+            return validate_reusable_context(context)
+        except DjangoValidationError as err:
+            raise serializers.ValidationError(err.messages) from err
 
 
 class ReusableLti11InputSerializer(StrictSerializer):
@@ -153,7 +120,7 @@ class ReusableCreateInputSerializer(StrictSerializer):
     name = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
     version = serializers.ChoiceField(choices=(ReusableLtiConfiguration.LTI_1P1, ReusableLtiConfiguration.LTI_1P3))
-    scope = ReusableScopeInputSerializer()
+    context = ReusableContextInputSerializer()
     lti_1p1 = ReusableLti11InputSerializer(required=False)
     lti_1p3 = ReusableLti13InputSerializer(required=False)
     services = ReusableServicesInputSerializer(required=False, default=dict)
@@ -175,33 +142,6 @@ class ReusableCreateInputSerializer(StrictSerializer):
             raise serializers.ValidationError({
                 'services': {'deep_linking_launch_url': _('Required when Deep Linking is enabled.')}
             })
-        return attrs
-
-
-class ReusableScopeAdditionInputSerializer(StrictSerializer):
-    """Accept only additive grants; omitted fields never imply scope removal."""
-
-    course_keys = serializers.ListField(child=CourseKeyStringField(allow_blank=False), required=False, default=list)
-    organization_keys = serializers.ListField(
-        child=serializers.CharField(allow_blank=False), required=False, default=list
-    )
-    site_wide = serializers.BooleanField(required=False, default=False)
-
-    def validate(self, attrs):
-        attrs['course_keys'] = list(dict.fromkeys(key.strip() for key in attrs.get('course_keys', [])))
-        attrs['organization_keys'] = list(dict.fromkeys(
-            key.strip().lower() for key in attrs.get('organization_keys', [])
-        ))
-        if any(not key for key in (*attrs['course_keys'], *attrs['organization_keys'])):
-            raise serializers.ValidationError(_('Scope grants must be non-empty strings.'))
-        existing = self.context.get('existing_organization_keys', set())
-        additions = set(attrs['organization_keys']) - existing
-        if additions:
-            registered = _unambiguous_active_organization_keys()
-            if any(key not in registered for key in additions):
-                raise serializers.ValidationError({
-                    'organization_keys': [_('New grants must match one unambiguous active registered organization.')]
-                })
         return attrs
 
 
@@ -227,7 +167,6 @@ class ReusableUpdateInputSerializer(StrictSerializer):
 
     name = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    scope = ReusableScopeAdditionInputSerializer(required=False)
     lti_1p1 = ReusableLti11UpdateInputSerializer(required=False)
     lti_1p3 = ReusableLti13UpdateInputSerializer(required=False)
     services = ReusableServicesInputSerializer(required=False)
@@ -330,7 +269,6 @@ class ReusableListSerializer(serializers.Serializer):
     config_id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)
     version = serializers.CharField(read_only=True)
-    scope_summary = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
     can_manage = serializers.SerializerMethodField()
@@ -338,12 +276,16 @@ class ReusableListSerializer(serializers.Serializer):
     ags_mode = serializers.CharField(source='lti_advantage_ags_mode', read_only=True)
     nrps_enabled = serializers.BooleanField(source='lti_advantage_enable_nrps', read_only=True)
 
-    def get_scope_summary(self, obj):
-        return {
-            'site_wide': obj.site_wide,
-            'course_count': obj.course_grants.count(),
-            'organization_count': obj.organization_grants.count(),
-        }
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['context'] = self.get_context(instance)
+        return data
+
+    def get_context(self, obj):
+        context = {'type': obj.context_type}
+        if obj.context_key:
+            context['key'] = obj.context_key
+        return context
 
     def get_can_manage(self, obj):
         value = self.context.get('can_manage', False)
@@ -361,7 +303,6 @@ class ReusableDetailSerializer(ReusableListSerializer):
     tool_key_configured = serializers.SerializerMethodField()
     client_id = serializers.SerializerMethodField()
     deployment_id = serializers.SerializerMethodField()
-    scope = serializers.SerializerMethodField()
     registration_urls = serializers.SerializerMethodField()
     display_name = serializers.CharField(read_only=True)
     enable_grading = serializers.BooleanField(read_only=True)
@@ -395,17 +336,6 @@ class ReusableDetailSerializer(ReusableListSerializer):
 
     def get_deployment_id(self, obj):
         return obj.lti_1p3_deployment_id if obj.version == ReusableLtiConfiguration.LTI_1P3 else None
-
-    def get_scope(self, obj):
-        result = {'site_wide': obj.site_wide}
-        if self.get_can_manage(obj):
-            result.update(
-                course_keys=[str(key) for key in obj.course_grants.values_list('course_key', flat=True)],
-                organization_keys=list(obj.organization_grants.values_list('organization', flat=True)),
-            )
-        else:
-            result['summary'] = self.get_scope_summary(obj)
-        return result
 
     def get_registration_urls(self, obj):
         if obj.version != ReusableLtiConfiguration.LTI_1P3:

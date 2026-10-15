@@ -4,7 +4,7 @@ import uuid
 
 import django.core.validators
 import django.db.models.deletion
-import opaque_keys.edx.django.models
+import lti_consumer.models
 from django.db import migrations, models
 
 
@@ -23,7 +23,12 @@ class Migration(migrations.Migration):
                     models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name='Configuration ID'),
                 ),
                 ('name', models.CharField(max_length=255, verbose_name='Name')),
-                ('normalized_name', models.CharField(editable=False, max_length=768, unique=True)),
+                (
+                    'normalized_name',
+                    lti_consumer.models.ReusableNameField(
+                        db_collation='utf8mb4_0900_as_ci', editable=False, max_length=768, unique=True
+                    ),
+                ),
                 ('description', models.TextField(blank=True, verbose_name='Description')),
                 (
                     'version',
@@ -33,7 +38,15 @@ class Migration(migrations.Migration):
                         verbose_name='LTI Version',
                     ),
                 ),
-                ('site_wide', models.BooleanField(default=False, verbose_name='Site wide')),
+                (
+                    'context_type',
+                    models.CharField(
+                        choices=[('course', 'Course'), ('organization', 'Organization'), ('site', 'Site')],
+                        max_length=20,
+                        verbose_name='Context type',
+                    ),
+                ),
+                ('context_key', models.CharField(blank=True, default='', max_length=255, verbose_name='Context key')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Created at')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Updated at')),
                 (
@@ -151,6 +164,20 @@ class Migration(migrations.Migration):
             options={
                 'verbose_name': 'Reusable LTI configuration',
                 'verbose_name_plural': 'Reusable LTI configurations',
+                'constraints': [
+                    models.CheckConstraint(
+                        condition=models.Q(context_type__in=('course', 'organization', 'site')),
+                        name='reusable_context_type_valid',
+                    ),
+                    models.CheckConstraint(
+                        condition=(
+                            models.Q(context_type='site', context_key='') |
+                            (models.Q(context_type__in=('course', 'organization')) & ~models.Q(context_key=''))
+                        ),
+                        name='reusable_context_key_shape',
+                    ),
+                ],
+                'indexes': [models.Index(fields=['context_type', 'context_key'], name='reusable_context_lookup')],
             },
         ),
         migrations.AlterField(
@@ -165,53 +192,5 @@ class Migration(migrations.Migration):
                 max_length=500,
                 verbose_name='LTI 1.3 Tool Keyset URL',
             ),
-        ),
-        migrations.CreateModel(
-            name='ReusableLtiConfigurationCourse',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('course_key', opaque_keys.edx.django.models.CourseKeyField(max_length=255, verbose_name='Course Key')),
-                (
-                    'configuration',
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name='course_grants',
-                        to='lti_consumer.reusablelticonfiguration',
-                    ),
-                ),
-            ],
-            options={
-                'constraints': [
-                    models.UniqueConstraint(fields=('configuration', 'course_key'), name='uniq_reusable_config_course')
-                ],
-                'indexes': [models.Index(fields=['course_key'], name='reusable_course_lookup')],
-                'verbose_name': 'Course grant',
-                'verbose_name_plural': 'Course grants',
-            },
-        ),
-        migrations.CreateModel(
-            name='ReusableLtiConfigurationOrganization',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('organization', models.CharField(max_length=255, verbose_name='Organization')),
-                (
-                    'configuration',
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name='organization_grants',
-                        to='lti_consumer.reusablelticonfiguration',
-                    ),
-                ),
-            ],
-            options={
-                'constraints': [
-                    models.UniqueConstraint(
-                        fields=('configuration', 'organization'), name='uniq_reusable_config_organization'
-                    )
-                ],
-                'indexes': [models.Index(fields=['organization'], name='reusable_org_lookup')],
-                'verbose_name': 'Organization grant',
-                'verbose_name_plural': 'Organization grants',
-            },
         ),
     ]

@@ -2,8 +2,7 @@
 
 This module accepts an already-validated request-shaped mapping. It performs only
 service-boundary invariant checks and persistence; authorization, full field
-validation, organization-registry validation, updates, and serialization belong
-to their respective layers.
+validation, updates, and serialization belong to their respective layers.
 """
 
 import secrets
@@ -13,13 +12,12 @@ from dataclasses import dataclass
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils.translation import gettext_lazy as _
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.locator import CourseLocator
 
-from lti_consumer.models import (
-    Lti1p3Passport,
-    ReusableLtiConfiguration,
-    ReusableLtiConfigurationCourse,
-    ReusableLtiConfigurationOrganization,
-)
+from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
+from lti_consumer.plugin import compat
+from lti_consumer.plugin.reusable_keys import normalize_course_key
 
 
 @dataclass(frozen=True)
@@ -56,26 +54,63 @@ def _is_nonblank_string(value):
     return isinstance(value, str) and bool(value.strip())
 
 
-def _validate_scope(scope):
-    """Validate and normalize the creation scope."""
-    if not isinstance(scope, dict):
-        _invalid(_('At least one scope grant is required.'))
+_CONTEXT_TYPES = ('course', 'organization', 'site')
 
-    course_keys = scope.get('course_keys', [])
-    organization_keys = scope.get('organization_keys', [])
-    site_wide = scope.get('site_wide', False)
-    if not isinstance(course_keys, (list, tuple)) or not isinstance(organization_keys, (list, tuple)):
-        _invalid(_('Scope grants must be lists.'))
-    if not isinstance(site_wide, bool) or not (course_keys or organization_keys or site_wide):
-        _invalid(_('At least one scope grant is required.'))
-    if any(not _is_nonblank_string(value) for value in (*course_keys, *organization_keys)):
-        _invalid(_('Scope grants must be non-empty strings.'))
 
-    return (
-        list(dict.fromkeys(course_keys)),
-        list(dict.fromkeys(key.lower() for key in organization_keys)),
-        site_wide,
-    )
+def _unambiguous_active_organization_keys():
+    """Return normalized keys for unique, active organization short names."""
+    registered = {}
+    for organization in compat.get_active_organizations():
+        short_name = organization.get('short_name')
+        if isinstance(short_name, str):
+            registered.setdefault(short_name.lower(), set()).add(short_name)
+    return {key for key, names in registered.items() if len(names) == 1}
+
+
+def validate_reusable_context(context):
+    """Validate and normalize one create-only context.
+
+    Returns ``{'type': 'site'}`` or ``{'type': ..., 'key': ...}`` with the
+    course key canonicalized and the organization key lowercased. Raises
+    ``ValidationError`` for invalid shape, content, or organization lookups.
+    """
+    if not isinstance(context, dict):
+        _invalid(_('A context with a type of course, organization, or site is required.'))
+    if set(context) - {'type', 'key'}:
+        _invalid(_('The context must contain only type and key.'))
+
+    context_type = context.get('type')
+    if context_type not in _CONTEXT_TYPES:
+        _invalid(_('A context type of course, organization, or site is required.'))
+    if context_type == 'site':
+        if 'key' in context:
+            _invalid(_('The site context must not include a key.'))
+        return {'type': 'site'}
+
+    key = context.get('key')
+    if not _is_nonblank_string(key):
+        _invalid(_('A context key is required for course and organization contexts.'))
+    key = key.strip()
+    max_length = ReusableLtiConfiguration._meta.get_field('context_key').max_length
+
+    if context_type == 'course':
+        try:
+            course_key = normalize_course_key(key)
+        except (InvalidKeyError, TypeError, ValueError):
+            _invalid(_('Invalid course key.'))
+        if not isinstance(course_key, CourseLocator):
+            _invalid(_('Invalid course key.'))
+        course_key = str(course_key)
+        if len(course_key) > max_length:
+            _invalid(_('The context key is too long.'))
+        return {'type': 'course', 'key': course_key}
+
+    key = key.lower()
+    if len(key) > max_length:
+        _invalid(_('The context key is too long.'))
+    if key not in _unambiguous_active_organization_keys():
+        _invalid(_('Organization must match one unambiguous active registered organization.'))
+    return {'type': 'organization', 'key': key}
 
 
 def _validate_lti_1p1(section):
@@ -127,7 +162,7 @@ def _validate_input(data):
         {
             'name': 'Tool',
             'version': 'lti_1p1',
-            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
+            'context': {'type': 'course', 'key': 'course-v1:Org+Course+Run'},
             'lti_1p1': {'launch_url': 'https://tool.example/launch'},
         }
     """
@@ -149,27 +184,27 @@ def _validate_input(data):
     if len(name.strip()) > ReusableLtiConfiguration._meta.get_field('name').max_length:
         _invalid(_('The name is too long.'))
 
-    course_keys, organization_keys, site_wide = _validate_scope(data.get('scope'))
+    context = validate_reusable_context(data.get('context'))
     if version == ReusableLtiConfiguration.LTI_1P1:
         _validate_lti_1p1(section)
     else:
         _validate_lti_1p3(section)
 
-    return name.strip(), version, section, course_keys, organization_keys, site_wide
+    return name.strip(), version, section, context
 
 
 def create_reusable_configuration(validated_data):
-    """Persist a complete reusable configuration and grants in one transaction.
+    """Persist a complete reusable configuration and its single context in one transaction.
 
     ``validated_data`` must be a mapping in the CMS create-request shape after
-    API validation (``name``, ``version``, ``scope``, and exactly one version
+    API validation (``name``, ``version``, ``context``, and exactly one version
     section, optionally ``services`` and ``defaults``). Authorization and full
     URL/schema validation are intentionally not performed here. Essential
-    version, connection, identity-material, and nonempty-scope invariants are
-    checked again before any write. Returns ``ReusableCreationResult``; its
+    version, connection, identity-material, and context invariants are checked
+    again before any write. Returns ``ReusableCreationResult``; its
     ``one_time_credentials`` is populated only for LTI 1.1.
     """
-    name, version, section, course_keys, organization_keys, site_wide = _validate_input(validated_data)
+    name, version, section, context = _validate_input(validated_data)
     services = validated_data.get('services') or {}
     defaults = validated_data.get('defaults') or {}
     if not isinstance(services, dict) or not isinstance(defaults, dict):
@@ -180,7 +215,8 @@ def create_reusable_configuration(validated_data):
         'name': name,
         'description': validated_data.get('description') or '',
         'version': version,
-        'site_wide': site_wide,
+        'context_type': context['type'],
+        'context_key': context.get('key', ''),
     }
     if version == ReusableLtiConfiguration.LTI_1P1:
         client_key = section.get('client_key') or secrets.token_urlsafe(32)
@@ -238,14 +274,6 @@ def create_reusable_configuration(validated_data):
                 config_values['lti_1p3_passport'] = passport
 
             configuration = ReusableLtiConfiguration.objects.create(**config_values)
-            ReusableLtiConfigurationCourse.objects.bulk_create([
-                ReusableLtiConfigurationCourse(configuration=configuration, course_key=key)
-                for key in course_keys
-            ])
-            ReusableLtiConfigurationOrganization.objects.bulk_create([
-                ReusableLtiConfigurationOrganization(configuration=configuration, organization=key)
-                for key in organization_keys
-            ])
     except IntegrityError:
         # Translate only after atomic has rolled back and the connection is usable.
         raise ValidationError(_('A reusable configuration conflicts with an existing record.')) from None

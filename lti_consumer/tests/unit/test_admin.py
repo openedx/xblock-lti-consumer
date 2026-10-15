@@ -9,20 +9,9 @@ from django.contrib.auth.models import Permission
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import path, reverse
 
-from lti_consumer.admin import (
-    Lti1p3PassportAdmin,
-    ReusableLtiConfigurationAdmin,
-    ReusableLtiConfigurationCourseInline,
-    ReusableLtiConfigurationOrganizationInline,
-)
-from lti_consumer.models import (
-    Lti1p3Passport,
-    ReusableLtiConfiguration,
-    ReusableLtiConfigurationCourse,
-    ReusableLtiConfigurationOrganization,
-)
+from lti_consumer.admin import Lti1p3PassportAdmin
+from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
 from lti_consumer.reusable import create_reusable_configuration
-
 
 urlpatterns = [path('admin/', admin.site.urls)]
 
@@ -47,6 +36,8 @@ class Lti1p3PassportAdminTests(TestCase):
         ReusableLtiConfiguration.objects.create(
             name='Reusable configuration',
             version=ReusableLtiConfiguration.LTI_1P3,
+            context_type='course',
+            context_key='course-v1:Org+Course+Run',
             lti_1p3_client_id='reusable-client',
             lti_1p3_passport=self.reusable_passport,
         )
@@ -98,7 +89,8 @@ DETAIL_FIELDS = {
     'name',
     'description',
     'version',
-    'site_wide',
+    'context_type',
+    'context_key',
     'lti_1p1_launch_url',
     'lti_1p3_launch_url',
     'lti_1p3_oidc_url',
@@ -121,10 +113,9 @@ DETAIL_FIELDS = {
 
 
 class ReusableLtiConfigurationAdminTests(TestCase):
-    """Read-only reusable configuration admin: visibility, scope, and write protection."""
+    """Read-only reusable configuration admin: visibility, context, and write protection."""
 
     course_key = 'course-v1:VisibleOrg+VisibleCourse+Run'
-    organization = 'visible-org-grant'
 
     def setUp(self):
         self.user = get_user_model().objects.create_superuser(
@@ -140,13 +131,13 @@ class ReusableLtiConfigurationAdminTests(TestCase):
             'name': 'Legacy launch tool',
             'description': 'LTI 1.1 metadata',
             'version': ReusableLtiConfiguration.LTI_1P1,
-            'scope': {'course_keys': [self.course_key]},
+            'context': {'type': 'course', 'key': self.course_key},
             'lti_1p1': {'launch_url': 'https://one-one.example/launch'},
         }).configuration
         self.lti13_config = create_reusable_configuration({
             'name': 'Advantage tool',
             'version': ReusableLtiConfiguration.LTI_1P3,
-            'scope': {'organization_keys': [self.organization], 'site_wide': True},
+            'context': {'type': 'site'},
             'lti_1p3': {
                 'launch_url': 'https://one-three.example/launch',
                 'oidc_url': 'https://one-three.example/oidc',
@@ -160,33 +151,6 @@ class ReusableLtiConfigurationAdminTests(TestCase):
 
     def fieldset_fields(self, configuration):
         return flatten_fieldsets(self.model_admin.get_fieldsets(self.request, configuration))
-
-    def test_registered_parent_admin_and_no_grant_admin_registration(self):
-        self.assertTrue(admin.site.is_registered(ReusableLtiConfiguration))
-        self.assertIsInstance(self.model_admin, ReusableLtiConfigurationAdmin)
-        self.assertFalse(admin.site.is_registered(ReusableLtiConfigurationCourse))
-        self.assertFalse(admin.site.is_registered(ReusableLtiConfigurationOrganization))
-
-    def test_list_display_search_and_filters(self):
-        self.assertEqual(
-            list(self.model_admin.get_list_display(self.request)),
-            ['name', 'version', 'config_id', 'site_wide', 'updated_at'],
-        )
-        self.assertEqual(set(self.model_admin.get_search_fields(self.request)), {'name', 'config_id'})
-        filters = self.model_admin.get_list_filter(self.request)
-        self.assertIn('version', filters)
-        self.assertIn('site_wide', filters)
-
-    def test_superuser_can_view_but_mutations_and_actions_are_denied(self):
-        self.assertTrue(self.model_admin.has_module_permission(self.request))
-        self.assertTrue(self.model_admin.has_view_permission(self.request))
-        self.assertTrue(self.model_admin.has_view_permission(self.request, self.lti11_config))
-        self.assertFalse(self.model_admin.has_add_permission(self.request))
-        for obj in (None, self.lti11_config, self.lti13_config):
-            with self.subTest(obj=obj):
-                self.assertFalse(self.model_admin.has_change_permission(self.request, obj))
-                self.assertFalse(self.model_admin.has_delete_permission(self.request, obj))
-        self.assertEqual(self.model_admin.get_actions(self.request), {})
 
     def test_staff_with_every_model_permission_is_denied(self):
         staff_user = get_user_model().objects.create_user(
@@ -225,18 +189,28 @@ class ReusableLtiConfigurationAdminTests(TestCase):
                 self.assertContains(response, self.lti11_config.name)
                 self.assertNotContains(response, self.lti13_config.name)
 
-    def test_changelist_filters_by_version_and_site_wide(self):
-        response = self.client.get(self.changelist_url, {'version': ReusableLtiConfiguration.LTI_1P3})
+    def test_changelist_filters_by_version_and_context_type(self):
+        # Pass both plain and __exact params: Django 6.0 ChoicesFieldListFilter uses field__exact.
+        response = self.client.get(self.changelist_url, {
+            'version': ReusableLtiConfiguration.LTI_1P3,
+            'version__exact': ReusableLtiConfiguration.LTI_1P3,
+        })
         self.assertContains(response, self.lti13_config.name)
         self.assertNotContains(response, self.lti11_config.name)
 
-        response = self.client.get(self.changelist_url, {'site_wide__exact': '1'})
-        self.assertContains(response, self.lti13_config.name)
-        self.assertNotContains(response, self.lti11_config.name)
-
-        response = self.client.get(self.changelist_url, {'site_wide__exact': '0'})
+        response = self.client.get(self.changelist_url, {
+            'context_type': 'course',
+            'context_type__exact': 'course',
+        })
         self.assertContains(response, self.lti11_config.name)
         self.assertNotContains(response, self.lti13_config.name)
+
+        response = self.client.get(self.changelist_url, {
+            'context_type': 'site',
+            'context_type__exact': 'site',
+        })
+        self.assertContains(response, self.lti13_config.name)
+        self.assertNotContains(response, self.lti11_config.name)
 
     def test_fieldsets_cover_both_versions_are_readonly_and_exclude_secrets(self):
         editable_fields = {
@@ -249,9 +223,12 @@ class ReusableLtiConfigurationAdminTests(TestCase):
                 self.assertLessEqual(DETAIL_FIELDS, set(field_names))
                 self.assertFalse(UNSAFE_FIELDS & set(field_names))
                 readonly_fields = set(self.model_admin.get_readonly_fields(self.request, configuration))
+                for context_field in ('context_type', 'context_key'):
+                    self.assertIn(context_field, field_names)
+                    self.assertIn(context_field, readonly_fields)
                 self.assertLessEqual(set(field_names) & editable_fields, readonly_fields)
 
-    def test_detail_pages_render_scope_without_credentials_or_key_material(self):
+    def test_detail_pages_render_context_without_credentials_or_key_material(self):
         response = self.client.get(self.change_url(self.lti11_config))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.lti11_config.lti_1p1_launch_url)
@@ -262,30 +239,11 @@ class ReusableLtiConfigurationAdminTests(TestCase):
         response = self.client.get(self.change_url(self.lti13_config))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.lti13_config.lti_1p3_oidc_url)
-        self.assertContains(response, self.organization)
         self.assertNotContains(response, self.lti13_config.lti_1p3_passport.lti_1p3_internal_private_key)
         self.assertNotContains(response, str(self.lti13_config.lti_1p3_passport.passport_id))
 
-    def test_scope_inlines_show_single_scoped_field_and_deny_writes(self):
-        expected = (
-            (ReusableLtiConfigurationCourseInline, ReusableLtiConfigurationCourse, 'course_key'),
-            (ReusableLtiConfigurationOrganizationInline, ReusableLtiConfigurationOrganization, 'organization'),
-        )
-        for inline_class, model, scoped_field in expected:
-            with self.subTest(inline=inline_class.__name__):
-                self.assertIn(inline_class, self.model_admin.inlines)
-                inline = inline_class(ReusableLtiConfiguration, self.model_admin.admin_site)
-                self.assertEqual(inline.model, model)
-                self.assertEqual(inline.extra, 0)
-                self.assertEqual(list(inline.get_fields(self.request, self.lti11_config)), [scoped_field])
-                self.assertTrue(inline.has_view_permission(self.request, self.lti11_config))
-                self.assertFalse(inline.has_add_permission(self.request, self.lti11_config))
-                self.assertFalse(inline.has_change_permission(self.request, self.lti11_config))
-                self.assertFalse(inline.has_delete_permission(self.request, self.lti11_config))
-
-    def test_mutating_requests_cannot_change_parent_grants_or_passport(self):
+    def test_mutating_requests_cannot_change_context_or_passport(self):
         configuration = self.lti11_config
-        course_grant = ReusableLtiConfigurationCourse.objects.get(configuration=configuration)
         passport = self.lti13_config.lti_1p3_passport
         private_key_before = passport.lti_1p3_internal_private_key
 
@@ -298,16 +256,11 @@ class ReusableLtiConfigurationAdminTests(TestCase):
             self.client.post(add_url, {'name': 'Created in admin', 'version': 'lti_1p1'}).status_code,
             403,
         )
-        self.assertEqual(self.client.post(change_url, {'name': 'Renamed in admin'}).status_code, 403)
         self.assertEqual(
             self.client.post(change_url, {
                 'name': 'Renamed in admin',
-                'course_grants-TOTAL_FORMS': '1',
-                'course_grants-INITIAL_FORMS': '1',
-                'course_grants-MIN_NUM_FORMS': '0',
-                'course_grants-MAX_NUM_FORMS': '1000',
-                'course_grants-0-id': str(course_grant.pk),
-                'course_grants-0-course_key': 'course-v1:Evil+Course+Run',
+                'context_type': 'organization',
+                'context_key': 'evil-org',
             }).status_code,
             403,
         )
@@ -326,17 +279,11 @@ class ReusableLtiConfigurationAdminTests(TestCase):
         configuration.refresh_from_db()
         passport.refresh_from_db()
         self.assertEqual(configuration.name, 'Legacy launch tool')
+        self.assertEqual(
+            (configuration.context_type, configuration.context_key),
+            ('course', self.course_key),
+        )
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 2)
-        self.assertEqual(
-            [str(key) for key in ReusableLtiConfigurationCourse.objects.filter(
-                configuration=configuration).values_list('course_key', flat=True)],
-            [self.course_key],
-        )
-        self.assertEqual(
-            list(ReusableLtiConfigurationOrganization.objects.filter(
-                configuration=self.lti13_config).values_list('organization', flat=True)),
-            [self.organization],
-        )
         self.assertEqual(passport.name, self.lti13_config.name)
         self.assertEqual(passport.lti_1p3_client_id, self.lti13_config.lti_1p3_client_id)
         self.assertEqual(passport.lti_1p3_internal_private_key, private_key_before)

@@ -9,7 +9,6 @@ import ddt
 from ccx_keys.locator import CCXBlockUsageLocator
 from Cryptodome.PublicKey import RSA
 from django.core.exceptions import ValidationError
-from django.test import TestCase
 from edx_django_utils.cache import RequestCache
 from opaque_keys.edx.locator import CourseLocator
 
