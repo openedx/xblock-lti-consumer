@@ -181,7 +181,7 @@ class ReusableNameField(models.CharField):
 
 
 class ReusableLtiConfiguration(models.Model):
-    """Catalog and scope record for an LTI configuration independent of placements."""
+    """Catalog and context record for an LTI configuration independent of placements."""
 
     LTI_1P1 = 'lti_1p1'
     LTI_1P3 = 'lti_1p3'
@@ -197,7 +197,16 @@ class ReusableLtiConfiguration(models.Model):
     )
     description = models.TextField(_("Description"), blank=True)
     version = models.CharField(_("LTI Version"), max_length=10, choices=LTI_VERSION_CHOICES)
-    site_wide = models.BooleanField(_("Site wide"), default=False)
+    context_type = models.CharField(
+        _("Context type"),
+        max_length=20,
+        choices=[
+            ('course', _('Course')),
+            ('organization', _('Organization')),
+            ('site', _('Site')),
+        ],
+    )
+    context_key = models.CharField(_("Context key"), max_length=255, blank=True, default='')
 
     # LTI 1.1 connection and credentials.
     lti_1p1_launch_url = models.CharField(_("LTI 1.1 Launch URL"), max_length=255, null=True, blank=True)
@@ -278,56 +287,20 @@ class ReusableLtiConfiguration(models.Model):
         app_label = 'lti_consumer'
         verbose_name = _("Reusable LTI configuration")
         verbose_name_plural = _("Reusable LTI configurations")
-
-
-class ReusableLtiConfigurationCourse(models.Model):
-    """Explicit course availability grant for a reusable configuration."""
-
-    configuration = models.ForeignKey(
-        ReusableLtiConfiguration,
-        on_delete=models.CASCADE,
-        related_name='course_grants',
-    )
-    course_key = CourseKeyField(_("Course Key"), max_length=255)
-
-    class Meta:
-        app_label = 'lti_consumer'
-        verbose_name = _("Course grant")
-        verbose_name_plural = _("Course grants")
         constraints = [
-            models.UniqueConstraint(
-                fields=('configuration', 'course_key'),
-                name='uniq_reusable_config_course',
+            models.CheckConstraint(
+                condition=models.Q(context_type__in=('course', 'organization', 'site')),
+                name='reusable_context_type_valid',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(context_type='site', context_key='') |
+                    (models.Q(context_type__in=('course', 'organization')) & ~models.Q(context_key=''))
+                ),
+                name='reusable_context_key_shape',
             ),
         ]
-        indexes = [models.Index(fields=('course_key',), name='reusable_course_lookup')]
-
-
-class ReusableLtiConfigurationOrganization(models.Model):
-    """Organization availability grant, keyed by normalized registered short name."""
-
-    configuration = models.ForeignKey(
-        ReusableLtiConfiguration,
-        on_delete=models.CASCADE,
-        related_name='organization_grants',
-    )
-    organization = models.CharField(_("Organization"), max_length=255)
-
-    def save(self, *args, **kwargs):
-        self.organization = self.organization.lower()
-        super().save(*args, **kwargs)
-
-    class Meta:
-        app_label = 'lti_consumer'
-        verbose_name = _("Organization grant")
-        verbose_name_plural = _("Organization grants")
-        constraints = [
-            models.UniqueConstraint(
-                fields=('configuration', 'organization'),
-                name='uniq_reusable_config_organization',
-            ),
-        ]
-        indexes = [models.Index(fields=('organization',), name='reusable_org_lookup')]
+        indexes = [models.Index(fields=('context_type', 'context_key'), name='reusable_context_lookup')]
 
 
 class LtiConfiguration(models.Model):

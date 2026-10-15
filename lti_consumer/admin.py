@@ -15,8 +15,6 @@ from lti_consumer.models import (
     LtiConfiguration,
     LtiDlContentItem,
     ReusableLtiConfiguration,
-    ReusableLtiConfigurationCourse,
-    ReusableLtiConfigurationOrganization,
 )
 
 
@@ -80,55 +78,18 @@ class Lti1p3PassportAdmin(admin.ModelAdmin):
         return not self._is_reusable_passport(obj) and super().has_delete_permission(request, obj)
 
 
-class SuperuserReadOnlyGrantInline(admin.TabularInline):
-    """
-    Read-only, superuser-only inline for reusable configuration grants.
-    """
-    extra = 0
-    can_delete = False
-
-    def has_view_permission(self, request, obj=None):
-        return request.user.is_superuser
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
-class ReusableLtiConfigurationCourseInline(SuperuserReadOnlyGrantInline):
-    """
-    Read-only inline for explicit course availability grants.
-    """
-    model = ReusableLtiConfigurationCourse
-    fields = ('course_key',)
-
-
-class ReusableLtiConfigurationOrganizationInline(SuperuserReadOnlyGrantInline):
-    """
-    Read-only inline for organization availability grants.
-    """
-    model = ReusableLtiConfigurationOrganization
-    fields = ('organization',)
-
-
 @admin.register(ReusableLtiConfiguration)
 class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     """
     Inspection-only admin for reusable LTI configurations.
 
     Superuser-only access; add/change/delete are always denied. The visible
-    fields, including inlines, are an explicit allowlist that never exposes
-    credentials, key material, normalized_name or the passport relation.
+    fields are an explicit allowlist that never exposes credentials, key
+    material, normalized_name or the passport relation.
     """
-    list_display = ('name', 'version', 'config_id', 'site_wide', 'updated_at')
-    list_filter = ('version', 'site_wide')
+    list_display = ('name', 'version', 'config_id', 'context_type', 'updated_at')
+    list_filter = ('version', 'context_type')
     search_fields = ('name', 'config_id')
-    inlines = (ReusableLtiConfigurationCourseInline, ReusableLtiConfigurationOrganizationInline)
     actions = None
 
     # Explicit safe allowlist; readonly_fields is derived to stay in sync with it.
@@ -136,9 +97,9 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
         (_('Identity'), {
             'fields': ('name', 'description', 'config_id', 'version', 'created_at', 'updated_at'),
         }),
-        # Translators: "Scope" means the courses, organizations or the whole site it applies to, not OAuth scopes.
-        (_('Scope'), {
-            'fields': ('site_wide',),
+        # Translators: "Context" means the courses, organizations or the whole site it applies to, not OAuth scopes.
+        (_('Context'), {
+            'fields': ('context_type', 'context_key'),
         }),
         (_('LTI 1.1 connection'), {
             'fields': ('lti_1p1_launch_url',),

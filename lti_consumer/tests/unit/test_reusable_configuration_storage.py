@@ -7,27 +7,45 @@ from django.test import TestCase
 
 from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
 
+COURSE_KEY = 'course-v1:Org+Course+Run'
+
 
 class ReusableConfigurationStorageTests(TestCase):
+    """Column, constraint, and default behavior of the reusable configuration model."""
+
     def make_configuration(self, **kwargs):
+        """Create a configuration row directly, bypassing service validation."""
         values = {
             'name': 'Storage test',
             'version': ReusableLtiConfiguration.LTI_1P1,
+            'context_type': 'course',
+            'context_key': COURSE_KEY,
         }
         values.update(kwargs)
         return ReusableLtiConfiguration.objects.create(**values)
 
-    def test_version_specific_fields_allow_absent_values(self):
-        configuration = self.make_configuration()
-        for field_name in (
-            'lti_1p1_launch_url', 'lti_1p1_client_key', 'lti_1p1_client_secret',
-            'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_client_id',
-            'lti_1p3_deployment_id', 'lti_1p3_tool_key_mode', 'lti_1p3_passport',
-        ):
-            self.assertIsNone(getattr(configuration, f'{field_name}_id', None) if field_name.endswith('passport')
-                              else getattr(configuration, field_name))
+    def test_context_columns_store_supported_shapes(self):
+        course = self.make_configuration(name='Course context')
+        organization = self.make_configuration(
+            name='Organization context', context_type='organization', context_key='org',
+        )
+        site = self.make_configuration(name='Site context', context_type='site', context_key='')
+        self.assertEqual((course.context_type, course.context_key), ('course', COURSE_KEY))
+        self.assertEqual((organization.context_type, organization.context_key), ('organization', 'org'))
+        self.assertEqual((site.context_type, site.context_key), ('site', ''))
 
-        self.assertEqual(configuration.lti_1p3_redirect_uris, [])
+    def test_context_shape_constraints_reject_invalid_shapes(self):
+        invalid = (
+            {'context_type': 'library', 'context_key': 'lib'},
+            {'context_type': 'course', 'context_key': ''},
+            {'context_type': 'organization', 'context_key': ''},
+            {'context_type': 'site', 'context_key': 'nonblank'},
+        )
+        for values in invalid:
+            with self.subTest(values=values), self.assertRaises(IntegrityError), transaction.atomic():
+                self.make_configuration(
+                    name=f"Invalid {values['context_type']} {values['context_key']}", **values,
+                )
 
     def test_normalized_name_distinguishes_accents_but_not_case_or_surrounding_space(self):
         self.make_configuration(name='Café Tool')

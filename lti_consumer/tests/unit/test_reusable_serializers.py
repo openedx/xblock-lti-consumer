@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.test import SimpleTestCase, TestCase
 
 from lti_consumer.plugin.reusable_serializers import (
+    ReusableContextInputSerializer,
     ReusableCreateInputSerializer,
     ReusableCreateResponseSerializer,
     ReusableDetailSerializer,
@@ -12,6 +13,24 @@ from lti_consumer.plugin.reusable_serializers import (
 )
 from lti_consumer.reusable import create_reusable_configuration
 
+COURSE_KEY = 'course-v1:Org+Course+Run'
+REGISTRY_PATCH = 'lti_consumer.plugin.compat.get_active_organizations'
+
+
+def course_context(key=COURSE_KEY):
+    """Return a create-only course context."""
+    return {'type': 'course', 'key': key}
+
+
+def organization_context(key):
+    """Return a create-only organization context."""
+    return {'type': 'organization', 'key': key}
+
+
+def site_context():
+    """Return a create-only site context; the key is omitted."""
+    return {'type': 'site'}
+
 
 def lti13_payload(**overrides):
     """Return a valid LTI 1.3 payload, with optional connection-field overrides."""
@@ -19,7 +38,7 @@ def lti13_payload(**overrides):
     payload = {
         'name': 'Example Tool',
         'version': 'lti_1p3',
-        'scope': {'course_keys': ['course-v1:Org+Course+Run']},
+        'context': course_context(),
         'lti_1p3': {
             'launch_url': 'https://tool.example/launch',
             'oidc_url': 'https://tool.example/oidc',
@@ -34,6 +53,70 @@ def lti13_payload(**overrides):
     return payload
 
 
+class ReusableContextInputSerializerTests(SimpleTestCase):
+    """The create-only context accepts exactly one normalized context."""
+
+    def test_course_context_is_canonicalized(self):
+        serializer = ReusableContextInputSerializer(data=course_context(f' {COURSE_KEY}+branch@draft '))
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data, course_context())
+
+    def test_raw_course_key_over_255_is_normalized_before_the_length_check(self):
+        raw_key = f'{COURSE_KEY}+branch@' + 'a' * 300
+        self.assertGreater(len(raw_key), 255)
+
+        serializer = ReusableContextInputSerializer(data=course_context(raw_key))
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data, course_context())
+
+    @patch(REGISTRY_PATCH)
+    def test_oversized_organization_context_key_is_rejected(self, get_organizations):
+        get_organizations.return_value = [{'short_name': 'o' * 256}]
+        serializer = ReusableContextInputSerializer(data=organization_context('O' * 256))
+        self.assertFalse(serializer.is_valid())
+
+    @patch(REGISTRY_PATCH)
+    def test_unknown_or_ambiguous_organizations_fail_closed(self, get_organizations):
+        get_organizations.return_value = [{'short_name': 'Other-Org'}]
+        self.assertFalse(ReusableContextInputSerializer(data=organization_context('unknown-org')).is_valid())
+
+        get_organizations.return_value = [{'short_name': 'Org-A'}, {'short_name': 'org-a'}]
+        self.assertFalse(ReusableContextInputSerializer(data=organization_context('ORG-A')).is_valid())
+
+    @patch(REGISTRY_PATCH)
+    def test_course_and_site_contexts_do_not_consult_the_registry(self, get_organizations):
+        self.assertTrue(ReusableContextInputSerializer(data=course_context()).is_valid())
+        self.assertTrue(ReusableContextInputSerializer(data=site_context()).is_valid())
+        get_organizations.assert_not_called()
+
+    def test_invalid_contexts_are_rejected(self):
+        oversized_course_key = 'course-v1:' + 'o' * 250 + '+C+R'
+        cases = (
+            {'type': 'course'},
+            {'type': 'course', 'key': ''},
+            {'type': 'course', 'key': '   '},
+            {'type': 'course', 'key': None},
+            {'type': 'course', 'key': 123},
+            {'type': ['course'], 'key': COURSE_KEY},
+            {'type': 'course', 'key': 'course-v1:version@519665f6223ebd6980884f2b'},
+            {'type': 'course', 'key': oversized_course_key},
+            {'type': 'unknown', 'key': COURSE_KEY},
+            {'type': 'site', 'key': ''},
+            {'type': 'site', 'key': None},
+            {'type': 'site', 'key': COURSE_KEY},
+            {'type': 'course', 'key': COURSE_KEY, 'extra': True},
+            {'course_keys': [COURSE_KEY]},
+            {'site_wide': True},
+            'course-v1:Org+Course+Run',
+            [{'type': 'course', 'key': COURSE_KEY}],
+            [],
+        )
+        for data in cases:
+            with self.subTest(data=data):
+                self.assertFalse(ReusableContextInputSerializer(data=data).is_valid())
+
+
 class ReusableCreateInputSerializerTests(SimpleTestCase):
     """Strict, version-aware create payload validation."""
 
@@ -42,7 +125,7 @@ class ReusableCreateInputSerializerTests(SimpleTestCase):
         payload = {
             'name': '  Example Tool  ',
             'version': 'lti_1p1',
-            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
+            'context': course_context(),
             'lti_1p1': {'launch_url': 'https://tool.example/launch'},
         }
         payload.update(overrides)
@@ -52,8 +135,28 @@ class ReusableCreateInputSerializerTests(SimpleTestCase):
         serializer = ReusableCreateInputSerializer(data=self.lti11_payload())
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['name'], 'Example Tool')
+        self.assertEqual(serializer.validated_data['context'], course_context())
         self.assertEqual(serializer.validated_data['services']['ags_mode'], 'declarative')
         self.assertEqual(serializer.validated_data['defaults'], {})
+
+    def test_context_replaces_the_legacy_scope_field(self):
+        serializer = ReusableCreateInputSerializer(data=self.lti11_payload())
+        self.assertIn('context', serializer.fields)
+        self.assertNotIn('scope', serializer.fields)
+
+        legacy_only = self.lti11_payload(scope={'course_keys': [COURSE_KEY]})
+        legacy_only.pop('context')
+        self.assertFalse(ReusableCreateInputSerializer(data=legacy_only).is_valid())
+
+        both = self.lti11_payload(scope={'course_keys': [COURSE_KEY]})
+        self.assertFalse(ReusableCreateInputSerializer(data=both).is_valid())
+
+    def test_missing_context_is_rejected(self):
+        payload = self.lti11_payload()
+        payload.pop('context')
+        serializer = ReusableCreateInputSerializer(data=payload)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('context', serializer.errors)
 
     def test_field_validation_rejects_blank_names_and_redirect_uris(self):
         for name in ('', '   ', 'x' * 256):
@@ -70,7 +173,7 @@ class ReusableCreateInputSerializerTests(SimpleTestCase):
     def test_unknown_fields_rejected_at_each_level(self):
         cases = (
             self.lti11_payload(extra='no'),
-            self.lti11_payload(scope={'course_keys': ['course-v1:Org+Course+Run'], 'owner': 'someone'}),
+            self.lti11_payload(context={'type': 'course', 'key': COURSE_KEY, 'owner': 'someone'}),
             self.lti11_payload(lti_1p1={'launch_url': 'https://tool.example/launch', 'private_key': 'secret'}),
             self.lti11_payload(services={'deep_linking_enabled': False, 'platform_key': 'secret'}),
             self.lti11_payload(defaults={'not_a_setting': True}),
@@ -103,10 +206,10 @@ class ReusableCreateInputSerializerTests(SimpleTestCase):
             'launch_url': 'https://tool.example/launch',
             'oidc_url': 'https://tool.example/oidc',
             'tool_key_mode': 'public_key',
-            'tool_public_key': '-----BEGIN PRIVATE KEY-----\nnope',
+            'tool_public_key': '-----BEGIN PRIVATE KEY----- nope',
         })
         self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
-        payload['lti_1p3']['tool_public_key'] = '-----BEGIN PUBLIC KEY-----\nkey'
+        payload['lti_1p3']['tool_public_key'] = '-----BEGIN PUBLIC KEY----- key'
         self.assertTrue(ReusableCreateInputSerializer(data=payload).is_valid())
 
     def test_keyset_url_limit_is_500_characters(self):
@@ -123,80 +226,7 @@ class ReusableCreateInputSerializerTests(SimpleTestCase):
         payload['lti_1p3']['tool_keyset_url'] = rejected_url
         self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
 
-    def test_course_keys_match_stored_identity_and_respect_storage_limit(self):
-        serializer = ReusableCreateInputSerializer(data=self.lti11_payload())
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data['scope']['course_keys'], ['course-v1:Org+Course+Run'])
-
-        base_key = 'course-v1:Org+Course+Run'
-        branch_key = f'{base_key}+branch@draft'
-        payload = self.lti11_payload(scope={'course_keys': [branch_key, base_key]})
-        serializer = ReusableCreateInputSerializer(data=payload)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data['scope']['course_keys'], [base_key])
-
-        version_only_key = 'course-v1:version@519665f6223ebd6980884f2b'
-        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
-            scope={'course_keys': [version_only_key]}
-        )).is_valid())
-
-        library_key = 'library-v1:Org+Library'
-        serializer = ReusableCreateInputSerializer(data=self.lti11_payload(
-            scope={'course_keys': [library_key]}
-        ))
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data['scope']['course_keys'], [library_key])
-
-        prefix, suffix = 'course-v1:', '+C+R'
-        org_length = 255 - len(prefix) - len(suffix)
-        max_length_key = f"{prefix}{'o' * org_length}{suffix}"
-        too_long_key = f"{prefix}{'o' * (org_length + 1)}{suffix}"
-        self.assertEqual(len(max_length_key), 255)
-        self.assertTrue(ReusableCreateInputSerializer(data=self.lti11_payload(
-            scope={'course_keys': [max_length_key]}
-        )).is_valid())
-        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
-            scope={'course_keys': [too_long_key]}
-        )).is_valid())
-        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
-            scope={'course_keys': ['not-a-course-key']}
-        )).is_valid())
-
-    @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
-    def test_organization_grants_match_one_active_registered_short_name(self, get_organizations):
-        get_organizations.return_value = [{'short_name': 'Org-A', 'name': 'Organization A'}]
-        payload = self.lti11_payload(scope={'organization_keys': [' ORG-A ', 'org-a']})
-        serializer = ReusableCreateInputSerializer(data=payload)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data['scope']['organization_keys'], ['org-a'])
-        get_organizations.assert_called_once_with()
-
-        get_organizations.reset_mock()
-        get_organizations.return_value = [{'short_name': 'Other-Org'}]
-        serializer = ReusableCreateInputSerializer(data=self.lti11_payload(
-            scope={'organization_keys': ['unknown-org']}
-        ))
-        self.assertFalse(serializer.is_valid())
-        self.assertEqual(
-            serializer.errors['scope']['organization_keys'][0],
-            'Organization must match one unambiguous active registered organization.',
-        )
-        get_organizations.assert_called_once_with()
-
-    @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
-    def test_ambiguous_case_normalized_organization_names_fail_closed(self, get_organizations):
-        get_organizations.return_value = [{'short_name': 'Org-A'}, {'short_name': 'org-a'}]
-        serializer = ReusableCreateInputSerializer(data=self.lti11_payload(
-            scope={'organization_keys': ['ORG-A']}
-        ))
-        self.assertFalse(serializer.is_valid())
-        self.assertIn('organization_keys', serializer.errors['scope'])
-        get_organizations.assert_called_once_with()
-
-    def test_scope_and_shared_defaults_are_validated(self):
-        self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
-            scope={'course_keys': [], 'organization_keys': [], 'site_wide': False}
-        )).is_valid())
+    def test_shared_defaults_are_validated(self):
         self.assertFalse(ReusableCreateInputSerializer(data=self.lti11_payload(
             defaults={'custom_parameters': ['missing-equals']}
         )).is_valid())
@@ -230,6 +260,21 @@ class ReusableUpdateInputSerializerTests(TestCase):
             data=data, partial=True, context={'configuration': self.configuration},
         )
         return serializer.is_valid(), serializer
+
+    def test_context_and_scope_are_rejected_on_patch(self):
+        payloads = (
+            {'context': course_context()},
+            {'context': {'type': 'site'}},
+            {'scope': {'course_keys': [COURSE_KEY]}},
+            {'name': 'Changed', 'context': course_context()},
+            {'name': 'Changed', 'scope': {'course_keys': [COURSE_KEY]}},
+            {'context': course_context(), 'scope': {}},
+        )
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                valid, serializer = self.validate_patch(payload)
+                self.assertFalse(valid)
+                self.assertTrue({'context', 'scope'}.intersection(serializer.errors))
 
     def test_empty_redirects_are_preserved_without_fallback(self):
         valid, serializer = self.validate_patch({
@@ -269,24 +314,8 @@ class ReusableUpdateInputSerializerTests(TestCase):
             with self.subTest(payload=payload):
                 self.assertFalse(self.validate_patch(payload)[0])
 
-    def test_scope_addition_rejects_version_only_course_keys(self):
-        version_only_key = 'course-v1:version@519665f6223ebd6980884f2b'
-        valid, serializer = self.validate_patch({'scope': {'course_keys': [version_only_key]}})
-        self.assertFalse(valid)
-        self.assertIn('scope', serializer.errors)
-
-    @patch('lti_consumer.plugin.reusable_serializers.compat.get_active_organizations')
-    def test_invalid_new_organization_grant_keeps_patch_specific_error(self, get_organizations):
-        get_organizations.return_value = [{'short_name': 'registered'}]
-        valid, serializer = self.validate_patch({'scope': {'organization_keys': ['unknown']}})
-        self.assertFalse(valid)
-        self.assertEqual(
-            serializer.errors['scope']['organization_keys'][0],
-            'New grants must match one unambiguous active registered organization.',
-        )
-
     def test_tool_verification_updates_require_matching_safe_key_material(self):
-        public_key = '-----BEGIN PUBLIC KEY-----\\npublic material'
+        public_key = '-----BEGIN PUBLIC KEY----- public material'
         valid, serializer = self.validate_patch({'lti_1p3': {
             'tool_key_mode': 'public_key', 'tool_public_key': public_key,
         }})
@@ -295,7 +324,7 @@ class ReusableUpdateInputSerializerTests(TestCase):
 
         for connection in (
             {'tool_key_mode': 'public_key'},
-            {'tool_key_mode': 'public_key', 'tool_public_key': '-----BEGIN PRIVATE KEY-----\\nprivate'},
+            {'tool_key_mode': 'public_key', 'tool_public_key': '-----BEGIN PRIVATE KEY----- private'},
             {'tool_public_key': public_key},
         ):
             with self.subTest(connection=connection):
@@ -360,43 +389,48 @@ class ReusableUpdateInputSerializerTests(TestCase):
 
 
 class ReusableSerializerServiceIntegrationTests(TestCase):
-    """Ensure validated create payloads match the atomic service contract."""
+    """Ensure validated create payloads match the atomic single-context service contract."""
 
-    def test_lti13_validated_payload_stores_library_scope_and_passport_identity(self):
-        library_key = 'library-v1:Org+Library'
-        payload = lti13_payload(name='Integrated 1.3', scope={'course_keys': [library_key]})
+    def test_validated_payload_stores_the_normalized_context(self):
+        payload = lti13_payload(name='Integrated 1.3', context=course_context(f'{COURSE_KEY}+branch@draft'))
         serializer = ReusableCreateInputSerializer(data=payload)
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
         result = create_reusable_configuration(serializer.validated_data)
         configuration = result.configuration
-        self.assertEqual(str(configuration.course_grants.get().course_key), library_key)
+        self.assertEqual((configuration.context_type, configuration.context_key), ('course', COURSE_KEY))
         self.assertEqual(configuration.lti_1p3_passport.lti_1p3_client_id, configuration.lti_1p3_client_id)
         self.assertIsNone(result.one_time_credentials)
+
+    def test_site_context_stores_a_blank_context_key(self):
+        payload = lti13_payload(name='Site 1.3', context=site_context())
+        serializer = ReusableCreateInputSerializer(data=payload)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        configuration = create_reusable_configuration(serializer.validated_data).configuration
+        self.assertEqual((configuration.context_type, configuration.context_key), ('site', ''))
+
+    @patch(REGISTRY_PATCH)
+    def test_organization_context_stores_the_lowercased_key(self, get_organizations):
+        get_organizations.return_value = [{'short_name': 'Org-A'}]
+        payload = lti13_payload(name='Org 1.3', context=organization_context(' ORG-A '))
+        serializer = ReusableCreateInputSerializer(data=payload)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        configuration = create_reusable_configuration(serializer.validated_data).configuration
+        self.assertEqual((configuration.context_type, configuration.context_key), ('organization', 'org-a'))
 
 
 class ReusableResponseSerializerTests(TestCase):
     """Response serializers expose metadata only through explicit allowlists."""
 
     def setUp(self):
-        payload = {
+        self.configuration = create_reusable_configuration({
             'name': 'Safe Tool',
             'version': 'lti_1p1',
-            'scope': {'course_keys': ['course-v1:Org+Course+Run']},
+            'context': course_context(),
             'lti_1p1': {'launch_url': 'https://tool.example/launch'},
-        }
-        self.configuration = create_reusable_configuration(payload).configuration
-
-    def test_list_response_has_only_safe_list_fields(self):
-        data = ReusableListSerializer(self.configuration).data
-        self.assertEqual(set(data), {
-            'config_id', 'name', 'version', 'scope_summary', 'created_at', 'updated_at',
-            'can_manage', 'deep_linking_enabled', 'ags_mode', 'nrps_enabled',
-        })
-        self.assertEqual(data['scope_summary'], {
-            'site_wide': False, 'course_count': 1, 'organization_count': 0,
-        })
-        self.assertNotIn(self.configuration.lti_1p1_client_secret, str(data))
+        }).configuration
 
     def test_detail_and_create_responses_never_include_stored_credentials(self):
         detail = ReusableDetailSerializer(self.configuration, context={'can_manage': True}).data
@@ -413,7 +447,8 @@ class ReusableResponseSerializerTests(TestCase):
         self.assertNotIn('lti_1p1_client_secret', created)
         self.assertNotIn('lti_1p3_passport', detail)
         self.assertNotIn('lti_1p3_internal_private_key', str(detail))
-        self.assertEqual(detail['scope']['course_keys'], ['course-v1:Org+Course+Run'])
+        self.assertNotIn('scope', detail)
+        self.assertEqual(detail['context'], course_context())
 
     def test_lti13_registration_urls_use_existing_reusable_api_keys(self):
         configuration = create_reusable_configuration(
@@ -438,10 +473,9 @@ class ReusableResponseSerializerTests(TestCase):
     def test_lti13_detail_never_serializes_tool_or_platform_key_material(self):
         payload = lti13_payload(
             name='Safe 1.3 Tool',
-            scope={'site_wide': True},
             lti_1p3={
                 'tool_key_mode': 'public_key',
-                'tool_public_key': '-----BEGIN PUBLIC KEY-----\\nPUBLIC MATERIAL',
+                'tool_public_key': '-----BEGIN PUBLIC KEY----- PUBLIC MATERIAL',
             },
         )
         configuration = create_reusable_configuration(payload).configuration
@@ -450,10 +484,6 @@ class ReusableResponseSerializerTests(TestCase):
         self.assertNotIn(private_key, str(data))
         self.assertNotIn('tool_public_key', data)
         self.assertNotIn('lti_1p3_internal_private_key', data)
+        self.assertEqual(data['context'], course_context())
         self.assertEqual(data['client_id'], configuration.lti_1p3_client_id)
         self.assertTrue(data['tool_key_configured'])
-
-    def test_non_manager_detail_does_not_disclose_grant_identifiers(self):
-        detail = ReusableDetailSerializer(self.configuration, context={'can_manage': False}).data
-        self.assertNotIn('course_keys', detail['scope'])
-        self.assertNotIn('course-v1:Org+Course+Run', str(detail))

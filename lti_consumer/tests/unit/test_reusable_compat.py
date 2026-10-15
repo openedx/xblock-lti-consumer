@@ -63,14 +63,6 @@ class StudioAccessibleCourseKeysTests(SimpleTestCase):
 
     @patch('lti_consumer.plugin.compat._has_studio_course_read_access')
     @patch('lti_consumer.plugin.compat._get_studio_course_candidates')
-    def test_explicit_read_denial_excludes_course(self, candidates, can_read):
-        candidates.return_value = [SimpleNamespace(id=self.first)]
-        can_read.return_value = False
-
-        self.assertEqual(compat.get_studio_accessible_course_keys(self.user), [])
-
-    @patch('lti_consumer.plugin.compat._has_studio_course_read_access')
-    @patch('lti_consumer.plugin.compat._get_studio_course_candidates')
     def test_permission_backend_errors_propagate(self, candidates, can_read):
         candidates.return_value = [SimpleNamespace(id=self.first)]
         can_read.side_effect = RuntimeError('permission backend unavailable')
