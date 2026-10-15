@@ -165,6 +165,21 @@ class Lti1p3Passport(models.Model):
         app_label = 'lti_consumer'
 
 
+class ReusableNameField(models.CharField):
+    """CharField whose casefolded values distinguish accents where the backend can.
+
+    shortcut: utf8mb4_0900_as_ci exists on MySQL 8 (not MariaDB) and would fail DDL
+    elsewhere; other backends keep their native collation - casefold() already makes
+    names case-insensitive. Revisit if another backend needs accent-sensitive names.
+    """
+
+    def db_parameters(self, connection):
+        params = super().db_parameters(connection)
+        if connection.vendor != 'mysql' or getattr(connection, 'mysql_is_mariadb', False):
+            params['collation'] = None
+        return params
+
+
 class ReusableLtiConfiguration(models.Model):
     """Catalog and scope record for an LTI configuration independent of placements."""
 
@@ -177,7 +192,9 @@ class ReusableLtiConfiguration(models.Model):
 
     config_id = models.UUIDField(_("Configuration ID"), default=uuid.uuid4, unique=True, editable=False)
     name = models.CharField(_("Name"), max_length=255)
-    normalized_name = models.CharField(max_length=768, unique=True, editable=False)
+    normalized_name = ReusableNameField(
+        max_length=768, unique=True, editable=False, db_collation='utf8mb4_0900_as_ci',
+    )
     description = models.TextField(_("Description"), blank=True)
     version = models.CharField(_("LTI Version"), max_length=10, choices=LTI_VERSION_CHOICES)
     site_wide = models.BooleanField(_("Site wide"), default=False)

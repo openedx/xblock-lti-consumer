@@ -1,6 +1,8 @@
 """Focused tests for version-specific reusable configuration storage."""
 
-from django.db import IntegrityError, transaction
+from unittest.mock import patch
+
+from django.db import IntegrityError, connections, transaction
 from django.test import TestCase
 
 from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
@@ -26,6 +28,43 @@ class ReusableConfigurationStorageTests(TestCase):
                               else getattr(configuration, field_name))
 
         self.assertEqual(configuration.lti_1p3_redirect_uris, [])
+
+    def test_normalized_name_distinguishes_accents_but_not_case_or_surrounding_space(self):
+        self.make_configuration(name='Café Tool')
+        self.make_configuration(name='Cafe Tool')
+        self.assertEqual(
+            set(ReusableLtiConfiguration.objects.values_list('normalized_name', flat=True)),
+            {'café tool', 'cafe tool'},
+        )
+        for duplicate in ('CAFÉ TOOL', '  Cafe Tool  ', '  café tool  '):
+            with self.subTest(duplicate=duplicate), self.assertRaises(IntegrityError), transaction.atomic():
+                self.make_configuration(name=duplicate)
+
+    def test_mysql_normalized_name_uses_accent_sensitive_collation(self):
+        connection = connections['default']
+        if connection.vendor != 'mysql' or getattr(connection, 'mysql_is_mariadb', False):
+            self.skipTest('MySQL 8-only collation check.')
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT COLLATION_NAME FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() "
+                "AND TABLE_NAME = 'lti_consumer_reusablelticonfiguration' "
+                "AND COLUMN_NAME = 'normalized_name'"
+            )
+            self.assertEqual(cursor.fetchone(), ('utf8mb4_0900_as_ci',))
+
+    def test_db_parameters_collation_is_mysql_only(self):
+        field = ReusableLtiConfiguration._meta.get_field('normalized_name')
+        connection = connections['default']
+        for vendor, is_mariadb, expected in (
+            ('mysql', False, 'utf8mb4_0900_as_ci'),
+            ('mysql', True, None),
+            ('sqlite', False, None),
+        ):
+            with self.subTest(vendor=vendor, mariadb=is_mariadb), \
+                    patch.object(connection, 'vendor', vendor), \
+                    patch.object(connection, 'mysql_is_mariadb', is_mariadb, create=True):
+                self.assertEqual(field.db_parameters(connection)['collation'], expected)
 
     def test_lti13_client_id_is_unique_but_nullable(self):
         self.make_configuration(name='No identity 1', lti_1p3_client_id=None)
