@@ -334,6 +334,40 @@ class ReusableConfigurationListApiTests(ReusableApiTestCase):
         self.assertNotIn(str(self.other_key), response.content.decode())
         self.course_access.assert_called_once_with(self.user)
 
+    def test_mysql_collation_matches_case_and_separates_accents(self):
+        if connection.vendor != 'mysql' or getattr(connection, 'mysql_is_mariadb', False):
+            self.skipTest('MySQL 8-only collation check.')
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT COLUMN_NAME, COLLATION_NAME FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() "
+                "AND TABLE_NAME = 'lti_consumer_reusablelticonfiguration' "
+                "AND COLUMN_NAME IN ('normalized_name', 'context_key')"
+            )
+            self.assertEqual(
+                dict(cursor.fetchall()),
+                {'normalized_name': 'utf8mb4_0900_as_ci', 'context_key': 'utf8mb4_0900_as_ci'},
+            )
+        self.create('Case variant course', context_type='course', context_key='course-v1:ORG+COURSE+RUN')
+        self.create('Accented course', context_type='course', context_key='course-v1:Org+Cóurse+Run')
+        self.create('Plain org', context_type='organization', context_key='Org')
+        self.create('Accented org', context_type='organization', context_key='Órg')
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), 4)
+
+        # Default listing resolves the accessible course through the request-independent
+        # context query; ?course_key= would bypass it with a Python precheck.
+        response = self.client.get(self.list_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 2)
+        self.assertEqual(
+            [(row['name'], row['context']) for row in response.data['results']],
+            [
+                ('Case variant course', build_context('course', 'course-v1:ORG+COURSE+RUN')),
+                ('Plain org', build_context('organization', 'org')),
+            ],
+        )
+
     def test_context_type_filter_matches_the_single_context(self):
         self.create('Course', context_type='course', context_key=str(self.course_key))
         self.create('Organization', context_type='organization', context_key='org')
