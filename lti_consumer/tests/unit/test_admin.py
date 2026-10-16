@@ -127,14 +127,14 @@ class ReusableLtiConfigurationAdminTests(TestCase):
         self.changelist_url = reverse('admin:lti_consumer_reusablelticonfiguration_changelist')
         self.legacy_passport = Lti1p3Passport.objects.create(lti_1p3_client_id='legacy-client')
 
-        self.lti11_config = create_reusable_configuration({
+        self.lti11_config = create_reusable_configuration(self.user, {
             'name': 'Legacy launch tool',
             'description': 'LTI 1.1 metadata',
             'version': ReusableLtiConfiguration.LTI_1P1,
             'context': {'type': 'course', 'key': self.course_key},
             'lti_1p1': {'launch_url': 'https://one-one.example/launch'},
         }).configuration
-        self.lti13_config = create_reusable_configuration({
+        self.lti13_config = create_reusable_configuration(self.user, {
             'name': 'Advantage tool',
             'version': ReusableLtiConfiguration.LTI_1P3,
             'context': {'type': 'site'},
