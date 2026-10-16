@@ -3,6 +3,8 @@
 These serializers only convert JSON primitives, refuse unknown members, and
 allowlist response fields. Semantic validation belongs to lti_consumer.reusable.
 """
+# Parse/render-only DRF wire serializers: they never implement create/update.
+# pylint: disable=abstract-method
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -207,7 +209,7 @@ class ReusableCreateResponseSerializer(ReusableDetailSerializer):
 
     one_time_credentials = serializers.SerializerMethodField()
 
-    def get_one_time_credentials(self, obj):
+    def get_one_time_credentials(self, _obj):
         return self.context.get('one_time_credentials')
 
     def to_representation(self, instance):
