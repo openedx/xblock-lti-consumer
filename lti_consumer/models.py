@@ -177,7 +177,7 @@ class ReusableNameField(models.CharField):
     """
 
     def db_parameters(self, connection):
-        params = super().db_parameters(connection)
+        params = super().db_parameters(connection)  # pylint: disable=no-member
         if connection.vendor != 'mysql' or getattr(connection, 'mysql_is_mariadb', False):
             params['collation'] = None
         return params
@@ -224,7 +224,8 @@ class ReusableLtiConfiguration(models.Model):
         _("LTI 1.3 OpenID Connect (OIDC) Login URL"), max_length=255, null=True, blank=True,
     )
     lti_1p3_redirect_uris = models.JSONField(_("LTI 1.3 Redirect URIs"), default=list, blank=True)
-    # shortcut: Client ID equality follows DB collation; add portable matching only if cross-backend consistency is required.
+    # shortcut: Client ID equality follows DB collation; add portable matching only if
+    # cross-backend consistency is required.
     lti_1p3_client_id = models.CharField(_("LTI 1.3 Client ID"), max_length=255, null=True, blank=True, unique=True)
     lti_1p3_deployment_id = models.CharField(_("LTI 1.3 Deployment ID"), max_length=255, null=True, blank=True)
     lti_1p3_tool_key_mode = models.CharField(
