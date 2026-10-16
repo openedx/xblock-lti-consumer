@@ -29,6 +29,8 @@ COURSE_ADMIN_PATCH = 'lti_consumer.plugin.compat.user_is_course_admin'
 COURSE_ACCESS_PATCH = 'lti_consumer.plugin.compat.get_studio_accessible_course_keys'
 CANDIDATES_PATCH = 'lti_consumer.plugin.compat._get_studio_course_candidates'
 READ_ACCESS_PATCH = 'lti_consumer.plugin.compat._has_studio_course_read_access'
+VIEW_BASE_PATCH = 'lti_consumer.plugin.reusable_serializers.get_lti_view_base'
+API_BASE_PATCH = 'lti_consumer.plugin.reusable_serializers.get_lti_api_base'
 
 CONFIG_STATE_FIELDS = (
     'name', 'normalized_name', 'description', 'version', 'context_type', 'context_key',
@@ -205,7 +207,9 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(configuration.name, 'Renamed Tool')
         self.assertEqual(configuration.lti_1p1_client_secret, secret)
 
-    def test_course_admin_lti13_creation_persists_identity_and_safe_metadata(self):
+    @patch(API_BASE_PATCH, return_value='https://api.example')
+    @patch(VIEW_BASE_PATCH, return_value='https://view.example')
+    def test_course_admin_lti13_creation_persists_identity_and_safe_metadata(self, _view_base, _api_base):
         self.course_admin.return_value = True
         response = self.client.post(self.list_url, lti13_create_payload(
             build_context('course', COURSE_KEY),
@@ -234,10 +238,14 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(response.data['client_id'], configuration.lti_1p3_client_id)
         self.assertEqual(response.data['deployment_id'], configuration.lti_1p3_deployment_id)
         self.assertTrue(response.data['tool_key_configured'])
-        self.assertEqual(
-            set(response.data['registration_urls']),
-            {'login_url', 'jwks_url', 'access_token_url'},
-        )
+        registration_urls = {
+            'login_url': 'https://view.example/api/lti_consumer/v1/launch/',
+            'jwks_url': 'https://api.example/api/lti_consumer/v1/public_keysets',
+            'access_token_url': 'https://api.example/api/lti_consumer/v1/token',
+        }
+        self.assertEqual(response.data['registration_urls'], registration_urls)
+        detail = self.client.get(self.detail_url(configuration))
+        self.assertEqual(detail.data['registration_urls'], registration_urls)
         for forbidden in FORBIDDEN_RESPONSE_FIELDS:
             self.assertNotIn(forbidden, response.data)
         self.assert_not_disclosed(response, passport.lti_1p3_internal_private_key)
