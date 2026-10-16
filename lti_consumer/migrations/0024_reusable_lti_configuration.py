@@ -46,7 +46,13 @@ class Migration(migrations.Migration):
                         verbose_name='Context type',
                     ),
                 ),
-                ('context_key', models.CharField(blank=True, default='', max_length=255, verbose_name='Context key')),
+                (
+                    'context_key',
+                    lti_consumer.models.ReusableNameField(
+                        blank=True, db_collation='utf8mb4_0900_as_ci', default='', max_length=255,
+                        verbose_name='Context key',
+                    ),
+                ),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Created at')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Updated at')),
                 (
