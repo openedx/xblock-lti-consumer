@@ -1,13 +1,12 @@
-"""Strict request and safe response serializers for reusable LTI configurations."""
-from math import isfinite
-from urllib.parse import urlsplit
+"""Wire parsing and safe rendering for reusable LTI configurations.
 
-from django.core.exceptions import ValidationError as DjangoValidationError
+These serializers only convert JSON primitives, refuse unknown members, and
+allowlist response fields. Semantic validation belongs to lti_consumer.reusable.
+"""
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from lti_consumer.models import ReusableLtiConfiguration
-from lti_consumer.reusable import validate_reusable_context
 from lti_consumer.utils import (
     get_lti_api_base,
     get_lti_view_base,
@@ -25,242 +24,98 @@ class StrictSerializer(serializers.Serializer):
         return super().to_internal_value(data)
 
 
-class HttpUrlField(serializers.URLField):
-    """A URL field restricted to HTTP(S)."""
-
-    def to_internal_value(self, data):
-        value = super().to_internal_value(data)
-        if urlsplit(value).scheme.lower() not in ('http', 'https'):
-            raise serializers.ValidationError(_('Enter a valid HTTP(S) URL.'))
-        return value
-
-
 class ReusableContextInputSerializer(StrictSerializer):
-    """Accept exactly one create-only context and return its canonical form."""
+    """Parse the create-only context shape; the policy normalizes and authorizes it."""
 
-    type = serializers.ChoiceField(choices=('course', 'organization', 'site'))
-    key = serializers.CharField(required=False, allow_blank=False)
-
-    def validate(self, attrs):
-        context = {'type': attrs['type']}
-        if 'key' in attrs:
-            context['key'] = attrs['key']
-        try:
-            return validate_reusable_context(context)
-        except DjangoValidationError as err:
-            raise serializers.ValidationError(err.messages) from err
+    type = serializers.CharField()
+    key = serializers.CharField(required=False, allow_blank=True)
 
 
 class ReusableLti11InputSerializer(StrictSerializer):
-    launch_url = HttpUrlField(max_length=255)
-    client_key = serializers.CharField(max_length=255, required=False, allow_blank=False)
-    client_secret = serializers.CharField(max_length=255, required=False, allow_blank=False)
+    """Parse LTI 1.1 connection primitives."""
+
+    launch_url = serializers.CharField()
+    client_key = serializers.CharField(required=False, allow_blank=True)
+    client_secret = serializers.CharField(required=False, allow_blank=True)
 
 
 class ReusableLti13InputSerializer(StrictSerializer):
-    launch_url = HttpUrlField(max_length=255)
-    oidc_url = HttpUrlField(max_length=255)
-    redirect_uris = serializers.ListField(child=HttpUrlField(), required=False, default=list)
-    tool_key_mode = serializers.ChoiceField(choices=('public_key', 'keyset_url'))
-    tool_public_key = serializers.CharField(required=False, allow_blank=False)
-    tool_keyset_url = HttpUrlField(max_length=500, required=False)
-    client_id = serializers.CharField(max_length=255, required=False, allow_blank=False)
-    deployment_id = serializers.CharField(max_length=255, required=False, allow_blank=False)
+    """Parse LTI 1.3 connection and identity primitives."""
 
-    def validate(self, attrs):
-        mode = attrs['tool_key_mode']
-        if mode == 'public_key':
-            key = attrs.get('tool_public_key', '')
-            if not key or attrs.get('tool_keyset_url'):
-                raise serializers.ValidationError(_('Public-key mode requires only a tool public key.'))
-            if 'PRIVATE KEY' in key:
-                raise serializers.ValidationError({'tool_public_key': _('Private keys are not accepted.')})
-        elif not attrs.get('tool_keyset_url') or attrs.get('tool_public_key'):
-            raise serializers.ValidationError(_('Keyset mode requires only a tool keyset URL.'))
-        return attrs
+    launch_url = serializers.CharField()
+    oidc_url = serializers.CharField()
+    redirect_uris = serializers.ListField(child=serializers.CharField(allow_blank=True), required=False)
+    tool_key_mode = serializers.CharField()
+    tool_public_key = serializers.CharField(required=False, allow_blank=True)
+    tool_keyset_url = serializers.CharField(required=False, allow_blank=True)
+    client_id = serializers.CharField(required=False, allow_blank=True)
+    deployment_id = serializers.CharField(required=False, allow_blank=True)
 
 
 class ReusableServicesInputSerializer(StrictSerializer):
-    deep_linking_enabled = serializers.BooleanField(required=False, default=False)
-    deep_linking_launch_url = HttpUrlField(max_length=225, required=False, allow_blank=True, allow_null=True)
-    ags_mode = serializers.ChoiceField(
-        choices=('disabled', 'declarative', 'programmatic'), required=False, default='declarative'
-    )
-    nrps_enabled = serializers.BooleanField(required=False, default=False)
+    """Parse LTI Advantage service settings without enforcing their rules."""
+
+    deep_linking_enabled = serializers.BooleanField(required=False)
+    deep_linking_launch_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    ags_mode = serializers.CharField(required=False, allow_blank=True)
+    nrps_enabled = serializers.BooleanField(required=False)
 
 
 class ReusableDefaultsInputSerializer(StrictSerializer):
-    display_name = serializers.CharField(max_length=255, required=False)
+    """Parse placement default primitives without enforcing their ranges."""
+
+    display_name = serializers.CharField(required=False, allow_blank=True)
     enable_grading = serializers.BooleanField(required=False)
-    grade_weight = serializers.FloatField(min_value=0, required=False)
+    grade_weight = serializers.FloatField(required=False)
     accept_grades_after_due_date = serializers.BooleanField(required=False)
-    open_tool_in = serializers.ChoiceField(choices=('iframe', 'modal', 'new_window'), required=False)
-    inline_height = serializers.IntegerField(min_value=0, max_value=2147483647, required=False)
-    modal_height = serializers.IntegerField(min_value=0, max_value=100, required=False)
-    modal_width = serializers.IntegerField(min_value=0, max_value=100, required=False)
-    launch_button_text = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    open_tool_in = serializers.CharField(required=False, allow_blank=True)
+    inline_height = serializers.IntegerField(required=False)
+    modal_height = serializers.IntegerField(required=False)
+    modal_width = serializers.IntegerField(required=False)
+    launch_button_text = serializers.CharField(required=False, allow_blank=True)
     send_extra_parameters = serializers.BooleanField(required=False)
-    custom_parameters = serializers.ListField(
-        child=serializers.CharField(), required=False
-    )
-
-    def validate_grade_weight(self, value):
-        if not isfinite(value):
-            raise serializers.ValidationError(_('A finite grade weight is required.'))
-        return value
-
-    def validate_custom_parameters(self, values):
-        if any('=' not in value or not value.partition('=')[0] for value in values):
-            # Translators: 'key=value' is the literal required syntax; keep it unchanged.
-            raise serializers.ValidationError(_('Custom parameters must use the form key=value.'))
-        return values
+    custom_parameters = serializers.ListField(child=serializers.CharField(allow_blank=True), required=False)
 
 
 class ReusableCreateInputSerializer(StrictSerializer):
-    name = serializers.CharField(max_length=255)
-    description = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
-    version = serializers.ChoiceField(choices=(ReusableLtiConfiguration.LTI_1P1, ReusableLtiConfiguration.LTI_1P3))
+    """Parse a complete create request; the mutation module validates it."""
+
+    name = serializers.CharField(allow_blank=True)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    version = serializers.CharField()
     context = ReusableContextInputSerializer()
     lti_1p1 = ReusableLti11InputSerializer(required=False)
     lti_1p3 = ReusableLti13InputSerializer(required=False)
-    services = ReusableServicesInputSerializer(required=False, default=dict)
-    defaults = ReusableDefaultsInputSerializer(required=False, default=dict)
-
-    def validate(self, attrs):
-        version = attrs['version']
-        expected = 'lti_1p1' if version == ReusableLtiConfiguration.LTI_1P1 else 'lti_1p3'
-        other = 'lti_1p3' if expected == 'lti_1p1' else 'lti_1p1'
-        if expected not in attrs or other in attrs:
-            raise serializers.ValidationError({expected: _('Connection settings must match the selected version.')})
-
-        services = attrs.setdefault('services', {})
-        services.setdefault('deep_linking_enabled', False)
-        services.setdefault('ags_mode', 'declarative')
-        services.setdefault('nrps_enabled', False)
-        attrs.setdefault('defaults', {})
-        if services['deep_linking_enabled'] and not services.get('deep_linking_launch_url'):
-            raise serializers.ValidationError({
-                'services': {'deep_linking_launch_url': _('Required when Deep Linking is enabled.')}
-            })
-        return attrs
+    services = ReusableServicesInputSerializer(required=False)
+    defaults = ReusableDefaultsInputSerializer(required=False)
 
 
 class ReusableLti11UpdateInputSerializer(StrictSerializer):
-    """Accept editable LTI 1.1 connection settings, but not credentials."""
+    """Parse editable LTI 1.1 connection settings, but not credentials."""
 
-    launch_url = HttpUrlField(max_length=255, required=False)
+    launch_url = serializers.CharField(required=False, allow_blank=True)
 
 
 class ReusableLti13UpdateInputSerializer(StrictSerializer):
-    """Accept editable LTI 1.3 tool settings, but not registration identity."""
+    """Parse editable LTI 1.3 tool settings, but not registration identity."""
 
-    launch_url = HttpUrlField(max_length=255, required=False)
-    oidc_url = HttpUrlField(max_length=255, required=False)
-    redirect_uris = serializers.ListField(child=HttpUrlField(), required=False)
-    tool_key_mode = serializers.ChoiceField(choices=('public_key', 'keyset_url'), required=False)
-    tool_public_key = serializers.CharField(required=False, allow_blank=False)
-    tool_keyset_url = HttpUrlField(max_length=500, required=False)
+    launch_url = serializers.CharField(required=False, allow_blank=True)
+    oidc_url = serializers.CharField(required=False, allow_blank=True)
+    redirect_uris = serializers.ListField(child=serializers.CharField(allow_blank=True), required=False)
+    tool_key_mode = serializers.CharField(required=False, allow_blank=True)
+    tool_public_key = serializers.CharField(required=False, allow_blank=True)
+    tool_keyset_url = serializers.CharField(required=False, allow_blank=True)
 
 
 class ReusableUpdateInputSerializer(StrictSerializer):
-    """Validate editable metadata and versioned settings without identity writes."""
+    """Parse an ordinary-settings PATCH; the mutation module validates merged state."""
 
-    name = serializers.CharField(max_length=255, required=False)
+    name = serializers.CharField(required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     lti_1p1 = ReusableLti11UpdateInputSerializer(required=False)
     lti_1p3 = ReusableLti13UpdateInputSerializer(required=False)
     services = ReusableServicesInputSerializer(required=False)
     defaults = ReusableDefaultsInputSerializer(required=False)
-
-    def validate(self, attrs):
-        configuration = self.context['configuration']
-        is_lti13 = configuration.version == ReusableLtiConfiguration.LTI_1P3
-        connection_name = 'lti_1p3' if is_lti13 else 'lti_1p1'
-        other_connection_name = 'lti_1p1' if is_lti13 else 'lti_1p3'
-        if other_connection_name in attrs:
-            raise serializers.ValidationError({
-                other_connection_name: _('Connection settings must match the configuration version.')
-            })
-
-        connection = attrs.get(connection_name, {})
-        connection_fields = self.fields[connection_name].fields
-        launch_field = 'lti_1p3_launch_url' if is_lti13 else 'lti_1p1_launch_url'
-        connection_fields['launch_url'].run_validation(
-            connection.get('launch_url', getattr(configuration, launch_field))
-        )
-        if is_lti13:
-            try:
-                connection_fields['oidc_url'].run_validation(
-                    connection.get('oidc_url', configuration.lti_1p3_oidc_url)
-                )
-            except serializers.ValidationError as err:
-                raise serializers.ValidationError({connection_name: {'oidc_url': err.detail}}) from err
-
-            redirects = connection.get('redirect_uris', configuration.lti_1p3_redirect_uris)
-            try:
-                redirects = connection_fields['redirect_uris'].run_validation(redirects)
-            except serializers.ValidationError as err:
-                raise serializers.ValidationError({connection_name: {'redirect_uris': err.detail}}) from err
-            if 'redirect_uris' in connection:
-                connection['redirect_uris'] = redirects
-
-            passport = configuration.lti_1p3_passport
-            try:
-                mode = connection_fields['tool_key_mode'].run_validation(
-                    connection.get('tool_key_mode', configuration.lti_1p3_tool_key_mode)
-                )
-            except serializers.ValidationError as err:
-                raise serializers.ValidationError({connection_name: {'tool_key_mode': err.detail}}) from err
-
-            if mode == 'public_key':
-                if 'tool_keyset_url' in connection:
-                    raise serializers.ValidationError({
-                        connection_name: {'tool_keyset_url': _('Not accepted in public-key mode.')}
-                    })
-                try:
-                    public_key = connection_fields['tool_public_key'].run_validation(
-                        connection.get('tool_public_key', passport.lti_1p3_tool_public_key)
-                    )
-                except serializers.ValidationError as err:
-                    raise serializers.ValidationError({connection_name: {'tool_public_key': err.detail}}) from err
-                if not public_key.strip() or 'PRIVATE KEY' in public_key:
-                    raise serializers.ValidationError({
-                        connection_name: {
-                            'tool_public_key': _('A public key is required; private keys are not accepted.'),
-                        }
-                    })
-            else:
-                if 'tool_public_key' in connection:
-                    raise serializers.ValidationError({
-                        connection_name: {'tool_public_key': _('Not accepted in keyset URL mode.')}
-                    })
-                try:
-                    tool_keyset_url = connection_fields['tool_keyset_url'].run_validation(
-                        connection.get('tool_keyset_url', passport.lti_1p3_tool_keyset_url)
-                    )
-                except serializers.ValidationError as err:
-                    raise serializers.ValidationError({connection_name: {'tool_keyset_url': err.detail}}) from err
-                if not tool_keyset_url:
-                    raise serializers.ValidationError({
-                        connection_name: {'tool_keyset_url': _('Required in keyset URL mode.')}
-                    })
-
-        services = {
-            'deep_linking_enabled': configuration.lti_advantage_deep_linking_enabled,
-            'deep_linking_launch_url': configuration.lti_advantage_deep_linking_launch_url,
-            'ags_mode': configuration.lti_advantage_ags_mode,
-            'nrps_enabled': configuration.lti_advantage_enable_nrps,
-        }
-        services.update(attrs.get('services', {}))
-        validated_services = ReusableServicesInputSerializer(data=services)
-        validated_services.is_valid(raise_exception=True)
-        if validated_services.validated_data['deep_linking_enabled'] and not validated_services.validated_data.get(
-            'deep_linking_launch_url'
-        ):
-            raise serializers.ValidationError({
-                'services': {'deep_linking_launch_url': _('Required when Deep Linking is enabled.')}
-            })
-        return attrs
 
 
 class ReusableListSerializer(serializers.Serializer):

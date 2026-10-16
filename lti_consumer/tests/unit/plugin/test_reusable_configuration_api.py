@@ -1,8 +1,10 @@
 """User-journey integration tests for the reusable configuration API.
 
-Each test drives the real APIClient, serializers, service, ORM, and database.
-Only edx-platform-owned boundaries are mocked: Studio course access, course
-admin checks, and the organization registry.
+Each test drives the real APIClient, serializers, mutation module, ORM and
+database. Only edx-platform-owned boundaries are mocked: Studio course access,
+course admin checks, and the organization registry. Semantic matrices live in
+the module suites; these journeys keep the HTTP status, disclosure, pagination,
+filter, CSRF and rollback contract.
 """
 import json
 import uuid
@@ -23,8 +25,8 @@ COURSE_KEY = 'course-v1:Org+Course+Run'
 OTHER_KEY = 'course-v1:Hidden+Other+Run'
 CCX_KEY = 'ccx-v1:Org+Course+Run+ccx@1'
 REGISTRY_PATCH = 'lti_consumer.plugin.compat.get_active_organizations'
-COURSE_ADMIN_PATCH = 'lti_consumer.plugin.reusable_permissions.compat.user_is_course_admin'
-COURSE_ACCESS_PATCH = 'lti_consumer.plugin.reusable_views.compat.get_studio_accessible_course_keys'
+COURSE_ADMIN_PATCH = 'lti_consumer.plugin.compat.user_is_course_admin'
+COURSE_ACCESS_PATCH = 'lti_consumer.plugin.compat.get_studio_accessible_course_keys'
 CANDIDATES_PATCH = 'lti_consumer.plugin.compat._get_studio_course_candidates'
 READ_ACCESS_PATCH = 'lti_consumer.plugin.compat._has_studio_course_read_access'
 
@@ -97,8 +99,8 @@ def passport_state(passport):
     return {field: getattr(passport, field) for field in PASSPORT_STATE_FIELDS}
 
 
-def create_configuration(name, configuration_context, version='lti_1p1', **overrides):
-    """Persist a configuration through the service, resolving organization contexts."""
+def create_configuration(actor, name, configuration_context, version='lti_1p1', **overrides):
+    """Persist a configuration through the module, resolving organization contexts."""
     data = {'name': name, 'version': version, 'context': configuration_context}
     if version == 'lti_1p1':
         data['lti_1p1'] = {
@@ -120,7 +122,7 @@ def create_configuration(name, configuration_context, version='lti_1p1', **overr
         if configuration_context['type'] == 'organization' else []
     )
     with patch(REGISTRY_PATCH, return_value=registered):
-        return create_reusable_configuration(data).configuration
+        return create_reusable_configuration(actor, data).configuration
 
 
 class ReusableApiTestCase(TestCase):
@@ -149,11 +151,11 @@ class ReusableApiTestCase(TestCase):
         )
 
     def create(self, name, context_type='course', context_key=None, version='lti_1p1', **overrides):
-        """Create a configuration directly through the service."""
+        """Create a configuration directly through the module."""
         if context_key is None:
             context_key = str(self.course_key)
         return create_configuration(
-            name, build_context(context_type, context_key), version=version, **overrides,
+            self.superuser, name, build_context(context_type, context_key), version=version, **overrides,
         )
 
     def assert_not_disclosed(self, response, value):
@@ -262,11 +264,13 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
             )
         self.assertEqual((organization.status_code, site.status_code), (403, 403))
 
+        self.course_admin.reset_mock()
         self.course_admin.return_value = True
         ccx = self.client.post(
             self.list_url, lti11_create_payload(build_context('course', CCX_KEY)), format='json',
         )
         self.assertEqual(ccx.status_code, 403)
+        self.course_admin.assert_not_called()
 
         self.client.force_authenticate(self.superuser)
         missing_context = lti11_create_payload()
@@ -274,11 +278,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         invalid_payloads = (
             missing_context,
             lti11_create_payload(build_context('course', '')),
-            lti11_create_payload(build_context('course', '   ')),
             lti11_create_payload({'type': 'site', 'key': 'nonblank'}),
-            lti11_create_payload({'type': 'unknown', 'key': COURSE_KEY}),
-            lti11_create_payload({'type': 'course', 'key': COURSE_KEY, 'extra': True}),
-            lti11_create_payload({'course_keys': [COURSE_KEY]}),
             lti11_create_payload(build_context('course', COURSE_KEY), scope={'course_keys': [COURSE_KEY]}),
             lti11_create_payload(build_context('course', COURSE_KEY), lti_1p3={'launch_url': 'https://x.test'}),
             lti13_create_payload(build_context('course', COURSE_KEY), lti_1p3={
@@ -286,7 +286,6 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
                 'oidc_url': 'https://tool.example/oidc',
                 'tool_key_mode': 'public_key',
             }),
-            lti13_create_payload(build_context('course', COURSE_KEY), version='lti_1p1'),
         )
         for payload in invalid_payloads:
             with self.subTest(payload=payload):
@@ -530,7 +529,6 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
 
         immutable_payloads = (
             {'name': 'Changed', 'context': build_context('course', str(self.other_key))},
-            {'name': 'Changed', 'context': build_context('site')},
             {'name': 'Changed', 'scope': {'course_keys': [str(self.course_key)]}},
             {'name': 'Changed', 'version': 'lti_1p1'},
             {'name': 'Changed', 'config_id': '00000000-0000-0000-0000-000000000000'},
@@ -573,6 +571,53 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
             self.client.patch(self.detail_url(hidden), {'name': 'Changed'}, format='json').status_code, 404,
         )
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 3)
+
+    def test_update_authorization_precedes_semantic_validation(self):
+        """Hidden and unmanageable targets answer before any semantic check."""
+        hidden = self.create('Hidden validation', context_type='course', context_key=str(self.other_key))
+        visible = self.create('Visible validation')
+        self.course_admin.return_value = False
+        semantically_invalid = {'name': 'x' * 300}
+        missing = self.client.patch(self.detail_url(hidden), semantically_invalid, format='json')
+        self.assertEqual(missing.status_code, 404)
+        self.assertIn('detail', missing.data)
+        self.assertEqual(
+            self.client.patch(self.detail_url(visible), semantically_invalid, format='json').status_code, 403,
+        )
+
+    def test_error_response_styles_are_preserved(self):
+        configuration = self.create('First tool')
+        self.create('Second tool')
+        self.course_admin.return_value = True
+
+        field_error = self.client.patch(self.detail_url(configuration), {
+            'lti_1p1': {'launch_url': 'javascript:bad'},
+        }, format='json')
+        self.assertEqual(field_error.status_code, 400)
+        self.assertIn('launch_url', field_error.data['lti_1p1'])
+
+        create_error = self.client.post(self.list_url, lti11_create_payload(
+            build_context('course', COURSE_KEY), name='x' * 300,
+        ), format='json')
+        self.assertEqual(create_error.status_code, 400)
+        self.assertIn('name', create_error.data)
+
+        conflict = self.client.patch(self.detail_url(configuration), {'name': 'Second tool'}, format='json')
+        self.assertEqual(conflict.status_code, 400)
+        self.assertIsInstance(conflict.data, list)
+
+    def test_wire_shape_failures_do_not_reveal_targets(self):
+        hidden = self.create('Hidden shape', context_type='course', context_key=str(self.other_key))
+        self.course_admin.return_value = True
+        unknown_url = reverse(
+            'reusable_lti:reusable_configuration_detail',
+            kwargs={'config_id': uuid.uuid4()},
+        )
+        payload = {'name': 'Changed', 'unknown_member': True}
+        hidden_response = self.client.patch(self.detail_url(hidden), payload, format='json')
+        unknown_response = self.client.patch(unknown_url, payload, format='json')
+        self.assertEqual((hidden_response.status_code, unknown_response.status_code), (400, 400))
+        self.assertEqual(hidden_response.data, unknown_response.data)
 
     def test_lti13_patch_rolls_back_when_passport_write_fails(self):
         configuration = self.create('Atomic tool-key update', version='lti_1p3')

@@ -1,46 +1,39 @@
-"""Unit tests for reusable configuration request validation.
+"""Wire parsing and rendering tests for the reusable configuration adapters.
 
-Create happy paths, response allowlists, and end-to-end PATCH behavior are
-covered by the API journeys; these tests keep the dense validation rules and
-the merged-state logic that would be expensive to reach exhaustively through
-one request per case.
+Semantic rules live in lti_consumer.reusable and its direct tests; these tests
+pin the adapter contract: primitive conversion, generic unknown-member refusal,
+and safe response allowlists.
 """
-from unittest.mock import patch
-
 from django.test import SimpleTestCase, TestCase
 
+from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
 from lti_consumer.plugin.reusable_serializers import (
-    ReusableContextInputSerializer,
     ReusableCreateInputSerializer,
+    ReusableCreateResponseSerializer,
+    ReusableDetailSerializer,
+    ReusableListSerializer,
     ReusableUpdateInputSerializer,
 )
-from lti_consumer.reusable import create_reusable_configuration
 
 COURSE_KEY = 'course-v1:Org+Course+Run'
-REGISTRY_PATCH = 'lti_consumer.plugin.compat.get_active_organizations'
-
-
-def course_context(key=COURSE_KEY):
-    """Return a create-only course context."""
-    return {'type': 'course', 'key': key}
-
-
-def organization_context(key):
-    """Return a create-only organization context."""
-    return {'type': 'organization', 'key': key}
-
-
-def site_context():
-    """Return a create-only site context; the key is omitted."""
-    return {'type': 'site'}
+LIST_RESPONSE_FIELDS = {
+    'config_id', 'name', 'version', 'context', 'created_at', 'updated_at', 'can_manage',
+    'deep_linking_enabled', 'ags_mode', 'nrps_enabled',
+}
+DETAIL_RESPONSE_FIELDS = LIST_RESPONSE_FIELDS | {
+    'description', 'launch_url', 'oidc_url', 'redirect_uris', 'tool_key_mode', 'tool_key_configured',
+    'client_id', 'deployment_id', 'registration_urls', 'display_name', 'enable_grading', 'grade_weight',
+    'accept_grades_after_due_date', 'open_tool_in', 'inline_height', 'modal_height', 'modal_width',
+    'launch_button_text', 'send_extra_parameters', 'custom_parameters', 'deep_linking_launch_url',
+}
 
 
 def lti11_payload(**overrides):
-    """Return a valid minimal LTI 1.1 create payload."""
+    """Return a wire-valid minimal LTI 1.1 create payload."""
     payload = {
-        'name': '  Example Tool  ',
+        'name': 'Example Tool',
         'version': 'lti_1p1',
-        'context': course_context(),
+        'context': {'type': 'course', 'key': COURSE_KEY},
         'lti_1p1': {'launch_url': 'https://tool.example/launch'},
     }
     payload.update(overrides)
@@ -48,12 +41,12 @@ def lti11_payload(**overrides):
 
 
 def lti13_payload(**overrides):
-    """Return a valid LTI 1.3 create payload, with optional connection-field overrides."""
+    """Return a wire-valid LTI 1.3 create payload, with optional connection overrides."""
     connection = overrides.pop('lti_1p3', {})
     payload = {
         'name': 'Example Tool',
         'version': 'lti_1p3',
-        'context': course_context(),
+        'context': {'type': 'site'},
         'lti_1p3': {
             'launch_url': 'https://tool.example/launch',
             'oidc_url': 'https://tool.example/oidc',
@@ -62,256 +55,221 @@ def lti13_payload(**overrides):
         },
     }
     payload['lti_1p3'].update(connection)
-    if payload['lti_1p3']['tool_key_mode'] == 'public_key':
-        payload['lti_1p3'].pop('tool_keyset_url', None)
     payload.update(overrides)
     return payload
 
 
-class ReusableContextInputSerializerTests(SimpleTestCase):
-    """Create-only context normalization and organization registry policy."""
+class ReusableCreateWireParsingTests(SimpleTestCase):
+    """Create input parsing: primitives in, unknown members out, nothing semantic."""
 
-    def test_normalizes_course_keys_before_the_length_check(self):
-        serializer = ReusableContextInputSerializer(data=course_context(f' {COURSE_KEY}+branch@draft '))
+    def test_converts_wire_primitives(self):
+        serializer = ReusableCreateInputSerializer(data=lti13_payload(
+            description=None,
+            lti_1p3={'redirect_uris': ['https://tool.example/callback']},
+            services={'deep_linking_enabled': 'true', 'deep_linking_launch_url': None},
+            defaults={
+                'inline_height': '900',
+                'grade_weight': '2.5',
+                'enable_grading': 'true',
+                'modal_width': 50,
+                'custom_parameters': ['a=b'],
+            },
+        ))
         self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data, course_context())
+        validated = serializer.validated_data
+        self.assertEqual(validated['name'], 'Example Tool')
+        self.assertIsNone(validated['description'])
+        self.assertEqual(validated['context'], {'type': 'site'})
+        self.assertEqual(validated['lti_1p3']['redirect_uris'], ['https://tool.example/callback'])
+        self.assertEqual(validated['services'], {
+            'deep_linking_enabled': True,
+            'deep_linking_launch_url': None,
+        })
+        self.assertEqual(validated['defaults'], {
+            'inline_height': 900,
+            'grade_weight': 2.5,
+            'enable_grading': True,
+            'modal_width': 50,
+            'custom_parameters': ['a=b'],
+        })
 
-        raw_key = f'{COURSE_KEY}+branch@' + 'a' * 300
-        self.assertGreater(len(raw_key), 255)
-        serializer = ReusableContextInputSerializer(data=course_context(raw_key))
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data, course_context())
-
-        ccx_key = 'ccx-v1:Org+Course+Run+ccx@1'
-        serializer = ReusableContextInputSerializer(data=course_context(ccx_key))
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data, course_context(ccx_key))
-
-    @patch(REGISTRY_PATCH)
-    def test_organizations_resolve_against_the_registry_but_course_and_site_do_not(self, get_organizations):
-        get_organizations.return_value = [{'short_name': 'Org-A'}]
-        serializer = ReusableContextInputSerializer(data=organization_context(' ORG-A '))
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data, organization_context('org-a'))
-
+    def test_refuses_unknown_members_at_every_level(self):
         cases = (
-            ('unknown-org', [{'short_name': 'Other-Org'}]),
-            ('org-a', [{'short_name': 'Org-A'}, {'short_name': 'org-a'}]),
-        )
-        for key, registry in cases:
-            with self.subTest(key=key):
-                get_organizations.return_value = registry
-                self.assertFalse(ReusableContextInputSerializer(data=organization_context(key)).is_valid())
-
-        get_organizations.side_effect = AssertionError('course and site must not consult the registry')
-        self.assertTrue(ReusableContextInputSerializer(data=course_context()).is_valid())
-        self.assertTrue(ReusableContextInputSerializer(data=site_context()).is_valid())
-
-    def test_rejects_invalid_context_shapes(self):
-        oversized_course_key = 'course-v1:' + 'o' * 250 + '+C+R'
-        invalid = (
-            {'type': 'course'},
-            {'type': 'course', 'key': ''},
-            {'type': 'course', 'key': '   '},
-            {'type': 'course', 'key': None},
-            {'type': 'course', 'key': 123},
-            {'type': ['course'], 'key': COURSE_KEY},
-            {'type': 'course', 'key': 'course-v1:version@519665f6223ebd6980884f2b'},
-            {'type': 'course', 'key': oversized_course_key},
-            {'type': 'organization', 'key': 'o' * 256},
-            {'type': 'unknown', 'key': COURSE_KEY},
-            {'type': 'site', 'key': ''},
-            {'type': 'site', 'key': COURSE_KEY},
-            {'type': 'course', 'key': COURSE_KEY, 'extra': True},
-            {'course_keys': [COURSE_KEY]},
-            {'site_wide': True},
-            'course-v1:Org+Course+Run',
-            [{'type': 'course', 'key': COURSE_KEY}],
-            [],
-        )
-        for data in invalid:
-            with self.subTest(data=data):
-                self.assertFalse(ReusableContextInputSerializer(data=data).is_valid())
-
-
-class ReusableCreateInputSerializerTests(SimpleTestCase):
-    """Dense create payload validation; create happy paths belong to the API journeys."""
-
-    def test_rejects_unknown_fields_and_version_section_mismatch(self):
-        missing_context = lti11_payload()
-        missing_context.pop('context')
-        cases = (
-            lti11_payload(extra='no'),
-            lti11_payload(context={'type': 'course', 'key': COURSE_KEY, 'owner': 'someone'}),
-            lti11_payload(lti_1p1={'launch_url': 'https://tool.example/launch', 'private_key': 'secret'}),
-            lti11_payload(services={'deep_linking_enabled': False, 'platform_key': 'secret'}),
-            lti11_payload(defaults={'not_a_setting': True}),
             lti11_payload(scope={'course_keys': [COURSE_KEY]}),
-            missing_context,
-            lti11_payload(lti_1p3={'launch_url': 'https://tool.example/launch'}),
-            lti11_payload(version='lti_1p3'),
+            lti11_payload(context={'type': 'course', 'key': COURSE_KEY, 'owner': 'someone'}),
+            lti11_payload(lti_1p1={'launch_url': 'https://tool.example/launch', 'private_key': 'p'}),
+            lti11_payload(services={'platform_key': 'p'}),
+            lti11_payload(defaults={'not_a_setting': True}),
         )
         for payload in cases:
+            with self.subTest(payload=payload):
+                serializer = ReusableCreateInputSerializer(data=payload)
+                self.assertFalse(serializer.is_valid())
+                self.assertIn('Unknown field.', str(serializer.errors))
+
+    def test_requires_typed_wire_shape(self):
+        invalid = (
+            [],
+            'not-an-object',
+            lti11_payload(name=None),
+            lti11_payload(context='course-v1:Org+Course+Run'),
+            lti11_payload(context={}),
+            lti11_payload(lti_1p1='https://tool.example/launch'),
+            lti13_payload(lti_1p3={'redirect_uris': 'https://tool.example/callback'}),
+            lti13_payload(defaults={'custom_parameters': 'a=b'}),
+            lti13_payload(services={'nrps_enabled': 'sometimes'}),
+            lti13_payload(defaults={'grade_weight': 'heavy'}),
+        )
+        for payload in invalid:
             with self.subTest(payload=payload):
                 self.assertFalse(ReusableCreateInputSerializer(data=payload).is_valid())
 
-    def test_validates_urls_key_material_and_default_ranges(self):
-        for name in ('', '   ', 'x' * 256):
-            with self.subTest(name_length=len(name)):
-                self.assertFalse(ReusableCreateInputSerializer(data=lti11_payload(name=name)).is_valid())
+    def test_leaves_semantic_rules_to_the_module(self):
+        serializer = ReusableCreateInputSerializer(data=lti11_payload(
+            name='',
+            version='lti_9p9',
+            context={'type': 'course'},
+            lti_1p1={'launch_url': 'javascript:alert(1)', 'client_key': ''},
+            services={'deep_linking_enabled': True, 'ags_mode': 'bogus'},
+            defaults={'custom_parameters': ['missing-equals'], 'modal_width': 101, 'inline_height': -1},
+        ))
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
-        self.assertFalse(ReusableCreateInputSerializer(data=lti11_payload(
-            lti_1p1={'launch_url': 'javascript:alert(1)'},
-        )).is_valid())
-        self.assertFalse(ReusableCreateInputSerializer(data=lti13_payload(
-            lti_1p3={'redirect_uris': ['']},
-        )).is_valid())
 
-        deep_link = lti13_payload(services={'deep_linking_enabled': True})
-        self.assertFalse(ReusableCreateInputSerializer(data=deep_link).is_valid())
-        deep_link['services']['deep_linking_launch_url'] = 'https://tool.example/deep-link'
-        self.assertTrue(ReusableCreateInputSerializer(data=deep_link).is_valid())
-        deep_link['services']['deep_linking_launch_url'] = ''
-        self.assertFalse(ReusableCreateInputSerializer(data=deep_link).is_valid())
-        self.assertTrue(ReusableCreateInputSerializer(data=lti11_payload(
-            services={'deep_linking_launch_url': ''},
-        )).is_valid())
+class ReusableUpdateWireParsingTests(SimpleTestCase):
+    """Update input parsing never reads stored state and never enforces rules."""
 
-        private_key = lti13_payload(lti_1p3={
-            'tool_key_mode': 'public_key',
-            'tool_public_key': '-----BEGIN PRIVATE KEY----- nope',
+    def test_parses_primitives_without_stored_state(self):
+        serializer = ReusableUpdateInputSerializer(data={
+            'name': 'Renamed',
+            'description': None,
+            'lti_1p3': {
+                'redirect_uris': ['https://tool.example/callback'],
+                'tool_key_mode': 'keyset_url',
+            },
+            'services': {'nrps_enabled': 'false'},
+            'defaults': {'grade_weight': '3', 'modal_width': '50'},
         })
-        self.assertFalse(ReusableCreateInputSerializer(data=private_key).is_valid())
-        public_key = lti13_payload(lti_1p3={
-            'tool_key_mode': 'public_key',
-            'tool_public_key': '-----BEGIN PUBLIC KEY----- key',
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        validated = serializer.validated_data
+        self.assertEqual(validated['name'], 'Renamed')
+        self.assertIsNone(validated['description'])
+        self.assertEqual(validated['lti_1p3'], {
+            'redirect_uris': ['https://tool.example/callback'],
+            'tool_key_mode': 'keyset_url',
         })
-        self.assertTrue(ReusableCreateInputSerializer(data=public_key).is_valid())
+        self.assertEqual(validated['services'], {'nrps_enabled': False})
+        self.assertEqual(validated['defaults'], {'grade_weight': 3.0, 'modal_width': 50})
 
-        prefix = 'https://tool.example/'
-        rejected_keyset = lti13_payload(lti_1p3={
-            'tool_keyset_url': prefix + 'k' * (501 - len(prefix)),
-        })
-        self.assertFalse(ReusableCreateInputSerializer(data=rejected_keyset).is_valid())
+    def test_accepts_an_empty_patch(self):
+        serializer = ReusableUpdateInputSerializer(data={})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data, {})
 
-        invalid_defaults = (
-            {'custom_parameters': ['missing-equals']},
-            {'custom_parameters': ['=missing-key']},
-            {'grade_weight': float('nan')},
-            {'modal_width': 101},
-            {'inline_height': 2147483648},
-        )
-        for defaults in invalid_defaults:
-            with self.subTest(defaults=defaults):
-                self.assertFalse(ReusableCreateInputSerializer(data=lti11_payload(defaults=defaults)).is_valid())
-        self.assertTrue(ReusableCreateInputSerializer(data=lti11_payload(
-            defaults={'inline_height': 2147483647},
-        )).is_valid())
-
-
-class ReusableUpdateInputSerializerTests(TestCase):
-    """PATCH validation always validates the complete resulting state."""
-
-    def setUp(self):
-        payload = lti13_payload(name='Patch validation')
-        payload['lti_1p3']['redirect_uris'] = ['https://tool.example/redirect']
-        self.configuration = create_reusable_configuration(payload).configuration
-
-    def validate_patch(self, data):
-        serializer = ReusableUpdateInputSerializer(
-            data=data, partial=True, context={'configuration': self.configuration},
-        )
-        return serializer.is_valid(), serializer
-
-    def test_rejects_context_scope_version_and_immutable_identity(self):
+    def test_refuses_unknown_and_immutable_members(self):
         cases = (
-            {'context': course_context()},
             {'context': {'type': 'site'}},
             {'scope': {'course_keys': [COURSE_KEY]}},
-            {'name': 'Changed', 'context': course_context()},
-            {'context': course_context(), 'scope': {}},
-            {'launch_url': 'https://tool.example/new'},
-            {'lti_1p1': {'launch_url': 'https://tool.example/new'}},
-            {'lti_1p3': {'client_id': 'replacement'}},
-            {'lti_1p3': {'deployment_id': 'replacement'}},
+            {'version': 'lti_1p1'},
+            {'config_id': '00000000-0000-0000-0000-000000000000'},
+            {'client_id': 'replacement'},
+            {'lti_1p1': {'client_secret': 'rotated'}},
+            {'lti_1p1': {'client_key': 'rotated'}},
+            {'lti_1p3': {'cliend_id': 'typo'}},
+            {'defaults': {'unknown_setting': 1}},
         )
         for payload in cases:
             with self.subTest(payload=payload):
-                valid, serializer = self.validate_patch(payload)
-                self.assertFalse(valid)
-                if {'context', 'scope'}.intersection(payload):
-                    self.assertTrue({'context', 'scope'}.intersection(serializer.errors))
+                serializer = ReusableUpdateInputSerializer(data=payload)
+                self.assertFalse(serializer.is_valid())
+                self.assertIn('Unknown field.', str(serializer.errors))
 
-    def test_merges_redirects_and_revalidates_stored_state(self):
-        valid, serializer = self.validate_patch({
-            'lti_1p3': {'redirect_uris': [], 'launch_url': 'https://tool.example/new-launch'},
-            'services': {'deep_linking_launch_url': 'https://tool.example/deep'},
-        })
-        self.assertTrue(valid, serializer.errors)
-        self.assertEqual(serializer.validated_data['lti_1p3']['redirect_uris'], [])
+    def test_requires_typed_wire_shape(self):
+        invalid = (
+            [],
+            {'name': None},
+            {'lti_1p3': 'https://tool.example/launch'},
+            {'lti_1p3': {'redirect_uris': {}}},
+            {'services': {'nrps_enabled': 7}},
+            {'defaults': {'grade_weight': 'heavy'}},
+        )
+        for payload in invalid:
+            with self.subTest(payload=payload):
+                self.assertFalse(ReusableUpdateInputSerializer(data=payload).is_valid())
 
-        valid, serializer = self.validate_patch({
-            'lti_1p3': {'redirect_uris': ['https://only.example/callback']},
-        })
-        self.assertTrue(valid, serializer.errors)
-        self.assertEqual(
-            serializer.validated_data['lti_1p3']['redirect_uris'], ['https://only.example/callback'],
+
+class RenderingAllowlistTests(TestCase):
+    """Response serializers expose only allowlisted metadata, never key material."""
+
+    def setUp(self):
+        self.configuration = ReusableLtiConfiguration.objects.create(
+            name='Rendered',
+            version=ReusableLtiConfiguration.LTI_1P1,
+            context_type='course',
+            context_key=COURSE_KEY,
+            lti_1p1_launch_url='https://tool.example/launch',
+            lti_1p1_client_key='not-for-display',
+            lti_1p1_client_secret='not-for-display-secret',
         )
 
-        valid, serializer = self.validate_patch({'lti_1p3': {'launch_url': 'https://tool.example/new'}})
-        self.assertTrue(valid, serializer.errors)
-        self.assertNotIn('redirect_uris', serializer.validated_data['lti_1p3'])
-        self.assertNotIn('lti_1p3', self.validate_patch({'name': 'metadata only'})[1].validated_data)
+    def test_list_rendering_allowlist(self):
+        data = ReusableListSerializer(self.configuration, context={'can_manage': True}).data
+        self.assertEqual(set(data), LIST_RESPONSE_FIELDS)
+        self.assertEqual(data['context'], {'type': 'course', 'key': COURSE_KEY})
+        self.assertTrue(data['can_manage'])
+        self.assertNotIn('not-for-display', str(data))
 
-        for field, value in (
-            ('lti_1p3_launch_url', 'javascript:bad'),
-            ('lti_1p3_oidc_url', 'javascript:bad'),
-            ('lti_1p3_redirect_uris', ['javascript:bad']),
-        ):
-            with self.subTest(field=field):
-                original = getattr(self.configuration, field)
-                setattr(self.configuration, field, value)
-                self.assertFalse(self.validate_patch({'name': 'change'})[0])
-                setattr(self.configuration, field, original)
+    def test_list_rendering_accepts_a_callable_manage_check(self):
+        def check(obj):
+            return obj.pk == self.configuration.pk
 
-    def test_merges_tool_key_mode_and_services_state(self):
-        public_key = '-----BEGIN PUBLIC KEY----- public material'
-        valid, serializer = self.validate_patch({
-            'lti_1p3': {'tool_key_mode': 'public_key', 'tool_public_key': public_key},
-        })
-        self.assertTrue(valid, serializer.errors)
-        self.assertEqual(serializer.validated_data['lti_1p3']['tool_key_mode'], 'public_key')
+        data = ReusableListSerializer(self.configuration, context={'can_manage': check}).data
+        self.assertTrue(data['can_manage'])
 
-        for connection in (
-            {'tool_key_mode': 'public_key'},
-            {'tool_key_mode': 'public_key', 'tool_public_key': '-----BEGIN PRIVATE KEY----- private'},
-            {'tool_public_key': public_key},
-        ):
-            with self.subTest(connection=connection):
-                self.assertFalse(self.validate_patch({'lti_1p3': connection})[0])
+    def test_detail_rendering_allowlist_hides_credentials(self):
+        data = ReusableDetailSerializer(self.configuration, context={'can_manage': False}).data
+        self.assertEqual(set(data), DETAIL_RESPONSE_FIELDS)
+        self.assertEqual(data['context'], {'type': 'course', 'key': COURSE_KEY})
+        self.assertFalse(data['can_manage'])
+        self.assertEqual(data['launch_url'], 'https://tool.example/launch')
+        self.assertIsNone(data['client_id'])
+        self.assertFalse(data['tool_key_configured'])
+        self.assertEqual(data['registration_urls'], {})
+        self.assertNotIn('not-for-display', str(data))
 
-        valid, serializer = self.validate_patch({
-            'lti_1p3': {'tool_key_mode': 'keyset_url', 'tool_keyset_url': 'https://new.example/jwks'},
-        })
-        self.assertTrue(valid, serializer.errors)
-        self.assertEqual(serializer.validated_data['lti_1p3']['tool_keyset_url'], 'https://new.example/jwks')
+    def test_lti13_detail_renders_without_generating_passport_keys(self):
+        passport = Lti1p3Passport.objects.create(lti_1p3_client_id='render-client')
+        configuration = ReusableLtiConfiguration.objects.create(
+            name='Advantage',
+            version=ReusableLtiConfiguration.LTI_1P3,
+            context_type='site',
+            lti_1p3_launch_url='https://tool.example/launch',
+            lti_1p3_oidc_url='https://tool.example/oidc',
+            lti_1p3_client_id='render-client',
+            lti_1p3_deployment_id='render-deployment',
+            lti_1p3_tool_key_mode='keyset_url',
+            lti_1p3_passport=passport,
+        )
+        data = ReusableDetailSerializer(configuration, context={'can_manage': True}).data
+        self.assertEqual(set(data), DETAIL_RESPONSE_FIELDS)
+        self.assertTrue(data['tool_key_configured'])
+        self.assertEqual(data['tool_key_mode'], 'keyset_url')
+        self.assertEqual(data['context'], {'type': 'site'})
+        self.assertEqual(
+            set(data['registration_urls']), {'login_url', 'jwks_url', 'access_token_url'},
+        )
+        passport.refresh_from_db()
+        self.assertEqual(passport.lti_1p3_internal_private_key, '')
+        self.assertEqual(passport.lti_1p3_internal_public_jwk, '')
 
-        prefix = 'https://tool.example/'
-        accepted_url = prefix + 'k' * (300 - len(prefix))
-        rejected_url = prefix + 'k' * (501 - len(prefix))
-        self.assertTrue(self.validate_patch({
-            'lti_1p3': {'tool_key_mode': 'keyset_url', 'tool_keyset_url': accepted_url},
-        })[0])
-        self.assertFalse(self.validate_patch({
-            'lti_1p3': {'tool_key_mode': 'keyset_url', 'tool_keyset_url': rejected_url},
-        })[0])
+    def test_create_response_renders_one_time_credentials_only_when_present(self):
+        with_credentials = ReusableCreateResponseSerializer(self.configuration, context={
+            'can_manage': True,
+            'one_time_credentials': {'client_key': 'k', 'client_secret': 's'},
+        }).data
+        self.assertEqual(with_credentials['one_time_credentials'], {'client_key': 'k', 'client_secret': 's'})
 
-        self.configuration.lti_advantage_deep_linking_launch_url = ''
-        self.assertFalse(self.validate_patch({'services': {'deep_linking_enabled': True}})[0])
-        self.configuration.lti_advantage_deep_linking_launch_url = 'javascript:bad'
-        self.assertFalse(self.validate_patch({'name': 'disabled with invalid stored URL'})[0])
-        self.configuration.lti_advantage_deep_linking_launch_url = 'https://tool.example/deep'
-        self.assertTrue(self.validate_patch({'services': {'deep_linking_enabled': True}})[0])
-        self.assertFalse(self.validate_patch({'services': {
-            'deep_linking_enabled': True, 'deep_linking_launch_url': 'javascript:bad',
-        }})[0])
+        without_credentials = ReusableCreateResponseSerializer(
+            self.configuration, context={'can_manage': True, 'one_time_credentials': None},
+        ).data
+        self.assertNotIn('one_time_credentials', without_credentials)
