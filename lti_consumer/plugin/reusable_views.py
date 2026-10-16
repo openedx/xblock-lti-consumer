@@ -45,7 +45,7 @@ def _field_error(field, messages):
 def _error_response(error):
     """Render one module error with the existing statuses and DRF response styles."""
     if error.category == 'not_found':
-        raise Http404('No %s matches the given query.' % ReusableLtiConfiguration._meta.object_name)
+        raise Http404(f'No {ReusableLtiConfiguration._meta.object_name} matches the given query.')
     if error.category == 'forbidden':
         return Response(status=status.HTTP_403_FORBIDDEN)
     if error.field:
