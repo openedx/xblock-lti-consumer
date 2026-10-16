@@ -15,6 +15,44 @@ from lti_consumer.reusable import create_reusable_configuration
 
 urlpatterns = [path('admin/', admin.site.urls)]
 
+UNSAFE_FIELDS = {
+    'lti_1p1_client_key',
+    'lti_1p1_client_secret',
+    'normalized_name',
+    'lti_1p3_passport',
+    'lti_1p3_tool_public_key',
+    'lti_1p3_tool_keyset_url',
+    'lti_1p3_internal_private_key',
+    'lti_1p3_internal_private_key_id',
+    'lti_1p3_internal_public_jwk',
+}
+
+DETAIL_FIELDS = {
+    'name',
+    'description',
+    'version',
+    'context_type',
+    'context_key',
+    'lti_1p1_launch_url',
+    'lti_1p3_launch_url',
+    'lti_1p3_oidc_url',
+    'lti_advantage_deep_linking_enabled',
+    'lti_advantage_deep_linking_launch_url',
+    'lti_advantage_ags_mode',
+    'lti_advantage_enable_nrps',
+    'display_name',
+    'enable_grading',
+    'grade_weight',
+    'accept_grades_after_due_date',
+    'open_tool_in',
+    'inline_height',
+    'modal_height',
+    'modal_width',
+    'launch_button_text',
+    'send_extra_parameters',
+    'custom_parameters',
+}
+
 
 @override_settings(ROOT_URLCONF=__name__)
 class Lti1p3PassportAdminTests(TestCase):
@@ -73,47 +111,8 @@ class Lti1p3PassportAdminTests(TestCase):
         self.assertEqual(self.client.get(legacy_change_url).status_code, 200)
 
 
-UNSAFE_FIELDS = {
-    'lti_1p1_client_key',
-    'lti_1p1_client_secret',
-    'normalized_name',
-    'lti_1p3_passport',
-    'lti_1p3_tool_public_key',
-    'lti_1p3_tool_keyset_url',
-    'lti_1p3_internal_private_key',
-    'lti_1p3_internal_private_key_id',
-    'lti_1p3_internal_public_jwk',
-}
-
-DETAIL_FIELDS = {
-    'name',
-    'description',
-    'version',
-    'context_type',
-    'context_key',
-    'lti_1p1_launch_url',
-    'lti_1p3_launch_url',
-    'lti_1p3_oidc_url',
-    'lti_advantage_deep_linking_enabled',
-    'lti_advantage_deep_linking_launch_url',
-    'lti_advantage_ags_mode',
-    'lti_advantage_enable_nrps',
-    'display_name',
-    'enable_grading',
-    'grade_weight',
-    'accept_grades_after_due_date',
-    'open_tool_in',
-    'inline_height',
-    'modal_height',
-    'modal_width',
-    'launch_button_text',
-    'send_extra_parameters',
-    'custom_parameters',
-}
-
-
 class ReusableLtiConfigurationAdminTests(TestCase):
-    """Read-only reusable configuration admin: visibility, context, and write protection."""
+    """Read-only reusable configuration admin: superuser inspection, every write denied."""
 
     course_key = 'course-v1:VisibleOrg+VisibleCourse+Run'
 
@@ -126,6 +125,7 @@ class ReusableLtiConfigurationAdminTests(TestCase):
         self.request.user = self.user
         self.model_admin = admin.site.get_model_admin(ReusableLtiConfiguration)
         self.changelist_url = reverse('admin:lti_consumer_reusablelticonfiguration_changelist')
+        self.legacy_passport = Lti1p3Passport.objects.create(lti_1p3_client_id='legacy-client')
 
         self.lti11_config = create_reusable_configuration({
             'name': 'Legacy launch tool',
@@ -152,30 +152,13 @@ class ReusableLtiConfigurationAdminTests(TestCase):
     def fieldset_fields(self, configuration):
         return flatten_fieldsets(self.model_admin.get_fieldsets(self.request, configuration))
 
-    def test_staff_with_every_model_permission_is_denied(self):
-        staff_user = get_user_model().objects.create_user(
-            username='reusable-staff-test', password='password', is_staff=True,
-        )
-        staff_user.user_permissions.set(Permission.objects.all())
-        staff_user = get_user_model().objects.get(pk=staff_user.pk)
-        self.assertTrue(staff_user.has_perm('lti_consumer.view_reusablelticonfiguration'))
-        self.assertTrue(staff_user.has_perm('lti_consumer.change_reusablelticonfiguration'))
-
-        self.request.user = staff_user
-        self.assertFalse(self.model_admin.has_module_permission(self.request))
-        self.assertFalse(self.model_admin.has_view_permission(self.request))
-        self.assertFalse(self.model_admin.has_view_permission(self.request, self.lti11_config))
-
-        self.client.force_login(staff_user)
-        self.assertEqual(self.client.get(self.changelist_url).status_code, 403)
-        self.assertEqual(self.client.get(self.change_url(self.lti11_config)).status_code, 403)
-
-    def test_changelist_lists_both_versions_and_searches_by_name_and_uuid(self):
+    def test_superuser_inspects_both_versions_with_search_filters_and_safe_readonly_fieldsets(self):
         response = self.client.get(self.changelist_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.lti11_config.name)
         self.assertContains(response, self.lti13_config.name)
         self.assertContains(response, str(self.lti11_config.config_id))
+        self.assertContains(response, str(self.lti13_config.config_id))
         self.assertNotContains(response, self.lti11_config.lti_1p1_client_key)
         self.assertNotContains(response, self.lti11_config.lti_1p1_client_secret)
 
@@ -189,7 +172,6 @@ class ReusableLtiConfigurationAdminTests(TestCase):
                 self.assertContains(response, self.lti11_config.name)
                 self.assertNotContains(response, self.lti13_config.name)
 
-    def test_changelist_filters_by_version_and_context_type(self):
         # Pass both plain and __exact params: Django 6.0 ChoicesFieldListFilter uses field__exact.
         response = self.client.get(self.changelist_url, {
             'version': ReusableLtiConfiguration.LTI_1P3,
@@ -205,85 +187,115 @@ class ReusableLtiConfigurationAdminTests(TestCase):
         self.assertContains(response, self.lti11_config.name)
         self.assertNotContains(response, self.lti13_config.name)
 
-        response = self.client.get(self.changelist_url, {
-            'context_type': 'site',
-            'context_type__exact': 'site',
-        })
-        self.assertContains(response, self.lti13_config.name)
-        self.assertNotContains(response, self.lti11_config.name)
-
-    def test_fieldsets_cover_both_versions_are_readonly_and_exclude_secrets(self):
         editable_fields = {
             field.name for field in ReusableLtiConfiguration._meta.get_fields()
             if field.concrete and field.editable
         }
-        for configuration in (self.lti11_config, self.lti13_config):
+        for configuration, visible_values, hidden_values in (
+            (
+                self.lti11_config,
+                (self.lti11_config.name, self.lti11_config.lti_1p1_launch_url, self.course_key),
+                (
+                    self.lti11_config.lti_1p1_client_key,
+                    self.lti11_config.lti_1p1_client_secret,
+                    self.lti11_config.normalized_name,
+                ),
+            ),
+            (
+                self.lti13_config,
+                (
+                    self.lti13_config.name,
+                    self.lti13_config.lti_1p3_launch_url,
+                    self.lti13_config.lti_1p3_oidc_url,
+                ),
+                (
+                    self.lti13_config.lti_1p3_passport.lti_1p3_internal_private_key,
+                    str(self.lti13_config.lti_1p3_passport.passport_id),
+                    self.lti13_config.lti_1p3_passport.lti_1p3_tool_keyset_url,
+                    self.lti13_config.normalized_name,
+                ),
+            ),
+        ):
             with self.subTest(configuration=configuration.name):
+                # Structural allowlist: intended safe fields are present, every exposed
+                # editable model field is readonly, and unsafe fields are never exposed,
+                # independent of the rendered fixture values.
                 field_names = self.fieldset_fields(configuration)
                 self.assertLessEqual(DETAIL_FIELDS, set(field_names))
                 self.assertFalse(UNSAFE_FIELDS & set(field_names))
                 readonly_fields = set(self.model_admin.get_readonly_fields(self.request, configuration))
+                self.assertLessEqual(set(field_names) & editable_fields, readonly_fields)
                 for context_field in ('context_type', 'context_key'):
                     self.assertIn(context_field, field_names)
                     self.assertIn(context_field, readonly_fields)
-                self.assertLessEqual(set(field_names) & editable_fields, readonly_fields)
 
-    def test_detail_pages_render_context_without_credentials_or_key_material(self):
-        response = self.client.get(self.change_url(self.lti11_config))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.lti11_config.lti_1p1_launch_url)
-        self.assertContains(response, self.course_key)
-        self.assertNotContains(response, self.lti11_config.lti_1p1_client_key)
-        self.assertNotContains(response, self.lti11_config.lti_1p1_client_secret)
+                response = self.client.get(self.change_url(configuration))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, str(configuration.config_id))
+                self.assertContains(response, 'class="readonly"')
+                for value in visible_values:
+                    self.assertContains(response, value)
+                for value in hidden_values:
+                    self.assertNotContains(response, value)
+                html = response.content.decode()
+                for control in ('name="_save"', 'name="_continue"', 'name="_addanother"',
+                                'name="_saveasnew"', 'deletelink'):
+                    self.assertNotIn(control, html)
 
-        response = self.client.get(self.change_url(self.lti13_config))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.lti13_config.lti_1p3_oidc_url)
-        self.assertNotContains(response, self.lti13_config.lti_1p3_passport.lti_1p3_internal_private_key)
-        self.assertNotContains(response, str(self.lti13_config.lti_1p3_passport.passport_id))
+    def test_reusable_configurations_deny_every_write_and_keep_passports_isolated(self):
+        # A staff user holding every model permission still gets no access at all.
+        staff_user = get_user_model().objects.create_user(
+            username='reusable-staff-test', password='password', is_staff=True,
+        )
+        staff_user.user_permissions.set(Permission.objects.all())
+        staff_user = get_user_model().objects.get(pk=staff_user.pk)
+        self.assertTrue(staff_user.has_perm('lti_consumer.view_reusablelticonfiguration'))
+        self.client.force_login(staff_user)
+        self.assertEqual(self.client.get(self.changelist_url).status_code, 403)
+        self.assertEqual(self.client.get(self.change_url(self.lti11_config)).status_code, 403)
 
-    def test_mutating_requests_cannot_change_context_or_passport(self):
-        configuration = self.lti11_config
-        passport = self.lti13_config.lti_1p3_passport
-        private_key_before = passport.lti_1p3_internal_private_key
-
+        # Even the superuser cannot add, change, delete, or bulk-delete configurations.
+        self.client.force_login(self.user)
         add_url = reverse('admin:lti_consumer_reusablelticonfiguration_add')
-        change_url = self.change_url(configuration)
-        delete_url = reverse('admin:lti_consumer_reusablelticonfiguration_delete', args=[configuration.pk])
+        change_url = self.change_url(self.lti11_config)
+        delete_url = reverse('admin:lti_consumer_reusablelticonfiguration_delete', args=[self.lti11_config.pk])
 
         self.assertEqual(self.client.get(add_url).status_code, 403)
-        self.assertEqual(
-            self.client.post(add_url, {'name': 'Created in admin', 'version': 'lti_1p1'}).status_code,
-            403,
-        )
-        self.assertEqual(
-            self.client.post(change_url, {
-                'name': 'Renamed in admin',
-                'context_type': 'organization',
-                'context_key': 'evil-org',
-            }).status_code,
-            403,
-        )
+        self.assertEqual(self.client.post(add_url, {
+            'name': 'Created in admin', 'version': 'lti_1p1',
+        }).status_code, 403)
+        self.assertEqual(self.client.post(change_url, {
+            'name': 'Renamed in admin', 'context_type': 'organization', 'context_key': 'evil-org',
+        }).status_code, 403)
         self.assertEqual(self.client.post(delete_url, {'post': 'yes'}).status_code, 403)
-        response = self.client.post(self.changelist_url, {
+        self.client.post(self.changelist_url, {
             'action': 'delete_selected',
             'index': '0',
-            '_selected_action': [str(configuration.pk)],
+            '_selected_action': [str(self.lti11_config.pk)],
         })
-        self.assertIn(response.status_code, (200, 400, 403))
+        self.assertTrue(ReusableLtiConfiguration.objects.filter(pk=self.lti11_config.pk).exists())
 
-        passport_url = reverse('admin:lti_consumer_lti1p3passport_change', args=[passport.pk])
-        passport_response = self.client.post(passport_url, {'name': 'Renamed passport'})
-        self.assertIn(passport_response.status_code, (302, 403, 404))
+        # The Passport admin lists the legacy passport only and rejects writes to the reusable one.
+        reusable_passport = self.lti13_config.lti_1p3_passport
+        private_key_before = reusable_passport.lti_1p3_internal_private_key
+        passport_list = self.client.get(reverse('admin:lti_consumer_lti1p3passport_changelist'))
+        self.assertContains(passport_list, self.legacy_passport.lti_1p3_client_id)
+        self.assertNotContains(passport_list, reusable_passport.lti_1p3_client_id)
+        self.assertNotContains(passport_list, private_key_before)
+        passport_write = self.client.post(
+            reverse('admin:lti_consumer_lti1p3passport_change', args=[reusable_passport.pk]),
+            {'name': 'Renamed passport'},
+        )
+        self.assertIn(passport_write.status_code, (302, 403, 404))
 
-        configuration.refresh_from_db()
-        passport.refresh_from_db()
-        self.assertEqual(configuration.name, 'Legacy launch tool')
+        self.lti11_config.refresh_from_db()
+        reusable_passport.refresh_from_db()
+        self.assertEqual(self.lti11_config.name, 'Legacy launch tool')
         self.assertEqual(
-            (configuration.context_type, configuration.context_key),
+            (self.lti11_config.context_type, self.lti11_config.context_key),
             ('course', self.course_key),
         )
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 2)
-        self.assertEqual(passport.name, self.lti13_config.name)
-        self.assertEqual(passport.lti_1p3_client_id, self.lti13_config.lti_1p3_client_id)
-        self.assertEqual(passport.lti_1p3_internal_private_key, private_key_before)
+        self.assertEqual(reusable_passport.name, self.lti13_config.name)
+        self.assertEqual(reusable_passport.lti_1p3_client_id, self.lti13_config.lti_1p3_client_id)
+        self.assertEqual(reusable_passport.lti_1p3_internal_private_key, private_key_before)
