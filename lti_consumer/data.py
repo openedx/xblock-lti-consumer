@@ -52,8 +52,9 @@ class Lti1p3LaunchData:
         attribute external_user_id is provided, user_id will only be used internally and will not be shared externally.
         If external_user_id is not provided, user_id will be shared externally, and then it must be stable to the
         issuer.
-    * user_role (required): The user's role as one of the keys in LTI_1P3_ROLE_MAP: staff, instructor, student, or
-        guest. It can also be None if the empty list should be sent in the LTI launch message.
+    * user_role (required): The user's role as one of the keys in LTI_1P3_ROLE_MAP, including Open edX course and
+        org role names explicitly supported by this package. It can also be None if the empty list should be sent in
+        the LTI launch message.
     * config_id (required): The config_id field of an LtiConfiguration to use for the launch.
     * resource_link_id (required): A unique identifier that is guaranteed to be unique for each placement of the LTI
         link.

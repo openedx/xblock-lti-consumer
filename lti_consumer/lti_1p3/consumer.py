@@ -77,6 +77,15 @@ class LtiConsumer1p3:
         # Extra claims - used by LTI Advantage
         self.extra_claims = {}
 
+    def _get_target_link_uri(self, launch_data):  # pylint: disable=unused-argument
+        """
+        Return the target_link_uri to use for the provided launch data.
+
+        Subclasses can override this to customize the target link selection for
+        different message types.
+        """
+        return self.launch_url
+
     @staticmethod
     def _get_user_roles(role):
         """
@@ -85,10 +94,11 @@ class LtiConsumer1p3:
         Used in roles claim: should return array of URI values
         for roles that the user has within the message's context.
 
-        Supported roles:
-        * Core - Administrator
-        * Institution - Instructor (non-core role)
-        * Institution - Student
+        Supported mappings:
+        * instructor -> membership Administrator + Instructor, system None, institution None
+        * staff/limited_staff -> membership Instructor, system None, institution None
+        * student/guest, discussion roles, and other explicit Open edX roles -> membership Learner,
+          system None, institution None
 
         Reference: http://www.imsglobal.org/spec/lti/v1p3/#roles-claim
         Role vocabularies: http://www.imsglobal.org/spec/lti/v1p3/#role-vocabularies
@@ -125,12 +135,14 @@ class LtiConsumer1p3:
 
         oidc_url = self.oidc_url + "?"
 
+        target_link_uri = self._get_target_link_uri(launch_data)
+
         login_hint = user_id
         parameters = {
             "iss": self.iss,
             "client_id": self.client_id,
             "lti_deployment_id": self.deployment_id,
-            "target_link_uri": self.launch_url,
+            "target_link_uri": target_link_uri,
             "login_hint": login_hint,
             "lti_message_hint": launch_data_key,
         }
@@ -302,6 +314,7 @@ class LtiConsumer1p3:
     def get_lti_launch_message(
             self,
             include_extra_claims=True,
+            target_link_uri=None,
     ):
         """
         Build LTI message from class parameters
@@ -311,6 +324,8 @@ class LtiConsumer1p3:
         """
         # Start from base message
         lti_message = LTI_BASE_MESSAGE.copy()
+
+        target_link_uri = target_link_uri or self.launch_url
 
         # Add base parameters
         lti_message.update({
@@ -329,7 +344,7 @@ class LtiConsumer1p3:
             # Target Link URI: actual endpoint for the LTI resource to display
             # MUST be the same value as the target_link_uri passed by the platform in the OIDC login request
             # http://www.imsglobal.org/spec/lti/v1p3/#target-link-uri
-            "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": self.launch_url,
+            "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": target_link_uri,
         })
 
         # Check if user data is set, then append it to lti message
@@ -346,16 +361,16 @@ class LtiConsumer1p3:
         else:
             raise ValueError("Required resource_link data isn't set.")
 
+        # Context claim
+        if self.lti_claim_context:
+            lti_message.update(self.lti_claim_context)
+
         # Only used when doing normal LTI launches
         if include_extra_claims:
             # Set optional claims
             # Launch presentation claim
             if self.lti_claim_launch_presentation:
                 lti_message.update(self.lti_claim_launch_presentation)
-
-            # Context claim
-            if self.lti_claim_context:
-                lti_message.update(self.lti_claim_context)
 
             # Platform instance claim
             # The GUID must be consistent across platform deployments, so we have opted to generate a UUID
@@ -609,6 +624,19 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
         else:
             return False
 
+    def _get_target_link_uri(self, launch_data):
+        """
+        Use the deep linking launch URL for deep linking requests.
+        """
+        if (
+            getattr(self, 'dl', None) and
+            launch_data and
+            getattr(launch_data, 'message_type', None) == 'LtiDeepLinkingRequest'
+        ):
+            return self.dl.deep_linking_launch_url
+
+        return super()._get_target_link_uri(launch_data)
+
     def enable_ags(
         self,
         lineitems_url,
@@ -663,12 +691,14 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
 
         # Check if Deep Linking is enabled and that this is a Deep Link Launch
         if self.dl and launch_data.message_type == "LtiDeepLinkingRequest":
+            target_link_uri = self._get_target_link_uri(launch_data)
             # Validate preflight response
             self._validate_preflight_response(preflight_response)
 
             # Get LTI Launch Message
             lti_launch_message = self.get_lti_launch_message(
                 include_extra_claims=False,
+                target_link_uri=target_link_uri,
             )
 
             # Update message type to LtiDeepLinkingRequest,

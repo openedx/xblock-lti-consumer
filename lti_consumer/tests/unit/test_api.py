@@ -548,7 +548,7 @@ class TestGetLti1p3LaunchInfo(TestCase):
         an external configuration.
         """
         external_id = 'test-app:test-slug'
-        external_config = {'lti_1p3_client_id': 'test-client-id'}
+        external_config = {'lti_1p3_client_id': 'test-client-id', 'lti_1p3_deployment_id': '12'}
         filter_mock.return_value = external_config
         lti_config = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
