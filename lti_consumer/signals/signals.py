@@ -44,17 +44,41 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
         )
         return
 
-    # Before starting to publish grades to the LMS, check that:
-    # 1. The grade being submitted in the final one - `FullyGraded`
-    # 2. This LineItem is linked to a LMS grade - the `LtiResouceLinkId` field is set
-    # 3. There's a valid grade in this score - `scoreGiven` is set
-    if instance.grading_progress == LtiAgsScore.FULLY_GRADED \
-            and line_item.resource_link_id \
-            and instance.score_given:
-        try:
-            # Load block using LMS APIs and check if the block is graded and still accept grades.
-            block = compat.load_block_as_user(line_item.resource_link_id)
-            if block.has_score and (not block.is_past_due() or block.accept_grades_past_due):
+    # Only the final grade is published. Interim saves are routine, so they are not logged.
+    if instance.grading_progress != LtiAgsScore.FULLY_GRADED:
+        return
+
+    # The score is final from here, so a failure to publish it is worth logging. The line item
+    # must be linked to an LMS grade, and the score must have a grade and a positive denominator.
+    # `score_given` is tested with `is not None` because 0 is a valid grade.
+    can_publish = (
+        bool(line_item.resource_link_id) and
+        instance.score_given is not None and
+        instance.score_maximum is not None and
+        instance.score_maximum > 0
+    )
+    if not can_publish:
+        log.info(
+            "LTI AGS grade publish skipped: score=%r resource_link_id=%s.",
+            instance,
+            line_item.resource_link_id,
+        )
+        return
+
+    try:
+        # Load block using LMS APIs and check if the block is graded and still accept grades.
+        block = compat.load_block_as_user(line_item.resource_link_id)
+        if not block.has_score:
+            log.info(
+                "LTI AGS grade publish skipped: score=%r resource_link_id=%s has_score=%s.",
+                instance,
+                line_item.resource_link_id,
+                block.has_score,
+            )
+        else:
+            # Only evaluated when the block is graded, and reused by the log below.
+            is_past_due = block.is_past_due()
+            if not is_past_due or block.accept_grades_past_due:
                 # Map external ID to platform user
                 user = compat.get_user_from_external_user_id(instance.user_id)
 
@@ -73,17 +97,27 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
                     score,
                 )
                 block.set_user_module_score(user, score, block.max_score(), instance.comment)
+            else:
+                log.info(
+                    "LTI AGS grade publish skipped: score=%r resource_link_id=%s has_score=%s "
+                    "is_past_due=%s accept_grades_past_due=%s.",
+                    instance,
+                    line_item.resource_link_id,
+                    block.has_score,
+                    is_past_due,
+                    block.accept_grades_past_due,
+                )
 
-        # This is a catch all exception to catch and log any issues related to loading the block
-        # from the modulestore and other LMS API calls
-        except Exception as exc:
-            log.exception(
-                "Error while publishing score %r to block %s to LMS: %s",
-                instance,
-                line_item.resource_link_id,
-                exc,
-            )
-            raise exc
+    # This is a catch all exception to catch and log any issues related to loading the block
+    # from the modulestore and other LMS API calls
+    except Exception as exc:
+        log.exception(
+            "Error while publishing score %r to block %s to LMS: %s",
+            instance,
+            line_item.resource_link_id,
+            exc,
+        )
+        raise exc
 
 
 @receiver(post_save, sender=LtiConfiguration, dispatch_uid='create_lti_1p3_passport')

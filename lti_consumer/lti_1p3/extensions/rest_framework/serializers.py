@@ -145,10 +145,14 @@ class LtiAgsScoreSerializer(serializers.ModelSerializer):
 
     def validate_scoreMaximum(self, value):
         """
-        Ensure that scoreMaximum is set when scoreGiven is provided and not None
+        Ensure that scoreMaximum is set to a usable, positive value when scoreGiven is provided.
         """
-        if not value and self.initial_data.get('scoreGiven', None) is not None:
+        if self.initial_data.get('scoreGiven', None) is None:
+            return value
+        if value is None:
             raise serializers.ValidationError('scoreMaximum is a required field when providing a scoreGiven value.')
+        if value <= 0:
+            raise serializers.ValidationError('scoreMaximum must be a positive number when scoreGiven is provided.')
         return value
 
     class Meta:

@@ -725,6 +725,26 @@ class TestLtiAgsScoreModel(TestBaseWithPatch):
             self.score.score_maximum = None
             self.score.save()
 
+    def test_no_score_max_fails_when_setting_zero_score(self):
+        """
+        Test that a `scoreGiven` of 0 without `scoreMaximum` is rejected too, not just a
+        truthy `scoreGiven`.
+        """
+        with self.assertRaises(ValidationError):
+            self.score.score_given = 0
+            self.score.score_maximum = None
+            self.score.save()
+
+    def test_score_max_fails_when_zero_with_score_given_set(self):
+        """
+        Test that `scoreMaximum=0` with a set `scoreGiven` is rejected, not just
+        `scoreMaximum=None`. Zero is not a usable denominator.
+        """
+        with self.assertRaises(ValidationError):
+            self.score.score_given = 10
+            self.score.score_maximum = 0
+            self.score.save()
+
     def test_repr(self):
         """
         Test String representation of model.

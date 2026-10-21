@@ -1535,6 +1535,20 @@ class TestResultServiceHandler(TestLtiConsumerXBlock):
 
         mock_lti_consumer.get_result.assert_called_with(0.5, 'test')
 
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.module_score', PropertyMock(return_value=0))
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.score_comment', PropertyMock(return_value='test'))
+    def test_consumer_get_result_called_with_zero_score(self):
+        """
+        Test LtiConsumer.get_result is called with a `module_score` of 0, so a learner scored
+        zero is reported as graded 0 rather than ungraded.
+        """
+        mock_lti_consumer = Mock()
+        mock_user = Mock()
+
+        self.xblock._result_service_get(mock_lti_consumer, mock_user)  # pylint: disable=protected-access
+
+        mock_lti_consumer.get_result.assert_called_with(0, 'test')
+
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.clear_user_module_score', Mock(return_value=True))
     @patch('lti_consumer.lti_xblock.parse_result_json')
     def test_consumer_put_result_called(self, mock_parse_result_json):
