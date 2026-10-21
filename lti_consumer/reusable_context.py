@@ -226,14 +226,15 @@ class CreationContextPolicy:
         return bool(getattr(self._actor, 'is_authenticated', False))
 
     def _accessible_course_keys(self):
-        """Return normalized Studio-accessible course keys, or fail closed."""
+        """Return normalized Studio-accessible course keys, skipping malformed ones."""
         if self._accessible_course_keys_cache is None:
-            try:
-                self._accessible_course_keys_cache = [
-                    self._normalize_course_key(key) for key in compat.get_studio_accessible_course_keys(self._actor)
-                ]
-            except ReusableConfigurationError:
-                self._accessible_course_keys_cache = []
+            keys = []
+            for key in compat.get_studio_accessible_course_keys(self._actor):
+                try:
+                    keys.append(self._normalize_course_key(key))
+                except ReusableConfigurationError:
+                    continue
+            self._accessible_course_keys_cache = keys
         return self._accessible_course_keys_cache
 
     def _user_is_course_admin(self, course_key):

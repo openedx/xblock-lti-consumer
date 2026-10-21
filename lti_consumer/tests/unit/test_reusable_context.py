@@ -355,3 +355,9 @@ class CreationContextPolicyVisibilityTests(TestCase):
     def test_expansion_fails_closed_on_a_malformed_platform_key(self):
         self.make_configuration('Site', context_type='site', context_key='')
         self.assertEqual(self.visible_names(self.policy_with_courses(['not-a-course'])), set())
+
+    def test_malformed_platform_key_is_skipped_and_valid_keys_still_apply(self):
+        self.make_configuration('Selected')
+        self.make_configuration('Other', context_key=OTHER_KEY)
+        policy = self.policy_with_courses(['not-a-course', CourseKey.from_string(COURSE_KEY)])
+        self.assertEqual(self.visible_names(policy), {'Selected'})
