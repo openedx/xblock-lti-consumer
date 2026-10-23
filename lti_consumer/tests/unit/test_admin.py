@@ -1,17 +1,34 @@
 """
 Tests for the LTI Consumer Django admin views.
 """
+from unittest.mock import patch
+
 from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
 from django.contrib.admin.utils import flatten_fieldsets
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import path, reverse
 
 from lti_consumer.admin import Lti1p3PassportAdmin
 from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
 from lti_consumer.reusable import create_reusable_configuration
+
+GLOBAL_STAFF_PATCH = 'lti_consumer.plugin.compat.user_is_global_staff'
+
+
+class GlobalStaffPatchMixin:
+    """Patch the platform role seam for admin requests; compat tests cover the real helper."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = patch(
+            GLOBAL_STAFF_PATCH,
+            side_effect=lambda user: bool(user and (user.is_superuser or user.is_staff)),
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
 
 urlpatterns = [path('admin/', admin.site.urls)]
 
@@ -55,10 +72,11 @@ DETAIL_FIELDS = {
 
 
 @override_settings(ROOT_URLCONF=__name__)
-class Lti1p3PassportAdminTests(TestCase):
+class Lti1p3PassportAdminTests(GlobalStaffPatchMixin, TestCase):
     """Legacy passport admin visibility and reusable passport isolation."""
 
     def setUp(self):
+        super().setUp()
         self.user = get_user_model().objects.create_superuser(
             username='admin-test', email='admin-test@example.com', password=None,
         )
@@ -111,14 +129,18 @@ class Lti1p3PassportAdminTests(TestCase):
         self.assertEqual(self.client.get(legacy_change_url).status_code, 200)
 
 
-class ReusableLtiConfigurationAdminTests(TestCase):
-    """Read-only reusable configuration admin: superuser inspection, every write denied."""
+class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
+    """Read-only reusable configuration admin: Global Staff/superuser inspection, writes denied."""
 
     course_key = 'course-v1:VisibleOrg+VisibleCourse+Run'
 
     def setUp(self):
+        super().setUp()
         self.user = get_user_model().objects.create_superuser(
             username='reusable-admin-test', email='reusable-admin-test@example.com', password=None,
+        )
+        self.staff = get_user_model().objects.create_user(
+            username='reusable-staff-test', password='password', is_staff=True,
         )
         self.client.force_login(self.user)
         self.request = RequestFactory().get('/admin/')
@@ -152,7 +174,14 @@ class ReusableLtiConfigurationAdminTests(TestCase):
     def fieldset_fields(self, configuration):
         return flatten_fieldsets(self.model_admin.get_fieldsets(self.request, configuration))
 
-    def test_superuser_inspects_both_versions_with_search_filters_and_safe_readonly_fieldsets(self):
+    def test_global_staff_and_superuser_inspect_both_versions_with_search_filters_and_safe_readonly_fieldsets(self):
+        for actor in (self.user, self.staff):
+            self.client.force_login(actor)
+            with self.subTest(actor=actor.username):
+                self._assert_inspection()
+
+    def _assert_inspection(self):
+        """Assert both versions render read-only safe fields for the logged-in actor."""
         response = self.client.get(self.changelist_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.lti11_config.name)
@@ -243,31 +272,35 @@ class ReusableLtiConfigurationAdminTests(TestCase):
                     self.assertNotIn(control, html)
 
     def test_reusable_configurations_deny_every_write_and_keep_passports_isolated(self):
-        # A staff user holding every model permission still gets no access at all.
-        staff_user = get_user_model().objects.create_user(
-            username='reusable-staff-test', password='password', is_staff=True,
+        # Ordinary users are refused entirely.
+        ordinary_user = get_user_model().objects.create_user(
+            username='reusable-ordinary-test', password='password',
         )
-        staff_user.user_permissions.set(Permission.objects.all())
-        staff_user = get_user_model().objects.get(pk=staff_user.pk)
-        self.assertTrue(staff_user.has_perm('lti_consumer.view_reusablelticonfiguration'))
-        self.client.force_login(staff_user)
-        self.assertEqual(self.client.get(self.changelist_url).status_code, 403)
-        self.assertEqual(self.client.get(self.change_url(self.lti11_config)).status_code, 403)
+        self.client.force_login(ordinary_user)
+        # Non-staff users are redirected to the admin login before model permissions apply.
+        self.assertIn(self.client.get(self.changelist_url).status_code, (302, 403))
+        self.assertIn(self.client.get(self.change_url(self.lti11_config)).status_code, (302, 403))
 
-        # Even the superuser cannot add, change, delete, or bulk-delete configurations.
-        self.client.force_login(self.user)
+        # Global Staff may write nothing; inspection is covered by the test above.
+        staff_user = self.staff
         add_url = reverse('admin:lti_consumer_reusablelticonfiguration_add')
         change_url = self.change_url(self.lti11_config)
         delete_url = reverse('admin:lti_consumer_reusablelticonfiguration_delete', args=[self.lti11_config.pk])
+        # Neither Global Staff nor the superuser may add, change or delete.
+        for actor in (staff_user, self.user):
+            self.client.force_login(actor)
+            with self.subTest(actor=actor.username):
+                self.assertEqual(self.client.get(add_url).status_code, 403)
+                self.assertEqual(self.client.post(add_url, {
+                    'name': f'{actor.username} add', 'version': 'lti_1p1',
+                }).status_code, 403)
+                self.assertEqual(self.client.post(change_url, {
+                    'name': f'{actor.username} rename',
+                }).status_code, 403)
+                self.assertEqual(self.client.post(delete_url, {'post': 'yes'}).status_code, 403)
 
-        self.assertEqual(self.client.get(add_url).status_code, 403)
-        self.assertEqual(self.client.post(add_url, {
-            'name': 'Created in admin', 'version': 'lti_1p1',
-        }).status_code, 403)
-        self.assertEqual(self.client.post(change_url, {
-            'name': 'Renamed in admin', 'context_type': 'organization', 'context_key': 'evil-org',
-        }).status_code, 403)
-        self.assertEqual(self.client.post(delete_url, {'post': 'yes'}).status_code, 403)
+        # Even the superuser cannot bulk-delete.
+        self.client.force_login(self.user)
         self.client.post(self.changelist_url, {
             'action': 'delete_selected',
             'index': '0',

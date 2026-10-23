@@ -26,6 +26,7 @@ OTHER_KEY = 'course-v1:Hidden+Other+Run'
 CCX_KEY = 'ccx-v1:Org+Course+Run+ccx@1'
 REGISTRY_PATCH = 'lti_consumer.plugin.compat.get_active_organizations'
 COURSE_ADMIN_PATCH = 'lti_consumer.plugin.compat.user_is_course_admin'
+GLOBAL_STAFF_PATCH = 'lti_consumer.plugin.compat.user_is_global_staff'
 COURSE_ACCESS_PATCH = 'lti_consumer.plugin.compat.get_studio_accessible_course_keys'
 CANDIDATES_PATCH = 'lti_consumer.plugin.compat._get_studio_course_candidates'
 READ_ACCESS_PATCH = 'lti_consumer.plugin.compat._has_studio_course_read_access'
@@ -134,6 +135,12 @@ class ReusableApiTestCase(TestCase):
         user_model = get_user_model()
         self.user = user_model.objects.create_user(username='viewer')
         self.superuser = user_model.objects.create_superuser(username='admin', email='admin@example.com')
+        global_staff_patcher = patch(
+            GLOBAL_STAFF_PATCH,
+            side_effect=lambda user: bool(user and (user.is_superuser or user.is_staff)),
+        )
+        global_staff_patcher.start()
+        self.addCleanup(global_staff_patcher.stop)
         self.client = APIClient()
         self.client.force_authenticate(self.user)
         self.list_url = reverse('reusable_lti:reusable_configuration_create')
@@ -732,4 +739,97 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
                 ('Case variant course', build_context('course', 'course-v1:ORG+COURSE+RUN')),
                 ('Plain org', build_context('organization', 'org')),
             ],
+        )
+
+
+class GlobalStaffJourneyTests(ReusableApiTestCase):
+    """One staff-only journey; ordinary and superuser paths remain in existing tests."""
+
+    def setUp(self):
+        super().setUp()
+        self.staff = get_user_model().objects.create_user(username='staff', is_staff=True)
+
+    def test_global_staff_manages_course_organization_site_and_ccx(self):
+        self.client.force_authenticate(self.staff)
+        with patch(REGISTRY_PATCH, return_value=[{'short_name': 'Org'}]):
+            course = self.client.post(self.list_url, lti11_create_payload(
+                build_context('course', COURSE_KEY), name='Staff course',
+            ), format='json')
+            organization = self.client.post(self.list_url, lti11_create_payload(
+                build_context('organization', ' ORG '), name='Staff organization',
+            ), format='json')
+            site = self.client.post(self.list_url, lti11_create_payload(
+                build_context('site'), name='Staff site',
+            ), format='json')
+            ccx = self.client.post(self.list_url, lti11_create_payload(
+                build_context('course', CCX_KEY), name='Staff ccx',
+            ), format='json')
+
+        self.course_admin.assert_not_called()
+        self.assertEqual(
+            (course.status_code, organization.status_code, site.status_code, ccx.status_code),
+            (201, 201, 201, 201),
+            (course.data, organization.data, site.data, ccx.data),
+        )
+        self.assertEqual(organization.data['context'], build_context('organization', 'org'))
+        self.assertEqual(site.data['context'], {'type': 'site'})
+        self.assertEqual(ccx.data['context'], build_context('course', CCX_KEY))
+        secret = course.data['one_time_credentials']['client_secret']
+
+        with patch(COURSE_ACCESS_PATCH, side_effect=AssertionError('must not enumerate courses')):
+            listing = self.client.get(self.list_url)
+            filtered = self.client.get(self.list_url, {'course_key': COURSE_KEY})
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.data['count'], 4)
+        self.assertEqual(
+            {row['name'] for row in listing.data['results']},
+            {'Staff course', 'Staff organization', 'Staff site', 'Staff ccx'},
+        )
+        self.assertTrue(all(row['can_manage'] for row in listing.data['results']))
+        for row in listing.data['results']:
+            for forbidden in FORBIDDEN_RESPONSE_FIELDS:
+                self.assertNotIn(forbidden, row)
+        self.assert_not_disclosed(listing, secret)
+        self.assertEqual(filtered.status_code, 200)
+        self.assertEqual(
+            {row['name'] for row in filtered.data['results']},
+            {'Staff course', 'Staff organization', 'Staff site'},
+        )
+
+        stored = {
+            name: ReusableLtiConfiguration.objects.get(name=name)
+            for name in ('Staff course', 'Staff organization', 'Staff site', 'Staff ccx')
+        }
+        for name, expected_context in (
+            ('Staff course', build_context('course', COURSE_KEY)),
+            ('Staff organization', build_context('organization', 'org')),
+            ('Staff site', {'type': 'site'}),
+            ('Staff ccx', build_context('course', CCX_KEY)),
+        ):
+            with self.subTest(detail=name):
+                detail = self.client.get(self.detail_url(stored[name]))
+                self.assertEqual(detail.status_code, 200)
+                self.assertTrue(detail.data['can_manage'])
+                self.assertEqual(detail.data['context'], expected_context)
+                self.assert_not_disclosed(detail, secret)
+
+        for name, renamed in (
+            ('Staff course', 'Staff course renamed'),
+            ('Staff organization', 'Staff organization renamed'),
+            ('Staff site', 'Staff site renamed'),
+            ('Staff ccx', 'Staff ccx renamed'),
+        ):
+            with self.subTest(patch=name):
+                response = self.client.patch(
+                    self.detail_url(stored[name]), {'name': renamed}, format='json',
+                )
+                self.assertEqual(response.status_code, 200, response.data)
+                self.assertTrue(response.data['can_manage'])
+
+        self.client.force_authenticate(self.user)
+        self.assertEqual(
+            self.client.patch(
+                self.detail_url(stored['Staff site']), {'name': 'Ordinary rename'}, format='json',
+            ).status_code,
+            403,
         )

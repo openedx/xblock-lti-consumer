@@ -16,6 +16,7 @@ from lti_consumer.models import (
     LtiDlContentItem,
     ReusableLtiConfiguration,
 )
+from lti_consumer.plugin import compat
 
 
 class LtiConfigurationInline(admin.TabularInline):
@@ -83,7 +84,7 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     """
     Inspection-only admin for reusable LTI configurations.
 
-    Superuser-only access; add/change/delete are always denied. The visible
+    Global Staff-only access; add/change/delete are always denied. The visible
     fields are an explicit allowlist that never exposes credentials, key
     material, normalized_name or the passport relation.
     """
@@ -142,10 +143,10 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     readonly_fields = flatten_fieldsets(fieldsets)
 
     def has_module_permission(self, request):
-        return request.user.is_superuser
+        return compat.user_is_global_staff(request.user)
 
     def has_view_permission(self, request, obj=None):
-        return request.user.is_superuser
+        return compat.user_is_global_staff(request.user)
 
     def has_add_permission(self, request):
         return False
