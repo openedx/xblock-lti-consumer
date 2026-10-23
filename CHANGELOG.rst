@@ -16,6 +16,12 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.3 - 2026-10-23
+--------------------
+* Deny the NRPS memberships endpoint with HTTP 403 when Names and Role
+  Provisioning Services is disabled on the LTI configuration, even if the
+  caller presents a correctly scoped access token.
+
 11.4.2 - 2026-09-10
 --------------------
 * Publish AGS scores with a ``scoreGiven`` of ``0`` to the LMS gradebook. The

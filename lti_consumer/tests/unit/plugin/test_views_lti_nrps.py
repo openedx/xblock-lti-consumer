@@ -235,6 +235,20 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['content-type'], 'application/vnd.ims.lti-nrps.v2.membershipcontainer+json')
 
+    def test_nrps_disabled_on_block(self):
+        """
+        Test that the endpoint returns 403 and does not fetch members when
+        NRPS is disabled on the XBlock, even with a correctly scoped token.
+        """
+        self.xblock.lti_1p3_enable_nrps = False
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+
+        with patch('lti_consumer.plugin.views.compat.get_course_members') as get_members_mock:
+            response = self.client.get(self.context_membership_endpoint)
+
+        self.assertEqual(response.status_code, 403)
+        get_members_mock.assert_not_called()
+
     @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
     @patch(
         'lti_consumer.plugin.views.compat.get_course_members',
