@@ -87,13 +87,13 @@ class Lti1p3Passport(models.Model):
 
     lti_1p3_tool_keyset_url = models.CharField(
         "LTI 1.3 Tool Keyset URL",
-        max_length=255,
+        max_length=500,
         blank=True,
         help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
                   'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
     )
 
-    def _generate_lti_1p3_keys_if_missing(self):
+    def generate_lti_1p3_keys_if_missing(self):
         """
         Generate LTI 1.3 RSA256 keys if missing.
 
@@ -130,7 +130,7 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return self.lti_1p3_internal_private_key
 
     @property
@@ -138,7 +138,7 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's private key ID used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return self.lti_1p3_internal_private_key_id
 
     @property
@@ -146,7 +146,7 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's public keys used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return json.loads(self.lti_1p3_internal_public_jwk)
 
     def __str__(self):
@@ -163,6 +163,150 @@ class Lti1p3Passport(models.Model):
 
     class Meta:
         app_label = 'lti_consumer'
+
+
+class ReusableNameField(models.CharField):
+    """CharField with an explicit collation that is applied only where supported.
+
+    ``utf8mb4_0900_as_ci`` exists on MySQL 8 but not MariaDB or other backends,
+    so the collation is dropped there and the column keeps its native collation
+    instead of failing DDL on an unknown name.
+
+    shortcut: non-MySQL backends keep their native comparison rules; revisit if
+    they need the same collation semantics.
+    """
+
+    def db_parameters(self, connection):
+        params = super().db_parameters(connection)  # pylint: disable=no-member
+        if connection.vendor != 'mysql' or getattr(connection, 'mysql_is_mariadb', False):
+            params['collation'] = None
+        return params
+
+
+class ReusableLtiConfiguration(models.Model):
+    """Catalog and context record for an LTI configuration independent of placements."""
+
+    LTI_1P1 = 'lti_1p1'
+    LTI_1P3 = 'lti_1p3'
+    LTI_VERSION_CHOICES = [
+        (LTI_1P1, _('LTI 1.1')),
+        (LTI_1P3, _('LTI 1.3')),
+    ]
+
+    config_id = models.UUIDField(_("Configuration ID"), default=uuid.uuid4, unique=True, editable=False)
+    name = models.CharField(_("Name"), max_length=255)
+    normalized_name = ReusableNameField(
+        max_length=768, unique=True, editable=False, db_collation='utf8mb4_0900_as_ci',
+    )
+    description = models.TextField(_("Description"), blank=True)
+    version = models.CharField(_("LTI Version"), max_length=10, choices=LTI_VERSION_CHOICES)
+    context_type = models.CharField(
+        _("Context type"),
+        max_length=20,
+        choices=[
+            ('course', _('Course')),
+            ('organization', _('Organization')),
+            ('site', _('Site')),
+        ],
+    )
+    context_key = ReusableNameField(
+        _("Context key"), max_length=255, blank=True, default='', db_collation='utf8mb4_0900_as_ci',
+    )
+
+    # LTI 1.1 connection and credentials.
+    lti_1p1_launch_url = models.CharField(_("LTI 1.1 Launch URL"), max_length=255, null=True, blank=True)
+    lti_1p1_client_key = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p1_client_secret = models.CharField(max_length=255, null=True, blank=True)
+
+    # LTI 1.3 tool connection and immutable registration identity.
+    lti_1p3_launch_url = models.CharField(_("LTI 1.3 Launch URL"), max_length=255, null=True, blank=True)
+    lti_1p3_oidc_url = models.CharField(
+        _("LTI 1.3 OpenID Connect (OIDC) Login URL"), max_length=255, null=True, blank=True,
+    )
+    lti_1p3_redirect_uris = models.JSONField(_("LTI 1.3 Redirect URIs"), default=list, blank=True)
+    # shortcut: Client ID equality follows DB collation; add portable matching only if
+    # cross-backend consistency is required.
+    lti_1p3_client_id = models.CharField(_("LTI 1.3 Client ID"), max_length=255, null=True, blank=True, unique=True)
+    lti_1p3_deployment_id = models.CharField(_("LTI 1.3 Deployment ID"), max_length=255, null=True, blank=True)
+    lti_1p3_tool_key_mode = models.CharField(
+        _("LTI 1.3 Tool Key Mode"),
+        max_length=20,
+        choices=[('public_key', _('Public Key')), ('keyset_url', _('Keyset URL'))],
+        null=True,
+        blank=True,
+    )
+    lti_1p3_passport = models.OneToOneField(
+        Lti1p3Passport,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='reusable_configuration',
+    )
+
+    # Shared LTI Advantage service settings.
+    lti_advantage_deep_linking_enabled = models.BooleanField(_("Enable LTI Advantage Deep Linking"), default=False)
+    lti_advantage_deep_linking_launch_url = models.CharField(
+        _("LTI Advantage Deep Linking launch URL"), max_length=225, blank=True, default='',
+    )
+    lti_advantage_ags_mode = models.CharField(
+        _("LTI Advantage Assignment and Grade Services Mode"),
+        max_length=20,
+        choices=[
+            ('disabled', _('Disabled')),
+            ('declarative', _('Allow tools to submit grades only (declarative)')),
+            ('programmatic', _('Allow tools to manage and submit grade (programmatic)')),
+        ],
+        default='declarative',
+    )
+    lti_advantage_enable_nrps = models.BooleanField(
+        _("Enable LTI Advantage Names and Role Provisioning Services"), default=False,
+    )
+
+    # Shared placement defaults; placements and placement-specific data are not stored here.
+    display_name = models.CharField(_("Display Name"), max_length=255, default='LTI Consumer')
+    enable_grading = models.BooleanField(_("Enable grading"), default=False)
+    grade_weight = models.FloatField(_("Grade Weight"), default=1.0, validators=[MinValueValidator(0)])
+    accept_grades_after_due_date = models.BooleanField(_("Accept grades after due date"), default=True)
+    open_tool_in = models.CharField(
+        _("Open tool in"),
+        max_length=20,
+        choices=[('iframe', _('Inline')), ('modal', _('Modal')), ('new_window', _('New Window'))],
+        default='iframe',
+    )
+    inline_height = models.IntegerField(_("Inline Height (px)"), default=800)
+    modal_height = models.IntegerField(_("Modal Height (%)"), default=80)
+    modal_width = models.IntegerField(_("Modal Width (%)"), default=80)
+    launch_button_text = models.CharField(_("Launch Button Text"), max_length=255, blank=True, default='')
+    send_extra_parameters = models.BooleanField(_("Send extra parameters"), default=False)
+    custom_parameters = models.JSONField(_("Custom Parameters"), default=list, blank=True)
+
+    created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated at"), auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.normalized_name = self.name.strip().casefold()
+        if kwargs.get('update_fields') is not None:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'normalized_name'}
+        super().save(*args, **kwargs)
+
+    class Meta:
+        app_label = 'lti_consumer'
+        verbose_name = _("Reusable LTI configuration")
+        verbose_name_plural = _("Reusable LTI configurations")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(context_type__in=('course', 'organization', 'site')),
+                name='reusable_context_type_valid',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(context_type='site', context_key='') |
+                    (models.Q(context_type__in=('course', 'organization')) & ~models.Q(context_key=''))
+                ),
+                name='reusable_context_key_shape',
+            ),
+        ]
+        indexes = [models.Index(fields=('context_type', 'context_key'), name='reusable_context_lookup')]
 
 
 class LtiConfiguration(models.Model):

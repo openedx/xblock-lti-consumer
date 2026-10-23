@@ -10,7 +10,7 @@ from django.test import TestCase
 from opaque_keys.edx.keys import UsageKey
 from openedx_events.content_authoring.data import DuplicatedXBlockData, LibraryBlockData, XBlockData
 
-from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
+from lti_consumer.models import Lti1p3Passport, LtiAgsLineItem, LtiAgsScore, LtiConfiguration, ReusableLtiConfiguration
 from lti_consumer.signals.signals import (
     delete_child_lti_configurations,
     delete_lib_lti_configuration,
@@ -221,7 +221,9 @@ class TestDeleteLtiConfiguration(TestCase):
         delete_lti_configuration(xblock_info=self.xblock_data)
 
         mock_lti_config.objects.filter.assert_called_with(location=str(self.xblock_data.usage_key))
-        mock_passport.objects.filter.assert_called_with(lticonfiguration__isnull=True)
+        mock_passport.objects.filter.assert_called_with(
+            lticonfiguration__isnull=True, reusable_configuration__isnull=True,
+        )
         assert mock_log.info.call_count == 1
         assert "5" in mock_log.info.call_args[0][0]
 
@@ -269,6 +271,23 @@ class TestDeleteLtiConfiguration(TestCase):
 
         mock_lti_config.objects.filter.assert_called_once()
         mock_log.error.assert_not_called()
+
+    def test_cleanup_keeps_reusable_passports(self):
+        """Legacy orphans are deleted, but reusable-linked passports survive."""
+        reusable_passport = Lti1p3Passport.objects.create(lti_1p3_client_id='reusable-client')
+        ReusableLtiConfiguration.objects.create(
+            name='Reusable configuration',
+            version=ReusableLtiConfiguration.LTI_1P3,
+            context_type='course',
+            context_key='course-v1:Course+101+2024',
+            lti_1p3_passport=reusable_passport,
+        )
+        orphan_passport = Lti1p3Passport.objects.create(lti_1p3_client_id='legacy-orphan')
+
+        delete_lti_configuration(xblock_info=self.xblock_data)
+
+        self.assertFalse(Lti1p3Passport.objects.filter(pk=orphan_passport.pk).exists())
+        self.assertTrue(Lti1p3Passport.objects.filter(pk=reusable_passport.pk).exists())
 
 
 @ddt
@@ -435,7 +454,9 @@ class TestDeleteLibLtiConfiguration(TestCase):
         )
 
         # Verify orphaned passports deleted
-        mocks['passport'].objects.filter.assert_called_once_with(lticonfiguration__isnull=True)
+        mocks['passport'].objects.filter.assert_called_once_with(
+            lticonfiguration__isnull=True, reusable_configuration__isnull=True,
+        )
 
         # Verify info logged with passport count
         mocks['log'].info.assert_called_once()
