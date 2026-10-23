@@ -21,9 +21,14 @@ COURSE_ADMIN_PATCH = 'lti_consumer.plugin.compat.user_is_course_admin'
 GLOBAL_STAFF_PATCH = 'lti_consumer.plugin.compat.user_is_global_staff'
 
 
-def actor(is_superuser=False, is_authenticated=True):
+def actor(is_superuser=False, is_staff=False, is_authenticated=True):
     """Return a minimal actor with the platform flags the policy reads."""
-    return SimpleNamespace(is_authenticated=is_authenticated, is_superuser=is_superuser)
+    return SimpleNamespace(is_authenticated=is_authenticated, is_superuser=is_superuser, is_staff=is_staff)
+
+
+def global_staff_actors():
+    """Return a non-superuser Global Staff actor and a superuser, for subTest coverage."""
+    return (('global staff', actor(is_staff=True)), ('superuser', actor(is_superuser=True)))
 
 
 class GlobalStaffPatchMixin:
@@ -31,7 +36,10 @@ class GlobalStaffPatchMixin:
 
     def setUp(self):
         super().setUp()
-        patcher = patch(GLOBAL_STAFF_PATCH, side_effect=lambda user: bool(user and user.is_superuser))
+        patcher = patch(
+            GLOBAL_STAFF_PATCH,
+            side_effect=lambda user: bool(user and (user.is_superuser or user.is_staff)),
+        )
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -69,7 +77,7 @@ class CreationContextNormalizationTests(GlobalStaffPatchMixin, SimpleTestCase):
 
     def authorize(self, raw_context, user=None, registry=None):
         with patch(REGISTRY_PATCH, return_value=self.REGISTRY if registry is None else registry):
-            return CreationContextPolicy(user or actor(is_superuser=True)).authorize_creation(raw_context)
+            return CreationContextPolicy(user or actor(is_staff=True)).authorize_creation(raw_context)
 
     def test_invalid_shapes_are_addressed_to_context_members(self):
         invalid = (
@@ -102,7 +110,7 @@ class CreationContextNormalizationTests(GlobalStaffPatchMixin, SimpleTestCase):
             CreationContext(type='course', key=COURSE_KEY),
         )
 
-    def test_ccx_course_context_is_accepted_for_a_superuser(self):
+    def test_ccx_course_context_is_accepted_for_global_staff(self):
         self.assertEqual(
             self.authorize({'type': 'course', 'key': CCX_KEY}),
             CreationContext(type='course', key=CCX_KEY),
@@ -132,14 +140,14 @@ class CreationContextNormalizationTests(GlobalStaffPatchMixin, SimpleTestCase):
 class CreationContextAuthorityTests(GlobalStaffPatchMixin, SimpleTestCase):
     """Authority decides before the organization registry is read."""
 
-    def test_well_formed_unauthorized_organization_is_forbidden_without_registry_read(self):
+    def test_non_global_staff_organization_is_forbidden_without_registry_read(self):
         with patch(REGISTRY_PATCH) as registry:
             with self.assertRaises(ReusableConfigurationError) as caught:
                 CreationContextPolicy(actor()).authorize_creation({'type': 'organization', 'key': 'Org'})
         self.assertEqual(caught.exception.category, 'forbidden')
         registry.assert_not_called()
 
-    def test_non_superuser_site_context_is_forbidden_without_registry_read(self):
+    def test_non_global_staff_site_context_is_forbidden_without_registry_read(self):
         with patch(REGISTRY_PATCH) as registry:
             with self.assertRaises(ReusableConfigurationError) as caught:
                 CreationContextPolicy(actor()).authorize_creation({'type': 'site'})
@@ -151,11 +159,22 @@ class CreationContextAuthorityTests(GlobalStaffPatchMixin, SimpleTestCase):
             with self.subTest(registry=registry):
                 with patch(REGISTRY_PATCH, return_value=registry):
                     with self.assertRaises(ReusableConfigurationError) as caught:
-                        CreationContextPolicy(actor(is_superuser=True)).authorize_creation(
+                        CreationContextPolicy(actor(is_staff=True)).authorize_creation(
                             {'type': 'organization', 'key': 'org'}
                         )
                 self.assertEqual(caught.exception.category, 'invalid')
                 self.assertEqual(caught.exception.field, 'context.key')
+
+    def test_global_staff_and_superuser_create_organization_and_site_contexts(self):
+        for label, user in global_staff_actors():
+            with self.subTest(actor=label):
+                with patch(REGISTRY_PATCH, return_value=[organization('Org')]):
+                    policy = CreationContextPolicy(user)
+                    self.assertEqual(
+                        policy.authorize_creation({'type': 'organization', 'key': '  ORG  '}),
+                        CreationContext(type='organization', key='org'),
+                    )
+                    self.assertEqual(policy.authorize_creation({'type': 'site'}), CreationContext(type='site'))
 
     def test_course_context_requires_the_course_admin_role(self):
         user = actor()
@@ -166,20 +185,20 @@ class CreationContextAuthorityTests(GlobalStaffPatchMixin, SimpleTestCase):
         course_admin.assert_called_once_with(user, CourseKey.from_string(COURSE_KEY))
         registry.assert_not_called()
 
-    def test_ccx_context_is_denied_before_any_role_lookup(self):
+    def test_ccx_context_is_denied_for_non_global_staff_before_any_role_lookup(self):
         with patch(COURSE_ADMIN_PATCH) as course_admin:
             with self.assertRaises(ReusableConfigurationError) as caught:
                 CreationContextPolicy(actor()).authorize_creation({'type': 'course', 'key': CCX_KEY})
         self.assertEqual(caught.exception.category, 'forbidden')
         course_admin.assert_not_called()
 
-    def test_superuser_course_context_skips_the_role_lookup(self):
-        with patch(COURSE_ADMIN_PATCH) as course_admin:
-            context = CreationContextPolicy(actor(is_superuser=True)).authorize_creation(
-                {'type': 'course', 'key': COURSE_KEY}
-            )
-        self.assertEqual(context, CreationContext(type='course', key=COURSE_KEY))
-        course_admin.assert_not_called()
+    def test_global_staff_and_superuser_course_context_skip_the_role_lookup(self):
+        for label, user in global_staff_actors():
+            with self.subTest(actor=label):
+                with patch(COURSE_ADMIN_PATCH) as course_admin:
+                    context = CreationContextPolicy(user).authorize_creation({'type': 'course', 'key': COURSE_KEY})
+                self.assertEqual(context, CreationContext(type='course', key=COURSE_KEY))
+                course_admin.assert_not_called()
 
     def test_anonymous_actor_reads_no_platform_facts(self):
         policy = CreationContextPolicy(actor(is_authenticated=False))
@@ -214,20 +233,31 @@ class CreationContextPolicyManageTests(GlobalStaffPatchMixin, SimpleTestCase):
             CreationContextPolicy(user).can_manage(self.configuration())
             self.assertEqual(course_admin.call_count, 2)
 
-    def test_organization_and_site_contexts_are_superuser_only(self):
+    def test_organization_and_site_contexts_are_global_staff_only(self):
         with patch(REGISTRY_PATCH) as registry:
-            superuser_policy = CreationContextPolicy(actor(is_superuser=True))
-            self.assertTrue(superuser_policy.can_manage(self.configuration('organization', 'org')))
-            self.assertTrue(superuser_policy.can_manage(self.configuration('site', '')))
+            for label, user in global_staff_actors():
+                policy = CreationContextPolicy(user)
+                with self.subTest(actor=label):
+                    self.assertTrue(policy.can_manage(self.configuration('organization', 'org')))
+                    self.assertTrue(policy.can_manage(self.configuration('site', '')))
             user_policy = CreationContextPolicy(actor())
             self.assertFalse(user_policy.can_manage(self.configuration('organization', 'org')))
             self.assertFalse(user_policy.can_manage(self.configuration('site', '')))
         registry.assert_not_called()
 
     def test_persisted_organization_is_not_revalidated(self):
-        policy = CreationContextPolicy(actor(is_superuser=True))
+        policy = CreationContextPolicy(actor(is_staff=True))
         with patch(REGISTRY_PATCH, side_effect=AssertionError('registry must not be read')):
             self.assertTrue(policy.can_manage(self.configuration('organization', 'long-gone-org')))
+
+    def test_global_staff_and_superuser_manage_course_and_ccx_without_a_role_lookup(self):
+        for label, user in global_staff_actors():
+            with self.subTest(actor=label):
+                with patch(COURSE_ADMIN_PATCH) as course_admin:
+                    policy = CreationContextPolicy(user)
+                    self.assertTrue(policy.can_manage(self.configuration(context_key=COURSE_KEY)))
+                    self.assertTrue(policy.can_manage(self.configuration(context_key=CCX_KEY)))
+                course_admin.assert_not_called()
 
     def test_ccx_is_denied_before_any_role_lookup(self):
         with patch(COURSE_ADMIN_PATCH, return_value=True) as course_admin:
@@ -285,14 +315,16 @@ class CreationContextPolicyVisibilityTests(GlobalStaffPatchMixin, TestCase):
     def visible_names(policy, **kwargs):
         return set(policy.visible_configurations(**kwargs).values_list('name', flat=True))
 
-    def test_superuser_sees_everything_and_course_filter_includes_site(self):
+    def test_global_staff_and_superuser_see_everything_and_course_filter_includes_site(self):
         self.make_configuration('Selected')
         self.make_configuration('Other', context_key=OTHER_KEY)
         self.make_configuration('Organization', context_type='organization', context_key='org')
         self.make_configuration('Site', context_type='site', context_key='')
-        policy = CreationContextPolicy(actor(is_superuser=True))
-        self.assertEqual(self.visible_names(policy), {'Selected', 'Other', 'Organization', 'Site'})
-        self.assertEqual(self.visible_names(policy, course_key=OTHER_KEY), {'Other', 'Site'})
+        for label, user in global_staff_actors():
+            policy = CreationContextPolicy(user)
+            with self.subTest(actor=label):
+                self.assertEqual(self.visible_names(policy), {'Selected', 'Other', 'Organization', 'Site'})
+                self.assertEqual(self.visible_names(policy, course_key=OTHER_KEY), {'Other', 'Site'})
 
     def test_actor_sees_exact_course_matching_organization_and_site(self):
         self.make_configuration('Selected')
@@ -316,15 +348,14 @@ class CreationContextPolicyVisibilityTests(GlobalStaffPatchMixin, TestCase):
         policy = self.policy_with_courses([CourseKey.from_string(COURSE_KEY)])
         self.assertEqual(self.visible_names(policy), {'Selected'})
 
-    def test_ccx_contexts_are_invisible_to_non_superusers(self):
+    def test_ccx_contexts_are_invisible_to_non_global_staff(self):
         self.make_configuration('CCX', context_key=CCX_KEY)
         self.make_configuration('Selected')
         policy = self.policy_with_courses([CourseKey.from_string(COURSE_KEY)])
         self.assertEqual(self.visible_names(policy), {'Selected'})
-        self.assertEqual(
-            self.visible_names(CreationContextPolicy(actor(is_superuser=True))),
-            {'CCX', 'Selected'},
-        )
+        for label, user in global_staff_actors():
+            with self.subTest(actor=label):
+                self.assertEqual(self.visible_names(CreationContextPolicy(user)), {'CCX', 'Selected'})
 
     def test_no_accessible_courses_hides_site_contexts_too(self):
         self.make_configuration('Site', context_type='site', context_key='')
@@ -336,7 +367,7 @@ class CreationContextPolicyVisibilityTests(GlobalStaffPatchMixin, TestCase):
         self.assertEqual(self.visible_names(policy, course_key=OTHER_KEY), set())
 
     def test_malformed_course_key_is_an_addressed_invalid_error(self):
-        policy = CreationContextPolicy(actor(is_superuser=True))
+        policy = CreationContextPolicy(actor(is_staff=True))
         for course_key in ('not-a-course', 'course-v1:Version@1234', 'library-v1:Org+Library'):
             with self.subTest(course_key=course_key):
                 with self.assertRaises(ReusableConfigurationError) as caught:

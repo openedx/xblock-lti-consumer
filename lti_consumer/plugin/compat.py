@@ -274,7 +274,9 @@ def user_is_course_admin(user, course_key):  # pragma: nocover
 
 
 def user_is_global_staff(user):
-    """Check the platform's Global Staff role; superusers are included."""
+    """Check Global Staff access while preserving the prior superuser access."""
+    if getattr(user, 'is_superuser', False):
+        return True
     # pylint: disable=import-error,import-outside-toplevel
     from common.djangoapps.student.roles import GlobalStaff
     return GlobalStaff().has_user(user)

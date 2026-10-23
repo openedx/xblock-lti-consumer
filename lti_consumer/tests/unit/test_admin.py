@@ -7,6 +7,7 @@ from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
 from django.contrib.admin.utils import flatten_fieldsets
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import path, reverse
 
@@ -272,14 +273,19 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
                     self.assertNotIn(control, html)
 
     def test_reusable_configurations_deny_every_write_and_keep_passports_isolated(self):
-        # Ordinary users are refused entirely.
-        ordinary_user = get_user_model().objects.create_user(
-            username='reusable-ordinary-test', password='password',
+        # This user clears every Django gate (staff login, all model permissions), so the
+        # false seam below proves the admin asks the role seam, not is_staff or permissions.
+        non_global_staff = get_user_model().objects.create_user(
+            username='reusable-non-global-staff-test', password='password', is_staff=True,
         )
-        self.client.force_login(ordinary_user)
-        # Non-staff users are redirected to the admin login before model permissions apply.
-        self.assertIn(self.client.get(self.changelist_url).status_code, (302, 403))
-        self.assertIn(self.client.get(self.change_url(self.lti11_config)).status_code, (302, 403))
+        non_global_staff.user_permissions.set(Permission.objects.all())
+        non_global_staff = get_user_model().objects.get(pk=non_global_staff.pk)
+        self.assertTrue(non_global_staff.has_perm('lti_consumer.view_reusablelticonfiguration'))
+        self.client.force_login(non_global_staff)
+        # Override the suite's role seam: admin login succeeds, the Global Staff role does not.
+        with patch(GLOBAL_STAFF_PATCH, return_value=False):
+            self.assertEqual(self.client.get(self.changelist_url).status_code, 403)
+            self.assertEqual(self.client.get(self.change_url(self.lti11_config)).status_code, 403)
 
         # Global Staff may write nothing; inspection is covered by the test above.
         staff_user = self.staff

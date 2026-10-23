@@ -93,3 +93,13 @@ class GlobalStaffCompatTests(SimpleTestCase):
             self.assertIs(compat.user_is_global_staff(user), result)
         global_staff.assert_called_once_with()
         role.has_user.assert_called_once_with(user)
+
+    def test_superuser_without_the_platform_staff_role_keeps_access(self):
+        """The previous superuser-only authorization must not be narrowed here."""
+        user = SimpleNamespace(is_superuser=True, is_staff=False)
+        role = Mock()
+        role.has_user.return_value = False
+        roles = ModuleType('common.djangoapps.student.roles')
+        roles.GlobalStaff = Mock(return_value=role)
+        with patch.dict('sys.modules', {'common.djangoapps.student.roles': roles}):
+            self.assertTrue(compat.user_is_global_staff(user))

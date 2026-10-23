@@ -2,9 +2,9 @@
 
 Each test drives the real APIClient, serializers, mutation module, ORM and
 database. Only edx-platform-owned boundaries are mocked: Studio course access,
-course admin checks, and the organization registry. Semantic matrices live in
-the module suites; these journeys keep the HTTP status, disclosure, pagination,
-filter, CSRF and rollback contract.
+course admin checks, the Global Staff role, and the organization registry.
+Semantic matrices live in the module suites; these journeys keep the HTTP
+status, disclosure, pagination, filter, CSRF and rollback contract.
 """
 import json
 import uuid
@@ -312,7 +312,8 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(malformed.status_code, 400)
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 0)
 
-    def test_superuser_creates_organization_and_site_contexts(self):
+    def test_superuser_keeps_organization_and_site_context_creation(self):
+        """Superusers keep this access at the patched platform role boundary."""
         self.client.force_authenticate(self.superuser)
         with patch(REGISTRY_PATCH, return_value=[{'short_name': 'Org'}]):
             organization = self.client.post(self.list_url, lti11_create_payload(
@@ -743,7 +744,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
 
 
 class GlobalStaffJourneyTests(ReusableApiTestCase):
-    """One staff-only journey; ordinary and superuser paths remain in existing tests."""
+    """One non-superuser Global Staff journey; superuser retention stays in the existing tests."""
 
     def setUp(self):
         super().setUp()
