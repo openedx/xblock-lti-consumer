@@ -15,6 +15,9 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 
 Unreleased
 ----------
+* Security: deny the AGS endpoints with HTTP 403 when Assignment and Grades
+  Services is disabled on the LTI configuration. A tool could still create line
+  items and post scores, which reached the gradebook on a graded block.
 
 11.3.1 - 2026-06-01
 --------------------
