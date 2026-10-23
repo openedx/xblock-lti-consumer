@@ -18,11 +18,22 @@ CCX_KEY = 'ccx-v1:Org+Course+Run+ccx@1'
 REGISTRY_PATCH = 'lti_consumer.plugin.compat.get_active_organizations'
 COURSE_ACCESS_PATCH = 'lti_consumer.plugin.compat.get_studio_accessible_course_keys'
 COURSE_ADMIN_PATCH = 'lti_consumer.plugin.compat.user_is_course_admin'
+GLOBAL_STAFF_PATCH = 'lti_consumer.plugin.compat.user_is_global_staff'
 
 
 def actor(is_superuser=False, is_authenticated=True):
     """Return a minimal actor with the platform flags the policy reads."""
     return SimpleNamespace(is_authenticated=is_authenticated, is_superuser=is_superuser)
+
+
+class GlobalStaffPatchMixin:
+    """Patch the platform role seam; the canonical helper is covered by compat tests."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = patch(GLOBAL_STAFF_PATCH, side_effect=lambda user: bool(user and user.is_superuser))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
 
 def organization(short_name):
@@ -51,7 +62,7 @@ class ReusableConfigurationErrorTests(SimpleTestCase):
         self.assertIsInstance(error.messages[0], str)
 
 
-class CreationContextNormalizationTests(SimpleTestCase):
+class CreationContextNormalizationTests(GlobalStaffPatchMixin, SimpleTestCase):
     """Creation context shape and normalization before any authority check."""
 
     REGISTRY = [organization('MyOrg')]
@@ -118,7 +129,7 @@ class CreationContextNormalizationTests(SimpleTestCase):
         course_admin.assert_not_called()
 
 
-class CreationContextAuthorityTests(SimpleTestCase):
+class CreationContextAuthorityTests(GlobalStaffPatchMixin, SimpleTestCase):
     """Authority decides before the organization registry is read."""
 
     def test_well_formed_unauthorized_organization_is_forbidden_without_registry_read(self):
@@ -186,7 +197,7 @@ class CreationContextAuthorityTests(SimpleTestCase):
         registry.assert_not_called()
 
 
-class CreationContextPolicyManageTests(SimpleTestCase):
+class CreationContextPolicyManageTests(GlobalStaffPatchMixin, SimpleTestCase):
     """can_manage semantics, per-instance caching and registry independence."""
 
     @staticmethod
@@ -253,7 +264,7 @@ class CreationContextPolicyManageTests(SimpleTestCase):
         registry.assert_not_called()
 
 
-class CreationContextPolicyVisibilityTests(TestCase):
+class CreationContextPolicyVisibilityTests(GlobalStaffPatchMixin, TestCase):
     """Query-backed visibility: exact course, matching organization, site and denial."""
 
     def make_configuration(self, name, context_type='course', context_key=COURSE_KEY):

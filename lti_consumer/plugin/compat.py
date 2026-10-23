@@ -273,6 +273,13 @@ def user_is_course_admin(user, course_key):  # pragma: nocover
     return CourseInstructorRole(course_key).has_user(user)
 
 
+def user_is_global_staff(user):
+    """Check the platform's Global Staff role; superusers are included."""
+    # pylint: disable=import-error,import-outside-toplevel
+    from common.djangoapps.student.roles import GlobalStaff
+    return GlobalStaff().has_user(user)
+
+
 def get_course_by_id(course_key):  # pragma: nocover
     """
     Import and run `get_course_by_id` from LMS

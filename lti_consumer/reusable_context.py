@@ -59,11 +59,11 @@ class CreationContextPolicy:
         """
         context_type, raw_key = self._context_shape(raw_context)
         if context_type == 'site':
-            self._require_superuser()
+            self._require_global_staff()
             return CreationContext(type='site')
         if context_type == 'organization':
             organization_key = self._normalize_organization_key(raw_key)
-            self._require_superuser()
+            self._require_global_staff()
             self._resolve_organization(organization_key)
             return CreationContext(type='organization', key=organization_key)
 
@@ -89,7 +89,7 @@ class CreationContextPolicy:
 
         if not self._is_authenticated():
             return configurations.none()
-        if not self._actor.is_superuser:
+        if not self._is_global_staff():
             accessible_keys = self._accessible_course_keys()
             if not accessible_keys:
                 return configurations.none()
@@ -120,17 +120,18 @@ class CreationContextPolicy:
             return False
         if configuration.context_type not in CONTEXT_TYPES:
             return False
+        is_global_staff = self._is_global_staff()
         if configuration.context_type in ('organization', 'site'):
-            return bool(self._actor.is_superuser)
+            return is_global_staff
         if not configuration.context_key:
             return False
         try:
             course_key = self._normalize_course_key(configuration.context_key)
         except ReusableConfigurationError:
             return False
-        if isinstance(course_key, CCXLocator) and not self._actor.is_superuser:
+        if isinstance(course_key, CCXLocator) and not is_global_staff:
             return False
-        if self._actor.is_superuser:
+        if is_global_staff:
             return True
         return self._user_is_course_admin(course_key)
 
@@ -186,20 +187,20 @@ class CreationContextPolicy:
         if not self._is_authenticated():
             _forbidden(_('Authentication is required to manage reusable configurations.'))
 
-    def _require_superuser(self):
-        """Raise forbidden unless the actor is a platform administrator."""
+    def _require_global_staff(self):
+        """Raise forbidden unless the actor holds the platform Global Staff role."""
         self._require_authenticated()
-        if not self._actor.is_superuser:
-            _forbidden(_('Only a platform administrator may use this Creation Context.'))
+        if not self._is_global_staff():
+            _forbidden(_('Only Global Staff may use this Creation Context.'))
 
     def _authorize_course_context(self, course_key):
         """Raise forbidden unless the actor may manage this course context."""
         self._require_authenticated()
-        if self._actor.is_superuser:
+        if self._is_global_staff():
             return
         # CCX courses are outside Studio's catalog, so deny them before any role lookup.
         if isinstance(course_key, CCXLocator):
-            _forbidden(_('Only a platform administrator may use a CCX course context.'))
+            _forbidden(_('Only Global Staff may use a CCX course context.'))
         if not self._user_is_course_admin(course_key):
             _forbidden(_('Only a course administrator may use this course context.'))
 
@@ -224,6 +225,10 @@ class CreationContextPolicy:
     def _is_authenticated(self):
         """Return whether the actor is authenticated, without any platform read."""
         return bool(getattr(self._actor, 'is_authenticated', False))
+
+    def _is_global_staff(self):
+        """Return whether the actor holds the platform Global Staff role."""
+        return self._is_authenticated() and bool(compat.user_is_global_staff(self._actor))
 
     def _accessible_course_keys(self):
         """Return normalized Studio-accessible course keys, skipping malformed ones."""
