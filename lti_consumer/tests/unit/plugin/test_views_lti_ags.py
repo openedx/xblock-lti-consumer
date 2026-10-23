@@ -283,6 +283,29 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(line_item.tag, 'score')
         self.assertEqual(str(line_item.resource_link_id), str(self.xblock.scope_ids.usage_id))
 
+    def test_create_lineitem_ags_disabled(self):
+        """
+        Test that LineItem creation returns 403 when AGS is disabled on the
+        block, even with a correctly scoped token.
+        """
+        self.xblock.lti_advantage_ags_mode = 'disabled'
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem')
+
+        response = self.client.post(
+            self.lineitem_endpoint,
+            data=json.dumps({
+                'resourceId': 'test',
+                'scoreMaximum': 100,
+                'label': 'test',
+                'tag': 'score',
+                'resourceLinkId': str(self.xblock.scope_ids.usage_id),
+            }),
+            content_type="application/vnd.ims.lis.v2.lineitem+json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(LtiAgsLineItem.objects.all().count(), 0)
+
     def test_create_lineitem_invalid_resource_link_id(self):
         """
         Test the LTI AGS Lineitem creation when passing invalid resource link id.
@@ -386,6 +409,32 @@ class LtiAgsViewSetScoresTests(LtiAgsLineItemViewSetTestCase):
         self.assertEqual(score.activity_progress, LtiAgsScore.COMPLETED)
         self.assertEqual(score.grading_progress, LtiAgsScore.FULLY_GRADED)
         self.assertEqual(score.user_id, self.primary_user_id)
+
+    def test_create_score_ags_disabled(self):
+        """
+        Test that Score creation returns 403 and publishes no grade when AGS
+        is disabled on the block, even with a correctly scoped token.
+        """
+        self.xblock.lti_advantage_ags_mode = 'disabled'
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/score')
+
+        with patch.object(self.xblock, 'set_user_module_score') as set_score_mock:
+            response = self.client.post(
+                self.scores_endpoint,
+                data=json.dumps({
+                    "timestamp": self.early_timestamp,
+                    "scoreGiven": 83,
+                    "scoreMaximum": 100,
+                    "activityProgress": LtiAgsScore.COMPLETED,
+                    "gradingProgress": LtiAgsScore.FULLY_GRADED,
+                    "userId": self.primary_user_id
+                }),
+                content_type="application/vnd.ims.lis.v1.score+json",
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(LtiAgsScore.objects.all().count(), 0)
+        set_score_mock.assert_not_called()
 
     def _post_lti_score(self, override_data=None):
         """

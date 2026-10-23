@@ -49,6 +49,16 @@ class LtiAgsPermissions(LTIBasePermissions):
     Score: Not implemented yet.
     """
 
+    def has_permission(self, request, view):
+        """
+        Check that AGS is not disabled on the LTI configuration before
+        checking the token scopes.
+        """
+        lti_configuration = request.lti_configuration
+        if lti_configuration.get_lti_advantage_ags_mode() == lti_configuration.LTI_ADVANTAGE_AGS_DISABLED:
+            return False
+        return super().has_permission(request, view)
+
     def get_permission_scopes(self, request, view):
         """
         Return LTI AGS allowed scopes.
