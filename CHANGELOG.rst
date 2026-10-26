@@ -16,6 +16,8 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.4 - 2026-10-26
+--------------------
 * Omit the LTI 1.3 ``resource_link`` claim from Deep Linking request
   launches, per the IMS Deep Linking 2.0 specification.
 
