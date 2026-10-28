@@ -1,6 +1,8 @@
 """
 Custom testing settings for testing views
 """
+import sys
+
 from workbench.settings import *
 
 # We don't need djpyfs for this block so remove it from installed apps.
@@ -39,3 +41,21 @@ LEARNING_MICROFRONTEND_URL = 'http://test.learning:2000'
 
 # Mimic running in Studio
 SERVICE_VARIANT = 'cms'
+
+# openedx-authz, for reusable LTI configuration permissions. The platform
+# provides the course and library models in production; here we use the stub
+# models that openedx-authz ships for its own tests.
+INSTALLED_APPS += [
+    "openedx_authz.engine.apps.CasbinAdapterConfig",
+    "openedx_authz.apps.OpenedxAuthzConfig",
+    "openedx_authz.tests.stubs.apps.StubsConfig",
+    "organizations",
+    "waffle",
+]
+OPENEDX_AUTHZ_CONTENT_LIBRARY_MODEL = "stubs.ContentLibrary"
+OPENEDX_AUTHZ_COURSE_OVERVIEW_MODEL = "stubs.CourseOverview"
+
+# Fill in the rest of the openedx-authz defaults (Casbin model, etc.), as the
+# platform's plugin settings hook does.
+from openedx_authz.settings.common import plugin_settings as authz_plugin_settings  # pylint: disable=wrong-import-position
+authz_plugin_settings(sys.modules[__name__])
