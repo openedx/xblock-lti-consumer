@@ -57,5 +57,5 @@ OPENEDX_AUTHZ_COURSE_OVERVIEW_MODEL = "stubs.CourseOverview"
 
 # Fill in the rest of the openedx-authz defaults (Casbin model, etc.), as the
 # platform's plugin settings hook does.
-from openedx_authz.settings.common import plugin_settings as authz_plugin_settings  # pylint: disable=wrong-import-position
+from openedx_authz.settings.common import plugin_settings as authz_plugin_settings  # noqa: E402 pylint: disable=wrong-import-position
 authz_plugin_settings(sys.modules[__name__])
