@@ -80,17 +80,6 @@ class Migration(migrations.Migration):
         # Catalog metadata, all nullable or defaulted so legacy rows stay valid.
         migrations.AddField(
             model_name='reusablelticonfiguration',
-            name='normalized_name',
-            field=lti_consumer.models.ReusableNameField(
-                blank=True,
-                db_collation='utf8mb4_0900_as_ci',
-                editable=False,
-                max_length=768,
-                null=True,
-            ),
-        ),
-        migrations.AddField(
-            model_name='reusablelticonfiguration',
             name='description',
             field=models.TextField(blank=True, default='', verbose_name='Description'),
             preserve_default=False,

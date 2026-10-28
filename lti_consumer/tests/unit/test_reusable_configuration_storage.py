@@ -64,18 +64,15 @@ class ReusableConfigurationStorageTests(TestCase):
                     name=f"Invalid {values['context_type']} {values['context_key']}", **values,
                 )
 
-    def test_normalized_name_is_not_unique_and_tolerates_missing_names(self):
-        self.make_configuration(name='Café Tool')
-        self.make_configuration(name='Cafe Tool')
+    def test_names_are_not_unique_and_keep_legacy_blank_or_null_values(self):
+        """Duplicate names are allowed and legacy rows may keep blank or NULL names."""
+        names = ('Café Tool', 'Café Tool', 'Cafe Tool', '  CAFÉ TOOL  ', '', None)
+        for name in names:
+            self.make_configuration(name=name)
         self.assertEqual(
-            set(ReusableLtiConfiguration.objects.values_list('normalized_name', flat=True)),
-            {'café tool', 'cafe tool'},
+            list(ReusableLtiConfiguration.objects.order_by('pk').values_list('name', flat=True)),
+            list(names),
         )
-        duplicate = self.make_configuration(name='  CAFÉ TOOL  ')
-        self.assertEqual(duplicate.normalized_name, 'café tool')
-        unnamed = self.make_configuration(name=None)
-        self.assertIsNone(unnamed.normalized_name)
-        self.assertEqual(ReusableLtiConfiguration.objects.filter(normalized_name='café tool').count(), 2)
 
     def test_legacy_client_id_values_stay_nullable_and_non_unique(self):
         self.make_configuration(name='No identity', lti_1p3_client_id=None)

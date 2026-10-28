@@ -138,9 +138,6 @@ class ReusableLtiConfiguration(models.Model):
     )
 
     # Catalog metadata; all optional so that a converted passport keeps its history.
-    normalized_name = ReusableNameField(
-        max_length=768, null=True, blank=True, editable=False, db_collation='utf8mb4_0900_as_ci',
-    )
     description = models.TextField(_("Description"), blank=True)
     version = models.CharField(_("LTI Version"), max_length=10, choices=LTI_VERSION_CHOICES, null=True, blank=True)
     context_type = models.CharField(
@@ -280,13 +277,6 @@ class ReusableLtiConfiguration(models.Model):
         """
         self.generate_lti_1p3_keys_if_missing()
         return json.loads(self.lti_1p3_internal_public_jwk)
-
-    def save(self, *args, **kwargs):
-        # Legacy rows keep blank, duplicate and NULL names, so this must not fail on them.
-        self.normalized_name = self.name.strip().casefold() if self.name else None
-        if kwargs.get('update_fields') is not None:
-            kwargs['update_fields'] = set(kwargs['update_fields']) | {'normalized_name'}
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'ReusableLtiConfiguration: {self.name} - {self.passport_id}'

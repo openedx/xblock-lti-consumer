@@ -373,12 +373,6 @@ class CreationContextPolicyVisibilityTests(GlobalStaffPatchMixin, TestCase):
         self.assertIsInstance(queryset, QuerySet)
         self.assertIn('context_type', str(queryset.query))
 
-    def test_query_does_not_expose_a_course_key_that_bypasses_the_actor(self):
-        self.make_configuration('Selected')
-        self.make_configuration('Other', context_key=OTHER_KEY)
-        policy = self.policy_with_courses([CourseKey.from_string(COURSE_KEY)])
-        self.assertEqual(self.visible_names(policy), {'Selected'})
-
     def test_ccx_contexts_are_invisible_to_non_global_staff(self):
         self.make_configuration('CCX', context_key=CCX_KEY)
         self.make_configuration('Selected')

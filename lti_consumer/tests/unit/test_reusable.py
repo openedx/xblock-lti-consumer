@@ -95,7 +95,6 @@ class ReusableCreateTests(ReusableMutationTestCase):
         result = create_reusable_configuration(self.actor, lti11_data())
         configuration = result.configuration
         self.assertEqual(configuration.name, 'One One')
-        self.assertEqual(configuration.normalized_name, 'one one')
         self.assertEqual((configuration.context_type, configuration.context_key), ('course', COURSE_KEY))
         self.assertEqual(configuration.lti_1p1_launch_url, 'https://tool.example/launch')
         self.assertEqual(

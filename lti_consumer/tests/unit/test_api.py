@@ -274,25 +274,34 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_DB)
         self.assertEqual(lti_config.version, LtiConfiguration.LTI_1P3)
 
-    def test_block_save_does_not_overwrite_bound_configuration(self):
+    @ddt.data(LtiConfiguration.CONFIG_ON_XBLOCK, LtiConfiguration.CONFIG_ON_DB)
+    def test_block_save_never_rewrites_the_bound_configuration(self, stored_store):
         """
-        A block save never rewrites the shared configuration's tool-key values.
+        A block save never rewrites the bound configuration's tool-key values, whichever
+        store the placement uses, and never writes the configuration row at all.
         """
         configuration = self._make_configuration(lti_1p3_tool_public_key='old_key')
-        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=configuration)
+        LtiConfiguration.objects.create(
+            location=self.location,
+            lti_1p3_passport=configuration,
+            config_store=stored_store,
+        )
 
         self.xblock.lti_1p3_tool_public_key = 'new_key'
         self.xblock.lti_1p3_tool_keyset_url = 'new_url'
 
-        lti_config = _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock,
-        )
+        with patch.object(ReusableLtiConfiguration, 'save') as configuration_save:
+            lti_config = _get_or_create_local_lti_config(
+                lti_version=LtiConfiguration.LTI_1P3,
+                block=self.xblock,
+            )
 
         configuration.refresh_from_db()
         self.assertEqual(configuration.lti_1p3_tool_public_key, 'old_key')
         self.assertEqual(configuration.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
         self.assertEqual(lti_config.lti_1p3_passport_id, configuration.pk)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
+        configuration_save.assert_not_called()
 
     @staticmethod
     def _make_configuration(**overrides):
@@ -307,53 +316,6 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         }
         values.update(overrides)
         return ReusableLtiConfiguration.objects.create(**values)
-
-    def test_passport_not_updated_when_config_store_not_on_xblock(self):
-        """
-        Ensure that when the existing LtiConfiguration is not stored on the XBlock
-        (e.g., CONFIG_ON_DB), the passport is not updated even if block key values differ.
-        """
-        configuration = self._make_configuration()
-        LtiConfiguration.objects.create(
-            location=self.location,
-            lti_1p3_passport=configuration,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
-        )
-
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
-
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock,
-            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
-        )
-
-        configuration.refresh_from_db()
-        self.assertEqual(configuration.lti_1p3_tool_public_key, 'shared_key')
-        self.assertEqual(configuration.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
-
-    def test_passport_not_saved_when_no_changes(self):
-        """
-        Ensure that passport.save() is not called when passport fields already match the
-        XBlock values and no update is required.
-        """
-        configuration = self._make_configuration(
-            lti_1p3_tool_public_key='matching_key',
-            lti_1p3_tool_keyset_url='matching_url',
-        )
-        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=configuration)
-
-        # Make block keys match the configuration
-        self.xblock.lti_1p3_tool_public_key = 'matching_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
-
-        with patch.object(ReusableLtiConfiguration, 'save') as mock_save:
-            _get_or_create_local_lti_config(
-                lti_version=LtiConfiguration.LTI_1P3,
-                block=self.xblock,
-            )
-            mock_save.assert_not_called()
 
     def test_config_not_saved_when_no_changes(self):
         """
@@ -410,27 +372,6 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         # Nothing to do on a second call.
         self.assertFalse(sync_lti_passport_id_to_block(self.xblock))
 
-    def test_configuration_unchanged_when_keys_match(self):
-        """
-        The bound configuration is reused when block keys already match.
-        """
-        configuration = self._make_configuration(
-            lti_1p3_tool_public_key='matching_key',
-            lti_1p3_tool_keyset_url='matching_url',
-        )
-        lti_config = LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=configuration)
-
-        self.xblock.lti_1p3_tool_public_key = 'matching_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
-
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock,
-        )
-
-        self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
-        self.assertEqual(lti_config.lti_1p3_passport_id, configuration.pk)
-
     @ddt.data(
         ('public_key', 'lti_1p3_tool_public_key'),
         ('keyset_url', 'lti_1p3_tool_keyset_url'),
@@ -447,12 +388,13 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.xblock.lti_1p3_tool_key_mode = key_mode
         setattr(self.xblock, key_field, 'new_value')
 
-        _get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block=self.xblock,
         )
 
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
+        self.assertEqual(lti_config.lti_1p3_passport_id, configuration.pk)
 
     def test_empty_configuration_keys_are_not_seeded_from_the_block(self):
         """

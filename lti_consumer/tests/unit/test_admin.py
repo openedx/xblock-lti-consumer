@@ -32,7 +32,6 @@ class GlobalStaffPatchMixin:
 UNSAFE_FIELDS = {
     'lti_1p1_client_key',
     'lti_1p1_client_secret',
-    'normalized_name',
     'lti_1p3_tool_public_key',
     'lti_1p3_tool_keyset_url',
     'lti_1p3_internal_private_key',
@@ -166,7 +165,6 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
                 (
                     self.lti11_config.lti_1p1_client_key,
                     self.lti11_config.lti_1p1_client_secret,
-                    self.lti11_config.normalized_name,
                 ),
             ),
             (
@@ -180,7 +178,6 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
                 (
                     self.lti13_config.lti_1p3_internal_private_key,
                     self.lti13_config.lti_1p3_tool_keyset_url,
-                    self.lti13_config.normalized_name,
                 ),
             ),
         ):

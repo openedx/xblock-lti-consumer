@@ -6,7 +6,6 @@ return plaintext to allow easy testing/mocking.
 """
 
 import json
-import logging
 
 from opaque_keys.edx.keys import CourseKey
 
@@ -23,20 +22,6 @@ from .utils import (
     get_lti_1p3_context_types_claim,
     get_lti_deeplinking_content_url,
 )
-
-log = logging.getLogger(__name__)
-
-
-def _ensure_lti_passport(block, lti_config):  # pylint: disable=unused-argument
-    """
-    Return the configuration bound to the placement, without mutating it.
-
-    A configuration is shared, so the legacy block-save split/overwrite path is
-    disabled: writing block tool-key values here would silently change every
-    other placement's configuration, and splitting would create a second row for
-    the same configuration. Shared values are authored on the configuration.
-    """
-    return lti_config.lti_1p3_passport
 
 
 def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
@@ -58,16 +43,12 @@ def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigur
         },
     )
 
-    passport = _ensure_lti_passport(block, lti_config)
-
     # Batch updates for rows that already existed with other values.
     updates = {
         'config_store': config_store,
         'external_id': block.external_config,
         'version': effective_version,
     }
-    if passport:
-        updates['lti_1p3_passport'] = passport
 
     # Only save if changed
     if any(getattr(lti_config, key) != value for key, value in updates.items()):

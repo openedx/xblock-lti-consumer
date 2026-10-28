@@ -58,8 +58,8 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     Inspection-only admin for reusable LTI configurations.
 
     Global Staff-only access; add/change/delete are always denied. The visible
-    fields are an explicit allowlist that never exposes credentials, key
-    material or normalized_name.
+    fields are an explicit allowlist that never exposes credentials or key
+    material.
     """
     list_display = ('name', 'version', 'passport_id', 'context_type', 'updated_at')
     list_filter = ('version', 'context_type')

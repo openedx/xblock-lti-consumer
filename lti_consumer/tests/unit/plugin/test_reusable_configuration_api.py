@@ -33,8 +33,9 @@ READ_ACCESS_PATCH = 'lti_consumer.plugin.compat._has_studio_course_read_access'
 VIEW_BASE_PATCH = 'lti_consumer.plugin.reusable_serializers.get_lti_view_base'
 API_BASE_PATCH = 'lti_consumer.plugin.reusable_serializers.get_lti_api_base'
 
+# One row is both the catalog entry and the LTI 1.3 passport, so one snapshot covers it.
 CONFIG_STATE_FIELDS = (
-    'name', 'normalized_name', 'description', 'version', 'context_type', 'context_key',
+    'name', 'description', 'version', 'context_type', 'context_key',
     'lti_1p1_launch_url', 'lti_1p1_client_key', 'lti_1p1_client_secret',
     'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_redirect_uris',
     'lti_1p3_client_id', 'lti_1p3_deployment_id', 'lti_1p3_tool_key_mode',
@@ -43,14 +44,12 @@ CONFIG_STATE_FIELDS = (
     'display_name', 'enable_grading', 'grade_weight', 'accept_grades_after_due_date',
     'open_tool_in', 'inline_height', 'modal_height', 'modal_width',
     'launch_button_text', 'send_extra_parameters', 'custom_parameters', 'updated_at',
-)
-PASSPORT_STATE_FIELDS = (
-    'passport_id', 'lti_1p3_client_id', 'lti_1p3_internal_private_key',
-    'lti_1p3_internal_private_key_id', 'lti_1p3_internal_public_jwk',
-    'lti_1p3_tool_public_key', 'lti_1p3_tool_keyset_url',
+    # Passport identity, credentials and platform signing material.
+    'passport_id', 'lti_1p3_internal_private_key', 'lti_1p3_internal_private_key_id',
+    'lti_1p3_internal_public_jwk', 'lti_1p3_tool_public_key', 'lti_1p3_tool_keyset_url',
 )
 FORBIDDEN_RESPONSE_FIELDS = (
-    'lti_1p1_client_key', 'lti_1p1_client_secret', 'normalized_name',
+    'lti_1p1_client_key', 'lti_1p1_client_secret',
     'lti_1p3_internal_private_key', 'lti_1p3_internal_public_jwk',
     'lti_1p3_tool_public_key', 'one_time_credentials',
 )
@@ -93,13 +92,8 @@ def lti13_create_payload(context=None, **overrides):
 
 
 def configuration_state(configuration):
-    """Return the stored configuration state used for no-write assertions."""
+    """Return every stored field used for no-write assertions."""
     return {field: getattr(configuration, field) for field in CONFIG_STATE_FIELDS}
-
-
-def passport_state(configuration):
-    """Return the stored identity/key state used for no-write assertions."""
-    return {field: getattr(configuration, field) for field in PASSPORT_STATE_FIELDS}
 
 
 def create_configuration(actor, name, configuration_context, version='lti_1p1', **overrides):
@@ -232,14 +226,12 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(response['Cache-Control'], 'no-store')
 
         configuration = ReusableLtiConfiguration.objects.get()
-        passport = configuration
         self.assertEqual(str(uuid.UUID(configuration.lti_1p3_client_id, version=4)), configuration.lti_1p3_client_id)
         self.assertEqual(
             str(uuid.UUID(configuration.lti_1p3_deployment_id, version=4)), configuration.lti_1p3_deployment_id,
         )
-        self.assertEqual(passport.lti_1p3_client_id, configuration.lti_1p3_client_id)
-        self.assertTrue(passport.lti_1p3_internal_private_key)
-        self.assertEqual(passport.lti_1p3_tool_public_key, '-----BEGIN PUBLIC KEY----- PUBLIC MATERIAL')
+        self.assertTrue(configuration.lti_1p3_internal_private_key)
+        self.assertEqual(configuration.lti_1p3_tool_public_key, '-----BEGIN PUBLIC KEY----- PUBLIC MATERIAL')
         self.assertEqual(configuration.lti_1p3_redirect_uris, ['https://tool.example/redirect'])
 
         self.assertEqual(response.data['client_id'], configuration.lti_1p3_client_id)
@@ -255,7 +247,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(detail.data['registration_urls'], registration_urls)
         for forbidden in FORBIDDEN_RESPONSE_FIELDS:
             self.assertNotIn(forbidden, response.data)
-        self.assert_not_disclosed(response, passport.lti_1p3_internal_private_key)
+        self.assert_not_disclosed(response, configuration.lti_1p3_internal_private_key)
 
     def test_create_authorization_and_validation_leave_no_rows(self):
         self.client.force_authenticate(None)
@@ -483,12 +475,11 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
             'client_id': 'supplied-1p3-client',
             'deployment_id': 'supplied-1p3-deployment',
         })
-        passport = lti13
         self.assertEqual(
             (lti13.lti_1p3_client_id, lti13.lti_1p3_deployment_id),
             ('supplied-1p3-client', 'supplied-1p3-deployment'),
         )
-        identity = (lti13.lti_1p3_client_id, lti13.lti_1p3_deployment_id, passport.passport_id)
+        identity = (lti13.lti_1p3_client_id, lti13.lti_1p3_deployment_id, lti13.passport_id)
         detail_url = self.detail_url(lti13)
         response = self.client.patch(detail_url, {
             'lti_1p3': {
@@ -502,12 +493,11 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response['Cache-Control'], 'no-store')
         lti13.refresh_from_db()
-        passport.refresh_from_db()
         self.assertEqual(lti13.lti_1p3_tool_key_mode, 'public_key')
-        self.assertEqual(passport.lti_1p3_tool_public_key, '-----BEGIN PUBLIC KEY----- PUBLIC MATERIAL')
-        self.assertEqual(passport.lti_1p3_tool_keyset_url, '')
+        self.assertEqual(lti13.lti_1p3_tool_public_key, '-----BEGIN PUBLIC KEY----- PUBLIC MATERIAL')
+        self.assertEqual(lti13.lti_1p3_tool_keyset_url, '')
         self.assertEqual(lti13.lti_1p3_redirect_uris, ['https://tool.example/redirect'])
-        self.assertEqual((lti13.lti_1p3_client_id, lti13.lti_1p3_deployment_id, passport.passport_id), identity)
+        self.assertEqual((lti13.lti_1p3_client_id, lti13.lti_1p3_deployment_id, lti13.passport_id), identity)
         self.assertEqual(
             (lti13.lti_1p3_client_id, lti13.lti_1p3_deployment_id),
             ('supplied-1p3-client', 'supplied-1p3-deployment'),
@@ -519,9 +509,9 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         }, format='json')
         self.assertEqual(swap.status_code, 200, swap.data)
         self.assertEqual(swap['Cache-Control'], 'no-store')
-        passport.refresh_from_db()
+        lti13.refresh_from_db()
         self.assertEqual(
-            (passport.lti_1p3_tool_public_key, passport.lti_1p3_tool_keyset_url),
+            (lti13.lti_1p3_tool_public_key, lti13.lti_1p3_tool_keyset_url),
             ('', 'https://tool.example/new-jwks'),
         )
 
@@ -537,11 +527,9 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
 
     def test_immutable_invalid_and_unauthorized_patch_is_atomic(self):
         configuration = self.create('Immutable', version='lti_1p3')
-        passport = configuration
         self.course_admin.return_value = True
         detail_url = self.detail_url(configuration)
         stored = configuration_state(configuration)
-        stored_passport = passport_state(passport)
 
         immutable_payloads = (
             {'name': 'Changed', 'context': build_context('course', str(self.other_key))},
@@ -559,9 +547,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
                     response = self.client.patch(detail_url, payload, format='json')
                     self.assertEqual(response.status_code, 400, response.data)
                     configuration.refresh_from_db()
-                    passport.refresh_from_db()
                     self.assertEqual(configuration_state(configuration), stored)
-                    self.assertEqual(passport_state(passport), stored_passport)
 
         self.client.force_authenticate(self.user)
         malformed = self.client.patch(
@@ -698,10 +684,8 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
 
     def test_lti13_patch_rolls_back_when_passport_write_fails(self):
         configuration = self.create('Atomic tool-key update', version='lti_1p3')
-        passport = configuration
         self.course_admin.return_value = True
         stored = configuration_state(configuration)
-        stored_passport = passport_state(passport)
 
         with patch(
             'lti_consumer.models.ReusableLtiConfiguration.save',
@@ -717,9 +701,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
 
         self.assertEqual(response.status_code, 400, response.data)
         configuration.refresh_from_db()
-        passport.refresh_from_db()
         self.assertEqual(configuration_state(configuration), stored)
-        self.assertEqual(passport_state(passport), stored_passport)
 
     def test_duplicate_names_and_rejected_writes_are_non_disclosing(self):
         configuration = self.create('Original')
@@ -790,12 +772,9 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
                 "SELECT COLUMN_NAME, COLLATION_NAME FROM information_schema.COLUMNS "
                 "WHERE TABLE_SCHEMA = DATABASE() "
                 "AND TABLE_NAME = 'lti_consumer_reusablelticonfiguration' "
-                "AND COLUMN_NAME IN ('normalized_name', 'context_key')"
+                "AND COLUMN_NAME = 'context_key'"
             )
-            self.assertEqual(
-                dict(cursor.fetchall()),
-                {'normalized_name': 'utf8mb4_0900_as_ci', 'context_key': 'utf8mb4_0900_as_ci'},
-            )
+            self.assertEqual(dict(cursor.fetchall()), {'context_key': 'utf8mb4_0900_as_ci'})
         self.create('Case variant course', context_type='course', context_key='course-v1:ORG+COURSE+RUN')
         self.create('Accented course', context_type='course', context_key='course-v1:Org+Cóurse+Run')
         self.create('Plain org', context_type='organization', context_key='Org')

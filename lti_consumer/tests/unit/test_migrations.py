@@ -420,7 +420,6 @@ class Test0024PassportExtension(TransactionTestCase):
         self.assertEqual(passport.lti_1p3_tool_public_key, "tool-public-key")
         self.assertEqual(passport.lti_1p3_tool_keyset_url, "https://tool.example/jwks.json")
         self.assertIsNone(passport.name)
-        self.assertIsNone(passport.normalized_name)
         self.assertEqual(
             list(ReusableLtiConfiguration.objects.values_list("lti_1p3_client_id", flat=True)),
             ["shared-client-id", "shared-client-id"],
@@ -468,7 +467,6 @@ class Test0024PassportExtension(TransactionTestCase):
         self.assertEqual(bare.context_key, "not-a-course-key")
         self.assertIsNone(bare.context_type)
         self.assertEqual(bare.name, "  Legacy NAME  ")
-        self.assertIsNone(bare.normalized_name)
         # A row without signing material gets none.
         self.assertEqual(bare.lti_1p3_internal_private_key, "")
         self.assertEqual(bare.lti_1p3_internal_public_jwk, "")
