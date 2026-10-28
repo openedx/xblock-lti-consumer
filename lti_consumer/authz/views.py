@@ -15,7 +15,12 @@ from rest_framework.response import Response
 
 from lti_consumer.models import Lti1p3Passport
 
-from .permissions import CONFIGURATION_ACTIONS, EDIT_CONFIGURATION, VIEW_CONFIGURATION, user_has_configuration_permission
+from .permissions import (
+    CONFIGURATION_ACTIONS,
+    EDIT_CONFIGURATION,
+    VIEW_CONFIGURATION,
+    user_has_configuration_permission,
+)
 
 
 class ReusableLtiConfigurationSerializer(serializers.ModelSerializer):
