@@ -73,6 +73,15 @@ class CreationContextPolicy:
         self._authorize_course_context(course_key)
         return CreationContext(type='course', key=str(course_key))
 
+    def authorize_assignment(self, raw_context):
+        """Return the canonical context for the one-time assignment of an unassigned configuration.
+
+        Only Global Staff may assign: ordinary users get no context authority at all,
+        and an assigned context is immutable (enforced by the mutation module).
+        """
+        self._require_global_staff()
+        return self.authorize_creation(raw_context)
+
     # Reads
 
     def visible_configurations(self, course_key=None):
@@ -118,6 +127,9 @@ class CreationContextPolicy:
         """
         if not self._is_authenticated():
             return False
+        if configuration.context_type is None:
+            # A converted row may wait for its one immutable first assignment.
+            return self._is_global_staff()
         if configuration.context_type not in CONTEXT_TYPES:
             return False
         is_global_staff = self._is_global_staff()

@@ -27,7 +27,7 @@ class StrictSerializer(serializers.Serializer):
 
 
 class ReusableContextInputSerializer(StrictSerializer):
-    """Parse the create-only context shape; the policy normalizes and authorizes it."""
+    """Parse a context shape; the policy normalizes and authorizes it."""
 
     type = serializers.CharField()
     key = serializers.CharField(required=False, allow_blank=True)
@@ -110,10 +110,20 @@ class ReusableLti13UpdateInputSerializer(StrictSerializer):
 
 
 class ReusableUpdateInputSerializer(StrictSerializer):
-    """Parse an ordinary-settings PATCH; the mutation module validates merged state."""
+    """Parse an ordinary-settings PATCH; the mutation module validates merged state.
+
+    A context member is accepted only for a converted row's one-time assignment;
+    the mutation module rejects it on an already-assigned row. A version member initializes
+    a converted row that has none; the mutation module enforces that one-time rule.
+    """
 
     name = serializers.CharField(required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    version = serializers.ChoiceField(
+        choices=(ReusableLtiConfiguration.LTI_1P1, ReusableLtiConfiguration.LTI_1P3),
+        required=False,
+    )
+    context = ReusableContextInputSerializer(required=False)
     lti_1p1 = ReusableLti11UpdateInputSerializer(required=False)
     lti_1p3 = ReusableLti13UpdateInputSerializer(required=False)
     services = ReusableServicesInputSerializer(required=False)
@@ -123,7 +133,8 @@ class ReusableUpdateInputSerializer(StrictSerializer):
 class ReusableListSerializer(serializers.Serializer):
     """Allowlisted metadata safe for any user authorized to see a configuration."""
 
-    config_id = serializers.UUIDField(read_only=True)
+    # Wire members keep their external names; identity is stored as passport_id.
+    config_id = serializers.UUIDField(source='passport_id', read_only=True)
     name = serializers.CharField(read_only=True)
     version = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
@@ -186,7 +197,9 @@ class ReusableDetailSerializer(ReusableListSerializer):
         return obj.lti_1p3_redirect_uris if obj.version == ReusableLtiConfiguration.LTI_1P3 else []
 
     def get_tool_key_configured(self, obj):
-        return bool(obj.lti_1p3_passport_id) if obj.version == ReusableLtiConfiguration.LTI_1P3 else False
+        if obj.version != ReusableLtiConfiguration.LTI_1P3:
+            return False
+        return bool(obj.lti_1p3_tool_public_key or obj.lti_1p3_tool_keyset_url)
 
     def get_client_id(self, obj):
         return obj.lti_1p3_client_id if obj.version == ReusableLtiConfiguration.LTI_1P3 else None

@@ -1,6 +1,7 @@
 """
 LTI consumer plugin passthrough views
 """
+import json
 import logging
 import sys
 import urllib.parse
@@ -63,7 +64,7 @@ from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiNrpsContextMembershipPIISerializer,
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
-from lti_consumer.models import Lti1p3Passport, LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
+from lti_consumer.models import ReusableLtiConfiguration, LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
 from lti_consumer.plugin import compat
 from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
 from lti_consumer.track import track_event
@@ -168,6 +169,21 @@ def has_block_access(user, block, course_key):
     return course_access and block_access
 
 
+def _configuration_version(configuration):
+    """Return a configuration's LTI version.
+
+    Converted passport rows may not carry a version yet, so a bound placement is the
+    fallback for legacy rows. A configuration with neither still resolves as unusable.
+    """
+    if configuration.version:
+        return configuration.version
+    return (
+        LtiConfiguration.objects.filter(lti_1p3_passport=configuration)
+        .values_list('version', flat=True)
+        .first()
+    )
+
+
 @require_http_methods(["GET"])
 def public_keyset_endpoint(
     request,
@@ -202,12 +218,14 @@ def public_keyset_endpoint(
             version = lti_config.version
             public_jwk = lti_config.lti_1p3_public_jwk
         elif passport_id:
-            lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
-            public_jwk = lti_passport.lti_1p3_public_jwk
-            # TODO: move version inside passport from config
-            # We just need any lti_config that is using this passport to check version
-            lti_config = LtiConfiguration.objects.filter(lti_1p3_passport=lti_passport).first()
-            version = lti_config.version
+            # A configuration is not a placement, so it must resolve without one.
+            lti_config = ReusableLtiConfiguration.objects.get(passport_id=passport_id)
+            version = _configuration_version(lti_config)
+            # Read the stored JWK only: a GET must never generate or persist key material.
+            public_jwk = (
+                json.loads(lti_config.lti_1p3_internal_public_jwk)
+                if lti_config.lti_1p3_internal_public_jwk else {}
+            )
         elif external_app and external_slug:
             lti_config = get_external_config_from_filter({}, external_id)
 
@@ -231,7 +249,7 @@ def public_keyset_endpoint(
     except (
         InvalidKeyError,
         LtiConfiguration.DoesNotExist,
-        Lti1p3Passport.DoesNotExist,
+        ReusableLtiConfiguration.DoesNotExist,
         ExternalConfigurationNotFound,
         LtiError,
     ) as exc:
@@ -520,22 +538,24 @@ def access_token_endpoint(
             version = lti_config.version
             lti_consumer = lti_config.get_lti_consumer()
         elif passport_id:
-            lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
-            # TODO: move version inside passport from config
-            # We just need any lti_config that is using this passport to check version
-            lti_config = LtiConfiguration.objects.filter(lti_1p3_passport=lti_passport).first()
-            version = lti_config.version
+            # A configuration resolves on its own: no placement lookup, and no key
+            # generation on the read path.
+            lti_config = ReusableLtiConfiguration.objects.get(passport_id=passport_id)
+            version = _configuration_version(lti_config)
+            if not lti_config.lti_1p3_internal_private_key:
+                # No signing material yet; issuing a token would have to generate it.
+                raise ReusableLtiConfiguration.DoesNotExist
             lti_consumer = LtiConsumer1p3(
                 iss=get_lti_api_base(),
                 lti_oidc_url=None,
                 lti_launch_url=None,
-                client_id=lti_passport.lti_1p3_client_id,
-                deployment_id=None,
-                rsa_key=lti_passport.lti_1p3_private_key,
-                rsa_key_id=lti_passport.lti_1p3_private_key_id,
+                client_id=lti_config.lti_1p3_client_id,
+                deployment_id=lti_config.lti_1p3_deployment_id,
+                rsa_key=lti_config.lti_1p3_internal_private_key,
+                rsa_key_id=lti_config.lti_1p3_internal_private_key_id,
                 redirect_uris=None,
-                tool_key=lti_passport.lti_1p3_tool_public_key,
-                tool_keyset_url=lti_passport.lti_1p3_tool_keyset_url,
+                tool_key=lti_config.lti_1p3_tool_public_key,
+                tool_keyset_url=lti_config.lti_1p3_tool_keyset_url,
             )
         elif external_app and external_slug:
             lti_config = get_external_config_from_filter({}, external_id)
@@ -561,7 +581,7 @@ def access_token_endpoint(
     except (
         InvalidKeyError,
         LtiConfiguration.DoesNotExist,
-        Lti1p3Passport.DoesNotExist,
+        ReusableLtiConfiguration.DoesNotExist,
         ExternalConfigurationNotFound,
     ) as exc:
         log.info(

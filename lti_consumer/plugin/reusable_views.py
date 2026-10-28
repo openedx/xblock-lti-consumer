@@ -113,7 +113,7 @@ class ReusableConfigurationDetailView(APIView):
     def get(self, request, config_id):
         """Return safe detail metadata when the user can see the configuration."""
         policy = CreationContextPolicy(request.user)
-        configuration = get_object_or_404(policy.visible_configurations(), config_id=config_id)
+        configuration = get_object_or_404(policy.visible_configurations(), passport_id=config_id)
         serializer = ReusableDetailSerializer(
             configuration,
             context={'can_manage': policy.can_manage(configuration)},

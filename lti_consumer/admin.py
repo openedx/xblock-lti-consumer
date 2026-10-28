@@ -9,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from lti_consumer.forms import CourseAllowPIISharingInLTIAdminForm
 from lti_consumer.models import (
     CourseAllowPIISharingInLTIFlag,
-    Lti1p3Passport,
     LtiAgsLineItem,
     LtiAgsScore,
     LtiConfiguration,
@@ -21,7 +20,7 @@ from lti_consumer.plugin import compat
 
 class LtiConfigurationInline(admin.TabularInline):
     """
-    Inline for the LtiConfiguration models in Lti1p3Passport.
+    Read-only inline of the placements bound to a reusable configuration.
     """
     model = LtiConfiguration
     extra = 0
@@ -48,37 +47,6 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
     readonly_fields = ('location', 'config_id')
 
 
-@admin.register(Lti1p3Passport)
-class Lti1p3PassportAdmin(admin.ModelAdmin):
-    """
-    Admin view for Lti1p3Passport models.
-    """
-    list_display = (
-        'name',
-        'context_key',
-        'passport_id',
-        'lti_1p3_client_id',
-    )
-    inlines = [LtiConfigurationInline]
-
-    def get_queryset(self, request):
-        # hide passports related to reusable configurations
-        return super().get_queryset(request).filter(reusable_configuration__isnull=True)
-
-    @staticmethod
-    def _is_reusable_passport(obj):
-        return obj is not None and ReusableLtiConfiguration.objects.filter(lti_1p3_passport_id=obj.pk).exists()
-
-    def has_view_permission(self, request, obj=None):
-        return not self._is_reusable_passport(obj) and super().has_view_permission(request, obj)
-
-    def has_change_permission(self, request, obj=None):
-        return not self._is_reusable_passport(obj) and super().has_change_permission(request, obj)
-
-    def has_delete_permission(self, request, obj=None):
-        return not self._is_reusable_passport(obj) and super().has_delete_permission(request, obj)
-
-
 @admin.register(ReusableLtiConfiguration)
 class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     """
@@ -86,17 +54,18 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
 
     Global Staff-only access; add/change/delete are always denied. The visible
     fields are an explicit allowlist that never exposes credentials, key
-    material, normalized_name or the passport relation.
+    material or normalized_name.
     """
-    list_display = ('name', 'version', 'config_id', 'context_type', 'updated_at')
+    list_display = ('name', 'version', 'passport_id', 'context_type', 'updated_at')
     list_filter = ('version', 'context_type')
-    search_fields = ('name', 'config_id')
+    search_fields = ('name', 'passport_id')
     actions = None
+    inlines = [LtiConfigurationInline]
 
     # Explicit safe allowlist; readonly_fields is derived to stay in sync with it.
     fieldsets = (
         (_('Identity'), {
-            'fields': ('name', 'description', 'config_id', 'version', 'created_at', 'updated_at'),
+            'fields': ('name', 'description', 'passport_id', 'version', 'created_at', 'updated_at'),
         }),
         # Translators: "Context" means the courses, organizations or the whole site it applies to, not OAuth scopes.
         (_('Context'), {

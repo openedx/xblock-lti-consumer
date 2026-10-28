@@ -6,7 +6,7 @@ and safe response allowlists.
 """
 from django.test import SimpleTestCase, TestCase
 
-from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
+from lti_consumer.models import ReusableLtiConfiguration
 from lti_consumer.plugin.reusable_serializers import (
     ReusableCreateInputSerializer,
     ReusableCreateResponseSerializer,
@@ -166,11 +166,26 @@ class ReusableUpdateWireParsingTests(SimpleTestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data, {})
 
+    def test_accepts_a_context_member_for_the_one_time_assignment(self):
+        """A converted row's first assignment travels on the ordinary update path."""
+        serializer = ReusableUpdateInputSerializer(data={'context': {'type': 'site'}})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['context'], {'type': 'site'})
+
+    def test_accepts_a_version_member_for_the_one_time_initialization(self):
+        """A converted row's missing version travels on the ordinary update path."""
+        serializer = ReusableUpdateInputSerializer(data={'version': 'lti_1p3'})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data, {'version': 'lti_1p3'})
+
+    def test_refuses_an_unsupported_version_member(self):
+        serializer = ReusableUpdateInputSerializer(data={'version': 'lti_2p0'})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('version', serializer.errors)
+
     def test_refuses_unknown_and_immutable_members(self):
         cases = (
-            {'context': {'type': 'site'}},
             {'scope': {'course_keys': [COURSE_KEY]}},
-            {'version': 'lti_1p1'},
             {'config_id': '00000000-0000-0000-0000-000000000000'},
             {'client_id': 'replacement'},
             {'lti_1p1': {'client_secret': 'rotated'}},
@@ -237,8 +252,7 @@ class RenderingAllowlistTests(TestCase):
         self.assertEqual(data['registration_urls'], {})
         self.assertNotIn('not-for-display', str(data))
 
-    def test_lti13_detail_renders_without_generating_passport_keys(self):
-        passport = Lti1p3Passport.objects.create(lti_1p3_client_id='render-client')
+    def test_lti13_detail_renders_without_generating_keys(self):
         configuration = ReusableLtiConfiguration.objects.create(
             name='Advantage',
             version=ReusableLtiConfiguration.LTI_1P3,
@@ -248,7 +262,7 @@ class RenderingAllowlistTests(TestCase):
             lti_1p3_client_id='render-client',
             lti_1p3_deployment_id='render-deployment',
             lti_1p3_tool_key_mode='keyset_url',
-            lti_1p3_passport=passport,
+            lti_1p3_tool_keyset_url='https://tool.example/jwks',
         )
         data = ReusableDetailSerializer(configuration, context={'can_manage': True}).data
         self.assertEqual(set(data), DETAIL_RESPONSE_FIELDS)
@@ -258,9 +272,9 @@ class RenderingAllowlistTests(TestCase):
         self.assertEqual(
             set(data['registration_urls']), {'login_url', 'jwks_url', 'access_token_url'},
         )
-        passport.refresh_from_db()
-        self.assertEqual(passport.lti_1p3_internal_private_key, '')
-        self.assertEqual(passport.lti_1p3_internal_public_jwk, '')
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_internal_private_key, '')
+        self.assertEqual(configuration.lti_1p3_internal_public_jwk, '')
 
     def test_create_response_renders_one_time_credentials_only_when_present(self):
         with_credentials = ReusableCreateResponseSerializer(self.configuration, context={

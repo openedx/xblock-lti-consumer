@@ -3,9 +3,9 @@
 These two functions are the only write entry points for
 ReusableLtiConfiguration. They own semantic validation, Creation Context
 policy invocation, target lookup, authorization ordering, the transaction, the
-update row lock, configuration and passport writes, and conflict
-interpretation. Adapters supply parsed wire mappings; unknown members are
-refused here as well so a non-HTTP caller cannot smuggle one in.
+update row lock, configuration writes, and conflict interpretation. Adapters
+supply parsed wire mappings; unknown members are refused here as well so a
+non-HTTP caller cannot smuggle one in.
 """
 
 import secrets
@@ -19,7 +19,7 @@ from django.db import IntegrityError, transaction
 from django.utils.translation import gettext_lazy as _
 
 from lti_consumer.exceptions import ReusableConfigurationError
-from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
+from lti_consumer.models import ReusableLtiConfiguration
 from lti_consumer.reusable_context import CreationContextPolicy
 
 LTI_1P1 = ReusableLtiConfiguration.LTI_1P1
@@ -30,7 +30,7 @@ _LAUNCH_URL_MAX_LENGTH = ReusableLtiConfiguration._meta.get_field('lti_1p1_launc
 _OIDC_URL_MAX_LENGTH = ReusableLtiConfiguration._meta.get_field('lti_1p3_oidc_url').max_length
 _CREDENTIAL_MAX_LENGTH = ReusableLtiConfiguration._meta.get_field('lti_1p1_client_key').max_length
 _IDENTITY_MAX_LENGTH = ReusableLtiConfiguration._meta.get_field('lti_1p3_client_id').max_length
-_KEYSET_URL_MAX_LENGTH = Lti1p3Passport._meta.get_field('lti_1p3_tool_keyset_url').max_length
+_KEYSET_URL_MAX_LENGTH = ReusableLtiConfiguration._meta.get_field('lti_1p3_tool_keyset_url').max_length
 _DEEP_LINKING_URL_MAX_LENGTH = ReusableLtiConfiguration._meta.get_field(
     'lti_advantage_deep_linking_launch_url',
 ).max_length
@@ -43,7 +43,7 @@ _OPEN_TOOL_IN_MODES = ('iframe', 'modal', 'new_window')
 _TOOL_KEY_MODES = ('public_key', 'keyset_url')
 
 _CREATE_MEMBERS = {'name', 'description', 'version', 'context', 'lti_1p1', 'lti_1p3', 'services', 'defaults'}
-_UPDATE_MEMBERS = {'name', 'description', 'lti_1p1', 'lti_1p3', 'services', 'defaults'}
+_UPDATE_MEMBERS = {'name', 'description', 'version', 'lti_1p1', 'lti_1p3', 'services', 'defaults'}
 _CONNECTION_MEMBERS = {
     LTI_1P1: {'launch_url', 'client_key', 'client_secret'},
     LTI_1P3: {
@@ -338,6 +338,8 @@ def create_reusable_configuration(actor, data):
             lti_1p1_launch_url=section['launch_url'],
             lti_1p1_client_key=client_key,
             lti_1p1_client_secret=client_secret,
+            # Not an LTI 1.3 registration: bypass the model's random Client ID default.
+            lti_1p3_client_id=None,
         )
         credentials = {'client_key': client_key, 'client_secret': client_secret}
     else:
@@ -355,23 +357,18 @@ def create_reusable_configuration(actor, data):
     configuration_values.update(service_configuration_values(services))
     configuration_values.update({key: defaults[key] for key in _DEFAULT_MEMBERS if key in defaults})
 
+    if version == LTI_1P3:
+        configuration_values.update(
+            lti_1p3_tool_public_key=section.get('tool_public_key', ''),
+            lti_1p3_tool_keyset_url=section.get('tool_keyset_url', ''),
+        )
+
     try:
         with transaction.atomic():
-            if version == LTI_1P3:
-                # Best-effort cross-table collision check: legacy passport writes
-                # do not share a database uniqueness constraint with this table.
-                if Lti1p3Passport.objects.filter(lti_1p3_client_id=client_id).exists():
-                    _conflict(_('The requested configuration conflicts with an existing identity.'))
-                passport = Lti1p3Passport.objects.create(
-                    name=name,
-                    lti_1p3_client_id=client_id,
-                    lti_1p3_tool_public_key=section.get('tool_public_key', ''),
-                    lti_1p3_tool_keyset_url=section.get('tool_keyset_url', ''),
-                )
-                # Persist the platform RSA key before the configuration row.
-                passport.generate_lti_1p3_keys_if_missing()
-                configuration_values['lti_1p3_passport'] = passport
             configuration = ReusableLtiConfiguration.objects.create(**configuration_values)
+            if version == LTI_1P3:
+                # Platform RSA material is generated once, on the same row, before commit.
+                configuration.generate_lti_1p3_keys_if_missing()
     except IntegrityError:
         _conflict(_('A reusable configuration conflicts with an existing record.'))
 
@@ -381,7 +378,7 @@ def create_reusable_configuration(actor, data):
 def _locked_visible_configuration(policy, config_id):
     """Lock and return a configuration this actor can see, or raise not_found."""
     try:
-        configuration = policy.visible_configurations().select_for_update().filter(config_id=config_id).first()
+        configuration = policy.visible_configurations().select_for_update().filter(passport_id=config_id).first()
     except (ValueError, DjangoValidationError):
         configuration = None
     if configuration is None:
@@ -402,8 +399,7 @@ def _apply_lti_1p1_changes(configuration, section):
 
 
 def _apply_lti_1p3_changes(configuration, section):
-    """Validate merged LTI 1.3 settings, assign them, and return the passport to save."""
-    passport = configuration.lti_1p3_passport
+    """Validate merged LTI 1.3 settings and assign them to the configuration row."""
     launch_url = _http_url(
         section.get('launch_url', configuration.lti_1p3_launch_url), 'lti_1p3.launch_url', _LAUNCH_URL_MAX_LENGTH,
     )
@@ -416,8 +412,8 @@ def _apply_lti_1p3_changes(configuration, section):
     mode = section.get('tool_key_mode', configuration.lti_1p3_tool_key_mode)
     if mode not in _TOOL_KEY_MODES:
         _invalid('lti_1p3.tool_key_mode', _('A supported LTI 1.3 tool-key mode is required.'))
-    tool_public_key = section.get('tool_public_key', passport.lti_1p3_tool_public_key)
-    tool_keyset_url = section.get('tool_keyset_url', passport.lti_1p3_tool_keyset_url)
+    tool_public_key = section.get('tool_public_key', configuration.lti_1p3_tool_public_key)
+    tool_keyset_url = section.get('tool_keyset_url', configuration.lti_1p3_tool_keyset_url)
     if mode == 'public_key':
         if 'tool_keyset_url' in section:
             _invalid('lti_1p3.tool_keyset_url', _('Not accepted in public-key mode.'))
@@ -433,16 +429,27 @@ def _apply_lti_1p3_changes(configuration, section):
     configuration.lti_1p3_oidc_url = oidc_url
     configuration.lti_1p3_redirect_uris = redirect_uris
     configuration.lti_1p3_tool_key_mode = mode
-    if not {'tool_key_mode', 'tool_public_key', 'tool_keyset_url'} & set(section):
-        return None
-    passport.lti_1p3_tool_public_key = tool_public_key
-    passport.lti_1p3_tool_keyset_url = tool_keyset_url
-    return passport
+    if {'tool_key_mode', 'tool_public_key', 'tool_keyset_url'} & set(section):
+        configuration.lti_1p3_tool_public_key = tool_public_key
+        configuration.lti_1p3_tool_keyset_url = tool_keyset_url
+
+
+def _initial_version(stored_version, requested_version):
+    """Return the one-time LTI version assignment for an unversioned converted row."""
+    if stored_version is not None:
+        _invalid('version', _('The LTI version is already set and cannot be changed.'))
+    if requested_version not in (LTI_1P1, LTI_1P3):
+        _invalid('version', _('A supported LTI version is required.'))
+    return requested_version
 
 
 def _validated_changes(configuration, changes):
-    """Validate changes against the stored row, assign them, and return the passport to save."""
+    """Validate changes against the stored row and assign them to it."""
     _reject_unknown(changes, _UPDATE_MEMBERS)
+    if 'version' in changes:
+        # A converted row may have no version at all; it gets exactly one assignment, and the
+        # rest of this call then validates against the version just chosen.
+        configuration.version = _initial_version(configuration.version, changes['version'])
     if 'name' in changes:
         configuration.name = _nonblank_string(changes['name'], 'name', _NAME_MAX_LENGTH)
     if 'description' in changes:
@@ -456,11 +463,14 @@ def _validated_changes(configuration, changes):
     section = changes.get(connection_name)
     if connection_name in changes and not isinstance(section, dict):
         _invalid(connection_name, _('Invalid connection settings.'))
-    section = section or {}
-    _reject_unknown(section, _UPDATE_CONNECTION_MEMBERS[connection_name], prefix=f'{connection_name}.')
-    passport = (
-        _apply_lti_1p3_changes(configuration, section) if is_lti_1p3 else _apply_lti_1p1_changes(configuration, section)
-    )
+    if section:
+        # Connection state is validated only when the request changes it, so an incomplete
+        # converted configuration stays remediable through metadata, context, services and defaults.
+        _reject_unknown(section, _UPDATE_CONNECTION_MEMBERS[connection_name], prefix=f'{connection_name}.')
+        if is_lti_1p3:
+            _apply_lti_1p3_changes(configuration, section)
+        else:
+            _apply_lti_1p1_changes(configuration, section)
 
     services = _stored_services(configuration)
     if 'services' in changes:
@@ -475,7 +485,6 @@ def _validated_changes(configuration, changes):
     if 'defaults' in changes:
         for key, value in _validated_defaults(changes['defaults']).items():
             setattr(configuration, key, value)
-    return passport
 
 
 def update_reusable_configuration(actor, config_id, changes):
@@ -494,10 +503,16 @@ def update_reusable_configuration(actor, config_id, changes):
             configuration = _locked_visible_configuration(policy, config_id)
             if not policy.can_manage(configuration):
                 raise ReusableConfigurationError('forbidden', _('You cannot manage this reusable configuration.'))
-            passport = _validated_changes(configuration, changes)
+            if set(changes) == {'context'} and configuration.context_type is None:
+                # One immutable first assignment for a converted row. Context-only, so an
+                # incomplete configuration can be assigned before its settings are filled.
+                context = policy.authorize_assignment(changes['context'])
+                configuration.context_type = context.type
+                configuration.context_key = context.key
+                configuration.save()
+                return configuration
+            _validated_changes(configuration, changes)
             configuration.save()
-            if passport is not None:
-                passport.save(update_fields=['lti_1p3_tool_public_key', 'lti_1p3_tool_keyset_url'])
     except IntegrityError:
         _conflict(_('The update conflicts with an existing configuration.'))
     return configuration

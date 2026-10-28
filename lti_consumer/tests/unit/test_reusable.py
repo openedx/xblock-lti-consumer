@@ -12,7 +12,7 @@ from django.db import IntegrityError
 from django.test import TestCase
 
 from lti_consumer.exceptions import ReusableConfigurationError
-from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
+from lti_consumer.models import ReusableLtiConfiguration
 from lti_consumer.reusable import create_reusable_configuration, update_reusable_configuration
 from lti_consumer.reusable_context import CreationContext
 
@@ -77,6 +77,7 @@ class ReusableMutationTestCase(TestCase):
         self.addCleanup(policy_patcher.stop)
         self.policy = self.policy_class.return_value
         self.policy.authorize_creation.side_effect = self.canonical_context
+        self.policy.authorize_assignment.side_effect = self.canonical_context
         self.policy.visible_configurations.return_value = ReusableLtiConfiguration.objects.all()
         self.policy.can_manage.return_value = True
         self.actor = object()
@@ -103,7 +104,7 @@ class ReusableCreateTests(ReusableMutationTestCase):
         )
         self.assertTrue(configuration.lti_1p1_client_key)
         self.assertTrue(configuration.lti_1p1_client_secret)
-        self.assertFalse(Lti1p3Passport.objects.exists())
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
 
     def test_lti_1p1_create_accepts_explicit_credentials(self):
         result = create_reusable_configuration(self.actor, lti11_data(lti_1p1={
@@ -114,17 +115,24 @@ class ReusableCreateTests(ReusableMutationTestCase):
         self.assertEqual(result.one_time_credentials, {'client_key': 'given-key', 'client_secret': 'given-secret'})
         self.assertEqual(result.configuration.lti_1p1_client_secret, 'given-secret')
 
+    def test_lti_1p1_create_stores_no_lti_1p3_client_id(self):
+        """A 1.1 registration bypasses the merged model's random Client ID default."""
+        configuration = create_reusable_configuration(self.actor, lti11_data()).configuration
+
+        self.assertIsNone(configuration.lti_1p3_client_id)
+        self.assertIsNone(ReusableLtiConfiguration.objects.get(pk=configuration.pk).lti_1p3_client_id)
+        lti13 = create_reusable_configuration(self.actor, lti13_data()).configuration
+        self.assertIsNotNone(lti13.lti_1p3_client_id)
+
     def test_lti_1p3_create_generates_identity_and_platform_material(self):
         result = create_reusable_configuration(self.actor, lti13_data())
         configuration = result.configuration
-        passport = configuration.lti_1p3_passport
         self.assertIsNone(result.one_time_credentials)
-        self.assertEqual(passport.lti_1p3_client_id, configuration.lti_1p3_client_id)
         self.assertEqual(configuration.lti_1p3_tool_key_mode, 'keyset_url')
-        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
-        self.assertEqual(passport.lti_1p3_tool_public_key, '')
-        self.assertTrue(passport.lti_1p3_internal_private_key)
-        self.assertTrue(passport.lti_1p3_internal_public_jwk)
+        self.assertEqual(configuration.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
+        self.assertEqual(configuration.lti_1p3_tool_public_key, '')
+        self.assertTrue(configuration.lti_1p3_internal_private_key)
+        self.assertTrue(configuration.lti_1p3_internal_public_jwk)
         uuid.UUID(configuration.lti_1p3_client_id)
         uuid.UUID(configuration.lti_1p3_deployment_id)
 
@@ -140,8 +148,8 @@ class ReusableCreateTests(ReusableMutationTestCase):
         self.assertEqual(configuration.lti_1p3_client_id, 'client-123')
         self.assertEqual(configuration.lti_1p3_deployment_id, 'deployment-456')
         self.assertEqual(configuration.lti_1p3_redirect_uris, ['https://tool.example/callback'])
-        self.assertEqual(configuration.lti_1p3_passport.lti_1p3_tool_public_key, PUBLIC_KEY)
-        self.assertEqual(configuration.lti_1p3_passport.lti_1p3_tool_keyset_url, '')
+        self.assertEqual(configuration.lti_1p3_tool_public_key, PUBLIC_KEY)
+        self.assertEqual(configuration.lti_1p3_tool_keyset_url, '')
 
     def test_create_stores_validated_services_and_defaults(self):
         result = create_reusable_configuration(self.actor, lti11_data(
@@ -274,24 +282,13 @@ class ReusableCreateTests(ReusableMutationTestCase):
                 self.assertEqual(raised.exception.category, 'invalid')
                 self.assertEqual(raised.exception.field, field)
         self.assertFalse(ReusableLtiConfiguration.objects.exists())
-        self.assertFalse(Lti1p3Passport.objects.exists())
 
-    def test_create_translates_identity_collision_to_conflict(self):
-        Lti1p3Passport.objects.create(lti_1p3_client_id='legacy-client')
-        with self.assertRaises(ReusableConfigurationError) as raised:
-            create_reusable_configuration(self.actor, lti13_data(connection={'client_id': 'legacy-client'}))
-        self.assertEqual((raised.exception.category, raised.exception.field), ('conflict', None))
-        self.assertFalse(ReusableLtiConfiguration.objects.exists())
-        self.assertEqual(Lti1p3Passport.objects.count(), 1)
-
-    def test_create_translates_duplicate_normalized_name_to_conflict(self):
+    def test_create_allows_duplicate_names(self):
         create_reusable_configuration(self.actor, lti11_data(name='Straße'))
-        with self.assertRaises(ReusableConfigurationError) as raised:
-            create_reusable_configuration(self.actor, lti11_data(name='STRASSE'))
-        self.assertEqual((raised.exception.category, raised.exception.field), ('conflict', None))
-        self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
+        create_reusable_configuration(self.actor, lti11_data(name='STRASSE'))
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), 2)
 
-    def test_create_rolls_back_passport_after_configuration_write_failure(self):
+    def test_create_rolls_back_configuration_after_write_failure(self):
         original_create = ReusableLtiConfiguration.objects.create
 
         def create_then_fail(*args, **kwargs):
@@ -302,7 +299,6 @@ class ReusableCreateTests(ReusableMutationTestCase):
             with self.assertRaisesRegex(RuntimeError, 'injected failure'):
                 create_reusable_configuration(self.actor, lti13_data())
         self.assertFalse(ReusableLtiConfiguration.objects.exists())
-        self.assertFalse(Lti1p3Passport.objects.exists())
 
 
 class ReusableUpdateTests(ReusableMutationTestCase):
@@ -349,9 +345,8 @@ class ReusableUpdateTests(ReusableMutationTestCase):
         self.assertEqual(stored.grade_weight, 2.5)
         self.assertEqual(stored.custom_parameters, ['a=b'])
         self.assertEqual(stored.open_tool_in, 'modal')
-        passport = stored.lti_1p3_passport
-        self.assertEqual(passport.lti_1p3_tool_public_key, PUBLIC_KEY)
-        self.assertEqual(passport.lti_1p3_tool_keyset_url, '')
+        self.assertEqual(stored.lti_1p3_tool_public_key, PUBLIC_KEY)
+        self.assertEqual(stored.lti_1p3_tool_keyset_url, '')
 
     def test_update_clears_description_with_null(self):
         self.update(self.lti11, {'description': 'Text'})
@@ -443,9 +438,165 @@ class ReusableUpdateTests(ReusableMutationTestCase):
         self.lti13.lti_advantage_deep_linking_launch_url = ''
         self.lti13.lti_1p3_redirect_uris = ['javascript:bad']
         self.lti13.save()
+        # Connection settings are validated only when the request supplies them.
+        updated = self.update(self.lti13, {'name': 'Metadata only'})
+        self.assertEqual(updated.name, 'Metadata only')
+
+    def test_update_remediates_an_incomplete_lti_1p3_configuration_without_a_connection_section(self):
+        """A converted row with no connection data at all stays remediable field by field."""
+        incomplete = ReusableLtiConfiguration.objects.create(
+            name='Needs configuration',
+            version=ReusableLtiConfiguration.LTI_1P3,
+            context_type='course',
+            context_key=COURSE_KEY,
+        )
+        self.assertIsNone(incomplete.lti_1p3_tool_key_mode)
+
+        updated = self.update(incomplete, {
+            'name': '  Remediated  ',
+            'description': 'Notes',
+            'services': {'ags_mode': 'disabled'},
+            'defaults': {'display_name': 'Remediated tool'},
+        })
+        self.assertEqual((updated.name, updated.description), ('Remediated', 'Notes'))
+        stored = ReusableLtiConfiguration.objects.get(pk=incomplete.pk)
+        self.assertEqual(
+            (
+                stored.name, stored.description, stored.lti_advantage_ags_mode,
+                stored.display_name, stored.lti_1p3_tool_key_mode,
+            ),
+            ('Remediated', 'Notes', 'disabled', 'Remediated tool', None),
+        )
+
+        # An explicitly empty connection section changes nothing and validates nothing.
+        self.update(incomplete, {'lti_1p3': {}})
+        self.assertEqual(ReusableLtiConfiguration.objects.get(pk=incomplete.pk).name, 'Remediated')
+
+    def test_update_validates_the_supplied_lti_1p3_section_against_stored_state(self):
+        """A supplied connection section keeps full merged validation, so key/mode edits stay safe."""
+        incomplete = ReusableLtiConfiguration.objects.create(
+            name='Needs keys',
+            version=ReusableLtiConfiguration.LTI_1P3,
+            context_type='course',
+            context_key=COURSE_KEY,
+        )
         with self.assertRaises(ReusableConfigurationError) as raised:
-            self.update(self.lti13, {'name': 'Metadata only'})
-        self.assertEqual(raised.exception.field, 'lti_1p3.redirect_uris')
+            self.update(incomplete, {'lti_1p3': {
+                'launch_url': 'https://tool.example/launch',
+                'oidc_url': 'https://tool.example/oidc',
+            }})
+        # The stored tool-key mode is still NULL, so the merged state is rejected before any write.
+        self.assertEqual(
+            (raised.exception.category, raised.exception.field), ('invalid', 'lti_1p3.tool_key_mode'),
+        )
+        self.assertIsNone(ReusableLtiConfiguration.objects.get(pk=incomplete.pk).lti_1p3_launch_url)
+
+        updated = self.update(incomplete, {'lti_1p3': {
+            'launch_url': 'https://tool.example/launch',
+            'oidc_url': 'https://tool.example/oidc',
+            'tool_key_mode': 'public_key',
+            'tool_public_key': PUBLIC_KEY,
+        }})
+        self.assertEqual(updated.lti_1p3_tool_key_mode, 'public_key')
+        self.assertEqual(updated.lti_1p3_tool_public_key, PUBLIC_KEY)
+        self.assertEqual(updated.lti_1p3_tool_keyset_url, '')
+
+    def make_unversioned(self, context_type='site', context_key=''):
+        """Create a converted row that has no version yet."""
+        return ReusableLtiConfiguration.objects.create(
+            name='Converted without version',
+            version=None,
+            context_type=context_type,
+            context_key=context_key,
+        )
+
+    def test_update_initializes_the_version_of_an_unversioned_configuration(self):
+        """A converted row with no version gets exactly one through the update interface."""
+        configuration = self.make_unversioned()
+
+        updated = self.update(configuration, {'version': 'lti_1p3'})
+
+        self.assertEqual(updated.version, 'lti_1p3')
+        self.assertEqual(ReusableLtiConfiguration.objects.get(pk=configuration.pk).version, 'lti_1p3')
+
+    def test_update_initializes_version_and_context_in_separate_patches(self):
+        """Version and Creation Context each travel alone; either order works."""
+        version_first = self.make_unversioned(context_type=None, context_key=None)
+        self.update(version_first, {'version': 'lti_1p3'})
+        self.update(version_first, {'context': {'type': 'site'}})
+        stored = ReusableLtiConfiguration.objects.get(pk=version_first.pk)
+        self.assertEqual((stored.version, stored.context_type, stored.context_key), ('lti_1p3', 'site', ''))
+
+        context_first = self.make_unversioned(context_type=None, context_key=None)
+        self.update(context_first, {'context': {'type': 'course', 'key': COURSE_KEY}})
+        self.update(context_first, {'version': 'lti_1p1'})
+        stored = ReusableLtiConfiguration.objects.get(pk=context_first.pk)
+        self.assertEqual((stored.version, stored.context_type, stored.context_key), ('lti_1p1', 'course', COURSE_KEY))
+
+    def test_update_rejects_replacing_an_existing_version(self):
+        """Once a version is set it is immutable, even when the same value is resent."""
+        for requested in ('lti_1p1', 'lti_1p3'):
+            with self.subTest(requested=requested):
+                with self.assertRaises(ReusableConfigurationError) as raised:
+                    self.update(self.lti13, {'version': requested})
+                self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', 'version'))
+        self.assertEqual(ReusableLtiConfiguration.objects.get(pk=self.lti13.pk).version, 'lti_1p3')
+
+    def test_update_rejects_an_unsupported_version(self):
+        """Only the two supported versions can initialize a converted row."""
+        configuration = self.make_unversioned()
+        for requested in ('lti_2p0', '', None, 'LTI_1P3'):
+            with self.subTest(requested=requested):
+                with self.assertRaises(ReusableConfigurationError) as raised:
+                    self.update(configuration, {'version': requested})
+                self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', 'version'))
+        self.assertIsNone(ReusableLtiConfiguration.objects.get(pk=configuration.pk).version)
+
+    def test_update_version_failure_leaves_other_changes_unwritten(self):
+        """A rejected version assignment writes none of the members that travelled with it."""
+        before = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        name_before, display_before = before.name, before.display_name
+
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(self.lti13, {
+                'version': 'lti_1p1',
+                'name': 'Renamed',
+                'defaults': {'display_name': 'Changed'},
+            })
+
+        self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', 'version'))
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual((stored.version, stored.name, stored.display_name), ('lti_1p3', name_before, display_before))
+
+    def test_update_rejects_a_version_mixed_with_a_context_assignment(self):
+        """The one-time context assignment stays context-only, version included."""
+        configuration = self.make_unversioned(context_type=None, context_key=None)
+
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(configuration, {'version': 'lti_1p3', 'context': {'type': 'site'}})
+
+        self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', 'context'))
+        stored = ReusableLtiConfiguration.objects.get(pk=configuration.pk)
+        self.assertEqual((stored.version, stored.context_type), (None, None))
+
+    def test_update_after_version_initialization_uses_version_specific_validation(self):
+        """Once the version exists, connection remediation follows that version's rules."""
+        configuration = self.make_unversioned()
+        self.update(configuration, {'version': 'lti_1p3'})
+
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(configuration, {'lti_1p1': {'launch_url': 'https://tool.example/launch'}})
+        self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', 'lti_1p1'))
+
+        updated = self.update(configuration, {'lti_1p3': {
+            'launch_url': 'https://tool.example/launch',
+            'oidc_url': 'https://tool.example/oidc',
+            'tool_key_mode': 'public_key',
+            'tool_public_key': PUBLIC_KEY,
+        }})
+        self.assertEqual(updated.version, 'lti_1p3')
+        self.assertEqual(updated.lti_1p3_tool_key_mode, 'public_key')
+        self.assertEqual(updated.lti_1p3_tool_public_key, PUBLIC_KEY)
 
     def test_update_rejects_the_other_version_section(self):
         with self.assertRaises(ReusableConfigurationError) as raised:
@@ -460,43 +611,39 @@ class ReusableUpdateTests(ReusableMutationTestCase):
         self.assertEqual(updated.lti_1p1_client_key, self.lti11.lti_1p1_client_key)
         self.assertEqual(updated.lti_1p1_client_secret, self.lti11.lti_1p1_client_secret)
 
-    def test_update_passport_transitions_with_tool_key_mode(self):
+    def test_update_tool_key_transitions_with_tool_key_mode(self):
         self.update(self.lti13, {'lti_1p3': {'tool_key_mode': 'public_key', 'tool_public_key': PUBLIC_KEY}})
-        passport = Lti1p3Passport.objects.get(pk=self.lti13.lti_1p3_passport_id)
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
         self.assertEqual(stored.lti_1p3_tool_key_mode, 'public_key')
-        self.assertEqual(passport.lti_1p3_tool_public_key, PUBLIC_KEY)
-        self.assertEqual(passport.lti_1p3_tool_keyset_url, '')
+        self.assertEqual(stored.lti_1p3_tool_public_key, PUBLIC_KEY)
+        self.assertEqual(stored.lti_1p3_tool_keyset_url, '')
 
         self.update(self.lti13, {'lti_1p3': {
             'tool_key_mode': 'keyset_url',
             'tool_keyset_url': 'https://tool.example/new-jwks',
         }})
-        passport.refresh_from_db()
-        self.assertEqual(passport.lti_1p3_tool_public_key, '')
-        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'https://tool.example/new-jwks')
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(stored.lti_1p3_tool_public_key, '')
+        self.assertEqual(stored.lti_1p3_tool_keyset_url, 'https://tool.example/new-jwks')
 
-    def test_update_keeps_passport_material_when_only_connection_urls_change(self):
-        passport = self.lti13.lti_1p3_passport
-        before = (passport.lti_1p3_tool_public_key, passport.lti_1p3_tool_keyset_url)
-        with patch.object(Lti1p3Passport, 'save') as passport_save:
-            self.update(self.lti13, {'lti_1p3': {'launch_url': 'https://tool.example/moved'}})
-        passport_save.assert_not_called()
-        passport.refresh_from_db()
-        self.assertEqual((passport.lti_1p3_tool_public_key, passport.lti_1p3_tool_keyset_url), before)
+    def test_update_keeps_tool_key_material_when_only_connection_urls_change(self):
+        before = (self.lti13.lti_1p3_tool_public_key, self.lti13.lti_1p3_tool_keyset_url)
+        self.update(self.lti13, {'lti_1p3': {'launch_url': 'https://tool.example/moved'}})
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual((stored.lti_1p3_tool_public_key, stored.lti_1p3_tool_keyset_url), before)
 
     def test_update_never_changes_identity_or_context(self):
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
         before = (
             stored.version, stored.context_type, stored.context_key, stored.lti_1p3_client_id,
-            stored.lti_1p3_deployment_id, stored.lti_1p3_passport_id,
+            stored.lti_1p3_deployment_id, stored.passport_id,
         )
         self.update(self.lti13, {'name': 'Renamed', 'description': 'Notes'})
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
         self.assertEqual(
             (
                 stored.version, stored.context_type, stored.context_key, stored.lti_1p3_client_id,
-                stored.lti_1p3_deployment_id, stored.lti_1p3_passport_id,
+                stored.lti_1p3_deployment_id, stored.passport_id,
             ),
             before,
         )
@@ -530,13 +677,55 @@ class ReusableUpdateTests(ReusableMutationTestCase):
         self.assertTrue(recording.select_for_update_called)
         self.assertEqual(ReusableLtiConfiguration.objects.get(pk=self.lti13.pk).name, 'Renamed')
 
+    def test_update_assigns_the_creation_context_once(self):
+        unassigned = ReusableLtiConfiguration.objects.create(
+            name='Unassigned',
+            version=ReusableLtiConfiguration.LTI_1P3,
+            context_type=None,
+            context_key=None,
+        )
+
+        updated = self.update(unassigned, {'context': {'type': 'site'}})
+
+        self.assertEqual((updated.context_type, updated.context_key), ('site', ''))
+        stored = ReusableLtiConfiguration.objects.get(pk=unassigned.pk)
+        self.assertEqual((stored.context_type, stored.context_key), ('site', ''))
+        self.policy.authorize_assignment.assert_called_once_with({'type': 'site'})
+
+    def test_update_rejects_a_second_context_assignment(self):
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        before = (stored.context_type, stored.context_key)
+
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(self.lti13, {'context': {'type': 'course', 'key': COURSE_KEY}})
+
+        self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', 'context'))
+        stored.refresh_from_db()
+        self.assertEqual((stored.context_type, stored.context_key), before)
+
+    def test_assignment_is_context_only(self):
+        """The assignment path accepts no other members, so it stays one write."""
+        unassigned = ReusableLtiConfiguration.objects.create(
+            name='Unassigned',
+            version=ReusableLtiConfiguration.LTI_1P3,
+            context_type=None,
+            context_key=None,
+        )
+
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(unassigned, {'name': 'Renamed', 'context': {'type': 'site'}})
+
+        self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', 'context'))
+        stored = ReusableLtiConfiguration.objects.get(pk=unassigned.pk)
+        self.assertEqual((stored.name, stored.context_type), ('Unassigned', None))
+
     def test_update_rejects_non_mapping_changes(self):
         with self.assertRaises(ReusableConfigurationError) as raised:
             update_reusable_configuration(self.actor, self.lti13.config_id, 'not-a-mapping')
         self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', None))
 
-    def test_update_rolls_back_after_passport_write_failure(self):
-        with patch.object(Lti1p3Passport, 'save', side_effect=RuntimeError('injected failure')):
+    def test_update_rolls_back_after_configuration_write_failure(self):
+        with patch.object(ReusableLtiConfiguration, 'save', side_effect=RuntimeError('injected failure')):
             with self.assertRaisesRegex(RuntimeError, 'injected failure'):
                 self.update(self.lti13, {
                     'name': 'Renamed',
@@ -545,9 +734,8 @@ class ReusableUpdateTests(ReusableMutationTestCase):
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
         self.assertEqual(stored.name, 'One Three')
         self.assertEqual(stored.lti_1p3_tool_key_mode, 'keyset_url')
-        passport = stored.lti_1p3_passport
-        self.assertEqual(passport.lti_1p3_tool_public_key, '')
-        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
+        self.assertEqual(stored.lti_1p3_tool_public_key, '')
+        self.assertEqual(stored.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
 
     def test_update_translates_integrity_error_after_rollback(self):
         with patch.object(ReusableLtiConfiguration, 'save', side_effect=IntegrityError('duplicate')):

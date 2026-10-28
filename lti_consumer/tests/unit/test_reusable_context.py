@@ -273,6 +273,37 @@ class CreationContextPolicyManageTests(GlobalStaffPatchMixin, SimpleTestCase):
             self.assertTrue(policy.can_manage(self.configuration(context_key=COURSE_KEY)))
             self.assertFalse(policy.can_manage(self.configuration(context_key=OTHER_KEY)))
 
+    def test_unassigned_configuration_is_global_staff_only(self):
+        """A converted row with no context waits for a Global Staff first assignment."""
+        unassigned = self.configuration(context_type=None, context_key=None)
+        for label, user in global_staff_actors():
+            with self.subTest(actor=label):
+                self.assertTrue(CreationContextPolicy(user).can_manage(unassigned))
+        with patch(COURSE_ADMIN_PATCH) as course_admin:
+            self.assertFalse(CreationContextPolicy(actor()).can_manage(unassigned))
+        course_admin.assert_not_called()
+
+    def test_assignment_requires_global_staff_and_normalizes_the_context(self):
+        """Only Global Staff may assign, and the assigned context is canonical."""
+        with patch(COURSE_ADMIN_PATCH) as course_admin:
+            with self.assertRaises(ReusableConfigurationError) as caught:
+                CreationContextPolicy(actor()).authorize_assignment({'type': 'course', 'key': COURSE_KEY})
+        self.assertEqual(caught.exception.category, 'forbidden')
+        course_admin.assert_not_called()
+
+        for label, user in global_staff_actors():
+            with self.subTest(actor=label):
+                context = CreationContextPolicy(user).authorize_assignment({'type': 'course', 'key': COURSE_KEY})
+                self.assertEqual(context, CreationContext(type='course', key=COURSE_KEY))
+
+        with patch(REGISTRY_PATCH, return_value=[organization('Org')]):
+            self.assertEqual(
+                CreationContextPolicy(actor(is_staff=True)).authorize_assignment(
+                    {'type': 'organization', 'key': ' ORG '},
+                ),
+                CreationContext(type='organization', key='org'),
+            )
+
     def test_unknown_context_type_is_denied(self):
         with patch(COURSE_ADMIN_PATCH) as course_admin:
             self.assertFalse(CreationContextPolicy(actor()).can_manage(self.configuration('library', 'lib')))

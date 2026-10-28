@@ -4,13 +4,13 @@ Tests for LTI Consumer signal handlers.
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from ddt import data, ddt, unpack
+from ddt import data, ddt
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from opaque_keys.edx.keys import UsageKey
 from openedx_events.content_authoring.data import DuplicatedXBlockData, LibraryBlockData, XBlockData
 
-from lti_consumer.models import Lti1p3Passport, LtiAgsLineItem, LtiAgsScore, LtiConfiguration, ReusableLtiConfiguration
+from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration, ReusableLtiConfiguration
 from lti_consumer.signals.signals import (
     delete_child_lti_configurations,
     delete_lib_lti_configuration,
@@ -209,33 +209,17 @@ class TestDeleteLtiConfiguration(TestCase):
         self.xblock_data = Mock(spec=XBlockData)
         self.xblock_data.usage_key = self.mock_usage_key
 
-    @patch('lti_consumer.signals.signals.Lti1p3Passport')
     @patch('lti_consumer.signals.signals.LtiConfiguration')
     @patch('lti_consumer.signals.signals.log')
-    def test_delete_lti_configuration_success(self, mock_log, mock_lti_config, mock_passport):
-        """Test successful deletion with various passport counts."""
+    def test_delete_lti_configuration_success(self, mock_log, mock_lti_config):
+        """Only the placement rows for the deleted block are removed."""
         mock_lti_config.objects.filter.return_value.delete.return_value = None
 
-        # Test with multiple passports deleted
-        mock_passport.objects.filter.return_value.delete.return_value = (5, {'Lti1p3Passport': 5})
         delete_lti_configuration(xblock_info=self.xblock_data)
 
         mock_lti_config.objects.filter.assert_called_with(location=str(self.xblock_data.usage_key))
-        mock_passport.objects.filter.assert_called_with(
-            lticonfiguration__isnull=True, reusable_configuration__isnull=True,
-        )
-        assert mock_log.info.call_count == 1
-        assert "5" in mock_log.info.call_args[0][0]
-
-        # Reset and test with no passports deleted
-        mock_log.reset_mock()
-        mock_lti_config.reset_mock()
-        mock_passport.reset_mock()
-        mock_lti_config.objects.filter.return_value.delete.return_value = None
-        mock_passport.objects.filter.return_value.delete.return_value = (0, {})
-
-        delete_lti_configuration(xblock_info=self.xblock_data)
-        assert "0" in mock_log.info.call_args[0][0]
+        assert mock_log.info.call_count == 0
+        assert mock_log.error.call_count == 0
 
     @data(
         None,
@@ -255,13 +239,11 @@ class TestDeleteLtiConfiguration(TestCase):
         delete_lti_configuration()
         mock_log.error.assert_called_once_with("Received null or incorrect data for event")
 
-    @patch('lti_consumer.signals.signals.Lti1p3Passport')
     @patch('lti_consumer.signals.signals.LtiConfiguration')
     @patch('lti_consumer.signals.signals.log')
-    def test_delete_lti_configuration_extra_kwargs_ignored(self, mock_log, mock_lti_config, mock_passport):
+    def test_delete_lti_configuration_extra_kwargs_ignored(self, mock_log, mock_lti_config):
         """Test that extra kwargs are safely ignored."""
         mock_lti_config.objects.filter.return_value.delete.return_value = None
-        mock_passport.objects.filter.return_value.delete.return_value = (0, {})
 
         delete_lti_configuration(
             xblock_info=self.xblock_data,
@@ -272,22 +254,18 @@ class TestDeleteLtiConfiguration(TestCase):
         mock_lti_config.objects.filter.assert_called_once()
         mock_log.error.assert_not_called()
 
-    def test_cleanup_keeps_reusable_passports(self):
-        """Legacy orphans are deleted, but reusable-linked passports survive."""
-        reusable_passport = Lti1p3Passport.objects.create(lti_1p3_client_id='reusable-client')
-        ReusableLtiConfiguration.objects.create(
+    def test_cleanup_never_deletes_configuration_rows(self):
+        """Deleting a block removes placements only; configuration rows are kept."""
+        configuration = ReusableLtiConfiguration.objects.create(
             name='Reusable configuration',
             version=ReusableLtiConfiguration.LTI_1P3,
             context_type='course',
             context_key='course-v1:Course+101+2024',
-            lti_1p3_passport=reusable_passport,
         )
-        orphan_passport = Lti1p3Passport.objects.create(lti_1p3_client_id='legacy-orphan')
 
         delete_lti_configuration(xblock_info=self.xblock_data)
 
-        self.assertFalse(Lti1p3Passport.objects.filter(pk=orphan_passport.pk).exists())
-        self.assertTrue(Lti1p3Passport.objects.filter(pk=reusable_passport.pk).exists())
+        self.assertTrue(ReusableLtiConfiguration.objects.filter(pk=configuration.pk).exists())
 
 
 @ddt
@@ -305,7 +283,7 @@ class TestDeleteChildLtiConfigurations(TestCase):
         )
         return child
 
-    def _setup_mocks(self, children_count=0, passport_count=0, load_error=None):
+    def _setup_mocks(self, children_count=0, load_error=None):
         """Helper to setup common mock patches."""
         parent_block = Mock()
         parent_block.location = self.usage_key
@@ -315,7 +293,6 @@ class TestDeleteChildLtiConfigurations(TestCase):
         patches = {
             'compat': patch("lti_consumer.signals.signals.compat"),
             'lti_config': patch("lti_consumer.signals.signals.LtiConfiguration"),
-            'passport': patch("lti_consumer.signals.signals.Lti1p3Passport"),
             'log': patch("lti_consumer.signals.signals.log"),
         }
 
@@ -329,23 +306,14 @@ class TestDeleteChildLtiConfigurations(TestCase):
             mocks['compat'].yield_dynamic_block_descendants.return_value = children
 
         mocks['lti_config'].objects.filter.return_value.delete.return_value = None
-        mocks['passport'].objects.filter.return_value.delete.return_value = (
-            passport_count,
-            {'Lti1p3Passport': passport_count} if passport_count else {}
-        )
 
         return mocks, parent_block, children
 
-    @data(
-        (0, 0),  # no children, no passports deleted
-        (2, 2),  # 2 children, 2 passports deleted
-        (1, 5),  # 1 child, 5 passports deleted
-    )
-    @unpack
-    def test_delete_child_lti_configurations_success(self, children_count, passport_count):
-        """Test successful deletion with various child/passport counts."""
+    @data(0, 2, 1)
+    def test_delete_child_lti_configurations_success(self, children_count):
+        """Test successful deletion with various child counts."""
 
-        mocks, parent_block, children = self._setup_mocks(children_count, passport_count)
+        mocks, parent_block, children = self._setup_mocks(children_count)
 
         delete_child_lti_configurations(usage_key=self.usage_key, user_id="test_user")
 
@@ -422,11 +390,10 @@ class TestDeleteLibLtiConfiguration(TestCase):
             "lb:TestOrg:TestLibrary:problem:test_problem"
         )
 
-    def _setup_mocks(self, passport_count=0):
+    def _setup_mocks(self):
         """Helper to setup common mock patches."""
         patches = {
             'lti_config': patch("lti_consumer.signals.signals.LtiConfiguration"),
-            'passport': patch("lti_consumer.signals.signals.Lti1p3Passport"),
             'log': patch("lti_consumer.signals.signals.log"),
         }
 
@@ -434,17 +401,12 @@ class TestDeleteLibLtiConfiguration(TestCase):
         self.addCleanup(lambda: [p.stop() for p in patches.values()])
 
         mocks['lti_config'].objects.filter.return_value.delete.return_value = None
-        mocks['passport'].objects.filter.return_value.delete.return_value = (
-            passport_count,
-            {'Lti1p3Passport': passport_count} if passport_count else {}
-        )
 
         return mocks
 
-    @data(0, 1, 5, 3)
-    def test_delete_lib_lti_configuration_success(self, passport_count):
-        """Test successful deletion with various passport counts."""
-        mocks = self._setup_mocks(passport_count)
+    def test_delete_lib_lti_configuration_success(self):
+        """Only the placement rows for the deleted library block are removed."""
+        mocks = self._setup_mocks()
 
         delete_lib_lti_configuration(library_block=self.library_block)
 
@@ -452,18 +414,7 @@ class TestDeleteLibLtiConfiguration(TestCase):
         mocks['lti_config'].objects.filter.assert_called_once_with(
             location=str(self.library_block.usage_key)
         )
-
-        # Verify orphaned passports deleted
-        mocks['passport'].objects.filter.assert_called_once_with(
-            lticonfiguration__isnull=True, reusable_configuration__isnull=True,
-        )
-
-        # Verify info logged with passport count
-        mocks['log'].info.assert_called_once()
-        log_msg = mocks['log'].info.call_args[0][0]
-        assert str(passport_count) in log_msg
-        if passport_count > 0:
-            assert "lti 1.3 passport" in log_msg
+        mocks['log'].info.assert_not_called()
 
     @data(
         None,
@@ -491,7 +442,7 @@ class TestDeleteLibLtiConfiguration(TestCase):
 
     def test_delete_lib_lti_configuration_extra_kwargs_ignored(self):
         """Test that extra kwargs are safely ignored."""
-        mocks = self._setup_mocks(passport_count=2)
+        mocks = self._setup_mocks()
 
         delete_lib_lti_configuration(
             library_block=self.library_block,
@@ -500,7 +451,7 @@ class TestDeleteLibLtiConfiguration(TestCase):
         )
 
         mocks['lti_config'].objects.filter.assert_called_once()
-        mocks['log'].info.assert_called_once()
+        mocks['log'].info.assert_not_called()
 
 
 class TestDuplicateXblockLtiConfiguration(TestCase):

@@ -37,7 +37,7 @@ CONFIG_STATE_FIELDS = (
     'name', 'normalized_name', 'description', 'version', 'context_type', 'context_key',
     'lti_1p1_launch_url', 'lti_1p1_client_key', 'lti_1p1_client_secret',
     'lti_1p3_launch_url', 'lti_1p3_oidc_url', 'lti_1p3_redirect_uris',
-    'lti_1p3_client_id', 'lti_1p3_deployment_id', 'lti_1p3_tool_key_mode', 'lti_1p3_passport_id',
+    'lti_1p3_client_id', 'lti_1p3_deployment_id', 'lti_1p3_tool_key_mode',
     'lti_advantage_deep_linking_enabled', 'lti_advantage_deep_linking_launch_url',
     'lti_advantage_ags_mode', 'lti_advantage_enable_nrps',
     'display_name', 'enable_grading', 'grade_weight', 'accept_grades_after_due_date',
@@ -97,9 +97,9 @@ def configuration_state(configuration):
     return {field: getattr(configuration, field) for field in CONFIG_STATE_FIELDS}
 
 
-def passport_state(passport):
-    """Return the stored passport state used for no-write assertions."""
-    return {field: getattr(passport, field) for field in PASSPORT_STATE_FIELDS}
+def passport_state(configuration):
+    """Return the stored identity/key state used for no-write assertions."""
+    return {field: getattr(configuration, field) for field in PASSPORT_STATE_FIELDS}
 
 
 def create_configuration(actor, name, configuration_context, version='lti_1p1', **overrides):
@@ -232,7 +232,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(response['Cache-Control'], 'no-store')
 
         configuration = ReusableLtiConfiguration.objects.get()
-        passport = configuration.lti_1p3_passport
+        passport = configuration
         self.assertEqual(str(uuid.UUID(configuration.lti_1p3_client_id, version=4)), configuration.lti_1p3_client_id)
         self.assertEqual(
             str(uuid.UUID(configuration.lti_1p3_deployment_id, version=4)), configuration.lti_1p3_deployment_id,
@@ -483,7 +483,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
             'client_id': 'supplied-1p3-client',
             'deployment_id': 'supplied-1p3-deployment',
         })
-        passport = lti13.lti_1p3_passport
+        passport = lti13
         self.assertEqual(
             (lti13.lti_1p3_client_id, lti13.lti_1p3_deployment_id),
             ('supplied-1p3-client', 'supplied-1p3-deployment'),
@@ -537,7 +537,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
 
     def test_immutable_invalid_and_unauthorized_patch_is_atomic(self):
         configuration = self.create('Immutable', version='lti_1p3')
-        passport = configuration.lti_1p3_passport
+        passport = configuration
         self.course_admin.return_value = True
         detail_url = self.detail_url(configuration)
         stored = configuration_state(configuration)
@@ -588,6 +588,71 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         )
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 3)
 
+    def test_version_initialization_journey_for_converted_rows(self):
+        """A converted row with no version is fixable once, by the actor who manages it."""
+        orphan = ReusableLtiConfiguration.objects.create(
+            name='Converted orphan', version=None, context_type=None, context_key=None,
+        )
+        self.client.force_authenticate(self.superuser)
+        initialized = self.client.patch(self.detail_url(orphan), {'version': 'lti_1p3'}, format='json')
+        self.assertEqual(initialized.status_code, 200, initialized.data)
+        self.assertEqual(initialized.data['version'], 'lti_1p3')
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.version, 'lti_1p3')
+
+        # The assignment is one-time: replacing it is an addressed 400 that writes nothing.
+        stored = configuration_state(orphan)
+        replaced = self.client.patch(
+            self.detail_url(orphan), {'version': 'lti_1p1', 'name': 'Renamed'}, format='json',
+        )
+        self.assertEqual(replaced.status_code, 400, replaced.data)
+        self.assertEqual(list(replaced.data), ['version'])
+        orphan.refresh_from_db()
+        self.assertEqual(configuration_state(orphan), stored)
+
+        # An unsupported value is refused by the wire layer before anything is written.
+        provisional = ReusableLtiConfiguration.objects.create(
+            name='Converted provisional', version=None, context_type=None, context_key=None,
+        )
+        invalid = self.client.patch(self.detail_url(provisional), {'version': 'lti_2p0'}, format='json')
+        self.assertEqual(invalid.status_code, 400, invalid.data)
+        self.assertIn('version', invalid.data)
+        provisional.refresh_from_db()
+        self.assertIsNone(provisional.version)
+
+        # An assigned row is initialized by the admin of its own course.
+        assigned = ReusableLtiConfiguration.objects.create(
+            name='Converted course tool',
+            version=None,
+            context_type='course',
+            context_key=str(self.course_key),
+        )
+        self.course_admin.return_value = True
+        self.client.force_authenticate(self.user)
+        course_response = self.client.patch(self.detail_url(assigned), {'version': 'lti_1p1'}, format='json')
+        self.assertEqual(course_response.status_code, 200, course_response.data)
+        assigned.refresh_from_db()
+        self.assertEqual(assigned.version, 'lti_1p1')
+
+        # A NULL-context row stays Global-Staff-only, and version never travels with a context.
+        hidden = ReusableLtiConfiguration.objects.create(
+            name='Converted hidden', version=None, context_type=None, context_key=None,
+        )
+        self.assertEqual(
+            self.client.patch(self.detail_url(hidden), {'version': 'lti_1p3'}, format='json').status_code,
+            404,
+        )
+        self.client.force_authenticate(self.superuser)
+        mixed = self.client.patch(
+            self.detail_url(hidden),
+            {'version': 'lti_1p3', 'context': build_context('site')},
+            format='json',
+        )
+        self.assertEqual(mixed.status_code, 400, mixed.data)
+        self.assertEqual(list(mixed.data), ['context'])
+        hidden.refresh_from_db()
+        self.assertEqual((hidden.version, hidden.context_type), (None, None))
+
     def test_update_authorization_precedes_semantic_validation(self):
         """Hidden and unmanageable targets answer before any semantic check."""
         hidden = self.create('Hidden validation', context_type='course', context_key=str(self.other_key))
@@ -618,10 +683,6 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(create_error.status_code, 400)
         self.assertIn('name', create_error.data)
 
-        conflict = self.client.patch(self.detail_url(configuration), {'name': 'Second tool'}, format='json')
-        self.assertEqual(conflict.status_code, 400)
-        self.assertIsInstance(conflict.data, list)
-
     def test_wire_shape_failures_do_not_reveal_targets(self):
         hidden = self.create('Hidden shape', context_type='course', context_key=str(self.other_key))
         self.course_admin.return_value = True
@@ -637,13 +698,13 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
 
     def test_lti13_patch_rolls_back_when_passport_write_fails(self):
         configuration = self.create('Atomic tool-key update', version='lti_1p3')
-        passport = configuration.lti_1p3_passport
+        passport = configuration
         self.course_admin.return_value = True
         stored = configuration_state(configuration)
         stored_passport = passport_state(passport)
 
         with patch(
-            'lti_consumer.models.Lti1p3Passport.save',
+            'lti_consumer.models.ReusableLtiConfiguration.save',
             side_effect=IntegrityError('injected passport failure'),
         ):
             response = self.client.patch(self.detail_url(configuration), {
@@ -660,22 +721,35 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         self.assertEqual(configuration_state(configuration), stored)
         self.assertEqual(passport_state(passport), stored_passport)
 
-    def test_conflicts_and_session_csrf_are_non_disclosing(self):
+    def test_duplicate_names_and_rejected_writes_are_non_disclosing(self):
         configuration = self.create('Original')
-        hidden = self.create('Hidden conflict', context_type='course', context_key=str(self.other_key))
-        updated_at = configuration.updated_at
+        hidden = self.create('Hidden name', context_type='course', context_key=str(self.other_key))
         self.course_admin.return_value = True
 
+        # Duplicate names are allowed, and another configuration's identity is never disclosed.
+        allowed = self.client.patch(self.detail_url(configuration), {'name': ' hidden name '}, format='json')
+        self.assertEqual(allowed.status_code, 200)
+        self.assertNotIn(str(hidden.config_id), allowed.content.decode())
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'hidden name')
+
+        # A rejected write stays atomic and non-disclosing, even when it names the
+        # other configuration: the response must not echo either identity.
+        updated_at = configuration.updated_at
         response = self.client.patch(self.detail_url(configuration), {
-            'name': ' hidden CONFLICT ',
+            'name': hidden.name,
             'description': 'Must not persist',
+            'unknown_member': True,
         }, format='json')
         self.assertEqual(response.status_code, 400)
-        self.assertNotIn(str(hidden.config_id), response.content.decode())
-        self.assertNotIn(hidden.name, response.content.decode())
+        body = response.content.decode().lower()
+        self.assertNotIn(str(hidden.config_id), body)
+        self.assertNotIn(hidden.name.lower(), body)
         configuration.refresh_from_db()
-        self.assertEqual((configuration.name, configuration.description), ('Original', ''))
+        hidden.refresh_from_db()
+        self.assertEqual((configuration.name, configuration.description), ('hidden name', ''))
         self.assertEqual(configuration.updated_at, updated_at)
+        self.assertEqual(hidden.name, 'Hidden name')
 
         csrf_client = APIClient(enforce_csrf_checks=True)
         csrf_client.force_login(self.user)
@@ -749,6 +823,38 @@ class GlobalStaffJourneyTests(ReusableApiTestCase):
     def setUp(self):
         super().setUp()
         self.staff = get_user_model().objects.create_user(username='staff', is_staff=True)
+
+    def test_global_staff_assigns_an_unassigned_configuration_once(self):
+        """A converted row is hidden from ordinary users and assignable once by Global Staff."""
+        unassigned = ReusableLtiConfiguration.objects.create(
+            name='Converted orphan',
+            version=ReusableLtiConfiguration.LTI_1P3,
+        )
+        detail = self.detail_url(unassigned)
+        course_context = build_context('course', COURSE_KEY)
+
+        self.course_admin.return_value = True
+        hidden = self.client.patch(detail, {'context': course_context}, format='json')
+        self.assertEqual(hidden.status_code, 404)
+        unassigned.refresh_from_db()
+        self.assertIsNone(unassigned.context_type)
+
+        self.client.force_authenticate(self.staff)
+        listing = self.client.get(self.list_url)
+        self.assertEqual(listing.status_code, 200)
+        self.assertIn('Converted orphan', {row['name'] for row in listing.data['results']})
+
+        assigned = self.client.patch(detail, {'context': course_context}, format='json')
+        self.assertEqual(assigned.status_code, 200, assigned.data)
+        self.assertEqual(assigned.data['context'], course_context)
+        self.assertTrue(assigned.data['can_manage'])
+
+        second = self.client.patch(detail, {'context': build_context('site')}, format='json')
+        self.assertEqual(second.status_code, 400)
+        self.assertIn('context', second.data)
+
+        stored = ReusableLtiConfiguration.objects.get(pk=unassigned.pk)
+        self.assertEqual((stored.context_type, stored.context_key), ('course', COURSE_KEY))
 
     def test_global_staff_manages_course_organization_site_and_ccx(self):
         self.client.force_authenticate(self.staff)

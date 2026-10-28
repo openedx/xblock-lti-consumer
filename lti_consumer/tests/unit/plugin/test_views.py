@@ -25,7 +25,7 @@ from lti_consumer.lti_1p3.exceptions import (
 )
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiConfiguration, LtiDlContentItem
+from lti_consumer.models import LtiConfiguration, LtiDlContentItem, ReusableLtiConfiguration
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 from lti_consumer.utils import cache_lti_1p3_launch_data
 
@@ -98,23 +98,38 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 404)
 
-    def test_public_keyset_endpoint_using_lti_config_id_in_url(self):
+    def test_public_keyset_endpoint_using_configuration_id_in_url(self):
         """
-        Check that the endpoint is accessible using the ID of the LTI Config object
+        The endpoint resolves a configuration by passport_id and returns its stored JWK.
         """
-        response = self.client.get(f'/lti_consumer/v1/public_keysets/{self.lti_config.passport_id}')
+        configuration = self.lti_config.lti_1p3_passport
+        stored_jwk = configuration.lti_1p3_internal_public_jwk
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{configuration.passport_id}')
 
-        # Check response
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-type'], 'application/json')
         self.assertEqual(response['Content-Disposition'], 'attachment; filename=keyset.json')
+        expected = json.loads(stored_jwk) if stored_jwk else {}
+        self.assertEqual(expected, json.loads(response.content.decode('utf-8')))
 
-        # Check public keyset
-        self.lti_config.refresh_from_db()
-        self.assertEqual(
-            self.lti_config.lti_1p3_public_jwk,
-            json.loads(response.content.decode('utf-8'))
+    def test_public_keyset_endpoint_for_configuration_without_placements(self):
+        """
+        A configuration with no placement resolves, and reading it never generates keys.
+        """
+        configuration = ReusableLtiConfiguration.objects.create(
+            name='Unbound configuration',
+            version=LtiConfiguration.LTI_1P3,
+            context_type='site',
+            lti_1p3_internal_public_jwk='{"keys": []}',
         )
+
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{configuration.passport_id}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content.decode('utf-8')), {'keys': []})
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_internal_public_jwk, '{"keys": []}')
+        self.assertEqual(configuration.lti_1p3_internal_private_key, '')
 
     @patch('lti_consumer.plugin.views.get_external_config_from_filter')
     def test_public_keyset_endpoint_using_external_id_in_url(self, get_external_config_from_filter):
@@ -684,8 +699,11 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
         private_jwk['kid'] = 1
         self.key = PyJWK.from_dict(private_jwk)
         self.public_key = rsa_key.public_key().export_key('PEM')
-        self.config.lti_1p3_passport.lti_1p3_tool_public_key = self.public_key.decode()
-        self.config.lti_1p3_passport.save()
+        self.configuration = self.config.lti_1p3_passport
+        self.configuration.lti_1p3_tool_public_key = self.public_key.decode()
+        self.configuration.save()
+        # Signing keys are written up front: the token endpoint must not generate them.
+        self.configuration.generate_lti_1p3_keys_if_missing()
 
     def get_body(self, token, **overrides):
         """
@@ -708,6 +726,27 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'access_token')
+
+    def test_access_token_endpoint_never_generates_keys(self):
+        """
+        A configuration without signing material returns 404 and stays key-free.
+        """
+        configuration = ReusableLtiConfiguration.objects.create(
+            name='Keyless configuration',
+            version=LtiConfiguration.LTI_1P3,
+            context_type='site',
+        )
+        body = urllib.parse.urlencode(self.get_body(create_jwt(self.key, {})))
+
+        response = self.client.post(
+            reverse('lti_consumer:lti_consumer.access_token', args=[str(configuration.passport_id)]),
+            data=body,
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 404)
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_internal_private_key, '')
 
     @patch('lti_consumer.plugin.views.LtiConfiguration.get_lti_consumer')
     def test_access_token_endpoint_with_location_in_url(self, mock_client):
@@ -797,18 +836,21 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
 
     def test_verify_lti_version_is_1p3(self):
         """
-        Check that 400 is returned when the LTI version of the configuration is not 1.3
+        Check that 404 is returned when the LTI version of the configuration is not 1.3
+
+        The passport-addressed endpoint resolves the merged configuration row, which owns
+        the version, so that row is the one this test changes.
         """
-        self.config.version = LtiConfiguration.LTI_1P1
-        self.config.save()
+        self.configuration.version = LtiConfiguration.LTI_1P1
+        self.configuration.save()
 
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {'error': 'invalid_lti_version'})
 
         # Reset to 1P3 so other tests aren't affected.
-        self.config.version = LtiConfiguration.LTI_1P3
-        self.config.save()
+        self.configuration.version = LtiConfiguration.LTI_1P3
+        self.configuration.save()
 
     @patch('lti_consumer.lti_1p3.consumer.LtiConsumer1p3.access_token')
     def test_missing_required_claim(self, access_token_mock):

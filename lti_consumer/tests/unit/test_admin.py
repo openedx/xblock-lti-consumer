@@ -4,15 +4,13 @@ Tests for the LTI Consumer Django admin views.
 from unittest.mock import patch
 
 from django.contrib import admin
-from django.contrib.admin.sites import AdminSite
 from django.contrib.admin.utils import flatten_fieldsets
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.test import RequestFactory, TestCase, override_settings
-from django.urls import path, reverse
+from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
-from lti_consumer.admin import Lti1p3PassportAdmin
-from lti_consumer.models import Lti1p3Passport, ReusableLtiConfiguration
+from lti_consumer.models import ReusableLtiConfiguration
 from lti_consumer.reusable import create_reusable_configuration
 
 GLOBAL_STAFF_PATCH = 'lti_consumer.plugin.compat.user_is_global_staff'
@@ -31,13 +29,10 @@ class GlobalStaffPatchMixin:
         self.addCleanup(patcher.stop)
 
 
-urlpatterns = [path('admin/', admin.site.urls)]
-
 UNSAFE_FIELDS = {
     'lti_1p1_client_key',
     'lti_1p1_client_secret',
     'normalized_name',
-    'lti_1p3_passport',
     'lti_1p3_tool_public_key',
     'lti_1p3_tool_keyset_url',
     'lti_1p3_internal_private_key',
@@ -72,64 +67,6 @@ DETAIL_FIELDS = {
 }
 
 
-@override_settings(ROOT_URLCONF=__name__)
-class Lti1p3PassportAdminTests(GlobalStaffPatchMixin, TestCase):
-    """Legacy passport admin visibility and reusable passport isolation."""
-
-    def setUp(self):
-        super().setUp()
-        self.user = get_user_model().objects.create_superuser(
-            username='admin-test', email='admin-test@example.com', password=None,
-        )
-        self.request = RequestFactory().get('/admin/')
-        self.request.user = self.user
-        self.client.force_login(self.user)
-        self.model_admin = Lti1p3PassportAdmin(Lti1p3Passport, AdminSite())
-        self.legacy_passport = Lti1p3Passport.objects.create(lti_1p3_client_id='legacy-client')
-        self.reusable_passport = Lti1p3Passport.objects.create(
-            lti_1p3_client_id='reusable-client',
-            lti_1p3_internal_private_key='reusable-private-key-must-not-appear',
-        )
-        ReusableLtiConfiguration.objects.create(
-            name='Reusable configuration',
-            version=ReusableLtiConfiguration.LTI_1P3,
-            context_type='course',
-            context_key='course-v1:Org+Course+Run',
-            lti_1p3_client_id='reusable-client',
-            lti_1p3_passport=self.reusable_passport,
-        )
-
-    def test_queryset_hides_reusable_owned_passports_only(self):
-        passports = self.model_admin.get_queryset(self.request)
-        self.assertQuerySetEqual(passports, [self.legacy_passport], transform=lambda passport: passport)
-
-    def test_object_permissions_preserve_legacy_and_deny_reusable_passports(self):
-        self.assertTrue(self.model_admin.has_view_permission(self.request, self.legacy_passport))
-        self.assertTrue(self.model_admin.has_change_permission(self.request, self.legacy_passport))
-        self.assertTrue(self.model_admin.has_delete_permission(self.request, self.legacy_passport))
-        self.assertFalse(self.model_admin.has_view_permission(self.request, self.reusable_passport))
-        self.assertFalse(self.model_admin.has_change_permission(self.request, self.reusable_passport))
-        self.assertFalse(self.model_admin.has_delete_permission(self.request, self.reusable_passport))
-
-    def test_guessed_admin_urls_do_not_expose_reusable_passport(self):
-        for action in ('change', 'history', 'delete'):
-            url = reverse(
-                f'admin:lti_consumer_lti1p3passport_{action}',
-                args=(self.reusable_passport.pk,),
-            )
-            with self.subTest(action=action):
-                response = self.client.get(url)
-                self.assertIn(response.status_code, (302, 403, 404))
-                self.assertNotIn('reusable-private-key-must-not-appear', response.content.decode())
-                self.assertTrue(Lti1p3Passport.objects.filter(pk=self.reusable_passport.pk).exists())
-
-        legacy_change_url = reverse(
-            'admin:lti_consumer_lti1p3passport_change',
-            args=(self.legacy_passport.pk,),
-        )
-        self.assertEqual(self.client.get(legacy_change_url).status_code, 200)
-
-
 class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
     """Read-only reusable configuration admin: Global Staff/superuser inspection, writes denied."""
 
@@ -148,7 +85,6 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
         self.request.user = self.user
         self.model_admin = admin.site.get_model_admin(ReusableLtiConfiguration)
         self.changelist_url = reverse('admin:lti_consumer_reusablelticonfiguration_changelist')
-        self.legacy_passport = Lti1p3Passport.objects.create(lti_1p3_client_id='legacy-client')
 
         self.lti11_config = create_reusable_configuration(self.user, {
             'name': 'Legacy launch tool',
@@ -168,6 +104,8 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
                 'tool_keyset_url': 'https://one-three.example/jwks',
             },
         }).configuration
+        self.lti13_client_id = self.lti13_config.lti_1p3_client_id
+        self.lti13_private_key = self.lti13_config.lti_1p3_internal_private_key
 
     def change_url(self, configuration):
         return reverse('admin:lti_consumer_reusablelticonfiguration_change', args=[configuration.pk])
@@ -237,11 +175,11 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
                     self.lti13_config.name,
                     self.lti13_config.lti_1p3_launch_url,
                     self.lti13_config.lti_1p3_oidc_url,
+                    str(self.lti13_config.passport_id),
                 ),
                 (
-                    self.lti13_config.lti_1p3_passport.lti_1p3_internal_private_key,
-                    str(self.lti13_config.lti_1p3_passport.passport_id),
-                    self.lti13_config.lti_1p3_passport.lti_1p3_tool_keyset_url,
+                    self.lti13_config.lti_1p3_internal_private_key,
+                    self.lti13_config.lti_1p3_tool_keyset_url,
                     self.lti13_config.normalized_name,
                 ),
             ),
@@ -272,7 +210,7 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
                                 'name="_saveasnew"', 'deletelink'):
                     self.assertNotIn(control, html)
 
-    def test_reusable_configurations_deny_every_write_and_keep_passports_isolated(self):
+    def test_reusable_configurations_deny_every_write_and_keep_identity_intact(self):
         # This user clears every Django gate (staff login, all model permissions), so the
         # false seam below proves the admin asks the role seam, not is_staff or permissions.
         non_global_staff = get_user_model().objects.create_user(
@@ -314,27 +252,15 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
         })
         self.assertTrue(ReusableLtiConfiguration.objects.filter(pk=self.lti11_config.pk).exists())
 
-        # The Passport admin lists the legacy passport only and rejects writes to the reusable one.
-        reusable_passport = self.lti13_config.lti_1p3_passport
-        private_key_before = reusable_passport.lti_1p3_internal_private_key
-        passport_list = self.client.get(reverse('admin:lti_consumer_lti1p3passport_changelist'))
-        self.assertContains(passport_list, self.legacy_passport.lti_1p3_client_id)
-        self.assertNotContains(passport_list, reusable_passport.lti_1p3_client_id)
-        self.assertNotContains(passport_list, private_key_before)
-        passport_write = self.client.post(
-            reverse('admin:lti_consumer_lti1p3passport_change', args=[reusable_passport.pk]),
-            {'name': 'Renamed passport'},
-        )
-        self.assertIn(passport_write.status_code, (302, 403, 404))
-
+        # Denied writes leave the merged row's identity and credentials untouched.
         self.lti11_config.refresh_from_db()
-        reusable_passport.refresh_from_db()
+        self.lti13_config.refresh_from_db()
         self.assertEqual(self.lti11_config.name, 'Legacy launch tool')
         self.assertEqual(
             (self.lti11_config.context_type, self.lti11_config.context_key),
             ('course', self.course_key),
         )
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 2)
-        self.assertEqual(reusable_passport.name, self.lti13_config.name)
-        self.assertEqual(reusable_passport.lti_1p3_client_id, self.lti13_config.lti_1p3_client_id)
-        self.assertEqual(reusable_passport.lti_1p3_internal_private_key, private_key_before)
+        self.assertEqual(self.lti13_config.name, 'Advantage tool')
+        self.assertEqual(self.lti13_config.lti_1p3_client_id, self.lti13_client_id)
+        self.assertEqual(self.lti13_config.lti_1p3_internal_private_key, self.lti13_private_key)
