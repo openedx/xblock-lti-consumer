@@ -130,9 +130,12 @@ setup(
         ],
         'cms.djangoapp': [
             "lti_consumer = lti_consumer.apps:LTIConsumerApp",
-        ]
+        ],
+        'authz.schema': [
+            "lti_consumer = lti_consumer.authz:get_schema_resources",
+        ],
     },
-    package_data=package_data("lti_consumer", ["static", "templates", "public", "translations"]),
+    package_data=package_data("lti_consumer", ["static", "templates", "public", "translations", "authz/schema"]),
     keywords='lti consumer xblock',
     url='https://github.com/openedx/xblock-lti-consumer',
     classifiers=[

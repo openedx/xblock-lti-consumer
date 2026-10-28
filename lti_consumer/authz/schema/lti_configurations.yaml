@@ -1,0 +1,78 @@
+schema_version: "1.0"
+# Above openedx-authz's own schema (100) so the role extensions below apply to
+# its course and library roles.
+priority: 200
+
+# Permissions for reusable LTI configurations.
+#
+# A configuration is not a scope of its own. It is checked against the scope of
+# its context (course run, library, org or instance); see
+# lti_consumer/authz/permissions.py.
+
+permission_categories:
+  - id: lti_configurations
+    display_name: LTI configurations
+    description: Permissions for managing reusable LTI tool configurations.
+    icon: Settings
+
+permissions:
+  - namespace: lti_configurations
+    name: view_configuration
+    display_name: View LTI configurations
+    description: See that a configuration exists, with its name, context, launch domain and status.
+    category_id: lti_configurations
+    scopes:
+      - course-v1
+      - lib
+  - namespace: lti_configurations
+    name: create_configuration
+    display_name: Create LTI configurations
+    description: Create a configuration in this context.
+    category_id: lti_configurations
+    scopes:
+      - course-v1
+      - lib
+  - namespace: lti_configurations
+    name: edit_configuration
+    display_name: Edit LTI configurations
+    description: See and change all settings, replace credentials, and activate or deactivate a configuration.
+    category_id: lti_configurations
+    scopes:
+      - course-v1
+      - lib
+  - namespace: lti_configurations
+    name: delete_configuration
+    display_name: Delete LTI configurations
+    description: Delete a configuration that no block uses.
+    category_id: lti_configurations
+    scopes:
+      - course-v1
+      - lib
+
+roles:
+  - id: lti_manager
+    display_name: LTI Manager
+    description: Can create, edit and delete reusable LTI configurations without belonging to the course or library team.
+    scopes:
+      - course-v1
+      - lib
+    permissions:
+      - lti_configurations.view_configuration
+      - lti_configurations.create_configuration
+      - lti_configurations.edit_configuration
+      - lti_configurations.delete_configuration
+
+role_extensions:
+  - role_id: course_admin
+    add_permissions: &course_team_permissions
+      - lti_configurations.view_configuration
+      - lti_configurations.create_configuration
+      - lti_configurations.edit_configuration
+  - role_id: course_staff
+    add_permissions: *course_team_permissions
+  - role_id: course_editor
+    add_permissions: *course_team_permissions
+  - role_id: library_admin
+    add_permissions: *course_team_permissions
+  - role_id: library_author
+    add_permissions: *course_team_permissions
