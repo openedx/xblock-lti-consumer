@@ -7,6 +7,7 @@ from django.conf import settings
 from django.urls import include, re_path, path
 from rest_framework import routers
 
+from lti_consumer.authz.views import ReusableLtiConfigurationViewSet
 from lti_consumer.plugin.views import (LtiAgsLineItemViewset,  # LTI Advantage URLs; LTI NRPS URLs
                                        LtiNrpsContextMembershipViewSet, access_token_endpoint,
                                        deep_linking_content_endpoint, deep_linking_response_endpoint,
@@ -17,6 +18,10 @@ from lti_consumer.plugin.views import (LtiAgsLineItemViewset,  # LTI Advantage U
 router = routers.SimpleRouter(trailing_slash=False)
 router.register(r'lti-ags', LtiAgsLineItemViewset, basename='lti-ags-view')
 router.register(r'memberships', LtiNrpsContextMembershipViewSet, basename='lti-nrps-memberships-view')
+
+# Reusable LTI configuration APIs router
+configuration_router = routers.SimpleRouter(trailing_slash=False)
+configuration_router.register(r'configurations', ReusableLtiConfigurationViewSet, basename='lti-configurations')
 
 
 app_name = 'lti_consumer'
@@ -79,4 +84,5 @@ urlpatterns = [
         start_proctoring_assessment_endpoint,
         name='lti_consumer.start_proctoring_assessment_endpoint'
     ),
+    path('lti_consumer/v1/', include(configuration_router.urls)),
 ]
