@@ -84,12 +84,14 @@ def seed():
             else:
                 assign_role_to_user_in_scope(username, role, context_key)
 
+    # Each demo context has one configuration, so key on the context: reseeding
+    # then resets any renames and keeps the passport IDs stable.
     configs = {}
     for name, context_key in CONFIGS.items():
         configs[name], _ = Lti1p3Passport.objects.update_or_create(
-            name=f"Config {name}",
+            context_key=context_key,
             defaults={
-                "context_key": context_key,
+                "name": f"Config {name}",
                 "lti_1p3_tool_keyset_url": f"https://tool-{name.lower()}.example.com/.well-known/jwks.json",
             },
         )
