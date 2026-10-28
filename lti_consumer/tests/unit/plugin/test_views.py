@@ -150,6 +150,38 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         self.assertEqual(response['Content-Disposition'], 'attachment; filename=keyset.json')
         self.assertEqual(external_config["lti_1p3_public_jwk"], json.loads(response.content.decode('utf-8')))
 
+    @patch('lti_consumer.plugin.views.get_external_config_from_filter')
+    def test_public_keyset_endpoint_using_usage_key_of_external_placement(self, get_external_config_from_filter):
+        """
+        An external placement serves its tool's keyset through the usage key URL.
+
+        External configurations never own a local passport, so the endpoint must read the
+        external data instead of the missing passport, and must not create either.
+        """
+        external_jwk = {'keys': [{'kty': 'RSA', 'kid': 'external-tool-key', 'n': 'stub', 'e': 'AQAB'}]}
+        get_external_config_from_filter.return_value = {
+            'version': LtiConfiguration.LTI_1P3,
+            'lti_1p3_public_jwk': external_jwk,
+        }
+        location = 'block-v1:course+test+2020+type@problem+block@external'
+        lti_config = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            external_id='x:x',
+            location=UsageKey.from_string(location),
+        )
+        passport_count = ReusableLtiConfiguration.objects.count()
+
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{location}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename=keyset.json')
+        self.assertEqual(external_jwk, json.loads(response.content.decode('utf-8')))
+        get_external_config_from_filter.assert_called_once_with({}, 'x:x')
+        lti_config.refresh_from_db()
+        self.assertIsNone(lti_config.lti_1p3_passport)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), passport_count)
+
 
 @ddt.ddt
 class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):

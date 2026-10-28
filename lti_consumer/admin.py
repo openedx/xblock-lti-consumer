@@ -27,6 +27,11 @@ class LtiConfigurationInline(admin.TabularInline):
     can_delete = False
     fields = ('location',)
 
+    def has_view_permission(self, request, obj=None):
+        # The parent gates by platform role, not by Django model permissions, so an
+        # inline without this override would be dropped for Global Staff who hold none.
+        return compat.user_is_global_staff(request.user)
+
     def has_change_permission(self, request, obj=None):  # pragma: nocover
         return False
 

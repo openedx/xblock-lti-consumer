@@ -215,8 +215,17 @@ def public_keyset_endpoint(
         public_jwk = {}
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
-            version = lti_config.version
-            public_jwk = lti_config.lti_1p3_public_jwk
+            if lti_config.config_store == LtiConfiguration.CONFIG_EXTERNAL:
+                # External configurations own no local passport, so their keyset can only
+                # come from the tool's registered data.
+                external_config = get_external_config_from_filter({}, lti_config.external_id)
+                if not external_config:
+                    raise ExternalConfigurationNotFound("External LTI configuration not found")
+                version = external_config.get("version")
+                public_jwk = external_config.get("lti_1p3_public_jwk", {})
+            else:
+                version = lti_config.version
+                public_jwk = lti_config.lti_1p3_public_jwk
         elif passport_id:
             # A configuration is not a placement, so it must resolve without one.
             lti_config = ReusableLtiConfiguration.objects.get(passport_id=passport_id)

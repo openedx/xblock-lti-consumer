@@ -10,7 +10,7 @@ from django.contrib.auth.models import Permission
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from lti_consumer.models import ReusableLtiConfiguration
+from lti_consumer.models import LtiConfiguration, ReusableLtiConfiguration
 from lti_consumer.reusable import create_reusable_configuration
 
 GLOBAL_STAFF_PATCH = 'lti_consumer.plugin.compat.user_is_global_staff'
@@ -209,6 +209,38 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
                 for control in ('name="_save"', 'name="_continue"', 'name="_addanother"',
                                 'name="_saveasnew"', 'deletelink'):
                     self.assertNotIn(control, html)
+
+    def test_bound_placement_inline_is_read_only_visible_to_global_staff_only(self):
+        """The placement inline follows the parent's role gate, not Django model permissions."""
+        placement = LtiConfiguration.objects.create(
+            location='block-v1:VisibleOrg+VisibleCourse+Run+type@lti_consumer+block@bound',
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_1p3_passport=self.lti13_config,
+        )
+        # self.staff clears only the staff-login gate: no LTI model permissions at all.
+        for perm in (
+            'lti_consumer.view_reusablelticonfiguration',
+            'lti_consumer.view_lticonfiguration',
+            'lti_consumer.change_lticonfiguration',
+        ):
+            self.assertFalse(self.staff.has_perm(perm), perm)
+
+        self.client.force_login(self.staff)
+        response = self.client.get(self.change_url(self.lti13_config))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, str(placement.location))
+        # Read-only: the bound placement has no editable control and no delete box.
+        inline_prefix = LtiConfiguration._meta.get_field('lti_1p3_passport').remote_field.get_accessor_name()
+        self.assertNotContains(response, f'name="{inline_prefix}-0-location"')
+        self.assertNotContains(response, f'name="{inline_prefix}-0-DELETE"')
+        # The inline shows the binding only; credentials stay hidden.
+        self.assertNotContains(response, self.lti13_config.lti_1p3_internal_private_key)
+        self.assertNotContains(response, self.lti13_config.lti_1p3_tool_keyset_url)
+
+        # An ordinary actor is still denied the parent page, so the placement is not disclosed.
+        with patch(GLOBAL_STAFF_PATCH, return_value=False):
+            self.assertEqual(self.client.get(self.change_url(self.lti13_config)).status_code, 403)
 
     def test_reusable_configurations_deny_every_write_and_keep_identity_intact(self):
         # This user clears every Django gate (staff login, all model permissions), so the
