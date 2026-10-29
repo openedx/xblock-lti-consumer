@@ -315,6 +315,7 @@ class LtiConsumer1p3:
             self,
             include_extra_claims=True,
             target_link_uri=None,
+            include_resource_link=True,
     ):
         """
         Build LTI message from class parameters
@@ -356,10 +357,13 @@ class LtiConsumer1p3:
 
         # Check if the resource_link claim has been set and append it to the LTI message if it has.
         # The resource_link claim is required, so raise an exception if it has not been set.
-        if self.lti_claim_resource_link:
-            lti_message.update(self.lti_claim_resource_link)
-        else:
-            raise ValueError("Required resource_link data isn't set.")
+        # Deep linking request messages must not include it, as per the Deep Linking spec.
+        # https://www.imsglobal.org/spec/lti-dl/v2p0/#deep-linking-request-message
+        if include_resource_link:
+            if self.lti_claim_resource_link:
+                lti_message.update(self.lti_claim_resource_link)
+            else:
+                raise ValueError("Required resource_link data isn't set.")
 
         # Context claim
         if self.lti_claim_context:
@@ -699,6 +703,7 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
             lti_launch_message = self.get_lti_launch_message(
                 include_extra_claims=False,
                 target_link_uri=target_link_uri,
+                include_resource_link=False,
             )
 
             # Update message type to LtiDeepLinkingRequest,
