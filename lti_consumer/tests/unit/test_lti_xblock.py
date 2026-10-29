@@ -25,7 +25,7 @@ from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
-from lti_consumer.models import Lti1p3Passport, LtiConfiguration
+from lti_consumer.models import LtiConfiguration, ReusableLtiConfiguration
 from lti_consumer.tests import test_utils
 from lti_consumer.tests.test_utils import (
     FAKE_USER_ID,
@@ -177,12 +177,12 @@ class TestAddXmlToNode(TestCase):
                 'lti_1p3_passport_id': '',
             },
         )
-        passport = Lti1p3Passport.objects.create()
+        passport = ReusableLtiConfiguration.objects.create()
         LtiConfiguration.objects.create(
             location=xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
-            lti_1p3_passport=passport,
+            reusable_configuration=passport,
         )
         node = Element('lti_consumer')
 
@@ -799,7 +799,7 @@ class TestSubmitStudioEdits(TestLtiConsumerXBlock):
 
         self.assertEqual(json.loads(response.body.decode('utf-8')), {'result': 'success'})
         lti_config = LtiConfiguration.objects.get(location=self.xblock.scope_ids.usage_id)
-        self.assertEqual(self.xblock.lti_1p3_passport_id, str(lti_config.lti_1p3_passport.passport_id))
+        self.assertEqual(self.xblock.lti_1p3_passport_id, str(lti_config.reusable_configuration.passport_id))
 
 
 @ddt.ddt

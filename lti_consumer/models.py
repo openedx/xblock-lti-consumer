@@ -48,12 +48,52 @@ def generate_client_id():
     return str(uuid.uuid4())
 
 
-class Lti1p3Passport(models.Model):
+class ReusableNameField(models.CharField):
+    """CharField with an explicit collation that is applied only where supported.
+
+    ``utf8mb4_0900_as_ci`` exists on MySQL 8 but not MariaDB or other backends,
+    so the collation is dropped there and the column keeps its native collation
+    instead of failing DDL on an unknown name.
+
+    shortcut: non-MySQL backends keep their native comparison rules; revisit if
+    they need the same collation semantics.
     """
-    Model to store LTI 1.3 keys.
+
+    def db_parameters(self, connection):
+        params = super().db_parameters(connection)  # pylint: disable=no-member
+        if connection.vendor != 'mysql' or getattr(connection, 'mysql_is_mariadb', False):
+            params['collation'] = None
+        return params
+
+
+class ReusableLtiConfiguration(models.Model):
     """
+    A reusable LTI configuration, which is also an LTI 1.3 passport.
+
+    This is the former ``Lti1p3Passport`` table, renamed and extended with the
+    catalog metadata that used to live in a separate table. One row is one
+    registration: ``passport_id`` is the only stored identity, and every existing
+    ``LtiConfiguration.reusable_configuration`` reference binds a placement to it.
+    Placement data (launch context, Deep Linking content, line items, grades)
+    stays on ``LtiConfiguration``.
+
+    Credentials and signing material are stored exactly as they were on a
+    passport: no read, admin page or migration generates RSA material, and lazy
+    generation stays in ``generate_lti_1p3_keys_if_missing`` only.
+    """
+
+    LTI_1P1 = 'lti_1p1'
+    LTI_1P3 = 'lti_1p3'
+    LTI_VERSION_CHOICES = [
+        (LTI_1P1, _('LTI 1.1')),
+        (LTI_1P3, _('LTI 1.3')),
+    ]
+
+    # Passport identity, credentials and signing material.
     name = models.CharField(max_length=255, null=True, blank=True)
-    context_key = models.CharField(max_length=255, null=True, blank=True)
+    context_key = ReusableNameField(
+        _("Context key"), max_length=255, null=True, blank=True, db_collation='utf8mb4_0900_as_ci',
+    )
     passport_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
 
     lti_1p3_internal_private_key = models.TextField(
@@ -72,9 +112,13 @@ class Lti1p3Passport(models.Model):
         help_text=_("Platform's generated JWK keyset."),
     )
 
+    # shortcut: Client ID equality follows DB collation and carries no uniqueness guarantee;
+    # add portable matching only if cross-backend consistency is required.
     lti_1p3_client_id = models.CharField(
         max_length=255,
         default=generate_client_id,
+        null=True,
+        blank=True,
         help_text=_("Client ID used by LTI tool"),
     )
 
@@ -87,13 +131,88 @@ class Lti1p3Passport(models.Model):
 
     lti_1p3_tool_keyset_url = models.CharField(
         "LTI 1.3 Tool Keyset URL",
-        max_length=255,
+        max_length=500,
         blank=True,
         help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
                   'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
     )
 
-    def _generate_lti_1p3_keys_if_missing(self):
+    # Catalog metadata; all optional so that a converted passport keeps its history.
+    description = models.TextField(_("Description"), blank=True)
+    version = models.CharField(_("LTI Version"), max_length=10, choices=LTI_VERSION_CHOICES, null=True, blank=True)
+    context_type = models.CharField(
+        _("Context type"),
+        max_length=20,
+        choices=[
+            ('course', _('Course')),
+            ('organization', _('Organization')),
+            ('site', _('Site')),
+        ],
+        null=True,
+        blank=True,
+    )
+
+    # LTI 1.1 connection and credentials.
+    lti_1p1_launch_url = models.CharField(_("LTI 1.1 Launch URL"), max_length=255, null=True, blank=True)
+    lti_1p1_client_key = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p1_client_secret = models.CharField(max_length=255, null=True, blank=True)
+
+    # LTI 1.3 tool connection and immutable registration identity.
+    lti_1p3_launch_url = models.CharField(_("LTI 1.3 Launch URL"), max_length=255, null=True, blank=True)
+    lti_1p3_oidc_url = models.CharField(
+        _("LTI 1.3 OpenID Connect (OIDC) Login URL"), max_length=255, null=True, blank=True,
+    )
+    lti_1p3_redirect_uris = models.JSONField(_("LTI 1.3 Redirect URIs"), default=list, blank=True)
+    lti_1p3_deployment_id = models.CharField(_("LTI 1.3 Deployment ID"), max_length=255, null=True, blank=True)
+    lti_1p3_tool_key_mode = models.CharField(
+        _("LTI 1.3 Tool Key Mode"),
+        max_length=20,
+        choices=[('public_key', _('Public Key')), ('keyset_url', _('Keyset URL'))],
+        null=True,
+        blank=True,
+    )
+
+    # Shared LTI Advantage service settings.
+    lti_advantage_deep_linking_enabled = models.BooleanField(_("Enable LTI Advantage Deep Linking"), default=False)
+    lti_advantage_deep_linking_launch_url = models.CharField(
+        _("LTI Advantage Deep Linking launch URL"), max_length=225, blank=True, default='',
+    )
+    lti_advantage_ags_mode = models.CharField(
+        _("LTI Advantage Assignment and Grade Services Mode"),
+        max_length=20,
+        choices=[
+            ('disabled', _('Disabled')),
+            ('declarative', _('Allow tools to submit grades only (declarative)')),
+            ('programmatic', _('Allow tools to manage and submit grade (programmatic)')),
+        ],
+        default='declarative',
+    )
+    lti_advantage_enable_nrps = models.BooleanField(
+        _("Enable LTI Advantage Names and Role Provisioning Services"), default=False,
+    )
+
+    # Shared placement defaults; placements and placement-specific data are not stored here.
+    display_name = models.CharField(_("Display Name"), max_length=255, default='LTI Consumer')
+    enable_grading = models.BooleanField(_("Enable grading"), default=False)
+    grade_weight = models.FloatField(_("Grade Weight"), default=1.0, validators=[MinValueValidator(0)])
+    accept_grades_after_due_date = models.BooleanField(_("Accept grades after due date"), default=True)
+    open_tool_in = models.CharField(
+        _("Open tool in"),
+        max_length=20,
+        choices=[('iframe', _('Inline')), ('modal', _('Modal')), ('new_window', _('New Window'))],
+        default='iframe',
+    )
+    inline_height = models.IntegerField(_("Inline Height (px)"), default=800)
+    modal_height = models.IntegerField(_("Modal Height (%)"), default=80)
+    modal_width = models.IntegerField(_("Modal Width (%)"), default=80)
+    launch_button_text = models.CharField(_("Launch Button Text"), max_length=255, blank=True, default='')
+    send_extra_parameters = models.BooleanField(_("Send extra parameters"), default=False)
+    custom_parameters = models.JSONField(_("Custom Parameters"), default=list, blank=True)
+
+    created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated at"), auto_now=True)
+
+    def generate_lti_1p3_keys_if_missing(self):
         """
         Generate LTI 1.3 RSA256 keys if missing.
 
@@ -130,7 +249,7 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return self.lti_1p3_internal_private_key
 
     @property
@@ -138,7 +257,7 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's private key ID used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return self.lti_1p3_internal_private_key_id
 
     @property
@@ -146,23 +265,68 @@ class Lti1p3Passport(models.Model):
         """
         Return the platform's public keys used in LTI 1.3 authentication flows.
         """
-        self._generate_lti_1p3_keys_if_missing()
+        self.generate_lti_1p3_keys_if_missing()
         return json.loads(self.lti_1p3_internal_public_jwk)
 
     def __str__(self):
-        return f'Lti1p3Passport: {self.name} - {self.passport_id}'
+        return f'ReusableLtiConfiguration: {self.name} - {self.passport_id}'
 
     def clean(self):
-        if self.lti_1p3_tool_public_key == "" and self.lti_1p3_tool_keyset_url == "":
+        """Check tool-key mode/value consistency, when either is present.
+
+        Legacy, incomplete and LTI 1.1 rows may legitimately carry no key material and no
+        mode, so all-absent values are valid here.
+        """
+        if self.lti_1p3_tool_key_mode == 'public_key' and not self.lti_1p3_tool_public_key:
             raise ValidationError({
-                "config_store": _(
-                    "LTI Configuration stored on the model for LTI 1.3 must have a value for one of "
-                    "lti_1p3_tool_public_key or lti_1p3_tool_keyset_url."
-                ),
+                "lti_1p3_tool_public_key": _("A public key is required in public-key mode."),
+            })
+        if self.lti_1p3_tool_key_mode == 'keyset_url' and not self.lti_1p3_tool_keyset_url:
+            raise ValidationError({
+                "lti_1p3_tool_keyset_url": _("A keyset URL is required in keyset-URL mode."),
             })
 
     class Meta:
         app_label = 'lti_consumer'
+        verbose_name = _("Reusable LTI configuration")
+        verbose_name_plural = _("Reusable LTI configurations")
+        constraints = [
+            # Converted rows may carry no context until one is assigned (Global Staff only).
+            models.CheckConstraint(
+                condition=(
+                    models.Q(context_type__isnull=True) |
+                    models.Q(context_type__in=('course', 'organization', 'site'))
+                ),
+                name='reusable_context_type_valid',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(context_type__isnull=True) |
+                    models.Q(context_type='site', context_key='') |
+                    (
+                        models.Q(context_type__in=('course', 'organization')) &
+                        models.Q(context_key__isnull=False) &
+                        ~models.Q(context_key='')
+                    )
+                ),
+                name='reusable_context_key_shape',
+            ),
+        ]
+        indexes = [models.Index(fields=('context_type', 'context_key'), name='reusable_context_lookup')]
+
+
+def _course_context(context_id):
+    """Return a block context's parent course key, mapping a CCX copy onto the course it copies.
+
+    Only a real course key or its string form is accepted, so a test stand-in or an
+    unexpected block value cannot seed an unusable context.
+    """
+    if isinstance(context_id, str):
+        return context_id or None
+    if not isinstance(context_id, CourseKey):
+        return None
+    to_course_locator = getattr(context_id, 'to_course_locator', None)
+    return str(to_course_locator() if to_course_locator else context_id)
 
 
 class LtiConfiguration(models.Model):
@@ -257,14 +421,15 @@ class LtiConfiguration(models.Model):
         help_text=_("Client secret provided by the LTI tool provider.")
     )
 
-    # LTI 1.3 Related variables
-    lti_1p3_passport = models.ForeignKey(
-        Lti1p3Passport,
-        on_delete=models.SET_NULL,
+    # Reusable configuration this placement is bound to, whichever LTI version it uses.
+    reusable_configuration = models.ForeignKey(
+        ReusableLtiConfiguration,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
     )
 
+    # LTI 1.3 Related variables
     lti_1p3_oidc_url = models.CharField(
         'LTI 1.3 OpenID Connect (OIDC) Login URL',
         max_length=255,
@@ -351,9 +516,10 @@ class LtiConfiguration(models.Model):
                     'LTI Configuration using reusable configuration needs a external ID in "x:y" format.',
                 ),
             })
-        if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB and not self.lti_1p3_passport:
+        if (self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB and
+                not self.reusable_configuration):
             raise ValidationError({
-                "config_store": _('LTI Configuration for 1.3 requires passport to be set.'),
+                "config_store": _('LTI Configuration for 1.3 requires a reusable configuration to be set.'),
             })
         if (self.version == self.LTI_1P3 and self.config_store in [self.CONFIG_ON_XBLOCK, self.CONFIG_EXTERNAL] and
                 self.lti_1p3_proctoring_enabled):
@@ -401,43 +567,88 @@ class LtiConfiguration(models.Model):
                     f'Failed to parse main LTI configuration location: {self.location}',
                 )
 
-    def get_or_create_lti_1p3_passport(self):
-        """
-        Create an LTI 1.3 Passport configuration for this course instance.
+    def _passport_seed_values(self, block):
+        """Return the catalog fields a new local configuration seeds from this placement.
 
-        This never writes back to the XBlock: it runs from a post_save signal, which
-        also fires during LMS requests where blocks are bound to read-only field data
-        for Scope.settings. The configuration row is the authoritative link to the
-        passport; the block's `lti_1p3_passport_id` field is kept in sync from Studio
-        by `LtiConsumerXBlock.submit_studio_edits`.
+        Only already-persisted values are copied: no key material is generated here, and the
+        tool-key mode follows the key the block actually holds rather than a field default
+        that may not describe it.
         """
-        passport = self.lti_1p3_passport
+        version = self.version
+        if block is not None and self.config_store == self.CONFIG_ON_XBLOCK:
+            block_version = getattr(block, 'lti_version', None)
+            if block_version in (self.LTI_1P1, self.LTI_1P3):
+                version = block_version
+        values = {'version': version}
+        if block is None:
+            return values
+
+        context_key = _course_context(getattr(block, 'context_id', None))
+        if context_key:
+            values.update(context_type='course', context_key=context_key)
+        display_name = getattr(block, 'display_name', None)
+        if isinstance(display_name, str) and display_name:
+            values['name'] = f"Passport of {display_name}"
+
+        public_key = getattr(block, 'lti_1p3_tool_public_key', '')
+        keyset_url = getattr(block, 'lti_1p3_tool_keyset_url', '')
+        public_key = public_key if isinstance(public_key, str) else ''
+        keyset_url = keyset_url if isinstance(keyset_url, str) else ''
+        # Both or neither leave the mode unset: there is no unambiguous key to trust.
+        if public_key and not keyset_url:
+            values.update(
+                lti_1p3_tool_public_key=public_key,
+                lti_1p3_tool_keyset_url='',
+                lti_1p3_tool_key_mode='public_key',
+            )
+        elif keyset_url and not public_key:
+            values.update(
+                lti_1p3_tool_public_key='',
+                lti_1p3_tool_keyset_url=keyset_url,
+                lti_1p3_tool_key_mode='keyset_url',
+            )
+        return values
+
+    def get_or_create_reusable_configuration(self):
+        """
+        Bind this placement to its reusable configuration, creating one when it has none.
+
+        A local placement is bound whichever LTI version it uses (1.1 or 1.3): a missing
+        configuration is seeded from the placement and its block. When the block already
+        carries an `lti_1p3_passport_id`, the row with that ID is found or created. An
+        external placement references its settings dynamically, so this is a no-op for it.
+
+        Called from the post_save signal and lazily from the identity and key accessors.
+        It never writes back to the XBlock, because an LMS request binds blocks to
+        read-only field data for Scope.settings: the placement's `reusable_configuration`
+        foreign key is the authoritative link, and the block's `lti_1p3_passport_id` is
+        kept in sync from Studio by `LtiConsumerXBlock.submit_studio_edits`.
+        """
+        if self.config_store == self.CONFIG_EXTERNAL:
+            # External configurations are dynamic references: never materialize a local row.
+            return
+
+        passport = self.reusable_configuration
         block = None
         if not passport:
             if self.location:
                 block = compat.load_enough_xblock(self.location)
+            seed_values = self._passport_seed_values(block)
             if self.location and block and block.lti_1p3_passport_id:
-                passport, created = Lti1p3Passport.objects.get_or_create(
+                passport, created = ReusableLtiConfiguration.objects.get_or_create(
                     passport_id=block.lti_1p3_passport_id,
-                    defaults={
-                        "name": f"Passport of {block.display_name}",
-                        "context_key": block.context_id,
-                    }
+                    defaults=seed_values,
                 )
                 if created:
                     log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
                 else:
                     log.info("Existing LTI 1.3 Passport %s found for %s", passport, self)
             else:
-                passport = Lti1p3Passport.objects.create()
+                passport = ReusableLtiConfiguration.objects.create(**seed_values)
                 log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
-                if block:
-                    passport.name = f"Passport of {block.display_name}"
-                    passport.context_key = block.context_id
-                    passport.save()
             # We use update to avoid triggering post save signal as this function is itself
             # called from the post_save signal handler, this avoids double call to same function.
-            LtiConfiguration.objects.filter(pk=self.pk).update(lti_1p3_passport=passport)
+            LtiConfiguration.objects.filter(pk=self.pk).update(reusable_configuration=passport)
             # Refresh block from db to get passport id.
             self.refresh_from_db()
 
@@ -449,57 +660,60 @@ class LtiConfiguration(models.Model):
     def passport_id(self):
         """
         Return the passport ID associated with this configuration instance.
+
+        An external configuration references its settings dynamically and never owns a
+        local row, so this is None for it.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.passport_id
+        self.get_or_create_reusable_configuration()
+        return self.reusable_configuration.passport_id if self.reusable_configuration else None
 
     @property
     def lti_1p3_private_key(self):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_private_key
+        self.get_or_create_reusable_configuration()
+        return self.reusable_configuration.lti_1p3_private_key
 
     @property
     def lti_1p3_private_key_id(self):
         """
         Return the platform's private key ID used in LTI 1.3 authentication flows.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_private_key_id
+        self.get_or_create_reusable_configuration()
+        return self.reusable_configuration.lti_1p3_private_key_id
 
     @property
     def lti_1p3_public_jwk(self):
         """
         Return the platform's public keys used in LTI 1.3 authentication flows.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_public_jwk
+        self.get_or_create_reusable_configuration()
+        return self.reusable_configuration.lti_1p3_public_jwk
 
     @property
     def lti_1p3_client_id(self):
         """
-        Return platform client id from passport
+        Return platform client id from the bound configuration, or None for external ones.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_client_id
+        self.get_or_create_reusable_configuration()
+        return self.reusable_configuration.lti_1p3_client_id if self.reusable_configuration else None
 
     @property
     def lti_1p3_tool_keyset_url(self):
         """
-        Return tool keyset url from passport
+        Return the tool keyset url from the bound reusable configuration.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_tool_keyset_url
+        self.get_or_create_reusable_configuration()
+        return self.reusable_configuration.lti_1p3_tool_keyset_url
 
     @property
     def lti_1p3_tool_public_key(self):
         """
-        Return tool public key from passport
+        Return the tool public key from the bound reusable configuration.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_tool_public_key
+        self.get_or_create_reusable_configuration()
+        return self.reusable_configuration.lti_1p3_tool_public_key
 
     @cached_property
     def external_config(self):
@@ -682,9 +896,8 @@ class LtiConfiguration(models.Model):
                 lti_oidc_url=block.lti_1p3_oidc_url,
                 lti_launch_url=block.lti_1p3_launch_url,
                 client_id=self.lti_1p3_client_id,
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id="1",
+                # Deployment ID comes from the bound configuration; legacy rows fall back to 1.
+                deployment_id=self.reusable_configuration.lti_1p3_deployment_id or "1",
                 # XBlock Private RSA Key
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,
@@ -700,9 +913,8 @@ class LtiConfiguration(models.Model):
                 lti_oidc_url=self.lti_1p3_oidc_url,
                 lti_launch_url=self.lti_1p3_launch_url,
                 client_id=self.lti_1p3_client_id,
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id="1",
+                # Deployment ID comes from the bound configuration; legacy rows fall back to 1.
+                deployment_id=self.reusable_configuration.lti_1p3_deployment_id or "1",
                 # XBlock Private RSA Key
                 rsa_key=self.lti_1p3_private_key,
                 rsa_key_id=self.lti_1p3_private_key_id,

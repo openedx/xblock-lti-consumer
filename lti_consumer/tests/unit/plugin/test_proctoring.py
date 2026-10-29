@@ -52,7 +52,7 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestBaseWithPatch):
         self.private_key = RSA.generate(2048)
         self.public_key = self.private_key.publickey().export_key().decode()
 
-        self.lti_config.lti_1p3_passport.lti_1p3_tool_public_key = self.public_key
+        self.lti_config.reusable_configuration.lti_1p3_tool_public_key = self.public_key
         self.lti_config.save()
 
     def _setup_user(self):
