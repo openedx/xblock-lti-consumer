@@ -37,7 +37,6 @@ class ReusableConfigurationStorageTests(TestCase):
 
     def test_passport_id_is_the_only_stored_identity(self):
         configuration = self.make_configuration()
-        self.assertEqual(configuration.config_id, configuration.passport_id)
         self.assertEqual(
             ReusableLtiConfiguration.objects.get(passport_id=configuration.passport_id).pk,
             configuration.pk,

@@ -150,7 +150,7 @@ class ReusableApiTestCase(TestCase):
     def detail_url(self, configuration):
         return reverse(
             'reusable_lti:reusable_configuration_detail',
-            kwargs={'config_id': configuration.config_id},
+            kwargs={'config_id': configuration.passport_id},
         )
 
     def create(self, name, context_type='course', context_key=None, version='lti_1p1', **overrides):
@@ -711,7 +711,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         # Duplicate names are allowed, and another configuration's identity is never disclosed.
         allowed = self.client.patch(self.detail_url(configuration), {'name': ' hidden name '}, format='json')
         self.assertEqual(allowed.status_code, 200)
-        self.assertNotIn(str(hidden.config_id), allowed.content.decode())
+        self.assertNotIn(str(hidden.passport_id), allowed.content.decode())
         configuration.refresh_from_db()
         self.assertEqual(configuration.name, 'hidden name')
 
@@ -725,7 +725,7 @@ class ReusableConfigurationApiJourneys(ReusableApiTestCase):
         }, format='json')
         self.assertEqual(response.status_code, 400)
         body = response.content.decode().lower()
-        self.assertNotIn(str(hidden.config_id), body)
+        self.assertNotIn(str(hidden.passport_id), body)
         self.assertNotIn(hidden.name.lower(), body)
         configuration.refresh_from_db()
         hidden.refresh_from_db()

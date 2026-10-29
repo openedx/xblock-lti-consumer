@@ -124,8 +124,8 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.lti11_config.name)
         self.assertContains(response, self.lti13_config.name)
-        self.assertContains(response, str(self.lti11_config.config_id))
-        self.assertContains(response, str(self.lti13_config.config_id))
+        self.assertContains(response, str(self.lti11_config.passport_id))
+        self.assertContains(response, str(self.lti13_config.passport_id))
         self.assertNotContains(response, self.lti11_config.lti_1p1_client_key)
         self.assertNotContains(response, self.lti11_config.lti_1p1_client_secret)
 
@@ -133,7 +133,7 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
         self.assertContains(response, self.lti13_config.name)
         self.assertNotContains(response, self.lti11_config.name)
 
-        for config_id in (str(self.lti11_config.config_id), self.lti11_config.config_id.hex):
+        for config_id in (str(self.lti11_config.passport_id), self.lti11_config.passport_id.hex):
             with self.subTest(config_id=config_id):
                 response = self.client.get(self.changelist_url, {'q': config_id})
                 self.assertContains(response, self.lti11_config.name)
@@ -196,7 +196,7 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
 
                 response = self.client.get(self.change_url(configuration))
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, str(configuration.config_id))
+                self.assertContains(response, str(configuration.passport_id))
                 self.assertContains(response, 'class="readonly"')
                 for value in visible_values:
                     self.assertContains(response, value)

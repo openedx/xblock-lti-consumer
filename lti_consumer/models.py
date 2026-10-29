@@ -245,16 +245,6 @@ class ReusableLtiConfiguration(models.Model):
         self.save()
 
     @property
-    def config_id(self):
-        """
-        Return the catalog identifier used by the reusable configuration API.
-
-        ``passport_id`` is the only stored identity, so this is an alias and not a
-        column: ORM lookups must use ``passport_id``.
-        """
-        return self.passport_id
-
-    @property
     def lti_1p3_private_key(self):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.

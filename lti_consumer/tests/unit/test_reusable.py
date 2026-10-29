@@ -310,7 +310,7 @@ class ReusableUpdateTests(ReusableMutationTestCase):
 
     def update(self, configuration, changes):
         """Update one configuration through the module interface."""
-        return update_reusable_configuration(self.actor, configuration.config_id, changes)
+        return update_reusable_configuration(self.actor, configuration.passport_id, changes)
 
     def test_update_applies_metadata_connection_services_and_defaults(self):
         updated = self.update(self.lti13, {
@@ -720,7 +720,7 @@ class ReusableUpdateTests(ReusableMutationTestCase):
 
     def test_update_rejects_non_mapping_changes(self):
         with self.assertRaises(ReusableConfigurationError) as raised:
-            update_reusable_configuration(self.actor, self.lti13.config_id, 'not-a-mapping')
+            update_reusable_configuration(self.actor, self.lti13.passport_id, 'not-a-mapping')
         self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', None))
 
     def test_update_rolls_back_after_configuration_write_failure(self):
