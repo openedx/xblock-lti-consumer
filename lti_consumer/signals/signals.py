@@ -120,9 +120,15 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
         raise exc
 
 
+# Temporary legacy bridge: the block-owned config flow saves placements without an
+# explicit reusable_configuration binding, so bind one on save. The target flow creates
+# reusable configurations first and Studio selects an existing row; selection is not
+# implemented yet.
+# shortcut: remove once Studio selection/binding is wired and legacy unbound placements
+# have a conversion/compatibility path.
 @receiver(post_save, sender=LtiConfiguration, dispatch_uid='create_lti_1p3_passport')
 def create_lti_1p3_passport(sender, instance: LtiConfiguration, **kwargs):  # pylint: disable=unused-argument
-    instance.get_or_create_lti_1p3_passport()
+    instance.get_or_create_reusable_configuration()
 
 
 @receiver(SignalHandler.pre_item_delete if SignalHandler else [])

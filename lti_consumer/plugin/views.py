@@ -178,7 +178,7 @@ def _configuration_version(configuration):
     if configuration.version:
         return configuration.version
     return (
-        LtiConfiguration.objects.filter(lti_1p3_passport=configuration)
+        LtiConfiguration.objects.filter(reusable_configuration=configuration)
         .values_list('version', flat=True)
         .first()
     )
@@ -200,7 +200,7 @@ def public_keyset_endpoint(
     and run the proper handler.
 
     Arguments:
-        passport_id (UUID): passport_id of the Lti1p3Passport
+        passport_id (UUID): passport_id of the reusable configuration
         usage_id (UsageKey): location of the Block
         external_app (str): App name of the external LTI configuration
         external_slug (str): Slug of the external LTI configuration.
@@ -216,7 +216,7 @@ def public_keyset_endpoint(
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
             if lti_config.config_store == LtiConfiguration.CONFIG_EXTERNAL:
-                # External configurations own no local passport, so their keyset can only
+                # External placements bind no local row, so their keyset can only
                 # come from the tool's registered data.
                 external_config = get_external_config_from_filter({}, lti_config.external_id)
                 if not external_config:
@@ -525,7 +525,7 @@ def access_token_endpoint(
     This endpoint is only valid when a LTI 1.3 tool is being used.
 
     Arguments:
-        passport_id (UUID): passport_id of the Lti1p3Passport
+        passport_id (UUID): passport_id of the reusable configuration
         usage_id (UsageKey): location of the Block
         external_app (str): App name of the external LTI configuration
         external_slug (str): Slug of the external LTI configuration.
@@ -1066,7 +1066,7 @@ def start_proctoring_assessment_endpoint(request):
 
     try:
         lti_config = LtiConfiguration.objects.get(
-            lti_1p3_passport__lti_1p3_client_id=iss,
+            reusable_configuration__lti_1p3_client_id=iss,
             location=resource_link_id
         )
     except LtiConfiguration.DoesNotExist:

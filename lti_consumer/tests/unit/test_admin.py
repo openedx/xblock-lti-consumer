@@ -213,7 +213,7 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
             location='block-v1:VisibleOrg+VisibleCourse+Run+type@lti_consumer+block@bound',
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_DB,
-            lti_1p3_passport=self.lti13_config,
+            reusable_configuration=self.lti13_config,
         )
         # self.staff clears only the staff-login gate: no LTI model permissions at all.
         for perm in (
@@ -228,7 +228,7 @@ class ReusableLtiConfigurationAdminTests(GlobalStaffPatchMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, str(placement.location))
         # Read-only: the bound placement has no editable control and no delete box.
-        inline_prefix = LtiConfiguration._meta.get_field('lti_1p3_passport').remote_field.get_accessor_name()
+        inline_prefix = LtiConfiguration._meta.get_field('reusable_configuration').remote_field.get_accessor_name()
         self.assertNotContains(response, f'name="{inline_prefix}-0-location"')
         self.assertNotContains(response, f'name="{inline_prefix}-0-DELETE"')
         # The inline shows the binding only; credentials stay hidden.

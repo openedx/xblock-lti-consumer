@@ -565,3 +565,66 @@ class Test0024ContentTypePreservation(TransactionTestCase):
         )
         self.assertEqual(Permission.objects.get(pk=permission.pk).content_type_id, content_type_id)
         self.assertTrue(Group.objects.get(pk=group.pk).permissions.filter(pk=permission.pk).exists())
+
+
+class Test0025RenamePlacementConfigurationField(TransactionTestCase):
+    """Exercise the placement FK rename: one column renamed in place, every link kept."""
+
+    reset_sequences = True
+
+    migrate_from = [("lti_consumer", "0024_reusable_lti_configuration")]
+    migrate_to = [("lti_consumer", "0025_rename_lti_1p3_passport_reusable_configuration")]
+
+    def setUp(self):
+        super().setUp()
+        self.executor = MigrationExecutor(connection)
+        # Start from schema/state immediately before migration under test.
+        self.executor.migrate(self.migrate_from)
+
+        old_apps = self.executor.loader.project_state(self.migrate_from).apps
+        LtiConfiguration = old_apps.get_model("lti_consumer", "LtiConfiguration")
+        ReusableLtiConfiguration = old_apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+
+        self.configuration = ReusableLtiConfiguration.objects.create(lti_1p3_client_id="client-id")
+        self.placement = LtiConfiguration.objects.create(
+            config_id=uuid.uuid4(),
+            version="lti_1p3",
+            config_store="CONFIG_ON_DB",
+            location="block-v1:Org+Course+Run+type@lti_consumer+block@renamed",
+            lti_1p3_passport=self.configuration,
+        )
+
+    def migrate(self):
+        """Apply the rename and return the resulting application state."""
+        self.executor.loader.build_graph()
+        self.executor.migrate(self.migrate_to)
+        return self.executor.loader.project_state(self.migrate_to).apps
+
+    def test_rename_keeps_the_binding_and_the_protection(self):
+        """The renamed column keeps the link and still protects the configuration row."""
+        new_apps = self.migrate()
+        LtiConfiguration = new_apps.get_model("lti_consumer", "LtiConfiguration")
+        ReusableLtiConfiguration = new_apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+
+        placement = LtiConfiguration.objects.get(pk=self.placement.pk)
+        self.assertEqual(placement.reusable_configuration_id, self.configuration.pk)
+        self.assertEqual(placement.reusable_configuration.lti_1p3_client_id, "client-id")
+        self.assertIs(
+            LtiConfiguration._meta.get_field("reusable_configuration").remote_field.on_delete, models.PROTECT,
+        )
+        with self.assertRaises(ProtectedError):
+            ReusableLtiConfiguration.objects.get(pk=self.configuration.pk).delete()
+
+    def test_reverse_migration_restores_the_old_column_name(self):
+        """Reversal restores the old field and keeps the binding, leaving the latest schema behind."""
+        self.migrate()
+        self.executor.loader.build_graph()
+        self.executor.migrate(self.migrate_from)
+
+        old_apps = self.executor.loader.project_state(self.migrate_from).apps
+        LtiConfiguration = old_apps.get_model("lti_consumer", "LtiConfiguration")
+        self.assertEqual(
+            LtiConfiguration.objects.get(pk=self.placement.pk).lti_1p3_passport_id, self.configuration.pk,
+        )
+        # Leave the suite on the latest schema.
+        self.migrate()

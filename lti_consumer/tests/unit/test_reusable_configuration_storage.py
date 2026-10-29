@@ -7,7 +7,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
-from lti_consumer.models import Lti1p3Passport, LtiConfiguration, ReusableLtiConfiguration
+from lti_consumer.models import LtiConfiguration, ReusableLtiConfiguration
 
 COURSE_KEY = 'course-v1:Org+Course+Run'
 
@@ -32,8 +32,6 @@ class ReusableConfigurationStorageTests(TestCase):
             if model._meta.db_table == 'lti_consumer_reusablelticonfiguration'
         ]
         self.assertEqual(owning_models, [ReusableLtiConfiguration])
-        # The old name survives as a source-level alias only, not as a second model.
-        self.assertIs(Lti1p3Passport, ReusableLtiConfiguration)
 
     def test_passport_id_is_the_only_stored_identity(self):
         configuration = self.make_configuration()
@@ -86,10 +84,10 @@ class ReusableConfigurationStorageTests(TestCase):
             config_id=uuid.uuid4(),
             version='lti_1p3',
             config_store='CONFIG_ON_DB',
-            lti_1p3_passport=configuration,
+            reusable_configuration=configuration,
         )
-        self.assertEqual(placement.lti_1p3_passport, configuration)
-        self.assertEqual(placement.lti_1p3_passport_id, configuration.pk)
+        self.assertEqual(placement.reusable_configuration, configuration)
+        self.assertEqual(placement.reusable_configuration_id, configuration.pk)
         self.assertEqual(list(configuration.lticonfiguration_set.all()), [placement])
 
     def test_reads_never_generate_signing_keys(self):

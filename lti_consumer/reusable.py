@@ -12,6 +12,7 @@ import secrets
 import uuid
 from dataclasses import dataclass
 from math import isfinite
+from typing import NamedTuple
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
@@ -284,6 +285,17 @@ def _validated_lti_1p3_create(section):
     return validated
 
 
+class _ValidatedCreate(NamedTuple):
+    """Normalized members of one validated create mapping."""
+
+    name: str
+    version: str
+    section: dict
+    description: str
+    services: dict
+    defaults: dict
+
+
 def _validated_create(data):
     """Validate a parsed create mapping and return its normalized members."""
     _reject_unknown(data, _CREATE_MEMBERS)
@@ -300,13 +312,13 @@ def _validated_create(data):
         _validated_lti_1p1_create(section) if version == LTI_1P1 else _validated_lti_1p3_create(section)
     )
 
-    return (
-        name,
-        version,
-        validated_section,
-        _optional_string(data.get('description'), 'description'),
-        _validated_services(data['services'] if 'services' in data else {}),
-        _validated_defaults(data['defaults'] if 'defaults' in data else {}),
+    return _ValidatedCreate(
+        name=name,
+        version=version,
+        section=validated_section,
+        description=_optional_string(data.get('description'), 'description'),
+        services=_validated_services(data['services'] if 'services' in data else {}),
+        defaults=_validated_defaults(data['defaults'] if 'defaults' in data else {}),
     )
 
 
@@ -321,17 +333,18 @@ def create_reusable_configuration(actor, data):
         _invalid(None, _('Invalid reusable configuration.'))
 
     context = CreationContextPolicy(actor).authorize_creation(data.get('context'))
-    name, version, section, description, services, defaults = _validated_create(data)
+    validated = _validated_create(data)
+    section = validated.section
 
     credentials = None
     configuration_values = {
-        'name': name,
-        'description': description,
-        'version': version,
+        'name': validated.name,
+        'description': validated.description,
+        'version': validated.version,
         'context_type': context.type,
         'context_key': context.key,
     }
-    if version == LTI_1P1:
+    if validated.version == LTI_1P1:
         client_key = section.get('client_key') or secrets.token_urlsafe(32)
         client_secret = section.get('client_secret') or secrets.token_urlsafe(32)
         configuration_values.update(
@@ -354,10 +367,12 @@ def create_reusable_configuration(actor, data):
             lti_1p3_tool_key_mode=section['tool_key_mode'],
         )
 
-    configuration_values.update(service_configuration_values(services))
-    configuration_values.update({key: defaults[key] for key in _DEFAULT_MEMBERS if key in defaults})
+    configuration_values.update(service_configuration_values(validated.services))
+    configuration_values.update(
+        {key: validated.defaults[key] for key in _DEFAULT_MEMBERS if key in validated.defaults},
+    )
 
-    if version == LTI_1P3:
+    if validated.version == LTI_1P3:
         configuration_values.update(
             lti_1p3_tool_public_key=section.get('tool_public_key', ''),
             lti_1p3_tool_keyset_url=section.get('tool_keyset_url', ''),
@@ -366,7 +381,7 @@ def create_reusable_configuration(actor, data):
     try:
         with transaction.atomic():
             configuration = ReusableLtiConfiguration.objects.create(**configuration_values)
-            if version == LTI_1P3:
+            if validated.version == LTI_1P3:
                 # Platform RSA material is generated once, on the same row, before commit.
                 configuration.generate_lti_1p3_keys_if_missing()
     except IntegrityError:

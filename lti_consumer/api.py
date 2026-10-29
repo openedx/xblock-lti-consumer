@@ -68,7 +68,7 @@ def sync_lti_passport_id_to_block(block):
 
     Returns True if the field was changed, False otherwise.
     """
-    passport = _get_lti_config_for_block(block).lti_1p3_passport
+    passport = _get_lti_config_for_block(block).reusable_configuration
     if passport and block.lti_1p3_passport_id != str(passport.passport_id):
         block.lti_1p3_passport_id = str(passport.passport_id)
         return True
@@ -168,7 +168,7 @@ def get_lti_1p3_launch_info(
 
     config_id = lti_config.passport_id
     client_id = lti_config.lti_1p3_client_id
-    deployment_id = getattr(lti_config.lti_1p3_passport, 'lti_1p3_deployment_id', None) or "1"
+    deployment_id = getattr(lti_config.reusable_configuration, 'lti_1p3_deployment_id', None) or "1"
 
     # Display LTI launch information from external configuration.
     # if an external configuration is being used.

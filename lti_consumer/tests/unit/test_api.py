@@ -223,7 +223,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
             block=self.xblock
         )
 
-        self.assertIsNotNone(lti_config.lti_1p3_passport)
+        self.assertIsNotNone(lti_config.reusable_configuration)
 
     def test_external_creation_stores_the_source_before_the_post_save_signal(self):
         """
@@ -232,7 +232,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         seen = []
         with patch.object(
             LtiConfiguration,
-            'get_or_create_lti_1p3_passport',
+            'get_or_create_reusable_configuration',
             autospec=True,
             side_effect=lambda instance: seen.append((instance.config_store, instance.version)),
         ):
@@ -244,7 +244,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
 
         self.assertEqual(seen, [(LtiConfiguration.CONFIG_EXTERNAL, LtiConfiguration.LTI_1P3)])
         self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_EXTERNAL)
-        self.assertIsNone(lti_config.lti_1p3_passport)
+        self.assertIsNone(lti_config.reusable_configuration)
 
     def test_normal_creation_keeps_the_embedded_source(self):
         """
@@ -257,7 +257,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
 
         self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
         self.assertEqual(lti_config.version, LtiConfiguration.LTI_1P3)
-        self.assertIsNotNone(lti_config.lti_1p3_passport)
+        self.assertIsNotNone(lti_config.reusable_configuration)
 
     def test_existing_row_keeps_its_updates(self):
         """
@@ -283,7 +283,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         configuration = self._make_configuration(lti_1p3_tool_public_key='old_key')
         LtiConfiguration.objects.create(
             location=self.location,
-            lti_1p3_passport=configuration,
+            reusable_configuration=configuration,
             config_store=stored_store,
         )
 
@@ -299,7 +299,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         configuration.refresh_from_db()
         self.assertEqual(configuration.lti_1p3_tool_public_key, 'old_key')
         self.assertEqual(configuration.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
-        self.assertEqual(lti_config.lti_1p3_passport_id, configuration.pk)
+        self.assertEqual(lti_config.reusable_configuration_id, configuration.pk)
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
         configuration_save.assert_not_called()
 
@@ -342,8 +342,8 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         A differing block key never creates a second configuration row for the same placement.
         """
         configuration = self._make_configuration()
-        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=configuration)
-        LtiConfiguration.objects.create(location=self.other_location, lti_1p3_passport=configuration)
+        LtiConfiguration.objects.create(location=self.location, reusable_configuration=configuration)
+        LtiConfiguration.objects.create(location=self.other_location, reusable_configuration=configuration)
 
         self.xblock.lti_1p3_tool_key_mode = 'public_key'
         self.xblock.lti_1p3_tool_public_key = 'new_key'
@@ -355,7 +355,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
             )
 
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
-        self.assertEqual(lti_config.lti_1p3_passport_id, configuration.pk)
+        self.assertEqual(lti_config.reusable_configuration_id, configuration.pk)
         configuration.refresh_from_db()
         self.assertEqual(configuration.lti_1p3_tool_public_key, 'shared_key')
         save_xblock_mock.assert_not_called()
@@ -367,7 +367,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.assertTrue(sync_lti_passport_id_to_block(self.xblock))
 
         lti_config = LtiConfiguration.objects.get(location=self.location)
-        self.assertEqual(self.xblock.lti_1p3_passport_id, str(lti_config.lti_1p3_passport.passport_id))
+        self.assertEqual(self.xblock.lti_1p3_passport_id, str(lti_config.reusable_configuration.passport_id))
 
         # Nothing to do on a second call.
         self.assertFalse(sync_lti_passport_id_to_block(self.xblock))
@@ -382,8 +382,8 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         A key-mode change on the block leaves the shared configuration alone.
         """
         configuration = self._make_configuration()
-        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=configuration)
-        LtiConfiguration.objects.create(location=self.other_location, lti_1p3_passport=configuration)
+        LtiConfiguration.objects.create(location=self.location, reusable_configuration=configuration)
+        LtiConfiguration.objects.create(location=self.other_location, reusable_configuration=configuration)
 
         self.xblock.lti_1p3_tool_key_mode = key_mode
         setattr(self.xblock, key_field, 'new_value')
@@ -394,7 +394,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         )
 
         self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
-        self.assertEqual(lti_config.lti_1p3_passport_id, configuration.pk)
+        self.assertEqual(lti_config.reusable_configuration_id, configuration.pk)
 
     def test_empty_configuration_keys_are_not_seeded_from_the_block(self):
         """
@@ -404,7 +404,7 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
             lti_1p3_tool_public_key='',
             lti_1p3_tool_keyset_url='https://tool.example/jwks',
         )
-        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=configuration)
+        LtiConfiguration.objects.create(location=self.location, reusable_configuration=configuration)
 
         self.xblock.lti_1p3_tool_public_key = 'new_key'
         self.xblock.lti_1p3_tool_keyset_url = 'new_url'

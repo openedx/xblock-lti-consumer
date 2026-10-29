@@ -102,7 +102,7 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         """
         The endpoint resolves a configuration by passport_id and returns its stored JWK.
         """
-        configuration = self.lti_config.lti_1p3_passport
+        configuration = self.lti_config.reusable_configuration
         stored_jwk = configuration.lti_1p3_internal_public_jwk
         response = self.client.get(f'/lti_consumer/v1/public_keysets/{configuration.passport_id}')
 
@@ -179,7 +179,7 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         self.assertEqual(external_jwk, json.loads(response.content.decode('utf-8')))
         get_external_config_from_filter.assert_called_once_with({}, 'x:x')
         lti_config.refresh_from_db()
-        self.assertIsNone(lti_config.lti_1p3_passport)
+        self.assertIsNone(lti_config.reusable_configuration)
         self.assertEqual(ReusableLtiConfiguration.objects.count(), passport_count)
 
 
@@ -731,7 +731,7 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
         private_jwk['kid'] = 1
         self.key = PyJWK.from_dict(private_jwk)
         self.public_key = rsa_key.public_key().export_key('PEM')
-        self.configuration = self.config.lti_1p3_passport
+        self.configuration = self.config.reusable_configuration
         self.configuration.lti_1p3_tool_public_key = self.public_key.decode()
         self.configuration.save()
         # Signing keys are written up front: the token endpoint must not generate them.

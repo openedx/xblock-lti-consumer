@@ -396,17 +396,17 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         )
 
         # Check that model fields are empty
-        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_private_key)
-        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_private_key_id)
-        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk)
+        self.assertFalse(lti_config.reusable_configuration.lti_1p3_internal_private_key)
+        self.assertFalse(lti_config.reusable_configuration.lti_1p3_internal_private_key_id)
+        self.assertFalse(lti_config.reusable_configuration.lti_1p3_internal_public_jwk)
 
         # Create and retrieve public keys
         _ = lti_config.lti_1p3_public_jwk
 
         # Check if keys were created
-        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_private_key)
-        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_private_key_id)
-        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk)
+        self.assertTrue(lti_config.reusable_configuration.lti_1p3_internal_private_key)
+        self.assertTrue(lti_config.reusable_configuration.lti_1p3_internal_private_key_id)
+        self.assertTrue(lti_config.reusable_configuration.lti_1p3_internal_public_jwk)
 
     def test_generate_public_key_only(self):
         """
@@ -419,8 +419,8 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         )
         # Create and retrieve public keys
         public_key = lti_config.lti_1p3_public_jwk.copy()
-        lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk = ""
-        lti_config.lti_1p3_passport.save()
+        lti_config.reusable_configuration.lti_1p3_internal_public_jwk = ""
+        lti_config.reusable_configuration.save()
 
         # Retrieve public key and check that it was correctly regenerated
         regenerated_public_key = lti_config.lti_1p3_public_jwk
@@ -448,7 +448,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
 
         # Legacy, incomplete and LTI 1.1 configurations may carry no key material at all.
-        passport = self.lti_1p3_config_db.lti_1p3_passport
+        passport = self.lti_1p3_config_db.reusable_configuration
         passport.lti_1p3_tool_key_mode = None
         passport.lti_1p3_tool_keyset_url = ''
         passport.lti_1p3_tool_public_key = ''
@@ -533,7 +533,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
             external_config['lti_advantage_deep_linking_launch_url'],
         )
 
-    def test_get_or_create_lti_1p3_passport_does_not_write_to_block(self):
+    def test_get_or_create_reusable_configuration_does_not_write_to_block(self):
         """
         Test that creating a passport doesn't write back to the XBlock.
 
@@ -552,14 +552,14 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
             )
 
         # The passport is created and linked to the configuration, which is authoritative.
-        self.assertIsNotNone(config.lti_1p3_passport)
-        self.assertEqual(config.lti_1p3_passport.name, f"Passport of {xblock.display_name}")
+        self.assertIsNotNone(config.reusable_configuration)
+        self.assertEqual(config.reusable_configuration.name, f"Passport of {xblock.display_name}")
         # But the block is left untouched.
         block_save_mock.assert_not_called()
         save_xblock_mock.assert_not_called()
         self.assertEqual(xblock.lti_1p3_passport_id, '')
 
-    def test_get_or_create_lti_1p3_passport_skips_external_configurations(self):
+    def test_get_or_create_reusable_configuration_skips_external_configurations(self):
         """An external configuration is a dynamic reference and never owns a local row."""
         self._load_block_patch.reset_mock()
         before = ReusableLtiConfiguration.objects.count()
@@ -571,13 +571,13 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
             external_id='app:slug',
         )
 
-        self.assertIsNone(config.lti_1p3_passport)
+        self.assertIsNone(config.reusable_configuration)
         self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
         self._load_block_patch.assert_not_called()
         self.assertIsNone(config.passport_id)
         self.assertIsNone(config.lti_1p3_client_id)
 
-    def test_get_or_create_lti_1p3_passport_seeds_a_local_configuration_from_the_block(self):
+    def test_get_or_create_reusable_configuration_seeds_a_local_configuration_from_the_block(self):
         """A new local row seeds version, course context, name and the block's key material."""
         xblock = make_xblock('lti_consumer', LtiConsumerXBlock, {
             'lti_version': 'lti_1p3',
@@ -588,7 +588,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         config = LtiConfiguration.objects.create(
             location='block-v1:edX+DemoX+Demo_Course+type@lti_consumer+block@seeded',
         )
-        passport = config.lti_1p3_passport
+        passport = config.reusable_configuration
 
         self.assertEqual(passport.version, LtiConfiguration.LTI_1P3)
         self.assertEqual((passport.context_type, passport.context_key), ('course', str(xblock.context_id)))
@@ -600,7 +600,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         self.assertEqual(passport.lti_1p3_internal_private_key, '')
         self.assertEqual(passport.lti_1p3_internal_public_jwk, '')
 
-    def test_get_or_create_lti_1p3_passport_infers_keyset_mode_from_the_block(self):
+    def test_get_or_create_reusable_configuration_infers_keyset_mode_from_the_block(self):
         """Keyset material selects keyset mode; the block's mode default is not trusted."""
         xblock = make_xblock('lti_consumer', LtiConsumerXBlock, {
             'lti_version': 'lti_1p3',
@@ -611,14 +611,14 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         config = LtiConfiguration.objects.create(
             location='block-v1:edX+DemoX+Demo_Course+type@lti_consumer+block@keyset',
         )
-        passport = config.lti_1p3_passport
+        passport = config.reusable_configuration
 
         self.assertEqual(passport.lti_1p3_tool_key_mode, 'keyset_url')
         self.assertEqual(passport.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
         self.assertEqual(passport.lti_1p3_tool_public_key, '')
         self.assertEqual(passport.lti_1p3_internal_private_key, '')
 
-    def test_get_or_create_lti_1p3_passport_leaves_the_mode_unset_for_ambiguous_tool_keys(self):
+    def test_get_or_create_reusable_configuration_leaves_the_mode_unset_for_ambiguous_tool_keys(self):
         """Both or neither key leaves the mode unset, because no single key can be trusted."""
         for block_type, attributes in (
             ('both-keys', {'lti_1p3_tool_public_key': 'a-public-key',
@@ -633,9 +633,9 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
                     location=f'block-v1:edX+DemoX+Demo_Course+type@lti_consumer+block@{block_type}',
                 )
 
-                self.assertIsNone(config.lti_1p3_passport.lti_1p3_tool_key_mode)
+                self.assertIsNone(config.reusable_configuration.lti_1p3_tool_key_mode)
 
-    def test_get_or_create_lti_1p3_passport_normalizes_a_ccx_context(self):
+    def test_get_or_create_reusable_configuration_normalizes_a_ccx_context(self):
         """A CCX copy seeds the parent course as the Creation Context."""
         class FakeBlock:
             """Block bound to a CCX copy of a course."""
@@ -655,13 +655,13 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         )
 
         self.assertEqual(
-            (config.lti_1p3_passport.context_type, config.lti_1p3_passport.context_key),
+            (config.reusable_configuration.context_type, config.reusable_configuration.context_key),
             ('course', 'course-v1:edX+DemoX+Demo_Course'),
         )
 
     def test_get_lti_1p3_consumer_uses_the_configuration_deployment_id(self):
         """The launch consumer reports the bound configuration's deployment id, defaulting to 1."""
-        passport = self.lti_1p3_config.lti_1p3_passport
+        passport = self.lti_1p3_config.reusable_configuration
         self.assertIsNone(passport.lti_1p3_deployment_id)
         self.assertEqual(self.lti_1p3_config.get_lti_consumer().deployment_id, '1')
 
@@ -672,7 +672,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
 
     def test_bound_configuration_cannot_be_deleted_while_a_placement_references_it(self):
         """The placement FK protects a configuration that is still bound to a block."""
-        configuration = self.lti_1p3_config.lti_1p3_passport
+        configuration = self.lti_1p3_config.reusable_configuration
         with self.assertRaises(ProtectedError):
             configuration.delete()
         self.assertTrue(ReusableLtiConfiguration.objects.filter(pk=configuration.pk).exists())
