@@ -1900,6 +1900,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # sharing is enabled.
         pii_sharing_enabled = self.get_pii_sharing_enabled()
 
+        i18n_service = self.runtime.service(self, 'i18n')
+        _ = i18n_service.ugettext if i18n_service else (lambda text: text)
+
         return {
             'launch_url': launch_url.strip(),
             'lti_1p3_launch_url': lti_1p3_launch_url,
@@ -1907,6 +1910,9 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'element_class': getattr(self, 'category', ''),
             'launch_target': self.launch_target,
             'display_name': self.display_name,
+            # Translators: "External resource" means that this learning module is hosted on a platform external
+            # to the edX LMS. It is shown in parentheses after the component name.
+            'external_resource_label': _('External resource'),
             'form_url': lti_block_launch_handler,
             'hide_launch': self.hide_launch,
             'has_score': self.has_score,
