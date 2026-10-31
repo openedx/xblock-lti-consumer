@@ -16,6 +16,12 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.5 - 2026-11-01
+--------------------
+* Make the "External resource" label and the score label ("N points possible",
+  "N / M points") shown after the LTI component name in the student view
+  translatable; they were hard-coded in the template.
+
 11.4.4 - 2026-10-26
 --------------------
 * Omit the LTI 1.3 ``resource_link`` claim from Deep Linking request
