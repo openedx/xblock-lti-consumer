@@ -18,8 +18,9 @@ Unreleased
 
 11.4.5 - 2026-11-01
 --------------------
-* Make the "External resource" label shown after the LTI component name in
-  the student view translatable; it was hard-coded in the template.
+* Make the "External resource" label and the score label ("N points possible",
+  "N / M points") shown after the LTI component name in the student view
+  translatable; they were hard-coded in the template.
 
 11.4.4 - 2026-10-26
 --------------------

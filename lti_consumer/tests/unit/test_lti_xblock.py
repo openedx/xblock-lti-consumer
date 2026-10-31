@@ -1801,7 +1801,8 @@ class TestGetContext(TestLtiConsumerXBlock):
         self.xblock.lti_version = lti_version
         context_keys = (
             'launch_url', 'lti_1p3_launch_url', 'element_id', 'element_class', 'launch_target',
-            'display_name', 'external_resource_label', 'form_url', 'hide_launch', 'has_score', 'weight', 'module_score',
+            'display_name', 'external_resource_label', 'form_url', 'hide_launch', 'has_score', 'weight',
+            'module_score', 'score_label',
             'comment', 'description', 'ask_to_send_username', 'ask_to_send_full_name', 'ask_to_send_email',
             'button_text', 'modal_vertical_offset', 'modal_horizontal_offset', 'modal_width',
             'accept_grades_past_due', 'lti_version',
@@ -1843,6 +1844,26 @@ class TestGetContext(TestLtiConsumerXBlock):
         context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
 
         self.assertEqual(context['external_resource_label'], 'External resource')
+
+    @ddt.data(
+        (None, 'translated: 2.0 points possible'),
+        (1.5, 'translated: 1.5 / 2.0 points'),
+    )
+    @ddt.unpack
+    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.get_lti_1p3_launch_data', Mock(return_value=None))
+    def test_score_label_is_translated(self, module_score, expected_label):
+        """
+        Test that the score label shown after the display name goes through the i18n service
+        """
+        i18n_service = Mock()
+        i18n_service.ugettext = Mock(side_effect=lambda text: f'translated: {text}')
+        self.xblock.runtime.service = Mock(return_value=i18n_service)
+        self.xblock.weight = 2.0
+        self.xblock.module_score = module_score
+
+        context = self.xblock._get_context_for_template()  # pylint: disable=protected-access
+
+        self.assertEqual(context['score_label'], expected_label)
 
     @ddt.data('a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i', 'li', 'ol', 'strong', 'ul', 'img')
     def test_comment_allowed_tags(self, tag):

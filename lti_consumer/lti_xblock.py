@@ -1903,6 +1903,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         i18n_service = self.runtime.service(self, 'i18n')
         _ = i18n_service.ugettext if i18n_service else (lambda text: text)
 
+        if self.module_score is not None:
+            # Translators: {points} is the learner's score and {total_points} the maximum score of this component.
+            score_label = _('{points} / {total_points} points').format(
+                points=self.module_score, total_points=self.weight,
+            )
+        else:
+            # Translators: {total_points} is the maximum score of this component.
+            score_label = _('{total_points} points possible').format(total_points=self.weight)
+
         return {
             'launch_url': launch_url.strip(),
             'lti_1p3_launch_url': lti_1p3_launch_url,
@@ -1918,6 +1927,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             'has_score': self.has_score,
             'weight': self.weight,
             'module_score': self.module_score,
+            'score_label': score_label,
             'comment': sanitized_comment,
             'description': self.description,
             'ask_to_send_username': self.ask_to_send_username if pii_sharing_enabled else False,
