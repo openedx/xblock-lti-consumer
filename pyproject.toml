@@ -67,9 +67,11 @@ where = ["src"]
 exclude = ["*.tests", "*.tests.*"]
 
 [tool.setuptools.package-data]
-lti_consumer = ["static/**/*", "templates/**/*", "public/**/*", "conf/locale/**"]
+lti_consumer = ["static/**/*", "templates/**/*", "public/**/*", "conf/locale/**", "translations/**/*"]
 
 [tool.setuptools.exclude-package-data]
+# Symlinks to conf/locale; git lists them as files and build_py cannot copy them.
+lti_consumer = ["locale", "translations"]
 "*" = ["tests*", "*.tests*", "spec*", "*.spec*"]
 
 [tool.coverage.run]
@@ -79,8 +81,7 @@ omit = ["*/tests/*", "*/migrations/*", "*/__pycache__/*", "*/settings.py", "*/ur
 
 [tool.coverage.report]
 show_missing = true
-exclude_lines = [
-    "pragma: no cover",
+exclude_also = [
     "def __repr__",
     "raise AssertionError",
     "raise NotImplementedError",
@@ -118,6 +119,7 @@ test = [
 ]
 quality = [
     {include-group = "test"},
+    "build",
     "pylint",
     "pycodestyle",
 ]

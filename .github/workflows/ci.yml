@@ -32,12 +32,12 @@ jobs:
         enable-cache: true
 
     - name: Install CI dependencies
-      run: uv sync --group ci
+      run: uv sync --locked --group ci
 
     - name: Run Tests
       env:
         TOXENV: ${{ matrix.toxenv }}
-      run: uv run tox -e ${{ matrix.toxenv }}
+      run: uv run --locked tox -e ${{ matrix.toxenv }}
 
     - name: Run Coverage
       if: matrix.python-version == '3.12' && matrix.toxenv=='django52'

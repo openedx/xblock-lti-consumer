@@ -15,6 +15,9 @@ compile-sass:  ## Compile the Sass assets
 quality:  ## Run the quality checks
 	pycodestyle src/lti_consumer
 	pylint --rcfile=pylintrc src/lti_consumer
+	rm -rf dist
+	python -m build
+	twine check dist/*
 
 test:  ## Run the tests
 	mkdir -p var
