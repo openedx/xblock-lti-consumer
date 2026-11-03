@@ -61,18 +61,14 @@ Any changes made to the Python code will auto-reload both ``lms`` and ``cms`` se
 Common Development Tasks
 ------------------------
 
-Before performing any of the following tasks, create a virtual environment and activate it.
+Before performing any of the following tasks, install `uv`_, then create the virtual environment and activate it.
 
 .. code-block:: bash
 
-   python -m venv .venv
+   make install
    source .venv/bin/activate
 
-#. Install the dev dependencies
-
-   .. code-block:: bash
-
-      make install-dev
+.. _uv: https://docs.astral.sh/uv/getting-started/installation/
 
 #. Changes to style rules should be made to the Sass files, compiled to CSS, and committed to the git repository.
 
@@ -107,10 +103,11 @@ Development Workflow
 Package Requirements
 --------------------
 
-setup.py contains a list of package dependencies which are required for this XBlock package.
-This list is what is used to resolve dependencies when an upstream project is consuming
-this XBlock package. requirements.txt is used to install the same dependencies when running
-the tests for this package.
+``pyproject.toml`` lists the runtime dependencies under ``[project].dependencies``; this list is
+what is used to resolve dependencies when an upstream project is consuming this XBlock package.
+Development and test dependencies are defined as dependency groups in ``pyproject.toml``, and
+``uv.lock`` pins the exact versions used for local development and CI. Run ``make upgrade`` to
+refresh the lock file.
 
 Further Development Info
 ------------------------
