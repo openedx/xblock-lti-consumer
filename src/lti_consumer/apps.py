@@ -20,7 +20,12 @@ class LTIConsumerApp(AppConfig):
                 'namespace': 'lti_consumer',
                 'regex': '^api/',
                 'relative_path': 'plugin.urls',
-            }
+            },
+            'cms.djangoapp': {
+                'namespace': 'lti_consumer',
+                'regex': '^api/',
+                'relative_path': 'plugin.reusable_urls',
+            },
         }
     }
 

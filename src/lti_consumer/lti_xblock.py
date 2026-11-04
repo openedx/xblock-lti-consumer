@@ -307,10 +307,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     # LTI 1.3 fields
     lti_1p3_passport_id = String(
-        display_name=_("Lti 1.3 passport ID that points to Lti1p3Passport table"),
+        display_name=_("Lti 1.3 passport ID of the reusable configuration"),
         scope=Scope.settings,
         default="",
-        help=_("Passport ID for a reusable keys.")
+        help=_("Passport ID of the reusable configuration.")
     )
 
     lti_1p3_launch_url = String(
@@ -1331,8 +1331,8 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Studio Save.
 
         Reconciles the block's `lti_1p3_passport_id` field with the configuration
-        stored in the database, creating the configuration and its passport if they
-        don't exist yet. Doing it here means passport initialization never has to
+        stored in the database, creating the reusable configuration if it doesn't
+        exist yet. Doing it here means configuration initialization never has to
         write to the block from an LMS request, where Scope.settings is read-only.
         """
         from lti_consumer.api import sync_lti_passport_id_to_block  # pylint: disable=import-outside-toplevel
@@ -1994,10 +1994,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         try:
             from .models import LtiConfiguration  # pylint: disable=import-outside-toplevel
 
-            configuration = LtiConfiguration.objects.select_related("lti_1p3_passport").get(
+            configuration = LtiConfiguration.objects.select_related("reusable_configuration").get(
                 location=self.scope_ids.usage_id,
             )
-            if configuration.lti_1p3_passport:
-                node.set("lti_1p3_passport_id", str(configuration.lti_1p3_passport.passport_id))
+            if configuration.reusable_configuration:
+                node.set("lti_1p3_passport_id", str(configuration.reusable_configuration.passport_id))
         except LtiConfiguration.DoesNotExist:
             pass
