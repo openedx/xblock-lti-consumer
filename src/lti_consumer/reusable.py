@@ -83,9 +83,9 @@ class ReusableCreationResult:
 
 
 def service_configuration_values(services):
-    """Map provided service settings to model fields, normalizing nullable URLs."""
+    """Map validated service settings to model fields."""
     return {
-        field: '' if key == 'deep_linking_launch_url' and services[key] is None else services[key]
+        field: services[key]
         for key, field in _REUSABLE_SERVICE_FIELDS.items() if key in services
     }
 
