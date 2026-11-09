@@ -15,7 +15,11 @@ from django.test import TestCase, TransactionTestCase
 
 from lti_consumer.exceptions import ReusableConfigurationError
 from lti_consumer.models import Lti1p3Passport, LtiConfiguration, ReusableLtiConfiguration
-from lti_consumer.reusable import create_reusable_configuration, update_reusable_configuration
+from lti_consumer.reusable import (
+    _validated_privacy,
+    create_reusable_configuration,
+    update_reusable_configuration,
+)
 from lti_consumer.reusable_context import CreationContext, CreationContextPolicy
 
 COURSE_KEY = 'course-v1:Org+Course+Run'
@@ -30,6 +34,28 @@ COMPAT_HELPERS = (
     'get_studio_accessible_course_keys',
 )
 COPIED_RAW_CONTEXT_KEY = 'legacy-passport-context-key'
+PRIVACY_WIRE_MEMBERS = {
+    'share_username': 'pii_share_username',
+    'share_full_name': 'pii_share_full_name',
+    'share_email': 'pii_share_email',
+    'data_sharing_notice': 'data_sharing_notice',
+    'require_user_confirmation': 'require_user_confirmation',
+}
+PRIVACY_DEFAULTS = {
+    'pii_share_username': False,
+    'pii_share_full_name': False,
+    'pii_share_email': False,
+    'data_sharing_notice': '',
+    'require_user_confirmation': True,
+}
+# Every value differs from its default, so a stored one proves an authoring write.
+PRIVACY_AUTHORED = {
+    'share_username': True,
+    'share_full_name': True,
+    'share_email': True,
+    'data_sharing_notice': 'Hand-written sharing notice',
+    'require_user_confirmation': False,
+}
 
 
 def lti11_data(**overrides):
@@ -209,6 +235,40 @@ class ReusableCreateTests(ReusableMutationTestCase):
         self.assertEqual(configuration.custom_parameters, ['a=b', 'c=d'])
         self.assertEqual(configuration.inline_height, 2147483647)
 
+    def test_create_omitting_privacy_uses_the_safe_defaults(self):
+        configuration = create_reusable_configuration(self.actor, lti11_data()).configuration
+        stored = ReusableLtiConfiguration.objects.get(pk=configuration.pk)
+        self.assertEqual(
+            {field: getattr(stored, field) for field in PRIVACY_DEFAULTS},
+            PRIVACY_DEFAULTS,
+        )
+        self.assertFalse(stored.hide_external_tool)
+
+    def test_create_stores_explicit_privacy_and_hide_external_tool(self):
+        result = create_reusable_configuration(self.actor, lti11_data(
+            privacy=dict(PRIVACY_AUTHORED),
+            defaults={'hide_external_tool': True},
+        ))
+        stored = ReusableLtiConfiguration.objects.get(pk=result.configuration.pk)
+        self.assertEqual(
+            {field: getattr(stored, field) for field in PRIVACY_WIRE_MEMBERS.values()},
+            {PRIVACY_WIRE_MEMBERS[member]: value for member, value in PRIVACY_AUTHORED.items()},
+        )
+        self.assertTrue(stored.hide_external_tool)
+
+    def test_create_rejects_privacy_smuggled_through_defaults_or_services(self):
+        cases = (
+            (lti11_data(defaults={'share_username': True}), 'defaults.share_username'),
+            (lti11_data(defaults={'data_sharing_notice': 'notice'}), 'defaults.data_sharing_notice'),
+            (lti11_data(services={'share_email': True}), 'services.share_email'),
+        )
+        for data, field in cases:
+            with self.subTest(field=field):
+                with self.assertRaises(ReusableConfigurationError) as raised:
+                    create_reusable_configuration(self.actor, data)
+                self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', field))
+        self.assertFalse(ReusableLtiConfiguration.objects.exists())
+
     def test_create_stores_the_policy_canonical_context(self):
         self.policy.authorize_creation.side_effect = lambda raw: CreationContext(
             type='organization', key='canonical-org',
@@ -307,6 +367,15 @@ class ReusableCreateTests(ReusableMutationTestCase):
             (lti11_data(defaults={'modal_width': -1}), 'defaults.modal_width'),
             (lti11_data(defaults={'custom_parameters': ['missing-equals']}), 'defaults.custom_parameters'),
             (lti11_data(defaults={'custom_parameters': ['=missing-key']}), 'defaults.custom_parameters'),
+            (lti11_data(defaults={'hide_external_tool': 1}), 'defaults.hide_external_tool'),
+            (lti11_data(defaults={'hide_external_tool': None}), 'defaults.hide_external_tool'),
+            (lti11_data(privacy={'share_username': 1}), 'privacy.share_username'),
+            (lti11_data(privacy={'share_full_name': None}), 'privacy.share_full_name'),
+            (lti11_data(privacy={'share_email': 'yes'}), 'privacy.share_email'),
+            (lti11_data(privacy={'require_user_confirmation': 1}), 'privacy.require_user_confirmation'),
+            (lti11_data(privacy={'data_sharing_notice': 5}), 'privacy.data_sharing_notice'),
+            (lti11_data(privacy={'hide_external_tool': True}), 'privacy.hide_external_tool'),
+            (lti11_data(privacy='not-a-mapping'), 'privacy'),
         )
         for data, field in cases:
             with self.subTest(field=field):
@@ -617,6 +686,15 @@ class ReusableUpdateTests(ReusableMutationTestCase):
             ({'services': {'ags_mode': 'sometimes'}}, 'services.ags_mode'),
             ({'defaults': {'modal_width': 101}}, 'defaults.modal_width'),
             ({'defaults': {'custom_parameters': ['missing-equals']}}, 'defaults.custom_parameters'),
+            ({'defaults': {'hide_external_tool': 1}}, 'defaults.hide_external_tool'),
+            ({'defaults': {'hide_external_tool': None}}, 'defaults.hide_external_tool'),
+            ({'privacy': {'share_username': 1}}, 'privacy.share_username'),
+            ({'privacy': {'share_full_name': None}}, 'privacy.share_full_name'),
+            ({'privacy': {'share_email': 'yes'}}, 'privacy.share_email'),
+            ({'privacy': {'require_user_confirmation': 1}}, 'privacy.require_user_confirmation'),
+            ({'privacy': {'data_sharing_notice': 5}}, 'privacy.data_sharing_notice'),
+            ({'privacy': {'share_email': {'nested': True}}}, 'privacy.share_email'),
+            ({'privacy': 'not-a-mapping'}, 'privacy'),
         )
         for changes, field in cases:
             with self.subTest(field=field):
@@ -686,6 +764,157 @@ class ReusableUpdateTests(ReusableMutationTestCase):
             (updated.display_name, updated.grade_weight, updated.open_tool_in, updated.inline_height),
             ('LTI Consumer', 1.0, 'iframe', 800),
         )
+
+    def test_present_empty_privacy_validates_the_merged_state_and_omitted_privacy_is_untouched(self):
+        """A present privacy section validates stored state; an omitted one leaves it untouched."""
+        self.update(self.lti13, {'privacy': dict(PRIVACY_AUTHORED)})
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        before = {field: getattr(stored, field) for field in PRIVACY_WIRE_MEMBERS.values()}
+
+        with patch('lti_consumer.reusable._validated_privacy', wraps=_validated_privacy) as validated:
+            self.update(self.lti13, {'privacy': {}})
+
+        validated.assert_called_once_with(dict(PRIVACY_AUTHORED))
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(
+            {field: getattr(stored, field) for field in PRIVACY_WIRE_MEMBERS.values()}, before,
+        )
+
+        with patch('lti_consumer.reusable._validated_privacy', wraps=_validated_privacy) as validated:
+            self.update(self.lti13, {'name': 'Metadata only'})
+
+        validated.assert_not_called()
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(stored.name, 'Metadata only')
+        self.assertEqual(
+            {field: getattr(stored, field) for field in PRIVACY_WIRE_MEMBERS.values()}, before,
+        )
+
+    def test_update_merges_partial_privacy_with_stored_values(self):
+        self.update(self.lti13, {'privacy': dict(PRIVACY_AUTHORED)})
+
+        self.update(self.lti13, {'privacy': {'share_email': False}})
+
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertFalse(stored.pii_share_email)
+        self.assertTrue(stored.pii_share_username)
+        self.assertTrue(stored.pii_share_full_name)
+        self.assertEqual(stored.data_sharing_notice, 'Hand-written sharing notice')
+        self.assertFalse(stored.require_user_confirmation)
+
+        self.update(self.lti13, {'privacy': {'share_full_name': False}})
+
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertFalse(stored.pii_share_email)
+        self.assertTrue(stored.pii_share_username)
+        self.assertFalse(stored.pii_share_full_name)
+
+    def test_update_explicit_false_and_empty_notice_clear_stored_privacy(self):
+        self.update(self.lti13, {'privacy': dict(PRIVACY_AUTHORED)})
+        cleared = {
+            'share_username': False,
+            'share_full_name': False,
+            'share_email': False,
+            'require_user_confirmation': False,
+        }
+        for notice in (None, '', '   '):
+            with self.subTest(notice=notice):
+                self.update(self.lti13, {'privacy': dict(cleared, data_sharing_notice=notice)})
+                stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+                self.assertEqual(
+                    {field: getattr(stored, field) for field in PRIVACY_WIRE_MEMBERS.values()},
+                    dict(PRIVACY_DEFAULTS, require_user_confirmation=False),
+                )
+
+    def test_update_keeps_the_sharing_notice_separate_from_the_tool_description(self):
+        self.update(self.lti13, {
+            'description': 'Tool Description',
+            'privacy': {'data_sharing_notice': 'Learner-facing notice'},
+        })
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(
+            (stored.description, stored.data_sharing_notice),
+            ('Tool Description', 'Learner-facing notice'),
+        )
+
+        self.update(self.lti13, {'description': 'Renamed Tool Description'})
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(stored.data_sharing_notice, 'Learner-facing notice')
+
+        self.update(self.lti13, {'privacy': {'data_sharing_notice': 'Changed learner notice'}})
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(stored.description, 'Renamed Tool Description')
+        self.assertEqual(stored.data_sharing_notice, 'Changed learner notice')
+
+    def test_defaults_hide_external_tool_roundtrips_and_merges(self):
+        updated = self.update(self.lti13, {'defaults': {'hide_external_tool': True}})
+        self.assertTrue(updated.hide_external_tool)
+
+        self.update(self.lti13, {'defaults': {'display_name': 'Tool'}})
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertTrue(stored.hide_external_tool)
+        self.assertEqual(stored.display_name, 'Tool')
+
+        self.update(self.lti13, {'defaults': {'hide_external_tool': False}})
+        self.assertFalse(ReusableLtiConfiguration.objects.get(pk=self.lti13.pk).hide_external_tool)
+
+    def test_invalid_privacy_rolls_back_sibling_changes_and_keeps_identity(self):
+        self.update(self.lti13, {'privacy': dict(PRIVACY_AUTHORED)})
+        before_row = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        before = (
+            before_row.name, before_row.description, before_row.lti_1p3_launch_url,
+            before_row.lti_1p3_client_id, before_row.lti_1p3_deployment_id,
+            before_row.lti_1p3_internal_private_key, before_row.context_type, before_row.context_key,
+            before_row.display_name, before_row.hide_external_tool,
+            *(getattr(before_row, field) for field in PRIVACY_WIRE_MEMBERS.values()),
+        )
+
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(self.lti13, {
+                'name': 'Renamed',
+                'description': 'Notes',
+                'lti_1p3': {'launch_url': 'https://tool.example/moved'},
+                'defaults': {'display_name': 'Changed'},
+                'privacy': {'share_email': 1},
+            })
+
+        self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', 'privacy.share_email'))
+        after_row = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(
+            (
+                after_row.name, after_row.description, after_row.lti_1p3_launch_url,
+                after_row.lti_1p3_client_id, after_row.lti_1p3_deployment_id,
+                after_row.lti_1p3_internal_private_key, after_row.context_type, after_row.context_key,
+                after_row.display_name, after_row.hide_external_tool,
+                *(getattr(after_row, field) for field in PRIVACY_WIRE_MEMBERS.values()),
+            ),
+            before,
+        )
+
+    def test_privacy_errors_do_not_change_authorization_or_lookup_precedence(self):
+        self.policy.can_manage.return_value = False
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(self.lti13, {'privacy': {'share_email': 1}})
+        self.assertEqual((raised.exception.category, raised.exception.field), ('forbidden', None))
+
+        self.policy.can_manage.return_value = True
+        self.policy.visible_configurations.return_value = ReusableLtiConfiguration.objects.none()
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(self.lti13, {'privacy': {'share_email': 1}})
+        self.assertEqual((raised.exception.category, raised.exception.field), ('not_found', None))
+
+    def test_privacy_members_are_not_accepted_through_defaults_or_services(self):
+        cases = (
+            ({'defaults': {'share_username': True}}, 'defaults.share_username'),
+            ({'defaults': {'data_sharing_notice': 'notice'}}, 'defaults.data_sharing_notice'),
+            ({'services': {'share_email': True}}, 'services.share_email'),
+            ({'privacy': {'hide_external_tool': True}}, 'privacy.hide_external_tool'),
+        )
+        for changes, field in cases:
+            with self.subTest(field=field):
+                with self.assertRaises(ReusableConfigurationError) as raised:
+                    self.update(self.lti13, changes)
+                self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', field))
 
     def test_present_defaults_section_can_remediate_invalid_stored_defaults(self):
         self.lti13.grade_weight = -1
@@ -984,7 +1213,9 @@ class ReusableUpdateTests(ReusableMutationTestCase):
 
         with patch.object(ReusableLtiConfiguration, 'generate_lti_1p3_keys_if_missing') as generator:
             with patch('lti_consumer.reusable.secrets.token_urlsafe') as token_urlsafe:
-                self.update(self.lti13, {'name': 'Renamed', 'description': 'Notes'})
+                self.update(self.lti13, {
+                    'name': 'Renamed', 'description': 'Notes', 'privacy': {'share_email': True},
+                })
                 self.update(self.lti11, {'name': 'Renamed one one'})
 
         generator.assert_not_called()
@@ -1006,6 +1237,7 @@ class ReusableUpdateTests(ReusableMutationTestCase):
             ('', '', ''),
         )
         self.assertEqual(stored.name, 'Renamed')
+        self.assertTrue(stored.pii_share_email)
         stored_11 = ReusableLtiConfiguration.objects.get(pk=self.lti11.pk)
         self.assertEqual(
             (stored_11.lti_1p1_client_key, stored_11.lti_1p1_client_secret),
