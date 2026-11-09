@@ -2,7 +2,7 @@
 import subprocess
 import sys
 from types import ModuleType, SimpleNamespace
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, patch
 
 from ccx_keys.locator import CCXLocator
 from django.http import HttpRequest
@@ -13,9 +13,13 @@ from lti_consumer.plugin import compat
 
 
 class StudioAccessibleCourseKeysAdapterTests(SimpleTestCase):
-    """The public adapter reads CMS candidates through AuthZ once per canonical course."""
+    """The CMS catalog is authoritative and is consulted without a per-course AuthZ call.
 
-    def test_catalog_filters_and_rechecks_external_cms_and_authz(self):
+    Accepted risk, documented on PR #715: the platform catalog's AccessListFallback
+    branch can list every course, and this adapter re-applies no per-course read check.
+    """
+
+    def test_catalog_is_authoritative_for_distinct_normal_course_keys(self):
         user = SimpleNamespace(is_authenticated=True, username='author')
         first = CourseLocator('Org', 'Course', 'Run')
         second = CourseLocator('Org', 'Other', 'Run')
@@ -31,20 +35,12 @@ class StudioAccessibleCourseKeysAdapterTests(SimpleTestCase):
         cms = ModuleType('cms.djangoapps.contentstore.views.course')
         cms_candidates = Mock(return_value=(candidates, []))
         cms.get_courses_accessible_to_user = cms_candidates
-        legacy_read = 'read'
-        authz_constants = ModuleType('openedx.core.djangoapps.authz.constants')
-        authz_constants.LegacyAuthoringPermission = SimpleNamespace(READ=legacy_read)
+        authz = Mock()
         authz_decorators = ModuleType('openedx.core.djangoapps.authz.decorators')
-        authz = Mock(side_effect=lambda actor, permission, key, fallback: key == first)
         authz_decorators.user_has_course_permission = authz
-        permissions = ModuleType('openedx_authz.constants.permissions')
-        courses_view_course = SimpleNamespace(identifier='courses.view_course')
-        permissions.COURSES_VIEW_COURSE = courses_view_course
         modules = {
             'cms.djangoapps.contentstore.views.course': cms,
-            'openedx.core.djangoapps.authz.constants': authz_constants,
             'openedx.core.djangoapps.authz.decorators': authz_decorators,
-            'openedx_authz.constants.permissions': permissions,
         }
 
         with patch.dict('sys.modules', modules):
@@ -53,58 +49,25 @@ class StudioAccessibleCourseKeysAdapterTests(SimpleTestCase):
                 [],
             )
             cms_candidates.assert_not_called()
-            authz.assert_not_called()
-            self.assertEqual(compat.get_studio_accessible_course_keys(user), [first])
+
+            # Deduplicated, sorted and limited to normal course keys: the catalog decides.
+            self.assertEqual(compat.get_studio_accessible_course_keys(user), [first, second])
 
             cms_candidates.assert_called_once()
             request = cms_candidates.call_args.args[0]
             self.assertIsInstance(request, HttpRequest)
             self.assertIs(request.user, user)
             self.assertEqual(request.GET, {})
-            self.assertCountEqual(authz.call_args_list, [
-                call(user, courses_view_course.identifier, first,
-                     legacy_read),
-                call(user, courses_view_course.identifier, second,
-                     legacy_read),
-            ])
+
+            cms_candidates.return_value = ([], [])
+            self.assertEqual(compat.get_studio_accessible_course_keys(user), [])
 
             # Platform failures must surface, never be swallowed into a denial or an allow.
-            authz.side_effect = RuntimeError('permission backend unavailable')
-            with self.assertRaisesRegex(RuntimeError, 'permission backend unavailable'):
-                compat.get_studio_accessible_course_keys(user)
-
-            authz.side_effect = lambda actor, permission, key, fallback: key == first
             cms_candidates.side_effect = RuntimeError('CMS unavailable')
             with self.assertRaisesRegex(RuntimeError, 'CMS unavailable'):
                 compat.get_studio_accessible_course_keys(user)
 
-    def test_platform_wide_candidates_are_filtered_per_course(self):
-        """A platform-wide catalog must not broaden visibility beyond the read check."""
-        user = SimpleNamespace(is_authenticated=True, username='learner')
-        courses = [CourseLocator('Org', f'Course{index}', 'Run') for index in range(3)]
-        cms = ModuleType('cms.djangoapps.contentstore.views.course')
-        cms.get_courses_accessible_to_user = Mock(
-            return_value=([SimpleNamespace(id=course) for course in courses], []),
-        )
-        authz_constants = ModuleType('openedx.core.djangoapps.authz.constants')
-        authz_constants.LegacyAuthoringPermission = SimpleNamespace(READ='read')
-        authz_decorators = ModuleType('openedx.core.djangoapps.authz.decorators')
-        authz = Mock(return_value=False)
-        authz_decorators.user_has_course_permission = authz
-        permissions = ModuleType('openedx_authz.constants.permissions')
-        permissions.COURSES_VIEW_COURSE = SimpleNamespace(identifier='courses.view_course')
-        modules = {
-            'cms.djangoapps.contentstore.views.course': cms,
-            'openedx.core.djangoapps.authz.constants': authz_constants,
-            'openedx.core.djangoapps.authz.decorators': authz_decorators,
-            'openedx_authz.constants.permissions': permissions,
-        }
-
-        with patch.dict('sys.modules', modules):
-            self.assertEqual(compat.get_studio_accessible_course_keys(user), [])
-
-        # The per-course check order is not contract; the checked set is.
-        self.assertCountEqual([call_args.args[2] for call_args in authz.call_args_list], courses)
+            authz.assert_not_called()
 
 
 class GlobalStaffCompatTests(SimpleTestCase):
