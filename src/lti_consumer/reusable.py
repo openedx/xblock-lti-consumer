@@ -47,8 +47,12 @@ _AGS_MODES = ('disabled', 'declarative', 'programmatic')
 _OPEN_TOOL_IN_MODES = ('iframe', 'modal', 'new_window')
 _TOOL_KEY_MODES = ('public_key', 'keyset_url')
 
-_CREATE_MEMBERS = {'name', 'description', 'version', 'context', 'lti_1p1', 'lti_1p3', 'services', 'defaults'}
-_UPDATE_MEMBERS = {'name', 'description', 'version', 'lti_1p1', 'lti_1p3', 'services', 'defaults'}
+_CREATE_MEMBERS = {
+    'name', 'description', 'version', 'context', 'lti_1p1', 'lti_1p3', 'services', 'defaults', 'privacy',
+}
+_UPDATE_MEMBERS = {
+    'name', 'description', 'version', 'lti_1p1', 'lti_1p3', 'services', 'defaults', 'privacy',
+}
 _CONNECTION_MEMBERS = {
     LTI_1P1: {'launch_url', 'client_key', 'client_secret'},
     LTI_1P3: {
@@ -64,13 +68,23 @@ _SERVICE_MEMBERS = {'deep_linking_enabled', 'deep_linking_launch_url', 'ags_mode
 _DEFAULT_MEMBERS = {
     'display_name', 'enable_grading', 'grade_weight', 'accept_grades_after_due_date', 'open_tool_in',
     'inline_height', 'modal_height', 'modal_width', 'launch_button_text', 'send_extra_parameters',
-    'custom_parameters',
+    'custom_parameters', 'hide_external_tool',
 }
 _REUSABLE_SERVICE_FIELDS = {
     'deep_linking_enabled': 'lti_advantage_deep_linking_enabled',
     'deep_linking_launch_url': 'lti_advantage_deep_linking_launch_url',
     'ags_mode': 'lti_advantage_ags_mode',
     'nrps_enabled': 'lti_advantage_enable_nrps',
+}
+_PRIVACY_MEMBERS = {
+    'share_username', 'share_full_name', 'share_email', 'data_sharing_notice', 'require_user_confirmation',
+}
+_REUSABLE_PRIVACY_FIELDS = {
+    'share_username': 'pii_share_username',
+    'share_full_name': 'pii_share_full_name',
+    'share_email': 'pii_share_email',
+    'data_sharing_notice': 'data_sharing_notice',
+    'require_user_confirmation': 'require_user_confirmation',
 }
 
 
@@ -87,6 +101,14 @@ def service_configuration_values(services):
     return {
         field: services[key]
         for key, field in _REUSABLE_SERVICE_FIELDS.items() if key in services
+    }
+
+
+def _privacy_configuration_values(privacy):
+    """Map validated privacy settings to model fields."""
+    return {
+        field: privacy[key]
+        for key, field in _REUSABLE_PRIVACY_FIELDS.items() if key in privacy
     }
 
 
@@ -224,7 +246,7 @@ def _validated_defaults(defaults):
         validated['display_name'] = _nonblank_string(
             validated['display_name'], 'defaults.display_name', _DISPLAY_NAME_MAX_LENGTH,
         )
-    for key in ('enable_grading', 'accept_grades_after_due_date', 'send_extra_parameters'):
+    for key in ('enable_grading', 'accept_grades_after_due_date', 'send_extra_parameters', 'hide_external_tool'):
         if key in validated:
             validated[key] = _checked_bool(validated[key], f'defaults.{key}')
     if 'grade_weight' in validated:
@@ -242,6 +264,22 @@ def _validated_defaults(defaults):
         )
     if 'custom_parameters' in validated:
         validated['custom_parameters'] = _custom_parameters(validated['custom_parameters'])
+    return validated
+
+
+def _validated_privacy(privacy):
+    """Validate configuration-managed privacy settings and return them normalized."""
+    if not isinstance(privacy, dict):
+        _invalid('privacy', _('Invalid reusable configuration settings.'))
+    _reject_unknown(privacy, _PRIVACY_MEMBERS, prefix='privacy.')
+    validated = dict(privacy)
+    for key in ('share_username', 'share_full_name', 'share_email', 'require_user_confirmation'):
+        if key in validated:
+            validated[key] = _checked_bool(validated[key], f'privacy.{key}')
+    if 'data_sharing_notice' in validated:
+        validated['data_sharing_notice'] = _optional_string(
+            validated['data_sharing_notice'], 'privacy.data_sharing_notice',
+        )
     return validated
 
 
@@ -298,6 +336,7 @@ class _ValidatedCreate(NamedTuple):
     description: str
     services: dict
     defaults: dict
+    privacy: dict
 
 
 def _validated_create(data):
@@ -323,6 +362,7 @@ def _validated_create(data):
         description=_optional_string(data.get('description'), 'description'),
         services=_validated_services(data['services'] if 'services' in data else {}),
         defaults=_validated_defaults(data['defaults'] if 'defaults' in data else {}),
+        privacy=_validated_privacy(data['privacy'] if 'privacy' in data else {}),
     )
 
 
@@ -382,6 +422,7 @@ def create_reusable_configuration(actor, data):
     configuration_values.update(
         {key: validated.defaults[key] for key in _DEFAULT_MEMBERS if key in validated.defaults},
     )
+    configuration_values.update(_privacy_configuration_values(validated.privacy))
 
     credentials = None
     try:
@@ -418,6 +459,11 @@ def _stored_services(configuration):
 def _stored_defaults(configuration):
     """Return the configuration's stored placement defaults."""
     return {key: getattr(configuration, key) for key in _DEFAULT_MEMBERS}
+
+
+def _stored_privacy(configuration):
+    """Return the configuration's stored privacy settings."""
+    return {key: getattr(configuration, field) for key, field in _REUSABLE_PRIVACY_FIELDS.items()}
 
 
 def _apply_lti_1p1_changes(configuration, section):
@@ -534,6 +580,16 @@ def _validated_changes(configuration, changes):
         defaults.update(provided_defaults)
         for key, value in _validated_defaults(defaults).items():
             setattr(configuration, key, value)
+
+    if 'privacy' in changes:
+        provided_privacy = changes['privacy']
+        if not isinstance(provided_privacy, dict):
+            _invalid('privacy', _('Invalid reusable configuration settings.'))
+        _reject_unknown(provided_privacy, _PRIVACY_MEMBERS, prefix='privacy.')
+        privacy = _stored_privacy(configuration)
+        privacy.update(provided_privacy)
+        for field, value in _privacy_configuration_values(_validated_privacy(privacy)).items():
+            setattr(configuration, field, value)
 
 
 def update_reusable_configuration(actor, config_id, changes):
