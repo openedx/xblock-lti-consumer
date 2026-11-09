@@ -500,27 +500,11 @@ def _get_studio_course_candidates(request):
     return get_courses_accessible_to_user(request)[0]
 
 
-def _has_studio_course_read_access(user, course_key):
-    """Check the current AuthZ + legacy Studio read policy for one course."""
-    # pylint: disable=import-error,import-outside-toplevel
-    from openedx.core.djangoapps.authz.constants import LegacyAuthoringPermission
-    from openedx.core.djangoapps.authz.decorators import user_has_course_permission
-    from openedx_authz.constants.permissions import COURSES_VIEW_COURSE
-    return user_has_course_permission(
-        user,
-        COURSES_VIEW_COURSE.identifier,
-        course_key,
-        LegacyAuthoringPermission.READ,
-    )
-
-
 def get_studio_accessible_course_keys(user):
-    """Return distinct normal course keys readable by ``user`` in Studio.
+    """Return distinct normal course keys the CMS catalog reports for ``user``.
 
     CMS's catalog method takes a request and applies GET filters, so construct a
     clean request rather than forwarding the catalog endpoint's query string.
-    Its results are candidates, not authorization decisions: evaluate each
-    through the supported Studio AuthZ/legacy permission predicate.
     """
     if not getattr(user, 'is_authenticated', False):
         return []
@@ -534,6 +518,7 @@ def get_studio_accessible_course_keys(user):
     request.user = user
     candidates = _get_studio_course_candidates(request)
 
+    # shortcut: CMS AccessListFallback can return all courses; remove this warning after the upstream fix.
     # A CCXLocator subclasses CourseLocator, so reject that special key type
     # explicitly. Library keys are not CourseLocators either.
     course_keys = {
@@ -542,9 +527,4 @@ def get_studio_accessible_course_keys(user):
         if isinstance((course_key := getattr(course, 'id', None)), CourseLocator)
         if not isinstance(course_key, CCXLocator)
     }
-
-    accessible = set()
-    for course_key in course_keys:
-        if _has_studio_course_read_access(user, course_key):
-            accessible.add(course_key)
-    return sorted(accessible, key=str)
+    return sorted(course_keys, key=str)
