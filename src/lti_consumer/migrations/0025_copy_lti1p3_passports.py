@@ -30,6 +30,7 @@ def _batches(queryset):
     last_pk = None
     while True:
         page = queryset if last_pk is None else queryset.filter(pk__gt=last_pk)
+        # The slice is a SQL LIMIT: list() evaluates only BATCH_SIZE rows, not the whole table.
         batch = list(page.order_by('pk')[:BATCH_SIZE])
         if not batch:
             return
@@ -63,11 +64,15 @@ def _copy_passports(Passport, Reusable, alias, counts):
 
     for batch in _batches(old):
         counts['read'] += len(batch)
+        # Look up existing destinations once per batch by the preserved passport UUID; the
+        # primary keys are allocated independently, so only that value can match a copy.
         source_by_uuid = {passport.passport_id: passport for passport in batch}
         copies = {
             copy['passport_id']: copy
             for copy in new.filter(passport_id__in=list(source_by_uuid)).values('pk', *COPIED_FIELDS)
         }
+        # Three outcomes per passport: absent (queued for insert), an exact copy (reused
+        # without touching its authored metadata), or a divergent copy (collected to abort).
         missing = []
         conflicts = []
         for passport_id, passport in source_by_uuid.items():
@@ -75,15 +80,20 @@ def _copy_passports(Passport, Reusable, alias, counts):
             if copy is None:
                 missing.append(passport)
                 continue
+            # Handles edge case where a noop reverse preserves copies; edits before replay or manual
+            # pre-population can make these legacy fields diverge.
             differing = [field for field in COPIED_FIELDS if copy[field] != getattr(passport, field)]
             if differing:
                 conflicts.append((passport_id, differing))
                 continue
             counts['reused'] += 1
         if conflicts:
+            # Deliberately abort: rolling back every earlier batch beats overwriting authored data.
             raise RuntimeError(_divergence_message(conflicts, counts))
         if not missing:
             continue
+        # All nine source fields are passed explicitly so blanks and identity survive instead of
+        # falling back to model defaults.
         new.bulk_create(
             [Reusable(**{field: getattr(passport, field) for field in COPIED_FIELDS}) for passport in missing],
             batch_size=BATCH_SIZE,
