@@ -38,6 +38,27 @@ PRESERVED_FIELDS = tuple(field for field in PASSPORT_FIELDS if field != "context
 
 CONFIG_EXTERNAL = "CONFIG_EXTERNAL"
 
+# The six configuration-managed privacy/hide values no passport carries: a copy takes the
+# defaults, and only local authoring can change them afterwards.
+PRIVACY_DEFAULTS = {
+    "pii_share_username": False,
+    "pii_share_full_name": False,
+    "pii_share_email": False,
+    "data_sharing_notice": "",
+    "require_user_confirmation": True,
+    "hide_external_tool": False,
+}
+
+# Each value differs from its default, so a stored one proves authoring rather than copying.
+PRIVACY_AUTHORED = {
+    "pii_share_username": True,
+    "pii_share_full_name": True,
+    "pii_share_email": True,
+    "data_sharing_notice": "Hand-written sharing notice",
+    "require_user_confirmation": False,
+    "hide_external_tool": True,
+}
+
 
 class RestoreLatestMigrationMixin:
     """Leave the test database on the newest migration, even when fixture setup fails."""
@@ -623,6 +644,8 @@ class Test0025CopyPassports(PassportCopyHarness):
         self.assertFalse(copy.lti_advantage_deep_linking_enabled)
         self.assertEqual(copy.lti_advantage_ags_mode, "declarative")
         self.assertFalse(copy.lti_advantage_enable_nrps)
+        for field, expected in PRIVACY_DEFAULTS.items():
+            self.assertEqual(getattr(copy, field), expected, field)
         self.assertIsNotNone(copy.created_at)
         self.assertIsNotNone(copy.updated_at)
 
@@ -672,6 +695,14 @@ class Test0025CopyPassports(PassportCopyHarness):
             any(isinstance(constraint, models.UniqueConstraint) for constraint in Reusable._meta.constraints)
         )
 
+        # The six privacy/hide columns are non-null, default-only and never copied from a passport.
+        self.assertEqual(set(PRIVACY_DEFAULTS).intersection(PASSPORT_FIELDS), set())
+        for field, expected in PRIVACY_DEFAULTS.items():
+            with self.subTest(field=field):
+                stored = Reusable._meta.get_field(field)
+                self.assertFalse(stored.null)
+                self.assertEqual(stored.get_default(), expected)
+
 
 class Test0025ReplayAndReuse(PassportCopyHarness):
     """Reusing or replaying a copy keeps its values and later edits."""
@@ -709,6 +740,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         # Existing copies must keep these values unset.
         preexisting = Reusable.objects.create(
             **values,
+            **PRIVACY_AUTHORED,
             description="Hand-written catalog note",
             display_name="Custom name",
         )
@@ -726,12 +758,19 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assertIsNone(reused.version)
         self.assertIsNone(reused.context_type)
         self.assertEqual(reused.context_key, self.plain.context_key)
+        self.assertEqual({field: getattr(reused, field) for field in PRIVACY_AUTHORED}, PRIVACY_AUTHORED)
 
         # The shared passport is new, so it does get inferred metadata.
         shared_copy = Reusable.objects.get(passport_id=self.shared.passport_id)
         self.assertEqual(shared_copy.version, "lti_1p3")
         self.assertEqual(shared_copy.context_type, "course")
         self.assertEqual(shared_copy.context_key, "course-v1:org+course+run")
+        # A new copy takes the privacy defaults and an empty description until authored.
+        self.assertEqual(shared_copy.description, "")
+        self.assertEqual(
+            {field: getattr(shared_copy, field) for field in PRIVACY_DEFAULTS},
+            PRIVACY_DEFAULTS,
+        )
         self.assertEqual(
             Placement.objects.get(pk=self.plain_placement.pk).reusable_configuration_id,
             preexisting_pk,
@@ -775,6 +814,8 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assertEqual(reused.description, "Hand-written catalog note")
         self.assertIsNone(reused.version)
         self.assertIsNone(reused.context_type)
+        # Replay compares only preserved fields, so locally authored privacy/hide stays.
+        self.assertEqual({field: getattr(reused, field) for field in PRIVACY_AUTHORED}, PRIVACY_AUTHORED)
 
 
 class Test0025Inference(PassportCopyHarness):
