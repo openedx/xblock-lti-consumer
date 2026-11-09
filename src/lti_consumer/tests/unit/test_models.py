@@ -1041,6 +1041,46 @@ class ReusableConfigurationModelTests(TestCase):
             lti_1p3_tool_keyset_url='https://tool.example/jwks',
         ).clean()
 
+    def test_privacy_defaults_apply_to_a_new_configuration(self):
+        configuration = self.make_configuration()
+        configuration.refresh_from_db()
+
+        self.assertFalse(configuration.pii_share_username)
+        self.assertFalse(configuration.pii_share_full_name)
+        self.assertFalse(configuration.pii_share_email)
+        self.assertEqual(configuration.data_sharing_notice, '')
+        self.assertTrue(configuration.require_user_confirmation)
+        self.assertFalse(configuration.hide_external_tool)
+
+    def test_authored_privacy_values_persist_independently_of_the_tool_description(self):
+        configuration = self.make_configuration(
+            description='Tool Description',
+            pii_share_username=True,
+            pii_share_full_name=True,
+            pii_share_email=True,
+            data_sharing_notice='Learner-facing notice',
+            require_user_confirmation=False,
+            hide_external_tool=True,
+        )
+
+        configuration.refresh_from_db()
+        self.assertTrue(configuration.pii_share_username)
+        self.assertTrue(configuration.pii_share_full_name)
+        self.assertTrue(configuration.pii_share_email)
+        self.assertFalse(configuration.require_user_confirmation)
+        self.assertTrue(configuration.hide_external_tool)
+        self.assertEqual(configuration.data_sharing_notice, 'Learner-facing notice')
+        self.assertNotEqual(configuration.data_sharing_notice, configuration.description)
+
+        # The sharing notice and the Tool Description are separate stored values.
+        configuration.description = 'Renamed Tool Description'
+        configuration.save()
+        configuration.data_sharing_notice = 'Updated learner notice'
+        configuration.save()
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.description, 'Renamed Tool Description')
+        self.assertEqual(configuration.data_sharing_notice, 'Updated learner notice')
+
     def test_clean_accepts_key_material_without_a_mode(self):
         for label, key_material in (
             ('public key', {'lti_1p3_tool_public_key': '-----BEGIN PUBLIC KEY-----'}),
