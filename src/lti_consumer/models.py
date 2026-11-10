@@ -250,6 +250,12 @@ class ReusableLtiConfiguration(models.Model):
         blank=True,
     )
 
+    is_active = models.BooleanField(
+        _("Active"),
+        default=True,
+        help_text=_("Inactive configurations cannot be linked to new placements or used by existing ones."),
+    )
+
     # LTI 1.1 connection and credentials.
     lti_1p1_launch_url = models.CharField(_("LTI 1.1 Launch URL"), max_length=255, null=True, blank=True)
     lti_1p1_client_key = models.CharField(max_length=255, null=True, blank=True)

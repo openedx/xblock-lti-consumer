@@ -159,6 +159,27 @@ class ReusableConfigurationStorageTests(TestCase):
         placement.refresh_from_db()
         self.assertEqual(placement.reusable_configuration_id, configuration.pk)
 
+    def test_active_flag_defaults_true_and_round_trips_without_unbinding(self):
+        configuration = self.make_configuration(name='Lifecycle')
+        placement = LtiConfiguration.objects.create(reusable_configuration=configuration)
+
+        configuration.refresh_from_db()
+        self.assertTrue(configuration.is_active)
+
+        configuration.is_active = False
+        configuration.save()
+        configuration.refresh_from_db()
+        self.assertFalse(configuration.is_active)
+
+        configuration.is_active = True
+        configuration.save()
+        configuration.refresh_from_db()
+        self.assertTrue(configuration.is_active)
+        self.assertEqual(
+            LtiConfiguration.objects.get(pk=placement.pk).reusable_configuration_id,
+            configuration.pk,
+        )
+
     def test_reads_never_generate_signing_keys(self):
         configuration = self.make_configuration(name='No keys')
         list(ReusableLtiConfiguration.objects.filter(pk=configuration.pk))
