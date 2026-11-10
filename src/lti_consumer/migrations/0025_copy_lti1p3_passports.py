@@ -1,13 +1,13 @@
-"""Add the lifecycle flag, then copy every LTI 1.3 passport into the catalog.
+"""Copy every LTI 1.3 passport into the reusable configuration catalog.
 
-The base schema arrives in ``0024``. Every old passport is copied with its nine
-historical fields, a matching destination row is reused without refreshing its
-other metadata, and every placement whose old foreign key is set is linked to its
-copy. A conflict aborts the whole transaction instead of merging or skipping.
+Data-only: the schema arrives in ``0024``. Every old passport is copied with its
+nine historical fields, a matching destination row is reused without refreshing
+its other metadata, and every placement whose old foreign key is set is linked to
+its copy. A conflict aborts the whole transaction instead of merging or skipping.
 Reads, inserts and lookups are bounded by ``BATCH_SIZE``, so no table is ever held
 in memory at once and legacy primary keys below zero are covered as well.
 """
-from django.db import migrations, models
+from django.db import migrations
 
 BATCH_SIZE = 500
 
@@ -168,21 +168,12 @@ def copy_passports(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    """Add the lifecycle flag, copy passport data and link placements."""
+    """Copy passport data and link placements; no schema changes."""
 
     dependencies = [
         ('lti_consumer', '0024_create_reusable_lti_configuration'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='reusablelticonfiguration',
-            name='is_active',
-            field=models.BooleanField(
-                default=True,
-                help_text='Inactive configurations cannot be linked to new placements or used by existing ones.',
-                verbose_name='Active',
-            ),
-        ),
         migrations.RunPython(copy_passports, migrations.RunPython.noop),
     ]
