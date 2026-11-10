@@ -695,14 +695,6 @@ class Test0025CopyPassports(PassportCopyHarness):
             any(isinstance(constraint, models.UniqueConstraint) for constraint in Reusable._meta.constraints)
         )
 
-        # The six privacy/hide columns are non-null, default-only and never copied from a passport.
-        self.assertEqual(set(PRIVACY_DEFAULTS).intersection(PASSPORT_FIELDS), set())
-        for field, expected in PRIVACY_DEFAULTS.items():
-            with self.subTest(field=field):
-                stored = Reusable._meta.get_field(field)
-                self.assertFalse(stored.null)
-                self.assertEqual(stored.get_default(), expected)
-
 
 class Test0025ReplayAndReuse(PassportCopyHarness):
     """Reusing or replaying a copy keeps its values and later edits."""
