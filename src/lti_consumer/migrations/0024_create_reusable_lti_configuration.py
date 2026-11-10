@@ -35,6 +35,7 @@ class Migration(migrations.Migration):
                 ('description', models.TextField(blank=True, verbose_name='Description')),
                 ('version', models.CharField(blank=True, choices=[('lti_1p1', 'LTI 1.1'), ('lti_1p3', 'LTI 1.3')], max_length=10, null=True, verbose_name='LTI Version')),
                 ('context_type', models.CharField(blank=True, choices=[('course', 'Course'), ('organization', 'Organization'), ('site', 'Site')], max_length=20, null=True, verbose_name='Context type')),
+                ('is_active', models.BooleanField(default=True, help_text='Inactive configurations cannot be linked to new placements or used by existing ones.', verbose_name='Active')),
                 ('lti_1p1_launch_url', models.CharField(blank=True, max_length=255, null=True, verbose_name='LTI 1.1 Launch URL')),
                 ('lti_1p1_client_key', models.CharField(blank=True, max_length=255, null=True)),
                 ('lti_1p1_client_secret', models.CharField(blank=True, max_length=255, null=True)),

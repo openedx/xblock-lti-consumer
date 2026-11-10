@@ -704,7 +704,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         pk_by_passport = {copy.passport_id: copy.pk for copy in Reusable.objects.all()}
         linked_before = dict(Placement.objects.values_list("pk", "reusable_configuration_id"))
 
-        # The copy's reverse is a noop: copied rows and links survive it, though the AddField is reversed.
+        # The data-only reverse is a noop: copied rows and links survive it.
         apps = self.migrate(SCHEMA_MIGRATION)
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         self.assertEqual({copy.passport_id: copy.pk for copy in Reusable.objects.all()}, pk_by_passport)
@@ -896,8 +896,16 @@ class Test0025ContentTypes(PassportCopyHarness):
         self.assertEqual(new_model.objects.count(), old_model.objects.count())
 
 
-class Test0025ReusableConfigurationIsActive(PassportCopyHarness):
-    """The lifecycle column exists before the copy and keeps every configuration active."""
+class Test0024ReusableConfigurationIsActive(PassportCopyHarness):
+    """The catalog schema creates the lifecycle column active by default."""
+
+    def test_schema_creates_an_active_column(self):
+        apps = self.migrate(SCHEMA_MIGRATION)
+        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+        field = Reusable._meta.get_field("is_active")
+
+        self.assertFalse(field.null)
+        self.assertTrue(field.get_default())
 
     def test_copied_configurations_are_active(self):
         apps = self.run_copy()
