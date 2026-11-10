@@ -1041,18 +1041,18 @@ class ReusableConfigurationModelTests(TestCase):
             lti_1p3_tool_keyset_url='https://tool.example/jwks',
         ).clean()
 
-    def test_privacy_defaults_apply_to_a_new_configuration(self):
-        configuration = self.make_configuration()
-        configuration.refresh_from_db()
+    def test_privacy_defaults_and_authored_values_persist_independently_of_the_description(self):
+        """A new row takes the safe privacy defaults; authored values stay separate."""
+        defaulted = self.make_configuration(name='Defaults')
+        defaulted.refresh_from_db()
 
-        self.assertFalse(configuration.pii_share_username)
-        self.assertFalse(configuration.pii_share_full_name)
-        self.assertFalse(configuration.pii_share_email)
-        self.assertEqual(configuration.data_sharing_notice, '')
-        self.assertTrue(configuration.require_user_confirmation)
-        self.assertFalse(configuration.hide_external_tool)
+        self.assertFalse(defaulted.pii_share_username)
+        self.assertFalse(defaulted.pii_share_full_name)
+        self.assertFalse(defaulted.pii_share_email)
+        self.assertEqual(defaulted.data_sharing_notice, '')
+        self.assertTrue(defaulted.require_user_confirmation)
+        self.assertFalse(defaulted.hide_external_tool)
 
-    def test_authored_privacy_values_persist_independently_of_the_tool_description(self):
         configuration = self.make_configuration(
             description='Tool Description',
             pii_share_username=True,
