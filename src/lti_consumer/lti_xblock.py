@@ -807,12 +807,28 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
     @property
     def user_is_staff(self):
         """
-        Get system user's is_staff flag.
+        Get the user's staff flag for the context the block is rendered in.
+
+        Note that this is not platform-wide staff status: the LMS courseware runtime
+        populates `edx-platform.user_is_staff` from `has_access(user, 'staff', course_id)`,
+        so it is true for anyone with staff access to this course. Use
+        `user_is_global_staff` when platform-wide staff status is what matters.
         """
         user = self.runtime.service(self, "user").get_current_user()
         return (
             user.opt_attrs.get("edx-platform.is_authenticated", False) and
             user.opt_attrs.get("edx-platform.user_is_staff", False)
+        )
+
+    @property
+    def user_is_global_staff(self):
+        """
+        Get the user's platform-wide staff flag.
+        """
+        user = self.runtime.service(self, "user").get_current_user()
+        return (
+            user.opt_attrs.get("edx-platform.is_authenticated", False) and
+            user.opt_attrs.get("edx-platform.user_is_global_staff", False)
         )
 
     @property
@@ -897,8 +913,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         """
         role = self.role
 
-        # Map Global staff to instance-admin LTI role set.
-        if self.user_is_staff:
+        # Map global staff to the instance-admin LTI role set. This must read
+        # `user_is_global_staff`, not `user_is_staff`: the latter is course-scoped, so
+        # using it here handed every course team member the instance-admin roles and
+        # short-circuited their own course-role mapping below.
+        if self.user_is_global_staff:
             return 'global_staff'
 
         # Keep privileged course roles unchanged.
