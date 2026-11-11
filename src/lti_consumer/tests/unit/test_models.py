@@ -5,7 +5,7 @@ import json
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from unittest.mock import call, patch
+from unittest.mock import Mock, call, patch
 
 import ddt
 from ccx_keys.locator import CCXBlockUsageLocator
@@ -17,6 +17,7 @@ from django.test import TestCase
 from edx_django_utils.cache import RequestCache
 from opaque_keys.edx.locator import CourseLocator
 
+from lti_consumer.exceptions import ReusableConfigurationUnavailable
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import (
     CourseAllowPIISharingInLTIFlag,
@@ -27,7 +28,7 @@ from lti_consumer.models import (
     LtiDlContentItem,
     ReusableLtiConfiguration,
 )
-from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_reusable_configuration, make_xblock
 
 LAUNCH_URL = 'http://tool.example/launch'
 DEEP_LINK_URL = 'http://tool.example/deep-link/launch'
@@ -68,6 +69,16 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         self._load_block_patch = patcher.start()
         self._load_block_patch.return_value = self.xblock
 
+        # Runtime identity, keys and binding live on the reusable configurations only.
+        self.reusable_configuration = make_reusable_configuration(
+            lti_1p3_tool_public_key=self.public_key.decode(),
+        )
+        self.reusable_configuration_db = make_reusable_configuration(
+            name='Database reusable configuration',
+            lti_1p3_client_id='database-client-id',
+            lti_1p3_tool_public_key=self.public_key.decode(),
+        )
+
         # Creates an LTI configuration objects for testing
         self.lti_1p1_config = LtiConfiguration.objects.create(
             location=self.xblock.scope_ids.usage_id,
@@ -76,7 +87,8 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
 
         self.lti_1p3_config = LtiConfiguration.objects.create(
             location=self.xblock_1.scope_ids.usage_id,
-            version=LtiConfiguration.LTI_1P3
+            version=LtiConfiguration.LTI_1P3,
+            reusable_configuration=self.reusable_configuration,
         )
 
         self.lti_1p3_config_db = LtiConfiguration.objects.create(
@@ -85,6 +97,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
             config_store=LtiConfiguration.CONFIG_ON_DB,
             lti_advantage_ags_mode='programmatic',
             lti_advantage_deep_linking_enabled=True,
+            reusable_configuration=self.reusable_configuration_db,
         )
 
         self.lti_1p3_config_external = LtiConfiguration.objects.create(
@@ -105,6 +118,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         """
         defaults = kwargs
         defaults["version"] = LtiConfiguration.LTI_1P3
+        defaults.setdefault("reusable_configuration", self.reusable_configuration)
         config, _ = LtiConfiguration.objects.update_or_create(
             location=self.xblock_1.scope_ids.usage_id,
             defaults=defaults,
@@ -390,47 +404,126 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
 
         self.assertEqual(config.get_lti_advantage_nrps_enabled(), expected_value)
 
-    def test_generate_private_key(self):
+    def test_new_configuration_generates_signing_material_once(self):
         """
-        Checks if a private key is correctly generated.
+        A creator seeds its own signing key pair; the runtime then reads it as stored.
         """
-        lti_config = LtiConfiguration.objects.create(
+        reusable_configuration = make_reusable_configuration(generate_keys=False)
+        LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
-            location='block-v1:course+test+2020+type@problem+block@test'
+            location='block-v1:course+test+2020+type@problem+block@test',
+            reusable_configuration=reusable_configuration,
         )
 
-        # Check that model fields are empty
-        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_private_key)
-        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_private_key_id)
-        self.assertFalse(lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk)
+        self.assertFalse(reusable_configuration.lti_1p3_internal_private_key)
+        self.assertFalse(reusable_configuration.lti_1p3_internal_private_key_id)
+        self.assertFalse(reusable_configuration.lti_1p3_internal_public_jwk)
 
-        # Create and retrieve public keys
-        _ = lti_config.lti_1p3_public_jwk
+        reusable_configuration.generate_lti_1p3_keys_if_missing()
 
-        # Check if keys were created
-        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_private_key)
-        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_private_key_id)
-        self.assertTrue(lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk)
+        reusable_configuration.refresh_from_db()
+        self.assertTrue(reusable_configuration.lti_1p3_internal_private_key)
+        self.assertTrue(reusable_configuration.lti_1p3_internal_private_key_id)
+        self.assertTrue(reusable_configuration.lti_1p3_internal_public_jwk)
 
-    def test_generate_public_key_only(self):
+    def test_existing_blank_signing_material_is_never_repaired(self):
         """
-        Checks if a public key is correctly regenerated from a private key
+        An existing row with blank signing material is denied instead of being written.
         """
-        lti_config = LtiConfiguration.objects.create(
+        reusable_configuration = make_reusable_configuration(generate_keys=False)
+        placement = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
-            location='block-v1:course+test+2020+type@problem+block@test'
+            location='block-v1:course+test+2020+type@problem+block@blank-keys',
+            reusable_configuration=reusable_configuration,
         )
-        # Create and retrieve public keys
-        public_key = lti_config.lti_1p3_public_jwk.copy()
-        lti_config.lti_1p3_passport.lti_1p3_internal_public_jwk = ""
-        lti_config.lti_1p3_passport.save()
 
-        # Retrieve public key and check that it was correctly regenerated
-        regenerated_public_key = lti_config.lti_1p3_public_jwk
-        lti_config.refresh_from_db()
-        self.assertEqual(regenerated_public_key, public_key)
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            with self.assertRaises(ReusableConfigurationUnavailable):
+                placement.get_runtime_identity()
+            save_mock.assert_not_called()
+
+        reusable_configuration.refresh_from_db()
+        self.assertFalse(reusable_configuration.lti_1p3_internal_private_key)
+        self.assertFalse(reusable_configuration.lti_1p3_internal_public_jwk)
+
+    @ddt.data(
+        ('lti_1p3_client_id', None),
+        ('lti_1p3_internal_private_key', ''),
+        ('lti_1p3_internal_private_key_id', ''),
+        ('lti_1p3_internal_public_jwk', ''),
+        ('lti_1p3_internal_public_jwk', 'not-json'),
+        ('lti_1p3_internal_public_jwk', '[]'),
+        ('lti_1p3_internal_public_jwk', '{"keys": []}'),
+        ('lti_1p3_tool_public_key', ''),
+    )
+    @ddt.unpack
+    def test_incomplete_runtime_identity_is_denied_without_writes(self, field, value):
+        """
+        A stored component that is missing or malformed denies identity without a write.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.reusable_configuration.pk).update(**{field: value})
+        placement = LtiConfiguration.objects.get(pk=self.lti_1p3_config.pk)
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            with self.assertRaises(ReusableConfigurationUnavailable):
+                placement.get_runtime_identity()
+            save_mock.assert_not_called()
+
+    def test_public_jwk_must_match_the_signing_key(self):
+        """
+        A keyset that does not carry the stored signing key denies instead of publishing it.
+        """
+        other = make_reusable_configuration()
+        ReusableLtiConfiguration.objects.filter(pk=self.reusable_configuration.pk).update(
+            lti_1p3_internal_public_jwk=other.lti_1p3_internal_public_jwk,
+        )
+        placement = LtiConfiguration.objects.get(pk=self.lti_1p3_config.pk)
+
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            placement.get_runtime_identity()
+
+    def test_unparsable_signing_key_is_denied(self):
+        """
+        A stored private key that cannot be parsed is denied rather than regenerated.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.reusable_configuration.pk).update(
+            lti_1p3_internal_private_key='not-a-private-key',
+        )
+        placement = LtiConfiguration.objects.get(pk=self.lti_1p3_config.pk)
+
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            placement.get_runtime_identity()
+
+    def test_encrypted_signing_key_is_denied_without_writes(self):
+        """
+        A password-encrypted PEM is unusable without a password and is denied without writes.
+        """
+        encrypted_key = RSA.generate(2048).export_key('PEM', passphrase='secret').decode()
+        ReusableLtiConfiguration.objects.filter(pk=self.reusable_configuration.pk).update(
+            lti_1p3_internal_private_key=encrypted_key,
+        )
+        placement = LtiConfiguration.objects.get(pk=self.lti_1p3_config.pk)
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            with self.assertRaises(ReusableConfigurationUnavailable):
+                placement.get_runtime_identity()
+            save_mock.assert_not_called()
+
+    def test_public_only_signing_key_is_denied_without_writes(self):
+        """
+        A valid public-only PEM in the signing-key field is denied, not treated as a private key.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.reusable_configuration.pk).update(
+            lti_1p3_internal_private_key=self.public_key.decode(),
+        )
+        placement = LtiConfiguration.objects.get(pk=self.lti_1p3_config.pk)
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            with self.assertRaises(ReusableConfigurationUnavailable):
+                placement.get_runtime_identity()
+            save_mock.assert_not_called()
 
     def test_clean(self):
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_XBLOCK
@@ -452,11 +545,12 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
 
         self.lti_1p3_config.config_store = self.lti_1p3_config.CONFIG_ON_DB
 
-        self.lti_1p3_config_db.lti_1p3_passport.lti_1p3_tool_keyset_url = ''
-        self.lti_1p3_config_db.lti_1p3_passport.lti_1p3_tool_public_key = ''
+        # The reusable registration refuses a public-key mode without a key.
+        self.lti_1p3_config_db.reusable_configuration.lti_1p3_tool_key_mode = 'public_key'
+        self.lti_1p3_config_db.reusable_configuration.lti_1p3_tool_public_key = ''
 
         with self.assertRaises(ValidationError):
-            self.lti_1p3_config_db.lti_1p3_passport.clean()
+            self.lti_1p3_config_db.reusable_configuration.full_clean()
 
         self.lti_1p3_config.lti_1p3_proctoring_enabled = True
         self.lti_1p3_config.external_id = 'test_id'
@@ -465,6 +559,19 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
             self.lti_1p3_config.config_store = config_store
             with self.assertRaises(ValidationError):
                 self.lti_1p3_config.clean()
+
+    def test_clean_requires_a_reusable_configuration_for_database_1p3(self):
+        """
+        A model-stored LTI 1.3 placement must be bound to a reusable configuration.
+        """
+        placement = LtiConfiguration(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            location='block-v1:course+test+2020+type@problem+block@unbound-clean',
+        )
+
+        with self.assertRaisesMessage(ValidationError, 'requires a reusable configuration'):
+            placement.clean()
 
     @ddt.data(
         (LAUNCH_URL, DEEP_LINK_URL, [], [LAUNCH_URL, DEEP_LINK_URL]),
@@ -524,12 +631,9 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
             external_config['lti_advantage_deep_linking_launch_url'],
         )
 
-    def test_get_or_create_lti_1p3_passport_does_not_write_to_block(self):
+    def test_placement_creation_binds_a_reusable_configuration(self):
         """
-        Test that creating a passport doesn't write back to the XBlock.
-
-        This runs from a post_save signal, which also fires during LMS requests, where
-        blocks are bound to read-only field data for Scope.settings.
+        A block-backed placement gets its reusable configuration without writing the block.
         """
         xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
         xblock.lti_1p3_passport_id = ''
@@ -542,13 +646,278 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
                 version=LtiConfiguration.LTI_1P3,
             )
 
-        # The passport is created and linked to the configuration, which is authoritative.
-        self.assertIsNotNone(config.lti_1p3_passport)
-        self.assertEqual(config.lti_1p3_passport.name, f"Passport of {xblock.display_name}")
-        # But the block is left untouched.
+        # The authored version and block tool key seed the new row, which also generates
+        # its signing material once; no retained passport row is created.
+        self.assertEqual(config.reusable_configuration.version, LtiConfiguration.LTI_1P3)
+        self.assertEqual(
+            config.reusable_configuration.lti_1p3_tool_public_key,
+            str(xblock.lti_1p3_tool_public_key),
+        )
+        self.assertTrue(config.reusable_configuration.lti_1p3_internal_private_key)
+        self.assertTrue(config.reusable_configuration.lti_1p3_internal_public_jwk)
+        self.assertFalse(Lti1p3Passport.objects.exists())
         block_save_mock.assert_not_called()
         save_xblock_mock.assert_not_called()
         self.assertEqual(xblock.lti_1p3_passport_id, '')
+
+    def test_block_uuid_reuses_a_catalog_row_without_a_placement(self):
+        """
+        The block's persisted UUID resolves to its catalog row even before any placement.
+        """
+        configuration = make_reusable_configuration(name='Copied row')
+        xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        xblock.lti_1p3_passport_id = str(configuration.passport_id)
+        self._load_block_patch.return_value = xblock
+
+        before = ReusableLtiConfiguration.objects.count()
+        placement = LtiConfiguration.objects.create(
+            location=xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+        )
+
+        self.assertEqual(placement.reusable_configuration_id, configuration.pk)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
+
+    def test_reusing_a_catalog_row_keeps_its_stored_metadata(self):
+        """
+        Reuse never overwrites the catalog row's authored metadata or version.
+        """
+        configuration = make_reusable_configuration(
+            name='Copied name',
+            lti_1p3_deployment_id='copied-deployment',
+        )
+        stored = (configuration.name, configuration.version, configuration.context_key,
+                  configuration.lti_1p3_deployment_id)
+        xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        xblock.lti_1p3_passport_id = str(configuration.passport_id)
+        self._load_block_patch.return_value = xblock
+
+        LtiConfiguration.objects.create(
+            location=xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+        )
+
+        configuration.refresh_from_db()
+        self.assertEqual(
+            (configuration.name, configuration.version, configuration.context_key,
+             configuration.lti_1p3_deployment_id),
+            stored,
+        )
+
+    def test_an_orphan_row_without_a_version_keeps_it_when_reused(self):
+        """
+        An imported block UUID reuses its unassigned catalog row and keeps it unassigned.
+        """
+        configuration = make_reusable_configuration(version=None)
+        xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
+        xblock.lti_1p3_passport_id = str(configuration.passport_id)
+        self._load_block_patch.return_value = xblock
+
+        placement = LtiConfiguration.objects.create(
+            location=xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+        )
+
+        self.assertEqual(placement.reusable_configuration_id, configuration.pk)
+        configuration.refresh_from_db()
+        self.assertIsNone(configuration.version)
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            placement.get_lti_consumer()
+
+    def test_runtime_identity_and_keys_come_from_the_reusable_configuration(self):
+        """
+        A retained passport is never an identity fallback, even when a placement points at one.
+        """
+        passport = Lti1p3Passport.objects.create(
+            lti_1p3_client_id='legacy-client-id',
+            lti_1p3_tool_public_key='legacy-tool-key',
+            lti_1p3_internal_private_key='legacy-private-key',
+            lti_1p3_internal_private_key_id='legacy-key-id',
+            lti_1p3_internal_public_jwk='{"keys": []}',
+        )
+        placement = LtiConfiguration.objects.create(
+            location='block-v1:course+test+2020+type@problem+block@identity',
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            lti_1p3_passport=passport,
+            reusable_configuration=self.reusable_configuration_db,
+        )
+
+        configuration = placement.reusable_configuration
+        self.assertIsNotNone(configuration)
+        self.assertEqual(placement.passport_id, configuration.passport_id)
+        self.assertEqual(placement.lti_1p3_client_id, configuration.lti_1p3_client_id)
+        self.assertEqual(placement.lti_1p3_tool_public_key, configuration.lti_1p3_tool_public_key)
+        self.assertEqual(placement.lti_1p3_tool_keyset_url, configuration.lti_1p3_tool_keyset_url)
+        self.assertEqual(placement.lti_1p3_private_key_id, configuration.lti_1p3_private_key_id)
+        self.assertEqual(placement.lti_1p3_public_jwk, configuration.lti_1p3_public_jwk)
+        self.assertEqual(placement.lti_1p3_client_id, 'database-client-id')
+        self.assertNotEqual(placement.lti_1p3_client_id, 'legacy-client-id')
+
+    @patch('lti_consumer.models.compat.load_enough_xblock')
+    def test_unbound_placement_resolves_its_identity(self, load_enough_xblock):
+        """
+        Identity access binds an unbound placement to a configuration with its version.
+        """
+        load_enough_xblock.return_value = Mock(
+            lti_1p3_passport_id='',
+            display_name='Unbound block',
+            context_id='course-v1:Course+Run',
+            lti_1p3_tool_public_key='block-tool-key',
+            lti_1p3_tool_keyset_url='',
+        )
+        placement = LtiConfiguration.objects.create(
+            location='block-v1:course+test+2020+type@problem+block@unbound-identity',
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            reusable_configuration=self.reusable_configuration,
+        )
+        LtiConfiguration.objects.filter(pk=placement.pk).update(reusable_configuration=None)
+        placement = LtiConfiguration.objects.get(pk=placement.pk)
+        self.assertIsNone(placement.reusable_configuration_id)
+
+        configuration = placement.resolve_reusable_configuration()
+
+        self.assertEqual(configuration.version, LtiConfiguration.LTI_1P3)
+        self.assertTrue(configuration.lti_1p3_internal_private_key)
+        self.assertEqual(configuration.lti_1p3_tool_public_key, 'block-tool-key')
+        placement.refresh_from_db()
+        self.assertEqual(placement.reusable_configuration_id, configuration.pk)
+        self.assertEqual(placement.lti_1p3_client_id, configuration.lti_1p3_client_id)
+
+    def test_stored_null_version_is_never_repaired(self):
+        """
+        A converted row keeps its unassigned version; resolution never borrows one.
+        """
+        configuration = make_reusable_configuration(version=None)
+        placement = LtiConfiguration.objects.create(
+            location='block-v1:course+test+2020+type@problem+block@null-version',
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            reusable_configuration=configuration,
+        )
+
+        self.assertIs(placement.resolve_reusable_configuration(version=LtiConfiguration.LTI_1P3), configuration)
+        configuration.refresh_from_db()
+        self.assertIsNone(configuration.version)
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            placement.get_lti_consumer()
+
+    def test_deployment_id_uses_the_stored_value_or_the_historical_one(self):
+        """
+        A copied registration keeps the historical "1" until a deployment ID is stored.
+        """
+        placement = LtiConfiguration.objects.create(
+            location='block-v1:course+test+2020+type@problem+block@deployment',
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            reusable_configuration=self.reusable_configuration_db,
+        )
+
+        self.reusable_configuration_db.lti_1p3_deployment_id = ''
+        self.reusable_configuration_db.save()
+        placement = LtiConfiguration.objects.get(pk=placement.pk)
+        self.assertEqual(placement.lti_1p3_deployment_id, "1")
+
+        self.reusable_configuration_db.lti_1p3_deployment_id = 'deployment-7'
+        self.reusable_configuration_db.save()
+        placement = LtiConfiguration.objects.get(pk=placement.pk)
+        self.assertEqual(placement.lti_1p3_deployment_id, 'deployment-7')
+
+    def test_effective_version_reads_the_reusable_configuration(self):
+        """
+        A matching bound configuration's stored version is the effective version.
+        """
+        self.reusable_configuration_db.version = LtiConfiguration.LTI_1P1
+        self.reusable_configuration_db.save()
+        LtiConfiguration.objects.filter(pk=self.lti_1p3_config_db.pk).update(version=LtiConfiguration.LTI_1P1)
+
+        placement = LtiConfiguration.objects.get(pk=self.lti_1p3_config_db.pk)
+        self.assertEqual(placement.get_effective_version(), LtiConfiguration.LTI_1P1)
+
+    @ddt.data(
+        (LtiConfiguration.LTI_1P1, LtiConfiguration.LTI_1P3),
+        (LtiConfiguration.LTI_1P3, LtiConfiguration.LTI_1P1),
+    )
+    @ddt.unpack
+    def test_version_mismatch_refuses_a_consumer_without_changing_versions(
+        self, placement_version, configuration_version,
+    ):
+        """
+        A placement and its bound registration must agree on the protocol, in either direction.
+        """
+        configuration = make_reusable_configuration(version=configuration_version)
+        placement = LtiConfiguration.objects.create(
+            location=f'block-v1:course+test+2020+type@problem+block@mismatch-{placement_version}',
+            version=placement_version,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            reusable_configuration=configuration,
+        )
+
+        self.assertEqual(placement.get_effective_version(), configuration_version)
+
+        with patch.object(LtiConfiguration, 'save') as save_mock, \
+                patch.object(ReusableLtiConfiguration, 'save') as catalog_save_mock:
+            with self.assertRaises(ReusableConfigurationUnavailable):
+                placement.get_lti_consumer()
+            save_mock.assert_not_called()
+            catalog_save_mock.assert_not_called()
+
+        placement.refresh_from_db()
+        configuration.refresh_from_db()
+        self.assertEqual(placement.version, placement_version)
+        self.assertEqual(configuration.version, configuration_version)
+
+    def test_unassigned_version_refuses_a_consumer(self):
+        """
+        A NULL stored version denies runtime instead of falling back to the placement version.
+        """
+        configuration = make_reusable_configuration(version=None)
+        placement = LtiConfiguration.objects.create(
+            location='block-v1:course+test+2020+type@problem+block@unassigned-version',
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            reusable_configuration=configuration,
+        )
+
+        self.assertIsNone(placement.get_effective_version())
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            placement.get_lti_consumer()
+
+    def test_inactive_configuration_still_builds_a_consumer(self):
+        """
+        Inactive gates launches and new tokens, not keyset reads or service authentication.
+        """
+        self.reusable_configuration_db.is_active = False
+        self.reusable_configuration_db.save()
+
+        consumer = LtiConfiguration.objects.get(pk=self.lti_1p3_config_db.pk).get_lti_consumer()
+
+        self.assertEqual(consumer.client_id, 'database-client-id')
+
+    def test_consumer_uses_reusable_identity_and_stored_deployment_id(self):
+        """
+        The constructed consumer carries the reusable identity, keys and deployment ID.
+        """
+        configuration = make_reusable_configuration(
+            lti_1p3_client_id='reusable-client-id',
+            lti_1p3_deployment_id='deployment-7',
+            lti_1p3_tool_public_key=self.public_key.decode(),
+        )
+        placement = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_DB,
+            location='block-v1:course+test+2020+type@problem+block@consumer-identity',
+            lti_1p3_launch_url=LAUNCH_URL,
+            lti_1p3_oidc_url='http://tool.example/oidc',
+            reusable_configuration=configuration,
+        )
+
+        consumer = placement.get_lti_consumer()
+
+        self.assertEqual(consumer.client_id, 'reusable-client-id')
+        self.assertEqual(consumer.deployment_id, 'deployment-7')
+        self.assertIsNotNone(consumer.key_handler.key)
 
     @patch.object(LtiConfiguration, 'sync_configurations')
     def test_save(self, sync_configurations_mock):
@@ -934,10 +1303,9 @@ class TestRetainedPassportBinding(TestCase):
             models.SET_NULL,
         )
 
-        placement = LtiConfiguration.objects.create()
+        passport = Lti1p3Passport.objects.create(name='Retained passport')
+        placement = LtiConfiguration.objects.create(lti_1p3_passport=passport)
         placement.refresh_from_db()
-        passport = placement.lti_1p3_passport
-        self.assertIsNotNone(passport)
 
         passport.delete()
         placement.refresh_from_db()
