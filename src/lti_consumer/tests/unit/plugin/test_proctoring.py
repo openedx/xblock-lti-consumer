@@ -52,8 +52,8 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestBaseWithPatch):
         self.private_key = RSA.generate(2048)
         self.public_key = self.private_key.publickey().export_key().decode()
 
-        self.lti_config.lti_1p3_passport.lti_1p3_tool_public_key = self.public_key
-        self.lti_config.save()
+        self.lti_config.reusable_configuration.lti_1p3_tool_public_key = self.public_key
+        self.lti_config.reusable_configuration.save()
 
     def _setup_user(self):
         """Sets up the requesting user instance."""
@@ -164,6 +164,19 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestBaseWithPatch):
             },
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_inactive_configuration_is_denied(self):
+        """Tests that an inactive registration refuses the proctoring launch."""
+        self.lti_config.reusable_configuration.is_active = False
+        self.lti_config.reusable_configuration.save()
+
+        response = self.client.post(
+            self.url,
+            {
+                "JWT": self.create_tool_jwt_token()
+            },
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_not_proctoring_consumer(self):
         """

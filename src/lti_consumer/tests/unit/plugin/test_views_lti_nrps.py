@@ -137,11 +137,13 @@ class LtiNrpsTestCase(APITransactionTestCase, TestBaseWithPatch):  # noqa: F821
 
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
-        # Create configuration
+        # Create configuration; the tool key completes the runtime identity.
         self.lti_config = LtiConfiguration.objects.create(
             location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
         )
+        self.lti_config.reusable_configuration.lti_1p3_tool_public_key = self.public_key.decode()
+        self.lti_config.reusable_configuration.save()
 
         # Patch internal method to avoid calls to modulestore
         patcher = patch(

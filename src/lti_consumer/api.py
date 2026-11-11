@@ -12,8 +12,9 @@ from opaque_keys.edx.keys import CourseKey
 
 from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
 
+from .exceptions import ReusableConfigurationUnavailable
 from .filters import get_external_config_from_filter
-from .models import CourseAllowPIISharingInLTIFlag, Lti1p3Passport, LtiConfiguration, LtiDlContentItem
+from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem, ReusableLtiConfiguration
 from .utils import (
     get_cache_key,
     get_data_from_cache,
@@ -27,67 +28,61 @@ from .utils import (
 log = logging.getLogger(__name__)
 
 
-def _ensure_lti_passport(block, lti_config):
+def _ensure_reusable_configuration(block, lti_config, version=None):
     """
-    Keep block-backed LTI passport aligned with current block key fields.
-    Function updates passport in place when safe, and splits to new passport
-    when current passport is shared and active key value changed.
+    Keep a block-backed placement aligned with the block's tool-key authoring.
 
-    Flow
-
-    passport missing or non-CONFIG_ON_XBLOCK
-        -> return current passport
-
-    passport unshared or tool fields blank
-        -> update in place from block if changed
-        -> return passport
-
-    passport shared
-        -> active tool key mode matches block
-           -> return passport
-        -> active key mode differs
-           -> create new passport
-           -> save new passport_id on block
-           -> return new passport
+    The placement's reusable configuration is resolved once and is authoritative: a
+    bound row is updated in place while it is unshared or still has blank tool fields.
+    A row shared with other placements keeps its own registration, so a changed active
+    tool-key mode gets a new catalog row that the caller binds.
     """
-    passport = lti_config.lti_1p3_passport
-    if not passport or lti_config.config_store != LtiConfiguration.CONFIG_ON_XBLOCK:
-        return passport
+    shared_configuration = lti_config.resolve_reusable_configuration(version=version)
+    configuration = shared_configuration
+    if lti_config.config_store != LtiConfiguration.CONFIG_ON_XBLOCK:
+        return configuration
 
     block_public_key = str(block.lti_1p3_tool_public_key)
     block_keyset_url = str(block.lti_1p3_tool_keyset_url)
 
-    # Update in place when passport not shared, or when key fields still empty.
-    if passport.lticonfiguration_set.count() == 1 or (
-        not passport.lti_1p3_tool_public_key and not passport.lti_1p3_tool_keyset_url
+    # Update in place when the row is unshared, or when tool fields are still empty.
+    if configuration.lticonfiguration_set.count() == 1 or (
+        not configuration.lti_1p3_tool_public_key and not configuration.lti_1p3_tool_keyset_url
     ):
-        if passport.lti_1p3_tool_public_key != block_public_key or passport.lti_1p3_tool_keyset_url != block_keyset_url:
-            passport.lti_1p3_tool_public_key = block_public_key
-            passport.lti_1p3_tool_keyset_url = block_keyset_url
-            passport.save()
-            log.info("Updated LTI passport for %s", block.scope_ids.usage_id)
-        return passport
+        if (configuration.lti_1p3_tool_public_key != block_public_key or
+                configuration.lti_1p3_tool_keyset_url != block_keyset_url):
+            configuration.lti_1p3_tool_public_key = block_public_key
+            configuration.lti_1p3_tool_keyset_url = block_keyset_url
+            configuration.save()
+            log.info("Updated reusable LTI configuration for %s", block.scope_ids.usage_id)
+        return configuration
 
-    # For shared passport, check only active key mode before splitting passport.
+    # A shared row keeps its registration when the block's active key mode still matches.
     key_mismatch = (
-        block.lti_1p3_tool_key_mode == 'public_key' and passport.lti_1p3_tool_public_key != block_public_key
+        block.lti_1p3_tool_key_mode == 'public_key' and configuration.lti_1p3_tool_public_key != block_public_key
     ) or (
-        block.lti_1p3_tool_key_mode == 'keyset_url' and passport.lti_1p3_tool_keyset_url != block_keyset_url
+        block.lti_1p3_tool_key_mode == 'keyset_url' and configuration.lti_1p3_tool_keyset_url != block_keyset_url
     )
 
     if key_mismatch:
-        passport = Lti1p3Passport.objects.create(
+        # The split keeps the shared registration's stored version and active state,
+        # including an unassigned version or an inactive row: editing a tool key never
+        # makes an unresolved or disabled registration launchable.
+        configuration = ReusableLtiConfiguration.objects.create(
             lti_1p3_tool_public_key=block_public_key,
             lti_1p3_tool_keyset_url=block_keyset_url,
-            name=f"Passport of {block.display_name}",
+            name=f"Configuration of {block.display_name}",
             context_key=block.context_id,
+            version=shared_configuration.version,
+            is_active=shared_configuration.is_active,
         )
-        # The caller links the split passport to the configuration, which is what future
-        # loads use. The block's `lti_1p3_passport_id` field is synced from Studio by
-        # `sync_lti_passport_id_to_block`, since writing it here would run in the LMS too.
-        log.info("Created new LTI passport for %s", block.scope_ids.usage_id)
+        if configuration.version == ReusableLtiConfiguration.LTI_1P3:
+            # A creator seeds its own signing material once; readers never repair it.
+            configuration.generate_lti_1p3_keys_if_missing()
+        # The caller binds the new row to the placement, which is what future loads use.
+        log.info("Created reusable LTI configuration for %s", block.scope_ids.usage_id)
 
-    return passport
+    return configuration
 
 
 def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
@@ -97,20 +92,23 @@ def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigur
     The lti_version parameter is treated as the source of truth, overriding
     any stored version to allow XBlocks to control LTI version without DB updates.
     """
-    lti_config, _ = LtiConfiguration.objects.get_or_create(location=block.scope_ids.usage_id)
+    # Creation carries the authored version so the placement's identity row starts with it.
+    version = lti_version or block.lti_version
+    lti_config, _ = LtiConfiguration.objects.get_or_create(
+        location=block.scope_ids.usage_id,
+        defaults={'version': version},
+    )
 
-    # Ensure passport is synced with block
-    passport = _ensure_lti_passport(block, lti_config)
+    configuration = _ensure_reusable_configuration(block, lti_config, version=version)
 
     # Batch updates
     updates = {
         'config_store': config_store,
         'external_id': block.external_config,
-        # fallback on block lti_version if lti_version is None
-        'version': lti_version or block.lti_version,
+        'version': version,
     }
-    if passport:
-        updates['lti_1p3_passport'] = passport
+    if configuration is not None and lti_config.reusable_configuration_id != configuration.pk:
+        updates['reusable_configuration'] = configuration
 
     # Only save if changed
     if any(getattr(lti_config, key) != value for key, value in updates.items()):
@@ -123,16 +121,16 @@ def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigur
 
 def sync_lti_passport_id_to_block(block):
     """
-    Copy the configuration's passport_id onto the block's `lti_1p3_passport_id` field.
+    Copy the configuration's catalog UUID onto the block's `lti_1p3_passport_id` field.
 
     Only safe to call from Studio: the LMS binds blocks to read-only field data for
     Scope.settings, so writing the field there raises `InvalidScopeError`.
 
     Returns True if the field was changed, False otherwise.
     """
-    passport = _get_lti_config_for_block(block).lti_1p3_passport
-    if passport and block.lti_1p3_passport_id != str(passport.passport_id):
-        block.lti_1p3_passport_id = str(passport.passport_id)
+    configuration = _get_lti_config_for_block(block).resolve_reusable_configuration()
+    if block.lti_1p3_passport_id != str(configuration.passport_id):
+        block.lti_1p3_passport_id = str(configuration.passport_id)
         return True
     return False
 
@@ -142,6 +140,20 @@ def _get_config_by_config_id(config_id):
     Gets the LTI config by its UUID config ID
     """
     return LtiConfiguration.objects.get(config_id=config_id)
+
+
+def get_launchable_configuration(config_id):
+    """Return the placement to launch with, refusing an inactive registration.
+
+    External configurations own their lifecycle. Every other placement resolves the
+    catalog registration it launches with, and that binding stays authoritative.
+    """
+    lti_config = _get_config_by_config_id(config_id)
+    if lti_config.config_store != LtiConfiguration.CONFIG_EXTERNAL:
+        registration = lti_config.resolve_reusable_configuration()
+        if not registration.is_active:
+            raise ReusableConfigurationUnavailable("This LTI tool configuration is inactive.")
+    return lti_config
 
 
 def _get_lti_config_for_block(block):
@@ -228,17 +240,19 @@ def get_lti_1p3_launch_info(
         if dl_content_items.exists():
             deep_linking_content_items = [item.attributes for item in dl_content_items]
 
-    config_id = lti_config.passport_id
-    client_id = lti_config.lti_1p3_client_id
-    deployment_id = "1"
-
     # Display LTI launch information from external configuration.
     # if an external configuration is being used.
     if lti_config.config_store == lti_config.CONFIG_EXTERNAL:
         external_config = get_external_config_from_filter({}, lti_config.external_id)
         config_id = lti_config.external_id.replace(':', '/')
         client_id = external_config.get('lti_1p3_client_id')
-        deployment_id = external_config.get('lti_1p3_deployment_id', deployment_id)
+        deployment_id = external_config.get('lti_1p3_deployment_id', "1")
+    else:
+        # Identity comes from the bound reusable configuration only, already validated
+        # and parsed once when the consumer was built.
+        config_id = lti_config.passport_id
+        client_id = lti_consumer.client_id
+        deployment_id = lti_consumer.deployment_id
 
     # Return LTI launch information for end user configuration
     return {
@@ -262,7 +276,7 @@ def get_lti_1p3_launch_start_url(
     Computes and retrieves the LTI URL that starts the OIDC flow.
     """
     # Retrieve LTI consumer
-    lti_consumer = get_lti_consumer(launch_data.config_id)
+    lti_consumer = get_launchable_configuration(launch_data.config_id).get_lti_consumer()
 
     # Include a message hint in the launch_data depending on LTI launch type
     # Case 1: Performs Deep Linking configuration flow. Triggered by staff users to

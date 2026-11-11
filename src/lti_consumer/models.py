@@ -4,6 +4,7 @@ LTI configuration and linking models.
 import json
 import logging
 import uuid
+from typing import NamedTuple
 
 from ccx_keys.locator import CCXBlockUsageLocator
 from config_models.models import ConfigurationModel
@@ -15,9 +16,11 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from edx_django_utils.monitoring import function_trace
 from jsonfield import JSONField
+from jwt import get_algorithm_by_name
 from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 from opaque_keys.edx.keys import CourseKey
 
+from lti_consumer.exceptions import ReusableConfigurationUnavailable
 from lti_consumer.filters import get_external_config_from_filter
 
 # LTI 1.1
@@ -25,6 +28,7 @@ from lti_consumer.lti_1p1.consumer import LtiConsumer1p1
 
 # LTI 1.3
 from lti_consumer.lti_1p3.consumer import LtiAdvantageConsumer, LtiProctoringConsumer
+from lti_consumer.lti_1p3.exceptions import InvalidRsaKey
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.plugin import compat
 from lti_consumer.utils import (
@@ -46,6 +50,57 @@ def generate_client_id():
     Generates a random UUID string.
     """
     return str(uuid.uuid4())
+
+
+class RuntimeIdentity(NamedTuple):
+    """Stored LTI 1.3 registration material that a runtime request needs."""
+
+    client_id: str
+    deployment_id: str
+    private_key: str
+    private_key_id: str
+    public_jwk: dict
+    tool_public_key: str
+    tool_keyset_url: str
+
+
+def _validated_public_jwk(private_key, private_key_id, stored_jwk):
+    """Parse a stored public keyset and check that it carries the signing key.
+
+    A malformed keyset, an unparsable signing key or a key that does not belong to the
+    stored private key denies the request instead of raising a parser error or
+    publishing unusable material.
+    """
+    try:
+        key_set = json.loads(stored_jwk)
+    except (TypeError, ValueError) as exc:
+        raise ReusableConfigurationUnavailable("The stored public keyset is not valid JSON.") from exc
+
+    keys = key_set.get('keys') if isinstance(key_set, dict) else None
+    if not isinstance(keys, list) or not all(isinstance(key, dict) for key in keys):
+        raise ReusableConfigurationUnavailable("The stored public keyset is not a keyset.")
+
+    try:
+        key_handler = PlatformKeyHandler(key_pem=private_key, kid=private_key_id)
+    except (InvalidRsaKey, TypeError) as exc:
+        # PyJWT raises TypeError, not InvalidKeyError, for a password-encrypted PEM.
+        raise ReusableConfigurationUnavailable("The stored signing key is not a valid RSA key.") from exc
+
+    loaded_key = key_handler.key.key if key_handler.key else None
+    if not hasattr(loaded_key, 'public_key'):
+        raise ReusableConfigurationUnavailable("The stored signing key is not a private RSA key.")
+
+    expected = json.loads(get_algorithm_by_name('RS256').to_jwk(loaded_key.public_key()))
+    expected['kid'] = private_key_id
+    matching = [
+        key for key in keys
+        if key.get('kid') == private_key_id and
+        all(key.get(field) == expected.get(field) for field in ('kty', 'n', 'e'))
+    ]
+    if not matching:
+        raise ReusableConfigurationUnavailable("The stored public keyset does not match the signing key.")
+
+    return key_set
 
 
 class Lti1p3Passport(models.Model):
@@ -355,6 +410,39 @@ class ReusableLtiConfiguration(models.Model):
         # Doesn't do anything if model didn't change
         self.save()
 
+    def get_runtime_identity(self):
+        """Return the stored registration material a runtime request needs.
+
+        A registration is usable only when its stored client ID, signing key pair and one
+        tool key source are present and consistent. Existing rows are never repaired: a
+        missing or invalid value denies the request instead of generating or rotating
+        keys. Launch, presentation and grading settings are not part of this check.
+        """
+        if self.version != self.LTI_1P3:
+            raise ReusableConfigurationUnavailable(
+                "Only an LTI 1.3 registration can serve a launch or a token."
+            )
+        if not self.lti_1p3_client_id:
+            raise ReusableConfigurationUnavailable("The registration has no client ID.")
+        if not self.lti_1p3_internal_private_key or not self.lti_1p3_internal_private_key_id:
+            raise ReusableConfigurationUnavailable("The registration has no signing key.")
+        if not self.lti_1p3_tool_public_key and not self.lti_1p3_tool_keyset_url:
+            raise ReusableConfigurationUnavailable("The registration has no tool key source.")
+
+        return RuntimeIdentity(
+            client_id=self.lti_1p3_client_id,
+            deployment_id=self.lti_1p3_deployment_id or "1",
+            private_key=self.lti_1p3_internal_private_key,
+            private_key_id=self.lti_1p3_internal_private_key_id,
+            public_jwk=_validated_public_jwk(
+                self.lti_1p3_internal_private_key,
+                self.lti_1p3_internal_private_key_id,
+                self.lti_1p3_internal_public_jwk,
+            ),
+            tool_public_key=self.lti_1p3_tool_public_key,
+            tool_keyset_url=self.lti_1p3_tool_keyset_url,
+        )
+
     def __str__(self):
         return f'ReusableLtiConfiguration: {self.name} - {self.passport_id}'
 
@@ -594,9 +682,9 @@ class LtiConfiguration(models.Model):
                     'LTI Configuration using reusable configuration needs a external ID in "x:y" format.',
                 ),
             })
-        if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB and not self.lti_1p3_passport:
+        if self.version == self.LTI_1P3 and self.config_store == self.CONFIG_ON_DB and not self.reusable_configuration:
             raise ValidationError({
-                "config_store": _('LTI Configuration for 1.3 requires passport to be set.'),
+                "config_store": _('LTI Configuration for 1.3 requires a reusable configuration to be set.'),
             })
         if (self.version == self.LTI_1P3 and self.config_store in [self.CONFIG_ON_XBLOCK, self.CONFIG_EXTERNAL] and
                 self.lti_1p3_proctoring_enabled):
@@ -606,7 +694,7 @@ class LtiConfiguration(models.Model):
             })
         try:
             consumer = self.get_lti_consumer()
-        except NotImplementedError:
+        except (NotImplementedError, ReusableConfigurationUnavailable):
             consumer = None
         if consumer is None:
             raise ValidationError(_("Invalid LTI configuration."))
@@ -644,45 +732,56 @@ class LtiConfiguration(models.Model):
                     f'Failed to parse main LTI configuration location: {self.location}',
                 )
 
-    def get_or_create_lti_1p3_passport(self):
+    def resolve_reusable_configuration(self, version=None):
         """
-        Create an LTI 1.3 Passport configuration for this course instance.
+        Return the reusable configuration bound to this placement, binding one if absent.
 
-        This never writes back to the XBlock: it runs from a post_save signal, which
-        also fires during LMS requests where blocks are bound to read-only field data
-        for Scope.settings. The configuration row is the authoritative link to the
-        passport; the block's `lti_1p3_passport_id` field is kept in sync from Studio
-        by `LtiConsumerXBlock.submit_studio_edits`.
+        The binding is authoritative: a placement that already points at a catalog row is
+        returned unchanged, so a later edit never re-derives identity from another row.
+        Otherwise the UUID authored on the block is reused when the catalog still holds
+        that row, including rows no placement points at yet, and only a miss creates a
+        new row from the block's authoring state.
         """
-        passport = self.lti_1p3_passport
-        block = None
-        if not passport:
-            if self.location:
-                block = compat.load_enough_xblock(self.location)
-            if self.location and block and block.lti_1p3_passport_id:
-                passport, created = Lti1p3Passport.objects.get_or_create(
-                    passport_id=block.lti_1p3_passport_id,
-                    defaults={
-                        "name": f"Passport of {block.display_name}",
-                        "context_key": block.context_id,
-                    }
-                )
-                if created:
-                    log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
-                else:
-                    log.info("Existing LTI 1.3 Passport %s found for %s", passport, self)
-            else:
-                passport = Lti1p3Passport.objects.create()
-                log.info("Created new LTI 1.3 Passport %s for %s", passport, self)
-                if block:
-                    passport.name = f"Passport of {block.display_name}"
-                    passport.context_key = block.context_id
-                    passport.save()
-            # We use update to avoid triggering post save signal as this function is itself
-            # called from the post_save signal handler, this avoids double call to same function.
-            LtiConfiguration.objects.filter(pk=self.pk).update(lti_1p3_passport=passport)
-            # Refresh block from db to get passport id.
-            self.refresh_from_db()
+        configuration = self.reusable_configuration
+        if configuration is not None:
+            return configuration
+
+        block = compat.load_enough_xblock(self.location) if self.location else None
+        block_passport_id = getattr(block, 'lti_1p3_passport_id', None) if block else None
+        defaults = {
+            'name': f"Configuration of {block.display_name}" if block else None,
+            'context_key': block.context_id if block else None,
+            'version': self.version if version is None else version,
+        }
+        if block:
+            defaults['lti_1p3_tool_public_key'] = str(block.lti_1p3_tool_public_key or '')
+            defaults['lti_1p3_tool_keyset_url'] = str(block.lti_1p3_tool_keyset_url or '')
+
+        # The persisted UUID is the lookup key: a concurrent first use shares the row the
+        # other request created instead of racing a second one into existence.
+        configuration, created = ReusableLtiConfiguration.objects.get_or_create(
+            passport_id=block_passport_id or uuid.uuid4(),
+            defaults=defaults,
+        )
+        if created:
+            log.info("Created reusable LTI configuration %s for %s", configuration, self)
+            if configuration.version == ReusableLtiConfiguration.LTI_1P3:
+                # A creator seeds its own signing material once; readers never repair it.
+                configuration.generate_lti_1p3_keys_if_missing()
+
+        if self.pk is None:
+            # The row cannot be linked before it exists; the in-memory link is saved with it.
+            self.reusable_configuration = configuration
+            return configuration
+
+        # Write the authoritative link without re-entering the post_save receiver.
+        LtiConfiguration.objects.filter(pk=self.pk).update(reusable_configuration=configuration)
+        self.refresh_from_db()
+        return configuration
+
+    def get_runtime_identity(self, version=None):
+        """Return validated registration material for this placement's runtime identity."""
+        return self.resolve_reusable_configuration(version=version).get_runtime_identity()
 
     def save(self, *args, **kwargs):
         self.sync_configurations()
@@ -691,58 +790,61 @@ class LtiConfiguration(models.Model):
     @property
     def passport_id(self):
         """
-        Return the passport ID associated with this configuration instance.
+        Return the reusable configuration's passport ID for this placement.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.passport_id
+        return self.resolve_reusable_configuration().passport_id
 
     @property
     def lti_1p3_private_key(self):
         """
         Return the platform's private key used in LTI 1.3 authentication flows.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_private_key
+        return self.get_runtime_identity().private_key
 
     @property
     def lti_1p3_private_key_id(self):
         """
         Return the platform's private key ID used in LTI 1.3 authentication flows.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_private_key_id
+        return self.get_runtime_identity().private_key_id
 
     @property
     def lti_1p3_public_jwk(self):
         """
         Return the platform's public keys used in LTI 1.3 authentication flows.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_public_jwk
+        return self.get_runtime_identity().public_jwk
 
     @property
     def lti_1p3_client_id(self):
         """
-        Return platform client id from passport
+        Return the client ID stored on the reusable configuration.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_client_id
+        return self.get_runtime_identity().client_id
+
+    @property
+    def lti_1p3_deployment_id(self):
+        """
+        Return the stored deployment ID, or the historical `"1"` when it is unset.
+
+        Copied registrations keep the single deployed tool registration they were launched
+        with; configurations created through the API store their own deployment ID.
+        """
+        return self.get_runtime_identity().deployment_id
 
     @property
     def lti_1p3_tool_keyset_url(self):
         """
-        Return tool keyset url from passport
+        Return the tool keyset URL stored on the reusable configuration.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_tool_keyset_url
+        return self.get_runtime_identity().tool_keyset_url
 
     @property
     def lti_1p3_tool_public_key(self):
         """
-        Return tool public key from passport
+        Return the tool public key stored on the reusable configuration.
         """
-        self.get_or_create_lti_1p3_passport()
-        return self.lti_1p3_passport.lti_1p3_tool_public_key
+        return self.get_runtime_identity().tool_public_key
 
     @cached_property
     def external_config(self):
@@ -906,8 +1008,10 @@ class LtiConfiguration(models.Model):
         """
         Return a class of LTI 1.3 consumer.
 
-        Uses the `config_store` variable to determine where to
-        look for the configuration and instance the class.
+        Uses the `config_store` variable to determine where to look for the launch
+        and presentation settings. Identity, signing keys, tool keys, client ID and the
+        deployment ID always come from the reusable configuration bound to this
+        placement; there is no fallback to the retained passport table or the block.
         """
         consumer_class = LtiAdvantageConsumer
         # LTI Proctoring Services is not currently supported for CONFIG_ON_XBLOCK or CONFIG_EXTERNAL.
@@ -919,41 +1023,38 @@ class LtiConfiguration(models.Model):
 
         if self.config_store == self.CONFIG_ON_XBLOCK:
             block = compat.load_enough_xblock(self.location)
+            identity = self.get_runtime_identity()
 
             consumer = consumer_class(
                 iss=get_lti_api_base(),
                 lti_oidc_url=block.lti_1p3_oidc_url,
                 lti_launch_url=block.lti_1p3_launch_url,
-                client_id=self.lti_1p3_client_id,
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id="1",
-                # XBlock Private RSA Key
-                rsa_key=self.lti_1p3_private_key,
-                rsa_key_id=self.lti_1p3_private_key_id,
+                client_id=identity.client_id,
+                deployment_id=identity.deployment_id,
+                rsa_key=identity.private_key,
+                rsa_key_id=identity.private_key_id,
                 # Registered redirect uris
                 redirect_uris=self.get_lti_1p3_redirect_uris(),
                 # LTI 1.3 Tool key/keyset url
-                tool_key=block.lti_1p3_tool_public_key,
-                tool_keyset_url=block.lti_1p3_tool_keyset_url,
+                tool_key=identity.tool_public_key,
+                tool_keyset_url=identity.tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_ON_DB:
+            identity = self.get_runtime_identity()
+
             consumer = consumer_class(
                 iss=get_lti_api_base(),
                 lti_oidc_url=self.lti_1p3_oidc_url,
                 lti_launch_url=self.lti_1p3_launch_url,
-                client_id=self.lti_1p3_client_id,
-                # Deployment ID hardcoded to 1 since
-                # we're not using multi-tenancy.
-                deployment_id="1",
-                # XBlock Private RSA Key
-                rsa_key=self.lti_1p3_private_key,
-                rsa_key_id=self.lti_1p3_private_key_id,
+                client_id=identity.client_id,
+                deployment_id=identity.deployment_id,
+                rsa_key=identity.private_key,
+                rsa_key_id=identity.private_key_id,
                 # Registered redirect uris
                 redirect_uris=self.get_lti_1p3_redirect_uris(),
                 # LTI 1.3 Tool key/keyset url
-                tool_key=self.lti_1p3_tool_public_key,
-                tool_keyset_url=self.lti_1p3_tool_keyset_url,
+                tool_key=identity.tool_public_key,
+                tool_keyset_url=identity.tool_keyset_url,
             )
         elif self.config_store == self.CONFIG_EXTERNAL:
             lti_launch_url = self.external_config.get('lti_1p3_launch_url')
@@ -990,15 +1091,24 @@ class LtiConfiguration(models.Model):
 
     def get_effective_version(self):
         """
-        Return the effective LTI version for this configuration.
+        Return the LTI version stored by the runtime identity source of this placement.
 
         When ``config_store == CONFIG_EXTERNAL``, checks the external config
         for a ``version`` key and returns it.  Falls back to ``self.version``.
+
+        Every other placement reads the stored version of its bound reusable
+        configuration, which is the only place a version may come from. An unbound
+        placement keeps its own version, and a bound row whose version is unassigned
+        reports ``None`` so runtime gates deny it instead of guessing.
         """
         if self.config_store == self.CONFIG_EXTERNAL:
             ext_version = self.external_config.get('version')
             if ext_version is not None:
                 return ext_version
+            return self.version
+        configuration = self.reusable_configuration
+        if configuration is not None:
+            return configuration.version
         return self.version
 
     @function_trace('lti_consumer.models.LtiConfiguration.get_lti_consumer')
@@ -1008,9 +1118,27 @@ class LtiConfiguration(models.Model):
 
         When using external config, the version from the external config
         takes priority over the locally stored version to avoid version
-        mismatch crashes.
+        mismatch crashes. An unassigned version refuses the request instead
+        of silently serving the other version.
         """
         effective_version = self.get_effective_version()
+
+        if effective_version is None:
+            raise ReusableConfigurationUnavailable(
+                f"LTI configuration {self.config_id} has no assigned LTI version."
+            )
+
+        configuration = self.reusable_configuration
+        if (
+            self.config_store != self.CONFIG_EXTERNAL and
+            configuration is not None and
+            self.version is not None and
+            configuration.version is not None and
+            self.version != configuration.version
+        ):
+            raise ReusableConfigurationUnavailable(
+                "The placement LTI version does not match its reusable configuration."
+            )
 
         if effective_version == self.LTI_1P3:
             return self._get_lti_1p3_consumer()

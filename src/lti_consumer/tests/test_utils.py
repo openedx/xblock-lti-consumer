@@ -5,6 +5,7 @@ Utility functions used within unit tests
 import urllib
 from unittest.mock import Mock, patch
 
+from Cryptodome.PublicKey import RSA
 from django.test.testcases import TestCase
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LocalId
@@ -36,6 +37,36 @@ def make_xblock(xblock_name, xblock_cls, attributes):
     for key, value in attributes.items():
         setattr(xblock, key, value)
     return xblock
+
+
+def make_reusable_configuration(generate_keys=True, **kwargs):
+    """Create a reusable configuration row for runtime tests.
+
+    Placement runtime reads identity, keys and binding from the reusable table, so a
+    bound registration is the fixture for launch and service tests. Keys are generated
+    once here, as an API create would, unless a test exercises lazy generation itself.
+    """
+    from lti_consumer.models import ReusableLtiConfiguration  # pylint: disable=import-outside-toplevel
+
+    values = {
+        'name': 'Test reusable configuration',
+        'version': ReusableLtiConfiguration.LTI_1P3,
+        'context_type': 'site',
+        'context_key': '',
+        'lti_1p3_client_id': 'test-client-id',
+    }
+    values.update(kwargs)
+    configuration = ReusableLtiConfiguration.objects.create(**values)
+    if generate_keys and configuration.version == ReusableLtiConfiguration.LTI_1P3:
+        configuration.generate_lti_1p3_keys_if_missing()
+        if 'lti_1p3_tool_public_key' not in kwargs and 'lti_1p3_tool_keyset_url' not in kwargs:
+            # A valid tool key keeps consumer construction realistic; tests that need a
+            # blank or keyset-url source pass it explicitly.
+            configuration.lti_1p3_tool_public_key = RSA.import_key(
+                configuration.lti_1p3_internal_private_key
+            ).publickey().export_key().decode()
+            configuration.save()
+    return configuration
 
 
 def generate_scope_ids(course_key, block_type):

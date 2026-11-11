@@ -288,33 +288,31 @@ class ReusableAdminJourneyTests(TestCase):
         self.assertEqual(ReusableLtiConfiguration.objects.values().get(pk=configuration.pk), row_before)
         self.assertEqual(list(LtiConfiguration.objects.values()), placements_before)
 
-    def test_legacy_passport_admin_is_unchanged(self):
+    def test_legacy_passport_admin_is_read_only(self):
         passport = Lti1p3Passport.objects.create(name='Retained passport', lti_1p3_client_id='legacy-client-id')
         # A reusable copy with the same passport_id would vanish under any matched-ID hiding.
         self.make_configuration(name='Matched reusable copy', passport_id=passport.passport_id)
         changelist_url = reverse('admin:lti_consumer_lti1p3passport_changelist')
         change_url = reverse('admin:lti_consumer_lti1p3passport_change', args=[passport.pk])
+        add_url = reverse('admin:lti_consumer_lti1p3passport_add')
+        delete_url = reverse('admin:lti_consumer_lti1p3passport_delete', args=[passport.pk])
         superuser = self.make_superuser()
         plain_staff = self.make_user('plain-staff', is_staff=True)
 
         self.client.force_login(superuser)
-        with self.subTest('superuser still views and edits'):
+        with self.subTest('superuser lists and views but never writes'):
             self.assertContains(self.client.get(changelist_url), 'Retained passport')
             self.assertEqual(self.client.get(change_url).status_code, 200)
-            prefix = LtiConfiguration._meta.get_field('lti_1p3_passport').remote_field.get_accessor_name()
-            response = self.client.post(change_url, {
-                'name': 'Renamed passport',
-                'lti_1p3_client_id': 'legacy-client-id',
-                # The model's clean() requires one tool key source for an LTI 1.3 passport.
-                'lti_1p3_tool_public_key': 'legacy-tool-public-key',
-                f'{prefix}-TOTAL_FORMS': '0',
-                f'{prefix}-INITIAL_FORMS': '0',
-                f'{prefix}-MIN_NUM_FORMS': '0',
-                f'{prefix}-MAX_NUM_FORMS': '1000',
+            self.assertEqual(self.client.get(add_url).status_code, 403)
+            self.assertEqual(self.client.get(delete_url).status_code, 403)
+            self.assertEqual(self.client.post(change_url, {'name': 'Renamed passport'}).status_code, 403)
+            self.client.post(changelist_url, {
+                'action': 'delete_selected',
+                '_selected_action': [str(passport.pk)],
             })
-            self.assertEqual(response.status_code, 302)
             passport.refresh_from_db()
-            self.assertEqual(passport.name, 'Renamed passport')
+            self.assertEqual(passport.name, 'Retained passport')
+            self.assertTrue(Lti1p3Passport.objects.filter(pk=passport.pk).exists())
 
         with self.subTest('matched reusable copy stays visible'):
             self.assertContains(self.client.get(self.changelist_url), 'Matched reusable copy')

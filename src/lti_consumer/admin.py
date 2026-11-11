@@ -168,7 +168,11 @@ class LtiConfigurationAdmin(admin.ModelAdmin):
 @admin.register(Lti1p3Passport)
 class Lti1p3PassportAdmin(admin.ModelAdmin):
     """
-    Admin view for Lti1p3Passport models.
+    Read-only admin view for the retained Lti1p3Passport models.
+
+    Runtime identity and keys come from reusable configurations, so this table is
+    inspection-only: add, change and delete are denied for every role, superusers
+    included. The table, its schema and its placement FK remain in place.
     """
     list_display = (
         'name',
@@ -177,6 +181,16 @@ class Lti1p3PassportAdmin(admin.ModelAdmin):
         'lti_1p3_client_id',
     )
     inlines = [LtiConfigurationInline]
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(CourseAllowPIISharingInLTIFlag)
