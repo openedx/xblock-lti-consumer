@@ -33,8 +33,7 @@ PASSPORT_FIELDS = (
     "lti_1p3_tool_keyset_url",
 )
 
-# Replay compares only values preserved verbatim. `context_key` is inferred on new copies
-# (decision 0005), so the canonical key must never be compared against the old raw key.
+# Compare only fields copied unchanged; `context_key` is inferred for new copies.
 PRESERVED_FIELDS = tuple(field for field in PASSPORT_FIELDS if field != "context_key")
 
 CONFIG_EXTERNAL = "CONFIG_EXTERNAL"
@@ -675,7 +674,7 @@ class Test0025CopyPassports(PassportCopyHarness):
 
 
 class Test0025ReplayAndReuse(PassportCopyHarness):
-    """A matching copy is reused as-is; a real reverse and replay refresh neither inferred nor authored data."""
+    """Reusing or replaying a copy keeps its values and later edits."""
 
     def seed(self):
         self.plain = self.passport()
@@ -688,7 +687,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         )
 
     def assert_replayed(self, apps, phase, snapshot):
-        """Assert one reverse or replay kept rows, links and the edited new copy."""
+        """Assert a reverse or replay kept rows, links and the edited copy."""
         pk_by_passport, linked_before, shared_pk = snapshot
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
@@ -707,7 +706,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         apps = self.migrate(SCHEMA_MIGRATION)
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         values = {field: getattr(self.plain, field) for field in PASSPORT_FIELDS}
-        # Left unset on purpose: inference must not refresh an existing destination.
+        # Existing copies must keep these values unset.
         preexisting = Reusable.objects.create(
             **values,
             description="Hand-written catalog note",
@@ -728,7 +727,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assertIsNone(reused.context_type)
         self.assertEqual(reused.context_key, self.plain.context_key)
 
-        # The shared passport is new, so it does get the inferred metadata.
+        # The shared passport is new, so it does get inferred metadata.
         shared_copy = Reusable.objects.get(passport_id=self.shared.passport_id)
         self.assertEqual(shared_copy.version, "lti_1p3")
         self.assertEqual(shared_copy.context_type, "course")
@@ -738,8 +737,8 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
             preexisting_pk,
         )
 
-        # Later catalog edits are authored data, including edits to the inferred fields, and
-        # the raw legacy key is not compared on replay either.
+        # Edit the new copy and the old raw keys.
+        # Replay must keep the edits without comparing those keys.
         Reusable.objects.filter(pk=shared_copy.pk).update(
             version=None, context_type="site", context_key="", description="Edited after the copy"
         )
@@ -753,7 +752,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
             shared_copy.pk,
         )
 
-        # The data-only reverse is a noop: rows, links and authored edits survive it, and the
+        # The data-only reverse is a noop: rows, links and edited data survive, and the
         # copy migration is really unapplied.
         apps = self.migrate(SCHEMA_MIGRATION)
         self.executor.loader.build_graph()
@@ -761,7 +760,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assertNotIn(COPY_MIGRATION, self.executor.loader.applied_migrations)
         self.assert_replayed(apps, "noop reverse", snapshot)
 
-        # The replay must really run again, not be swallowed as already applied.
+        # The replay must really run again, not be skipped as already applied.
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             apps = self.run_copy()
@@ -779,7 +778,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
 
 
 class Test0025Inference(PassportCopyHarness):
-    """Inference reads eligible old-FK placements only, and only for new copies."""
+    """Inference reads eligible placements through the old FK, for new copies only."""
 
     def seed(self):
         self.cases = {}
@@ -841,13 +840,13 @@ class Test0025Inference(PassportCopyHarness):
         self.case(
             "missing-location",
             ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+Missing+type@lti+block@present"),
-            # UsageKeyField stores None as an empty string, so the whole test has one such row.
+            # UsageKeyField stores None as an empty string, so this is the only missing location.
             ("lti_1p3", "CONFIG_ON_DB", None),
         )
         self.case("no-placements")
 
     def case(self, name, *placements, context_key="raw legacy key"):
-        """Create one passport and its eligible placements; the copy is asserted later."""
+        """Create a passport and its placements; the copy is checked later."""
         passport = self.passport(name=name, context_key=context_key)
         for version, config_store, location in placements:
             self.placement(passport, version=version, config_store=config_store, location=location)
@@ -886,7 +885,7 @@ class Test0025Inference(PassportCopyHarness):
             self.Passport.objects.get(pk=self.cases["one-course"].pk).context_key, "raw legacy key"
         )
 
-        # CONFIG_EXTERNAL is excluded from inference but is still linked by the copy step.
+        # Skip external placements for inference, but still link them.
         external = Placement.objects.get(lti_1p3_passport_id=self.cases["external-only"].pk)
         self.assertEqual(
             external.reusable_configuration_id,
@@ -895,7 +894,7 @@ class Test0025Inference(PassportCopyHarness):
 
 
 class Test0025InferencePages(PassportCopyHarness):
-    """Inference folds every placement page, not only the first batch of 500."""
+    """Inference covers every placement page, not just the first batch."""
 
     def seed(self):
         self.source = self.passport(name="Paged")
@@ -910,8 +909,7 @@ class Test0025InferencePages(PassportCopyHarness):
             for index in range(500)
         ]
         self.Placement.objects.bulk_create(first_page, batch_size=500)
-        # The only disagreement sits in the second page; the first page alone is unanimous
-        # lti_1p3 in one course, so ignoring the tail would infer lti_1p3/course.
+        # Only the second page disagrees; reading the first alone would infer lti_1p3/course.
         self.disagreement = self.placement(
             self.source,
             version="lti_1p1",

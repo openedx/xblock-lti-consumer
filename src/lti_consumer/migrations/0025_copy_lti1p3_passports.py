@@ -1,20 +1,29 @@
-"""Copy every LTI 1.3 passport into the reusable configuration catalog.
+"""Copy passports into the reusable catalog (data-only; schema is ``0024``).
 
-Data-only: the schema arrives in ``0024``. Every old passport is copied with its
-nine historical fields, a matching destination row is reused without refreshing
-its other metadata, and every placement whose old foreign key is set is linked to
-its copy. A conflict aborts the whole transaction instead of merging or skipping.
+for each old passport, orphans included, in primary-key order (negative keys too)
+  find destination by passport_id
+  absent: copy legacy identity, credentials and keys; infer from
+    old-FK placements excluding CONFIG_EXTERNAL:
+      version: unanimous lti_1p1 or lti_1p3, otherwise NULL
+      context:
+        missing location, no eligible placement, or any unsupported -> site, empty
+        one canonical course -> course, canonical context_key
+        several courses in one normalized organization -> organization, trimmed lowercase org
+        otherwise -> site, empty
+    inference applies to new copies only; the old raw context_key is kept
+  existing: compare preserved fields only, never context_key/version/context_type
+    match -> reuse unchanged, authored metadata is not refreshed
+    differ -> abort the whole transaction
 
-New copies also get a ``version`` and a single creation context inferred from the
-placements bound to the old foreign key (decision 0005). ``CONFIG_EXTERNAL``
-placements are excluded from inference but still linked. Only the old foreign key
-binds a placement to a passport, so a placement with a conflicting destination
-binding is still eligible and aborts later while linking.
+then link every placement with an old FK set, CONFIG_EXTERNAL included
+  null old FK -> unchanged
+  conflicting existing destination binding -> abort the whole transaction
+  destination binding never filters inference eligibility
 
-Reads, inserts and lookups are bounded by ``BATCH_SIZE``, so no table is ever held
-in memory at once and legacy primary keys below zero are covered as well. Only the
-historical models and this migration's database alias are used: no modulestore,
-organization registry, provider, key or client ID generation.
+Constraints:
+  data-only, no schema change here; historical models and this alias only
+  reads, inserts and lookups use BATCH_SIZE pages, fixed memory
+  no modulestore, registry, provider, key or client-ID generation
 """
 from ccx_keys.locator import CCXLocator
 from django.db import migrations
@@ -22,8 +31,7 @@ from opaque_keys.edx.locator import CourseLocator
 
 BATCH_SIZE = 500
 
-# The values stored by the historical placement and catalog models. Migrations must not
-# import runtime models, so the few constants this one needs are repeated here.
+# Keep migration values here instead of importing current models.
 LTI_1P1 = 'lti_1p1'
 LTI_1P3 = 'lti_1p3'
 COURSE = 'course'
@@ -44,8 +52,7 @@ COPIED_FIELDS = (
     'lti_1p3_tool_keyset_url',
 )
 
-# ``context_key`` is inferred for new copies, so replay compares only values that are
-# preserved verbatim: comparing the raw key would reject every copy with a canonical key.
+# The inferred ``context_key`` may differ from the old raw key, so replay skips it.
 REPLAY_FIELDS = tuple(field for field in COPIED_FIELDS if field != 'context_key')
 
 
@@ -71,7 +78,7 @@ def _counts_message(counts, aborts):
 
 
 def _divergence_message(conflicts, counts):
-    """Describe divergent copies by identifier and field name only."""
+    """Name the copies that differ and the fields, never their values."""
     details = '; '.join(
         f"passport {passport_id} differs in {', '.join(fields)}" for passport_id, fields in conflicts
     )
@@ -82,14 +89,12 @@ def _divergence_message(conflicts, counts):
 
 
 def _course(location):
-    """Return ``(canonical course key, normalized organization)`` for a supported course.
+    """Return ``(canonical course key, organization)`` for a supported course, else ``None``.
 
-    A missing location, a library and a CCX course are unsupported and return ``None``,
-    which forces the whole configuration to ``site``. Parsing a stored location is a pure
-    key operation: no block is loaded.
+    Missing location, library and CCX are unsupported, which forces the whole
+    configuration to ``site``. Read only the stored key; do not load the XBlock.
     """
-    # ``context_key`` is the block's course context (or its library), already parsed by the
-    # historical UsageKeyField. ``course_key`` is deprecated on newer library keys.
+    # The stored location is already parsed; use its course context (a library has its own).
     course_key = getattr(location, 'context_key', None)
     if not isinstance(course_key, CourseLocator) or isinstance(course_key, CCXLocator):
         return None
@@ -99,13 +104,13 @@ def _course(location):
     course_key = course_key.for_branch(None).version_agnostic()
     canonical, organization = str(course_key), course_key.org.strip().lower()
     if not canonical or not organization:
-        # Course and organization contexts require a non-blank key, site is the only safe fit.
+        # A blank key cannot be a course or organization context, so treat it as unsupported.
         return None
     return canonical, organization
 
 
 def _state():
-    """One passport's fixed-size inference accumulator; no per-placement value is retained."""
+    """Keep one version, course and organization per passport, plus flags."""
     return {
         'version': None,
         'uniform_version': True,
@@ -118,7 +123,7 @@ def _state():
 
 
 def _collect(state, version, location):
-    """Fold one eligible placement into its passport's fixed-size state."""
+    """Update the passport summary from one eligible placement."""
     if version not in (LTI_1P1, LTI_1P3):
         state['uniform_version'] = False
     elif state['version'] is None:
@@ -140,7 +145,7 @@ def _collect(state, version, location):
 
 
 def _inferred(state):
-    """Resolve one passport's inferred ``version``, ``context_type`` and ``context_key``."""
+    """Choose version, context type and key from the saved summary."""
     version = state['version'] if state['uniform_version'] else None
     if version not in (LTI_1P1, LTI_1P3):
         version = None
@@ -156,12 +161,12 @@ def _inferred(state):
 
 
 def _infer(Placement, alias, passports):
-    """Infer every new copy's catalog metadata from its eligible placements.
+    """Infer catalog metadata for new copies from their old-FK placements.
 
-    Eligibility is the old foreign key alone, excluding ``CONFIG_EXTERNAL``; the new
-    binding is deliberately not part of the predicate. Placements are read in
-    primary-key pages, and each passport keeps only a fixed-size accumulator, so neither
-    a large table nor a passport with many distinct rows grows memory without bound.
+    new copies only
+      eligible: the old FK points to one of these passports, config_store is not CONFIG_EXTERNAL
+      an existing conflicting destination binding does not change eligibility
+      placements are read in primary-key pages, so memory stays flat
     """
     states = {passport.pk: _state() for passport in passports}
     eligible = Placement.objects.using(alias).filter(
@@ -174,21 +179,20 @@ def _infer(Placement, alias, passports):
 
 
 def _copy_passports(Passport, Reusable, Placement, alias, counts):
-    """Copy every passport, reusing a matching copy as-is, and update the shared counters."""
+    """Copy each passport, reuse a matching copy as-is, and update the shared counters."""
     old = Passport.objects.using(alias)
     new = Reusable.objects.using(alias)
 
     for batch in _batches(old):
         counts['read'] += len(batch)
-        # Look up existing destinations once per batch by the preserved passport UUID; the
-        # primary keys are allocated independently, so only that value can match a copy.
+        # Match copies by passport_id: each table allocates its own primary keys.
         source_by_uuid = {passport.passport_id: passport for passport in batch}
         copies = {
             copy['passport_id']: copy
             for copy in new.filter(passport_id__in=list(source_by_uuid)).values('pk', *REPLAY_FIELDS)
         }
         # Three outcomes per passport: absent (queued for insert), an exact copy (reused
-        # without touching its authored metadata), or a divergent copy (collected to abort).
+        # without touching its other metadata), or a copy that differs (collected to abort).
         missing = []
         conflicts = []
         for passport_id, passport in source_by_uuid.items():
@@ -196,20 +200,20 @@ def _copy_passports(Passport, Reusable, Placement, alias, counts):
             if copy is None:
                 missing.append(passport)
                 continue
-            # Handles edge case where a noop reverse preserves copies; edits before replay or manual
-            # pre-population can make these legacy fields diverge. Inferred metadata is not compared.
+            # A copy may already exist (noop reverse, manual row or edits): compare the kept
+            # fields and reuse it, or abort below if they differ. Inferred fields are not compared.
             differing = [field for field in REPLAY_FIELDS if copy[field] != getattr(passport, field)]
             if differing:
                 conflicts.append((passport_id, differing))
                 continue
             counts['reused'] += 1
         if conflicts:
-            # Deliberately abort: rolling back every earlier batch beats overwriting authored data.
+            # Deliberately abort: undoing earlier batches is safer than overwriting a copy's fields.
             raise RuntimeError(_divergence_message(conflicts, counts))
         if not missing:
             continue
-        # All nine source fields are passed explicitly so blanks and identity survive instead of
-        # falling back to model defaults. Only new rows get inferred catalog metadata.
+        # Pass every copied field explicitly so blanks and identity are kept, not model defaults.
+        # New rows then get inferred metadata in place of the old raw context key.
         inference = _infer(Placement, alias, missing)
         new.bulk_create(
             [
