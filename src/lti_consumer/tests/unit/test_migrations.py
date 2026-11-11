@@ -1,7 +1,9 @@
 """
 Tests for custom migrations scripts
 """
+import contextlib
 import importlib
+import io
 import uuid
 from unittest import mock
 
@@ -30,6 +32,12 @@ PASSPORT_FIELDS = (
     "lti_1p3_tool_public_key",
     "lti_1p3_tool_keyset_url",
 )
+
+# Replay compares only values preserved verbatim. `context_key` is inferred on new copies
+# (decision 0005), so the canonical key must never be compared against the old raw key.
+PRESERVED_FIELDS = tuple(field for field in PASSPORT_FIELDS if field != "context_key")
+
+CONFIG_EXTERNAL = "CONFIG_EXTERNAL"
 
 
 class RestoreLatestMigrationMixin:
@@ -559,8 +567,14 @@ class Test0025CopyPassports(PassportCopyHarness):
 
         for old in old_passports:
             copy = copies[old["passport_id"]]
-            for field in PASSPORT_FIELDS:
+            for field in PRESERVED_FIELDS:
                 self.assertEqual(getattr(copy, field), old[field], field)
+
+        # Only the new row gets the inferred canonical key; the old table keeps the raw one.
+        self.assertEqual(copies[self.plain.passport_id].context_key, "course-v1:org+course+run")
+        self.assertEqual(self.Passport.objects.get(pk=self.plain.pk).context_key, self.plain.context_key)
+        self.assertEqual(copies[self.shared.passport_id].context_key, "")
+        self.assertEqual(self.Passport.objects.get(pk=self.shared.pk).context_key, self.shared.context_key)
 
         for old in old_placements:
             placement = Placement.objects.get(pk=old["id"])
@@ -584,13 +598,15 @@ class Test0025CopyPassports(PassportCopyHarness):
         self.assertIsNone(linked[self.legacy.pk])
         self.assertEqual(Placement.objects.get(pk=self.legacy.pk).version, "lti_1p1")
 
-    def test_unsourced_metadata_stays_null_or_default(self):
+    def test_other_metadata_stays_null_or_default(self):
         apps = self.run_copy()
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         copy = Reusable.objects.get(passport_id=self.plain.passport_id)
 
-        self.assertIsNone(copy.version)
-        self.assertIsNone(copy.context_type)
+        # Version and context are inferred on new copies; every other unsourced field keeps its default.
+        self.assertEqual(copy.version, "lti_1p3")
+        self.assertEqual(copy.context_type, "course")
+        self.assertEqual(copy.context_key, "course-v1:org+course+run")
         self.assertIsNone(copy.lti_1p3_tool_key_mode)
         self.assertIsNone(copy.lti_1p1_launch_url)
         self.assertIsNone(copy.lti_1p1_client_key)
@@ -678,12 +694,11 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         apps = self.migrate(SCHEMA_MIGRATION)
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         values = {field: getattr(self.plain, field) for field in PASSPORT_FIELDS}
+        # Left unset on purpose: inference must not refresh an existing destination.
         preexisting = Reusable.objects.create(
             **values,
             description="Hand-written catalog note",
             display_name="Custom name",
-            version="lti_1p3",
-            context_type="course",
         )
         preexisting_pk = preexisting.pk
 
@@ -696,6 +711,15 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assertEqual(reused.pk, preexisting_pk)
         self.assertEqual(reused.description, "Hand-written catalog note")
         self.assertEqual(reused.display_name, "Custom name")
+        self.assertIsNone(reused.version)
+        self.assertIsNone(reused.context_type)
+        self.assertEqual(reused.context_key, self.plain.context_key)
+
+        # The shared passport is new, so it does get the inferred metadata.
+        shared_copy = Reusable.objects.get(passport_id=self.shared.passport_id)
+        self.assertEqual(shared_copy.version, "lti_1p3")
+        self.assertEqual(shared_copy.context_type, "course")
+        self.assertEqual(shared_copy.context_key, "course-v1:org+course+run")
         self.assertEqual(
             Placement.objects.get(pk=self.plain_placement.pk).reusable_configuration_id,
             preexisting_pk,
@@ -714,11 +738,229 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
         self.assertEqual({copy.passport_id: copy.pk for copy in Reusable.objects.all()}, pk_by_passport)
         self.assertEqual(dict(Placement.objects.values_list("pk", "reusable_configuration_id")), linked_before)
-        self.assertEqual(
-            Reusable.objects.get(passport_id=self.plain.passport_id).description,
-            "Hand-written catalog note",
-        )
+        reused = Reusable.objects.get(passport_id=self.plain.passport_id)
+        self.assertEqual(reused.description, "Hand-written catalog note")
+        self.assertIsNone(reused.version)
+        self.assertIsNone(reused.context_type)
         self.assertEqual(Reusable.objects.get(passport_id=self.shared.passport_id).description, "")
+
+
+class Test0025Inference(PassportCopyHarness):
+    """Inference reads eligible old-FK placements only, and only for new copies."""
+
+    def seed(self):
+        self.cases = {}
+        self.case(
+            "one-course",
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+2024+type@lti+block@one-course-a"),
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+2024+type@lti+block@one-course-b"),
+        )
+        self.case(
+            "unanimous-1p1",
+            ("lti_1p1", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+Legacy+type@lti+block@unanimous-a"),
+            ("lti_1p1", "CONFIG_ON_DB", "block-v1:EdX+Demo+Legacy+type@lti+block@unanimous-b"),
+        )
+        self.case(
+            "mixed-version",
+            ("lti_1p1", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+Mixed+type@lti+block@mixed-1p1"),
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+Mixed+type@lti+block@mixed-1p3"),
+        )
+        self.case(
+            "invalid-version",
+            ("lti_4p0", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+Invalid+type@lti+block@invalid"),
+        )
+        self.case(
+            "blank-version",
+            ("", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+Blank+type@lti+block@blank"),
+        )
+        self.case(
+            "external-only",
+            ("lti_1p3", CONFIG_EXTERNAL, "block-v1:EdX+External+2024+type@lti+block@external-only"),
+        )
+        self.case(
+            "external-ignored",
+            ("lti_1p1", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+External+type@lti+block@internal"),
+            ("lti_1p3", CONFIG_EXTERNAL, "block-v1:EdX+External+2024+type@lti+block@external-ignored"),
+        )
+        self.case(
+            "organization",
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:Org+Alpha+Run+type@lti+block@organization-a"),
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:ORG+Beta+Run+type@lti+block@organization-b"),
+        )
+        self.case(
+            "cross-organization",
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:OrgA+Alpha+Run+type@lti+block@cross-a"),
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:OrgB+Beta+Run+type@lti+block@cross-b"),
+        )
+        self.case(
+            "library",
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "lib-block-v1:Org+Library+Run+type@lti+block@library"),
+        )
+        self.case(
+            "ccx",
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "ccx-block-v1:Org+CCX+Run+ccx@1+type@lti+block@ccx"),
+        )
+        self.case(
+            "course-and-library",
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+Library+type@lti+block@course"),
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "lib-block-v1:Org+Library+Run+type@lti+block@course-and-library"),
+        )
+        self.case(
+            "missing-location",
+            ("lti_1p3", "CONFIG_ON_XBLOCK", "block-v1:EdX+Demo+Missing+type@lti+block@present"),
+            # UsageKeyField stores None as an empty string, so the whole test has one such row.
+            ("lti_1p3", "CONFIG_ON_DB", None),
+        )
+        self.case("no-placements")
+
+    def case(self, name, *placements, context_key="raw legacy key"):
+        """Create one passport and its eligible placements; the copy is asserted later."""
+        passport = self.passport(name=name, context_key=context_key)
+        for version, config_store, location in placements:
+            self.placement(passport, version=version, config_store=config_store, location=location)
+        self.cases[name] = passport
+
+    def test_inference_matrix(self):
+        apps = self.run_copy()
+        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+        Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+
+        expected = {
+            "one-course": ("lti_1p3", "course", "course-v1:EdX+Demo+2024"),
+            "unanimous-1p1": ("lti_1p1", "course", "course-v1:EdX+Demo+Legacy"),
+            "mixed-version": (None, "course", "course-v1:EdX+Demo+Mixed"),
+            "invalid-version": (None, "course", "course-v1:EdX+Demo+Invalid"),
+            "blank-version": (None, "course", "course-v1:EdX+Demo+Blank"),
+            "external-only": (None, "site", ""),
+            "external-ignored": ("lti_1p1", "course", "course-v1:EdX+Demo+External"),
+            "organization": ("lti_1p3", "organization", "org"),
+            "cross-organization": ("lti_1p3", "site", ""),
+            "library": ("lti_1p3", "site", ""),
+            "ccx": ("lti_1p3", "site", ""),
+            "course-and-library": ("lti_1p3", "site", ""),
+            "missing-location": ("lti_1p3", "site", ""),
+            "no-placements": (None, "site", ""),
+        }
+        self.assertEqual(set(expected), set(self.cases))
+        for name, fields in expected.items():
+            with self.subTest(case=name):
+                copy = Reusable.objects.get(passport_id=self.cases[name].passport_id)
+                self.assertEqual((copy.version, copy.context_type, copy.context_key), fields)
+
+        # The old table keeps the raw key; only the new row gets the canonical one.
+        self.assertEqual(self.cases["one-course"].context_key, "raw legacy key")
+        self.assertEqual(
+            self.Passport.objects.get(pk=self.cases["one-course"].pk).context_key, "raw legacy key"
+        )
+
+        # CONFIG_EXTERNAL is excluded from inference but is still linked by the copy step.
+        external = Placement.objects.get(lti_1p3_passport_id=self.cases["external-only"].pk)
+        self.assertEqual(
+            external.reusable_configuration_id,
+            Reusable.objects.get(passport_id=self.cases["external-only"].passport_id).pk,
+        )
+
+
+class Test0025InferencePages(PassportCopyHarness):
+    """Inference folds every placement page, not only the first batch of 500."""
+
+    def seed(self):
+        self.source = self.passport(name="Paged")
+        first_page = [
+            self.Placement(
+                config_id=uuid.uuid4(),
+                version="lti_1p3",
+                config_store="CONFIG_ON_XBLOCK",
+                location=f"block-v1:OrgA+Alpha+Run+type@lti+block@page-one-{index}",
+                lti_1p3_passport=self.source,
+            )
+            for index in range(500)
+        ]
+        self.Placement.objects.bulk_create(first_page, batch_size=500)
+        # The only disagreement sits in the second page; the first page alone is unanimous
+        # lti_1p3 in one course, so ignoring the tail would infer lti_1p3/course.
+        self.disagreement = self.placement(
+            self.source,
+            version="lti_1p1",
+            location="block-v1:OrgB+Beta+Run+type@lti+block@page-two",
+        )
+
+    def test_inference_includes_placements_after_the_first_page(self):
+        apps = self.run_copy()
+        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+        Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+        copy = Reusable.objects.get(passport_id=self.source.passport_id)
+
+        self.assertEqual(Placement.objects.filter(lti_1p3_passport_id=self.source.pk).count(), 501)
+        self.assertEqual((copy.version, copy.context_type, copy.context_key), (None, "site", ""))
+
+
+class Test0025InferredReplay(PassportCopyHarness):
+    """Replay ignores inferred metadata and never refreshes an existing copy."""
+
+    def seed(self):
+        self.source = self.passport(name="Inferred", context_key="raw legacy key")
+        self.placement(
+            self.source,
+            version="lti_1p3",
+            location="block-v1:EdX+Demo+2024+type@lti+block@inferred-replay",
+        )
+
+    def test_inferred_copy_replays_without_comparing_inferred_fields(self):
+        apps = self.run_copy()
+        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+        Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+        copy = Reusable.objects.get(passport_id=self.source.passport_id)
+        self.assertEqual(
+            (copy.version, copy.context_type, copy.context_key),
+            ("lti_1p3", "course", "course-v1:EdX+Demo+2024"),
+        )
+        copy_pk = copy.pk
+        placement_pk = Placement.objects.get(lti_1p3_passport_id=self.source.pk).pk
+
+        # Later catalog edits are authored data, including edits to the inferred fields.
+        Reusable.objects.filter(pk=copy_pk).update(
+            version=None, context_type="site", context_key="", description="Edited after the copy"
+        )
+        # The raw legacy key is not compared on replay either.
+        self.Passport.objects.filter(pk=self.source.pk).update(context_key="changed raw key")
+
+        # Unapply the data migration for real: the reverse is a noop, so rows, links and
+        # authored metadata survive while the copy migration is no longer recorded as applied.
+        apps = self.migrate(SCHEMA_MIGRATION)
+        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+        Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+        self.executor.loader.build_graph()
+        self.assertIn(SCHEMA_MIGRATION, self.executor.loader.applied_migrations)
+        self.assertNotIn(COPY_MIGRATION, self.executor.loader.applied_migrations)
+        self.assertEqual(Reusable.objects.count(), 1)
+        reversed_copy = Reusable.objects.get(pk=copy_pk)
+        self.assertIsNone(reversed_copy.version)
+        self.assertEqual(reversed_copy.context_type, "site")
+        self.assertEqual(reversed_copy.context_key, "")
+        self.assertEqual(reversed_copy.description, "Edited after the copy")
+        self.assertEqual(Placement.objects.get(pk=placement_pk).reusable_configuration_id, copy_pk)
+
+        # The replay must really run again, not be swallowed as already applied.
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            apps = self.run_copy()
+        self.assertIn("reused=1", output.getvalue())
+        self.assertIn("inserted=0", output.getvalue())
+        self.executor.loader.build_graph()
+        self.assertIn(COPY_MIGRATION, self.executor.loader.applied_migrations)
+
+        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+        Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+        replayed = Reusable.objects.get(pk=copy_pk)
+
+        self.assertEqual(Reusable.objects.count(), 1)
+        self.assertEqual(replayed.passport_id, self.source.passport_id)
+        self.assertIsNone(replayed.version)
+        self.assertEqual(replayed.context_type, "site")
+        self.assertEqual(replayed.context_key, "")
+        self.assertEqual(replayed.description, "Edited after the copy")
+        self.assertEqual(Placement.objects.get(pk=placement_pk).reusable_configuration_id, copy_pk)
 
 
 class Test0025LateDivergentCopyAborts(PassportCopyHarness):
