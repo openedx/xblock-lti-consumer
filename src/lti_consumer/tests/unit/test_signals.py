@@ -442,40 +442,6 @@ class TestDeleteLibLtiConfiguration(TestCase):
         mocks['log'].error.assert_not_called()
 
 
-class EnsureReusableConfigurationSignalTests(TestCase):
-    """A saved block-backed placement owns a reusable configuration."""
-
-    def setUp(self):
-        block = Mock()
-        block.lti_1p3_passport_id = ''
-        block.display_name = 'Signal block'
-        block.context_id = 'course-v1:Course+Run'
-        patcher = patch('lti_consumer.models.compat.load_enough_xblock', return_value=block)
-        self.addCleanup(patcher.stop)
-        patcher.start()
-        self.block = block
-
-    def test_block_backed_placement_binds_a_reusable_configuration(self):
-        placement = LtiConfiguration.objects.create(
-            location='block-v1:Course+Run+2024+type@lti_consumer+block@signal',
-            version=LtiConfiguration.LTI_1P3,
-        )
-
-        self.assertIsNotNone(placement.reusable_configuration)
-        self.assertEqual(placement.reusable_configuration.version, LtiConfiguration.LTI_1P3)
-        self.assertFalse(Lti1p3Passport.objects.exists())
-
-    def test_catalog_only_placement_binds_on_first_identity_read(self):
-        placement = LtiConfiguration.objects.create(version=LtiConfiguration.LTI_1P3)
-        self.assertIsNone(placement.reusable_configuration_id)
-
-        configuration = placement.resolve_reusable_configuration()
-
-        self.assertEqual(configuration.version, LtiConfiguration.LTI_1P3)
-        placement.refresh_from_db()
-        self.assertEqual(placement.reusable_configuration_id, configuration.pk)
-
-
 class TestPlacementDeletionKeepsTheCatalog(TestCase):
     """Placement deletion never deletes catalog or retained passport rows."""
 

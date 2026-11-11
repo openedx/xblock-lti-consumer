@@ -120,19 +120,6 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
         raise exc
 
 
-@receiver(post_save, sender=LtiConfiguration, dispatch_uid='ensure_reusable_configuration')
-def ensure_reusable_configuration(sender, instance, **kwargs):  # pylint: disable=unused-argument
-    """Bind a block-backed placement to its reusable configuration on save.
-
-    A block-backed placement owns the block identity a catalog row is created from, so
-    the link is established before the first runtime read. A placement without a block
-    binds when its identity is first resolved, so authoring one never creates a catalog
-    row it will not use.
-    """
-    if instance.location:
-        instance.resolve_reusable_configuration()
-
-
 @receiver(SignalHandler.pre_item_delete if SignalHandler else [])
 def delete_child_lti_configurations(**kwargs):
     """

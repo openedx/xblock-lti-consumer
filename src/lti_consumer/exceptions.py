@@ -12,9 +12,9 @@ class LtiError(Exception):
 class ReusableConfigurationUnavailable(LtiError):
     """Raised when a placement has no usable reusable configuration.
 
-    A placement whose bound configuration stores no LTI version, or whose identity
-    cannot be resolved, has no registration to serve a launch or a token. The retained
-    passport table is never a substitute.
+    A placement without a bound registration, whose stored version is unassigned, or
+    whose stored identity is incomplete has no registration to serve a launch or a
+    token. The retained passport table is never a substitute.
     """
 
 

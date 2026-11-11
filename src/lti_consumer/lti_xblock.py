@@ -1325,20 +1325,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         return fragment
 
-    @XBlock.handler
-    def submit_studio_edits(self, request, suffix=''):
-        """
-        Studio Save.
-
-        Reconciles the block's `lti_1p3_passport_id` field with the configuration stored
-        in the database, creating the configuration and its reusable identity if they
-        don't exist yet. Doing it here means identity initialization never has to write
-        to the block from an LMS request, where Scope.settings is read-only.
-        """
-        from lti_consumer.api import sync_lti_passport_id_to_block  # pylint: disable=import-outside-toplevel
-        sync_lti_passport_id_to_block(self)
-        return super().submit_studio_edits(request, suffix)
-
     def author_view(self, context):
         """
         XBlock author view of this component.
@@ -2019,25 +2005,3 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         xblock_body["content_type"] = "LTI Consumer"
 
         return xblock_body
-
-    def add_xml_to_node(self, node):
-        """
-        Export the catalog UUID that identifies the block's shared registration.
-
-        The block's `lti_1p3_passport_id` field carries that UUID across export/import and
-        duplication, so a receiving block reuses the same registration instead of
-        creating new credentials. The configuration row stays authoritative; the field
-        is only a portable copy of its identity.
-        """
-        super().add_xml_to_node(node)
-
-        try:
-            from .models import LtiConfiguration  # pylint: disable=import-outside-toplevel
-
-            configuration = LtiConfiguration.objects.select_related("reusable_configuration").get(
-                location=self.scope_ids.usage_id,
-            )
-            if configuration.reusable_configuration:
-                node.set("lti_1p3_passport_id", str(configuration.reusable_configuration.passport_id))
-        except LtiConfiguration.DoesNotExist:
-            pass

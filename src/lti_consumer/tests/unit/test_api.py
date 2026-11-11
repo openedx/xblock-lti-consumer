@@ -16,11 +16,9 @@ from lti_consumer.api import (
     get_deep_linking_data,
     get_end_assessment_return,
     get_lti_1p3_content_url,
-    get_launchable_configuration,
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
     _get_or_create_local_lti_config,
-    sync_lti_passport_id_to_block,
     validate_lti_1p3_launch_data,
 )
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
@@ -214,96 +212,6 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
         self.assertEqual(lti_config.external_id, None)
 
-    def test_reusable_configuration_created_on_first_call(self):
-        """
-        Check that the placement is bound to a reusable configuration when none exists.
-        """
-        lti_version = LtiConfiguration.LTI_1P3
-
-        lti_config = _get_or_create_local_lti_config(
-            lti_version=lti_version,
-            block=self.xblock
-        )
-
-        self.assertIsNotNone(lti_config.reusable_configuration)
-        self.assertEqual(lti_config.reusable_configuration.version, lti_version)
-        self.assertFalse(Lti1p3Passport.objects.exists())
-
-    def test_reusable_configuration_updated_when_single_use(self):
-        """
-        Check that a block key edit updates a configuration only one placement uses.
-        """
-        configuration = make_reusable_configuration(
-            lti_1p3_tool_public_key='old_key',
-            lti_1p3_tool_keyset_url='old_url',
-        )
-        LtiConfiguration.objects.create(
-            location=self.location,
-            reusable_configuration=configuration,
-        )
-
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
-
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
-
-        configuration.refresh_from_db()
-        self.assertEqual(configuration.lti_1p3_tool_public_key, 'new_key')
-        self.assertEqual(configuration.lti_1p3_tool_keyset_url, 'new_url')
-
-    def test_reusable_configuration_not_updated_when_config_store_not_on_xblock(self):
-        """
-        Ensure that a model-stored configuration keeps its tool keys when the block differs.
-        """
-        configuration = make_reusable_configuration(
-            lti_1p3_tool_public_key='shared_key',
-            lti_1p3_tool_keyset_url='shared_url',
-        )
-        LtiConfiguration.objects.create(
-            location=self.location,
-            reusable_configuration=configuration,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
-        )
-
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
-
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock,
-            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
-        )
-
-        configuration.refresh_from_db()
-        self.assertEqual(configuration.lti_1p3_tool_public_key, 'shared_key')
-        self.assertEqual(configuration.lti_1p3_tool_keyset_url, 'shared_url')
-
-    def test_reusable_configuration_not_saved_when_no_changes(self):
-        """
-        Ensure that no row is saved when its tool keys already match the block.
-        """
-        configuration = make_reusable_configuration(
-            lti_1p3_tool_public_key='matching_key',
-            lti_1p3_tool_keyset_url='matching_url',
-        )
-        LtiConfiguration.objects.create(
-            location=self.location,
-            reusable_configuration=configuration,
-        )
-
-        self.xblock.lti_1p3_tool_public_key = 'matching_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
-
-        with patch.object(ReusableLtiConfiguration, 'save') as mock_save:
-            _get_or_create_local_lti_config(
-                lti_version=LtiConfiguration.LTI_1P3,
-                block=self.xblock
-            )
-            mock_save.assert_not_called()
-
     def test_existing_reusable_binding_is_preserved(self):
         """
         Runtime lookups never create, replace or clear a placement's reusable binding.
@@ -344,179 +252,53 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
             )
             mock_save.assert_not_called()
 
-    def test_new_configuration_created_on_key_conflict(self):
+    def test_runtime_does_not_create_or_attach_a_registration(self):
         """
-        Check that a changed shared tool key gets its own configuration.
+        A runtime lookup never creates a registration or attaches the block's stored UUID.
         """
-        configuration = make_reusable_configuration(
-            lti_1p3_tool_public_key='shared_key',
-            lti_1p3_tool_keyset_url='shared_url',
-        )
-        LtiConfiguration.objects.create(location=self.location, reusable_configuration=configuration)
-        LtiConfiguration.objects.create(location=self.other_location, reusable_configuration=configuration)
-
-        self.xblock.lti_1p3_tool_key_mode = 'public_key'
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
-
-        with patch('lti_consumer.plugin.compat.save_xblock') as save_xblock_mock:
-            lti_config = _get_or_create_local_lti_config(
-                lti_version=LtiConfiguration.LTI_1P3,
-                block=self.xblock
-            )
-
-        # The shared configuration is unchanged.
-        configuration.refresh_from_db()
-        self.assertEqual(configuration.lti_1p3_tool_public_key, 'shared_key')
-
-        # The placement points at the new configuration, and the block was not written to.
-        self.assertNotEqual(lti_config.reusable_configuration_id, configuration.pk)
-        self.assertEqual(lti_config.reusable_configuration.lti_1p3_tool_public_key, 'new_key')
-        self.assertEqual(lti_config.reusable_configuration.version, LtiConfiguration.LTI_1P3)
-        save_xblock_mock.assert_not_called()
-
-    def test_sync_lti_passport_id_to_block(self):
-        """
-        Check that the block's passport ID field is synced from the configuration.
-        """
-        self.assertTrue(sync_lti_passport_id_to_block(self.xblock))
-
-        lti_config = LtiConfiguration.objects.get(location=self.location)
-        self.assertEqual(
-            self.xblock.lti_1p3_passport_id,
-            str(lti_config.reusable_configuration.passport_id),
-        )
-
-        # Nothing to do on a second call.
-        self.assertFalse(sync_lti_passport_id_to_block(self.xblock))
-
-    def test_shared_split_keeps_the_source_stored_version(self):
-        """
-        A split keeps the shared registration's unassigned version instead of inferring one.
-        """
-        configuration = make_reusable_configuration(version=None)
-        LtiConfiguration.objects.create(location=self.location, reusable_configuration=configuration)
-        LtiConfiguration.objects.create(location=self.other_location, reusable_configuration=configuration)
-
-        self.xblock.lti_1p3_tool_key_mode = 'public_key'
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
+        configuration = make_reusable_configuration(name='Orphan row')
+        before = ReusableLtiConfiguration.objects.count()
+        self.xblock.lti_1p3_passport_id = str(configuration.passport_id)
 
         lti_config = _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
+            block=self.xblock,
         )
 
-        self.assertIsNone(lti_config.reusable_configuration.version)
-        self.assertIsNone(lti_config.get_effective_version())
-        with self.assertRaises(ReusableConfigurationUnavailable):
-            lti_config.get_lti_consumer()
+        self.assertIsNone(lti_config.reusable_configuration)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
+        self.assertFalse(Lti1p3Passport.objects.exists())
         configuration.refresh_from_db()
-        self.assertIsNone(configuration.version)
+        self.assertEqual(configuration.name, 'Orphan row')
 
-    def test_shared_split_keeps_the_source_inactive_state(self):
+    def test_runtime_does_not_mutate_the_bound_registration(self):
         """
-        A split keeps the shared registration's inactive state, so a disabled tool stays disabled.
-        """
-        configuration = make_reusable_configuration(
-            is_active=False,
-            lti_1p3_tool_public_key='shared_key',
-            lti_1p3_tool_keyset_url='shared_url',
-        )
-        LtiConfiguration.objects.create(location=self.location, reusable_configuration=configuration)
-        LtiConfiguration.objects.create(location=self.other_location, reusable_configuration=configuration)
-
-        self.xblock.lti_1p3_tool_key_mode = 'public_key'
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
-
-        lti_config = _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
-
-        # The split carries the changed tool key and keeps the disabled state.
-        self.assertNotEqual(lti_config.reusable_configuration_id, configuration.pk)
-        self.assertFalse(lti_config.reusable_configuration.is_active)
-        self.assertEqual(lti_config.reusable_configuration.version, LtiConfiguration.LTI_1P3)
-        with self.assertRaises(ReusableConfigurationUnavailable):
-            get_launchable_configuration(lti_config.config_id)
-        configuration.refresh_from_db()
-        self.assertFalse(configuration.is_active)
-
-    def test_reusable_configuration_unchanged_when_keys_match(self):
-        """
-        Check that a matching block key does not create another configuration.
+        A block key edit never writes the bound registration or the retained table.
         """
         configuration = make_reusable_configuration(
-            lti_1p3_tool_public_key='matching_key',
-            lti_1p3_tool_keyset_url='matching_url',
-        )
-        lti_config = LtiConfiguration.objects.create(
-            location=self.location,
-            reusable_configuration=configuration,
-        )
-
-        self.xblock.lti_1p3_tool_public_key = 'matching_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
-
-        original_passport_id = configuration.passport_id
-
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
-
-        # The same configuration is used.
-        self.assertEqual(ReusableLtiConfiguration.objects.count(), 1)
-        self.assertEqual(str(lti_config.reusable_configuration.passport_id), str(original_passport_id))
-
-    @ddt.data(
-        ('public_key', 'lti_1p3_tool_public_key'),
-        ('keyset_url', 'lti_1p3_tool_keyset_url')
-    )
-    @ddt.unpack
-    def test_new_configuration_on_key_mode_change(self, key_mode, key_field):
-        """
-        Check that a shared configuration keeps its registration when the active key mode changes.
-        """
-        configuration = make_reusable_configuration(
-            lti_1p3_tool_public_key='old_key',
-            lti_1p3_tool_keyset_url='old_url',
-        )
-        LtiConfiguration.objects.create(location=self.location, reusable_configuration=configuration)
-        LtiConfiguration.objects.create(location=self.other_location, reusable_configuration=configuration)
-
-        self.xblock.lti_1p3_tool_key_mode = key_mode
-        setattr(self.xblock, key_field, 'new_value')
-
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
-
-        self.assertEqual(ReusableLtiConfiguration.objects.count(), 2)
-
-    def test_reusable_configuration_updated_when_fields_empty(self):
-        """
-        Check that a blank configuration is filled from the block.
-        """
-        configuration = make_reusable_configuration(
-            lti_1p3_tool_public_key='',
-            lti_1p3_tool_keyset_url='',
+            lti_1p3_tool_public_key='stored_key',
+            lti_1p3_tool_keyset_url='stored_url',
         )
         LtiConfiguration.objects.create(
             location=self.location,
             reusable_configuration=configuration,
         )
-
         self.xblock.lti_1p3_tool_public_key = 'new_key'
         self.xblock.lti_1p3_tool_keyset_url = 'new_url'
 
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock, \
+                patch.object(Lti1p3Passport, 'save') as passport_save_mock:
+            _get_or_create_local_lti_config(
+                lti_version=LtiConfiguration.LTI_1P3,
+                block=self.xblock,
+            )
+            save_mock.assert_not_called()
+            passport_save_mock.assert_not_called()
 
         configuration.refresh_from_db()
-        self.assertEqual(configuration.lti_1p3_tool_public_key, 'new_key')
+        self.assertEqual(configuration.lti_1p3_tool_public_key, 'stored_key')
+        self.assertEqual(configuration.lti_1p3_tool_keyset_url, 'stored_url')
+        self.assertEqual(Lti1p3Passport.objects.count(), 0)
 
 
 @ddt.ddt
@@ -987,6 +769,15 @@ class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
 
         self.assertEqual(launch_data.message_type, "LtiDeepLinkingRequest")
         self.assertEqual(launch_data.deep_linking_content_item_id, None)
+
+    def test_unbound_placement_cannot_start_a_launch(self):
+        """
+        Check that a placement without a bound registration refuses the OIDC preflight.
+        """
+        LtiConfiguration.objects.filter(pk=self.lti_config.pk).update(reusable_configuration=None)
+
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            get_lti_1p3_launch_start_url(self._get_lti_1p3_launch_data())
 
     def test_inactive_configuration_cannot_start_a_launch(self):
         """
