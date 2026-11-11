@@ -313,6 +313,14 @@ class ReusableLtiConfiguration(models.Model):
     send_extra_parameters = models.BooleanField(_("Send extra parameters"), default=False)
     custom_parameters = models.JSONField(_("Custom Parameters"), default=list, blank=True)
 
+    # Privacy selections and external-tool visibility; staff choices, never learner data.
+    pii_share_username = models.BooleanField(default=False)
+    pii_share_full_name = models.BooleanField(default=False)
+    pii_share_email = models.BooleanField(default=False)
+    data_sharing_notice = models.TextField(blank=True, default='')
+    require_user_confirmation = models.BooleanField(default=True)
+    hide_external_tool = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated at"), auto_now=True)
 
