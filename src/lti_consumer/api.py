@@ -6,7 +6,6 @@ return plaintext to allow easy testing/mocking.
 """
 
 import json
-import logging
 
 from opaque_keys.edx.keys import CourseKey
 
@@ -14,7 +13,7 @@ from lti_consumer.lti_1p3.constants import LTI_1P3_ROLE_MAP
 
 from .exceptions import ReusableConfigurationUnavailable
 from .filters import get_external_config_from_filter
-from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem, ReusableLtiConfiguration
+from .models import CourseAllowPIISharingInLTIFlag, LtiConfiguration, LtiDlContentItem
 from .utils import (
     get_cache_key,
     get_data_from_cache,
@@ -25,66 +24,6 @@ from .utils import (
     get_lti_deeplinking_content_url,
 )
 
-log = logging.getLogger(__name__)
-
-
-def _ensure_reusable_configuration(block, lti_config, version=None):
-    """
-    Keep a block-backed placement aligned with the block's tool-key authoring.
-
-    The placement's reusable configuration is resolved once and is authoritative: a
-    bound row is updated in place while it is unshared or still has blank tool fields.
-    A row shared with other placements keeps its own registration, so a changed active
-    tool-key mode gets a new catalog row that the caller binds.
-    """
-    shared_configuration = lti_config.resolve_reusable_configuration(version=version)
-    configuration = shared_configuration
-    if lti_config.config_store != LtiConfiguration.CONFIG_ON_XBLOCK:
-        return configuration
-
-    block_public_key = str(block.lti_1p3_tool_public_key)
-    block_keyset_url = str(block.lti_1p3_tool_keyset_url)
-
-    # Update in place when the row is unshared, or when tool fields are still empty.
-    if configuration.lticonfiguration_set.count() == 1 or (
-        not configuration.lti_1p3_tool_public_key and not configuration.lti_1p3_tool_keyset_url
-    ):
-        if (configuration.lti_1p3_tool_public_key != block_public_key or
-                configuration.lti_1p3_tool_keyset_url != block_keyset_url):
-            configuration.lti_1p3_tool_public_key = block_public_key
-            configuration.lti_1p3_tool_keyset_url = block_keyset_url
-            configuration.save()
-            log.info("Updated reusable LTI configuration for %s", block.scope_ids.usage_id)
-        return configuration
-
-    # A shared row keeps its registration when the block's active key mode still matches.
-    key_mismatch = (
-        block.lti_1p3_tool_key_mode == 'public_key' and configuration.lti_1p3_tool_public_key != block_public_key
-    ) or (
-        block.lti_1p3_tool_key_mode == 'keyset_url' and configuration.lti_1p3_tool_keyset_url != block_keyset_url
-    )
-
-    if key_mismatch:
-        # The split keeps the shared registration's stored version and active state,
-        # including an unassigned version or an inactive row: editing a tool key never
-        # makes an unresolved or disabled registration launchable.
-        configuration = ReusableLtiConfiguration.objects.create(
-            lti_1p3_tool_public_key=block_public_key,
-            lti_1p3_tool_keyset_url=block_keyset_url,
-            name=f"Configuration of {block.display_name}",
-            context_key=block.context_id,
-            version=shared_configuration.version,
-            is_active=shared_configuration.is_active,
-        )
-        if configuration.version == ReusableLtiConfiguration.LTI_1P3:
-            # A creator seeds its own signing material once; readers never repair it.
-            configuration.generate_lti_1p3_keys_if_missing()
-        # The caller binds the new row to the placement, which is what future loads use.
-        log.info("Created reusable LTI configuration for %s", block.scope_ids.usage_id)
-
-    return configuration
-
-
 def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
     """
     Retrieve or create an LtiConfiguration for the block.
@@ -92,23 +31,15 @@ def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigur
     The lti_version parameter is treated as the source of truth, overriding
     any stored version to allow XBlocks to control LTI version without DB updates.
     """
-    # Creation carries the authored version so the placement's identity row starts with it.
-    version = lti_version or block.lti_version
-    lti_config, _ = LtiConfiguration.objects.get_or_create(
-        location=block.scope_ids.usage_id,
-        defaults={'version': version},
-    )
+    lti_config, _ = LtiConfiguration.objects.get_or_create(location=block.scope_ids.usage_id)
 
-    configuration = _ensure_reusable_configuration(block, lti_config, version=version)
-
-    # Batch updates
+    # Batch updates. Keep placement bookkeeping separate from the bound registration's identity.
     updates = {
         'config_store': config_store,
         'external_id': block.external_config,
-        'version': version,
+        # fallback on block lti_version if lti_version is None
+        'version': lti_version or block.lti_version,
     }
-    if configuration is not None and lti_config.reusable_configuration_id != configuration.pk:
-        updates['reusable_configuration'] = configuration
 
     # Only save if changed
     if any(getattr(lti_config, key) != value for key, value in updates.items()):
@@ -119,22 +50,6 @@ def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfigur
     return lti_config
 
 
-def sync_lti_passport_id_to_block(block):
-    """
-    Copy the configuration's catalog UUID onto the block's `lti_1p3_passport_id` field.
-
-    Only safe to call from Studio: the LMS binds blocks to read-only field data for
-    Scope.settings, so writing the field there raises `InvalidScopeError`.
-
-    Returns True if the field was changed, False otherwise.
-    """
-    configuration = _get_lti_config_for_block(block).resolve_reusable_configuration()
-    if block.lti_1p3_passport_id != str(configuration.passport_id):
-        block.lti_1p3_passport_id = str(configuration.passport_id)
-        return True
-    return False
-
-
 def _get_config_by_config_id(config_id):
     """
     Gets the LTI config by its UUID config ID
@@ -143,14 +58,14 @@ def _get_config_by_config_id(config_id):
 
 
 def get_launchable_configuration(config_id):
-    """Return the placement to launch with, refusing an inactive registration.
+    """Return the placement to launch with, refusing a missing or inactive registration.
 
-    External configurations own their lifecycle. Every other placement resolves the
-    catalog registration it launches with, and that binding stays authoritative.
+    External configurations own their lifecycle. Every other placement must already be
+    bound to a catalog registration; a launch never creates or attaches one.
     """
     lti_config = _get_config_by_config_id(config_id)
     if lti_config.config_store != LtiConfiguration.CONFIG_EXTERNAL:
-        registration = lti_config.resolve_reusable_configuration()
+        registration = lti_config.bound_reusable_configuration()
         if not registration.is_active:
             raise ReusableConfigurationUnavailable("This LTI tool configuration is inactive.")
     return lti_config

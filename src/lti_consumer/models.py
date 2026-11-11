@@ -732,56 +732,24 @@ class LtiConfiguration(models.Model):
                     f'Failed to parse main LTI configuration location: {self.location}',
                 )
 
-    def resolve_reusable_configuration(self, version=None):
+    def bound_reusable_configuration(self):
         """
-        Return the reusable configuration bound to this placement, binding one if absent.
+        Return the registration this placement is bound to.
 
-        The binding is authoritative: a placement that already points at a catalog row is
-        returned unchanged, so a later edit never re-derives identity from another row.
-        Otherwise the UUID authored on the block is reused when the catalog still holds
-        that row, including rows no placement points at yet, and only a miss creates a
-        new row from the block's authoring state.
+        Runtime reads never create, attach or repair a binding: an unbound placement
+        cannot serve identity, so the request is denied. The binding is the only source
+        of LTI 1.3 identity; retained passport rows and block fields are not read.
         """
         configuration = self.reusable_configuration
-        if configuration is not None:
-            return configuration
-
-        block = compat.load_enough_xblock(self.location) if self.location else None
-        block_passport_id = getattr(block, 'lti_1p3_passport_id', None) if block else None
-        defaults = {
-            'name': f"Configuration of {block.display_name}" if block else None,
-            'context_key': block.context_id if block else None,
-            'version': self.version if version is None else version,
-        }
-        if block:
-            defaults['lti_1p3_tool_public_key'] = str(block.lti_1p3_tool_public_key or '')
-            defaults['lti_1p3_tool_keyset_url'] = str(block.lti_1p3_tool_keyset_url or '')
-
-        # The persisted UUID is the lookup key: a concurrent first use shares the row the
-        # other request created instead of racing a second one into existence.
-        configuration, created = ReusableLtiConfiguration.objects.get_or_create(
-            passport_id=block_passport_id or uuid.uuid4(),
-            defaults=defaults,
-        )
-        if created:
-            log.info("Created reusable LTI configuration %s for %s", configuration, self)
-            if configuration.version == ReusableLtiConfiguration.LTI_1P3:
-                # A creator seeds its own signing material once; readers never repair it.
-                configuration.generate_lti_1p3_keys_if_missing()
-
-        if self.pk is None:
-            # The row cannot be linked before it exists; the in-memory link is saved with it.
-            self.reusable_configuration = configuration
-            return configuration
-
-        # Write the authoritative link without re-entering the post_save receiver.
-        LtiConfiguration.objects.filter(pk=self.pk).update(reusable_configuration=configuration)
-        self.refresh_from_db()
+        if configuration is None:
+            raise ReusableConfigurationUnavailable(
+                f"LTI configuration {self.config_id} has no reusable configuration bound."
+            )
         return configuration
 
-    def get_runtime_identity(self, version=None):
+    def get_runtime_identity(self):
         """Return validated registration material for this placement's runtime identity."""
-        return self.resolve_reusable_configuration(version=version).get_runtime_identity()
+        return self.bound_reusable_configuration().get_runtime_identity()
 
     def save(self, *args, **kwargs):
         self.sync_configurations()
@@ -792,7 +760,7 @@ class LtiConfiguration(models.Model):
         """
         Return the reusable configuration's passport ID for this placement.
         """
-        return self.resolve_reusable_configuration().passport_id
+        return self.bound_reusable_configuration().passport_id
 
     @property
     def lti_1p3_private_key(self):

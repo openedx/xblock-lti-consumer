@@ -113,33 +113,23 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
 
         self.assertEqual(response.status_code, 404)
 
-    @patch('lti_consumer.models.compat.load_enough_xblock')
-    def test_an_unbound_placement_binds_its_identity_on_read(self, load_enough_xblock):
+    def test_an_unbound_placement_is_denied_without_attaching(self):
         """
-        The location route resolves the placement's configuration and publishes its keyset.
+        The location route denies an unbound placement and never attaches a registration.
         """
-        load_enough_xblock.return_value = Mock(
-            lti_1p3_passport_id='',
-            display_name='Unbound block',
-            context_id='course-v1:Course+Run',
-            lti_1p3_tool_public_key='block-tool-key',
-            lti_1p3_tool_keyset_url='',
-        )
+        orphan = make_reusable_configuration(name='Orphan row')
+        before = ReusableLtiConfiguration.objects.count()
         self.lti_config.reusable_configuration = None
         self.lti_config.save()
 
-        # Saving a block-backed placement re-establishes the authoritative link.
-        registration = LtiConfiguration.objects.get(pk=self.lti_config.pk).reusable_configuration
-        self.assertIsNotNone(registration)
-
         response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, 200)
-        registration.refresh_from_db()
-        self.assertEqual(
-            registration.lti_1p3_public_jwk,
-            json.loads(response.content.decode('utf-8')),
-        )
+        self.assertEqual(response.status_code, 404)
+        self.lti_config.refresh_from_db()
+        self.assertIsNone(self.lti_config.reusable_configuration_id)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.name, 'Orphan row')
 
     @ddt.data(
         ('lti_1p3_client_id', None),
@@ -430,9 +420,9 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
         self.assertEqual(response.status_code, 404)
         self.assertContains(response, 'unassigned', status_code=404)
 
-    def test_unbound_placement_resolves_without_the_retained_table(self):
+    def test_an_unbound_placement_is_denied_without_the_retained_table(self):
         """
-        Check that a launch resolves a registration and never adopts the retained row.
+        Check that a launch refuses an unbound placement and never adopts the retained row.
         """
         from lti_consumer.models import Lti1p3Passport  # pylint: disable=import-outside-toplevel
 
@@ -441,28 +431,18 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
             lti_1p3_client_id='legacy-client-id',
             lti_1p3_tool_public_key=self.configuration.lti_1p3_tool_public_key,
         )
-        self.xblock.lti_1p3_tool_public_key = RSA.generate(2048).publickey().export_key().decode()
-        self.xblock.lti_1p3_tool_keyset_url = ''
+        before = ReusableLtiConfiguration.objects.count()
         self.config.reusable_configuration = None
         self.config.lti_1p3_passport_id = passport.pk
         self.config.save()
 
-        # The save re-establishes a reusable link and never adopts the retained row.
-        registration = self.config.reusable_configuration
-        self.assertIsNotNone(registration)
-        self.assertNotEqual(registration.lti_1p3_client_id, 'legacy-client-id')
+        response = self.client.get(self.url, self._launch_params())
 
-        params = {
-            "nonce": "nonce-value",
-            "state": "hello-world",
-            "redirect_uri": "https://tool.example",
-            "client_id": registration.lti_1p3_client_id,
-            "login_hint": self.launch_data.user_id,
-            "lti_message_hint": self.launch_data_key,
-        }
-        response = self.client.get(self.url, params)
-
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, 'no reusable configuration bound', status_code=404)
+        self.config.refresh_from_db()
+        self.assertIsNone(self.config.reusable_configuration_id)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
 
     def test_launch_uses_the_reusable_identity_and_deployment_id(self):
         """
@@ -1218,43 +1198,24 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {'error': 'invalid_lti_version'})
 
-    @patch('lti_consumer.models.compat.load_enough_xblock')
-    def test_an_unbound_placement_binds_and_serves_tokens(self, load_enough_xblock):
+    def test_an_unbound_placement_is_denied_without_attaching(self):
         """
-        The location route resolves the placement's configuration on demand.
+        The location token route denies an unbound placement and attaches nothing.
         """
-        load_enough_xblock.return_value = Mock(
-            lti_1p3_passport_id='',
-            display_name='Token block',
-            context_id='course-v1:Course+Run',
-            lti_1p3_oidc_url='http://tool.example/oidc',
-            lti_1p3_launch_url='http://tool.example/launch',
-            lti_1p3_redirect_uris=[],
-            lti_1p3_tool_public_key=self.public_key.decode(),
-            lti_1p3_tool_keyset_url='',
-            lti_advantage_deep_linking_enabled=False,
-            lti_advantage_ags_mode='disabled',
-            lti_advantage_enable_nrps=False,
-            lti_advantage_deep_linking_launch_url='',
-        )
+        before = ReusableLtiConfiguration.objects.count()
         self.config.reusable_configuration = None
         self.config.save()
-
-        self.config.refresh_from_db()
-        registration = self.config.reusable_configuration
-        self.assertIsNotNone(registration)
-        registration.lti_1p3_tool_public_key = self.public_key.decode()
-        registration.save()
 
         url = reverse(
             'lti_consumer:lti_consumer.access_token_via_location',
             args=[str(self.config.location)],
         )
-        body = urllib.parse.urlencode(self.get_body(create_jwt(self.key, {})))
-        response = self.client.post(url, data=body, content_type='application/json')
+        response = self.client.post(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'access_token')
+        self.assertEqual(response.status_code, 404)
+        self.config.refresh_from_db()
+        self.assertIsNone(self.config.reusable_configuration_id)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
 
     @patch('lti_consumer.lti_1p3.consumer.LtiConsumer1p3.access_token')
     def test_missing_required_claim(self, access_token_mock):

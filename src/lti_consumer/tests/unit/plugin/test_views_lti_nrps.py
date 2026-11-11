@@ -17,7 +17,7 @@ from lti_consumer.lti_1p3.constants import (
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
 from lti_consumer.plugin.views import LtiNrpsContextMembershipViewSet
-from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_reusable_configuration, make_xblock
 
 
 def generate_mock_members(num, role='student'):
@@ -138,12 +138,14 @@ class LtiNrpsTestCase(APITransactionTestCase, TestBaseWithPatch):  # noqa: F821
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, self.xblock_attributes)
 
         # Create configuration; the tool key completes the runtime identity.
+        self.configuration = make_reusable_configuration(
+            lti_1p3_tool_public_key=self.public_key.decode(),
+        )
         self.lti_config = LtiConfiguration.objects.create(
             location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
+            reusable_configuration=self.configuration,
         )
-        self.lti_config.reusable_configuration.lti_1p3_tool_public_key = self.public_key.decode()
-        self.lti_config.reusable_configuration.save()
 
         # Patch internal method to avoid calls to modulestore
         patcher = patch(

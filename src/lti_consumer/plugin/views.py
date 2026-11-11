@@ -348,12 +348,21 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             status=HTTP_404_NOT_FOUND
         )
 
-    # Identity, keys and binding come from the reusable configuration, which is resolved
-    # and linked on first use for a block-backed placement. The retained passport table
+    # Identity, keys and binding come from the reusable configuration already bound to
+    # the placement; a launch never creates or attaches one. The retained passport table
     # is never a fallback. An inactive registration refuses new launches while still
     # publishing its keyset for messages already issued.
     if lti_config.config_store != LtiConfiguration.CONFIG_EXTERNAL:
-        registration = lti_config.resolve_reusable_configuration()
+        try:
+            registration = lti_config.bound_reusable_configuration()
+        except ReusableConfigurationUnavailable as exc:
+            log.error("LTI launch denied: %s", exc)
+            return render(
+                request,
+                'html/lti_launch_error.html',
+                context={"error_msg": str(exc)},
+                status=HTTP_404_NOT_FOUND
+            )
         if not registration.is_active:
             error_msg = f"The following LTI configuration is inactive: {lti_config}"
             log.warning(error_msg)
@@ -564,7 +573,7 @@ def access_token_endpoint(
                 # External configurations keep supplying their own identity.
                 lti_consumer = lti_config.get_lti_consumer()
             else:
-                registration = lti_config.resolve_reusable_configuration()
+                registration = lti_config.bound_reusable_configuration()
                 if registration.is_active and version == LtiConfiguration.LTI_1P3:
                     try:
                         lti_consumer = lti_config.get_lti_consumer()
@@ -819,7 +828,16 @@ def deep_linking_content_endpoint(request, lti_config_id):
         raise Http404
 
     if lti_config.config_store != LtiConfiguration.CONFIG_EXTERNAL:
-        registration = lti_config.resolve_reusable_configuration()
+        try:
+            registration = lti_config.bound_reusable_configuration()
+        except ReusableConfigurationUnavailable as exc:
+            log.warning("LTI configuration %r has no usable registration: %s", lti_config_id, exc)
+            return render(
+                request,
+                'html/lti_launch_error.html',
+                context={"error_msg": str(exc)},
+                status=HTTP_403_FORBIDDEN,
+            )
         if not registration.is_active:
             log.warning("LTI configuration %r is inactive and cannot launch content", lti_config_id)
             return render(
@@ -1134,7 +1152,7 @@ def start_proctoring_assessment_endpoint(request):
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_404_NOT_FOUND)
 
     registration = lti_config.reusable_configuration
-    if registration is not None and not registration.is_active:
+    if not registration.is_active:
         log.info(
             "Proctoring launch denied for inactive LTIConfiguration with config_id %s",
             lti_config.config_id,
