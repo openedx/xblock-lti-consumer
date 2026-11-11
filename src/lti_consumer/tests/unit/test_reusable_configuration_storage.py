@@ -14,6 +14,16 @@ from lti_consumer.models import Lti1p3Passport, LtiConfiguration, ReusableLtiCon
 
 COURSE_KEY = 'course-v1:Org+Course+Run'
 
+#: The privacy/hide columns a copy takes as defaults and only local authoring changes.
+PRIVACY_DEFAULTS = {
+    'pii_share_username': False,
+    'pii_share_full_name': False,
+    'pii_share_email': False,
+    'data_sharing_notice': '',
+    'require_user_confirmation': True,
+    'hide_external_tool': False,
+}
+
 
 class ReusableConfigurationStorageTests(TestCase):
     """Schema, identity and binding contracts of the new reusable-configuration table."""
@@ -179,6 +189,29 @@ class ReusableConfigurationStorageTests(TestCase):
             LtiConfiguration.objects.get(pk=placement.pk).reusable_configuration_id,
             configuration.pk,
         )
+
+    def test_privacy_columns_exist_reject_null_and_default_safely(self):
+        """The six privacy columns are real NOT NULL columns, and a row defaults safely."""
+        table = ReusableLtiConfiguration._meta.db_table
+        with connection.cursor() as cursor:
+            columns = {
+                column.name: column
+                for column in connection.introspection.get_table_description(cursor, table)
+            }
+        for field_name in PRIVACY_DEFAULTS:
+            with self.subTest(field=field_name):
+                self.assertIn(field_name, columns)
+                self.assertFalse(columns[field_name].null_ok, field_name)
+
+        configuration = self.make_configuration()
+        stored = ReusableLtiConfiguration.objects.get(pk=configuration.pk)
+        self.assertEqual({field: getattr(stored, field) for field in PRIVACY_DEFAULTS}, PRIVACY_DEFAULTS)
+
+        # The database itself refuses NULL, so no writer can bypass the privacy columns.
+        for field_name in PRIVACY_DEFAULTS:
+            with self.subTest(field=field_name):
+                with self.assertRaises(IntegrityError), transaction.atomic():
+                    ReusableLtiConfiguration.objects.filter(pk=configuration.pk).update(**{field_name: None})
 
     def test_reads_never_generate_signing_keys(self):
         configuration = self.make_configuration(name='No keys')
