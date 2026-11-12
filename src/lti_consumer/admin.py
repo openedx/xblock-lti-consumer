@@ -38,18 +38,6 @@ class LtiConfigurationInline(admin.TabularInline):
         return False
 
 
-class ReusablePlacementsInline(LtiConfigurationInline):
-    """
-    Read-only inline of the placements bound to a reusable configuration.
-    """
-    fk_name = 'reusable_configuration'
-
-    def has_view_permission(self, request, obj=None):
-        # The parent gates by platform role, not by Django model permissions, so an
-        # inline without this override would be dropped for Global Staff who hold none.
-        return compat.user_is_global_staff(request.user)
-
-
 @admin.register(ReusableLtiConfiguration)
 class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     """
@@ -63,7 +51,6 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     list_filter = ('version', 'context_type')
     search_fields = ('name', 'passport_id')
     actions = None
-    inlines = [ReusablePlacementsInline]
 
     fieldsets = (
         (_('Identity'), {

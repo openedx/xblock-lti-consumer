@@ -53,6 +53,13 @@ class ReusableAdminJourneyTests(TestCase):
     def change_url(self, configuration):
         return reverse('admin:lti_consumer_reusablelticonfiguration_change', args=[configuration.pk])
 
+    def assert_no_placement_usage_ui(self, response, placement):
+        """No usage count, list or inline until the published-usage index exists."""
+        changelist_url = reverse('admin:lti_consumer_lticonfiguration_changelist')
+        self.assertNotContains(response, placement.location)
+        self.assertNotContains(response, '>Placements<')
+        self.assertNotContains(response, f'{changelist_url}?reusable_configuration__id__exact=')
+
     def assert_denied(self, response):
         self.assertNotEqual(response.status_code, 200)
         self.assertNotContains(response, 'Visible configuration', status_code=response.status_code)
@@ -78,7 +85,8 @@ class ReusableAdminJourneyTests(TestCase):
                 self.assertContains(response, 'Visible configuration')
                 self.assertContains(response, self.change_url(configuration))
                 response = self.client.get(self.change_url(configuration))
-                self.assertContains(response, placement.location)
+                self.assertEqual(response.status_code, 200)
+                self.assert_no_placement_usage_ui(response, placement)
 
         self.client.force_login(self.make_user('ordinary'))
         self.assert_denied(self.client.get(self.changelist_url))
@@ -121,10 +129,10 @@ class ReusableAdminJourneyTests(TestCase):
                 'https://tool.example/jwks',
                 'stored-key-id',
                 'stored-public-jwk',
-                placement.location,
             ):
                 self.assertContains(response, value)
             self.assertNotContains(response, 'never-render-this-value')
+            self.assert_no_placement_usage_ui(response, placement)
             self.assertContains(response, 'View Reusable LTI configuration')
             self.assertNotContains(response, 'name="name"')
             self.assertNotContains(response, 'name="context_key"')
@@ -150,6 +158,17 @@ class ReusableAdminJourneyTests(TestCase):
             self.assertEqual(incomplete.lti_1p3_internal_public_jwk, '')
             self.assertEqual(incomplete.updated_at, updated_at)
 
+    def test_bound_placements_render_no_usage_count_list_or_inline(self):
+        configuration = self.make_configuration(name='Configuration without usage UI')
+        placement = self.make_placement(
+            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@unlisted', 'Unlisted passport',
+        )
+        self.client.force_login(self.make_user('global-staff', is_staff=True))
+
+        response = self.client.get(self.change_url(configuration))
+        self.assertEqual(response.status_code, 200)
+        self.assert_no_placement_usage_ui(response, placement)
+
     def test_no_role_can_add_change_or_delete_through_the_admin(self):
         configuration = self.make_configuration(
             name='Immutable configuration',
@@ -164,7 +183,6 @@ class ReusableAdminJourneyTests(TestCase):
         add_url = reverse('admin:lti_consumer_reusablelticonfiguration_add')
         change_url = self.change_url(configuration)
         delete_url = reverse('admin:lti_consumer_reusablelticonfiguration_delete', args=[configuration.pk])
-        inline_prefix = LtiConfiguration._meta.get_field('reusable_configuration').remote_field.get_accessor_name()
         row_before = ReusableLtiConfiguration.objects.values().get(pk=configuration.pk)
         placements_before = list(LtiConfiguration.objects.values())
         counts_before = (ReusableLtiConfiguration.objects.count(), LtiConfiguration.objects.count())
@@ -178,13 +196,6 @@ class ReusableAdminJourneyTests(TestCase):
                 self.assertEqual(self.client.post(change_url, {'name': 'Forged rename'}).status_code, 403)
                 self.assertEqual(self.client.post(change_url, {
                     'name': 'Forged rename', '_saveasnew': '1',
-                }).status_code, 403)
-                self.assertEqual(self.client.post(change_url, {
-                    f'{inline_prefix}-TOTAL_FORMS': '1',
-                    f'{inline_prefix}-INITIAL_FORMS': '0',
-                    f'{inline_prefix}-MIN_NUM_FORMS': '0',
-                    f'{inline_prefix}-MAX_NUM_FORMS': '1000',
-                    f'{inline_prefix}-0-location': 'block-v1:Org+Course+Run+type@lti_consumer+block@forged',
                 }).status_code, 403)
                 self.assertEqual(self.client.post(delete_url, {'post': 'yes'}).status_code, 403)
                 # A bulk action may be refused or ignored; it must still write nothing.
