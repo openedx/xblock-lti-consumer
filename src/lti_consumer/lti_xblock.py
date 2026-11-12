@@ -157,6 +157,29 @@ def valid_config_type_values(block):
     return values
 
 
+def launch_error_fragment(loader, error_msg):
+    """
+    Return the launch error page as a fragment.
+    """
+    fragment = Fragment()
+    fragment.add_content(loader.render_django_template(
+        '/templates/html/lti_launch_error.html',
+        context={"error_msg": error_msg},
+    ))
+    return fragment
+
+
+def launch_error_response(error_msg, status_code):
+    """
+    Return the launch error page as a plain HTML response.
+    """
+    template = ResourceLoader(__name__).render_django_template(
+        '/templates/html/lti_launch_error.html',
+        context={"error_msg": error_msg},
+    )
+    return Response(template, status=status_code, content_type='text/html')
+
+
 LaunchTargetOption = namedtuple('LaunchTargetOption', ['display_name', 'value'])
 
 
@@ -1342,12 +1365,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         try:
             self._add_author_view(context, loader, fragment)
         except ReusableConfigurationUnavailable as exc:
-            fragment = Fragment()
-            fragment.add_content(loader.render_django_template(
-                '/templates/html/lti_launch_error.html',
-                context={"error_msg": str(exc)},
-            ))
-            return fragment
+            return launch_error_fragment(loader, str(exc))
 
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
@@ -1384,12 +1402,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
                     self.user_is_staff):
                 self._add_author_view(context, loader, fragment)
         except ReusableConfigurationUnavailable as exc:
-            fragment = Fragment()
-            fragment.add_content(loader.render_django_template(
-                '/templates/html/lti_launch_error.html',
-                context={"error_msg": str(exc)},
-            ))
-            return fragment
+            return launch_error_fragment(loader, str(exc))
 
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
 
@@ -1425,12 +1438,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             get_launchable_configuration(config_id_for_block(self))
             lti_consumer = self.get_lti_consumer()
         except ReusableConfigurationUnavailable as err:
-            loader = ResourceLoader(__name__)
-            template = loader.render_django_template(
-                '/templates/html/lti_launch_error.html',
-                context={"error_msg": str(err)},
-            )
-            return Response(template, status=403, content_type='text/html')
+            return launch_error_response(str(err), 403)
 
         # Occassionally, users try to do an LTI launch while they are unauthenticated. It is not known why this occurs.
         # Sometimes, it is due to a web crawlers; other times, it is due to actual users of the platform. Regardless,
@@ -1446,10 +1454,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             result_sourcedid = self.lis_result_sourcedid
         # Fails if extract_real_user_data() fails
         except LtiError as err:
-            loader = ResourceLoader(__name__)
-            template = loader.render_django_template('/templates/html/lti_launch_error.html',
-                                                     context={"error_msg": err})
-            return Response(template, status=400, content_type='text/html')
+            return launch_error_response(err, 400)
 
         username = None
         full_name = None
