@@ -311,8 +311,9 @@ class TestLti1p3Consumer(TestCase):
         """
         Check that the assembled launch message is logged with learner PII redacted.
 
-        The launch message is logged in full so tool-integration problems can be diagnosed from
-        the logs, which means the name/email claims must be scrubbed before they get there.
+        The full claim set goes to DEBUG -- it is a fair bit of output on every launch of every
+        block -- so that is where the redaction has to hold. INFO keeps a summary that
+        identifies the launch without carrying any claim values.
         """
         self._setup_lti_launch_data()
         self.lti_consumer.set_user_data(
@@ -323,11 +324,19 @@ class TestLti1p3Consumer(TestCase):
         )
         self._get_lti_message()
 
-        launch_log = next(
+        summary_log = next(
             call for call in mock_log.info.call_args_list
             if 'launch request assembled' in call.args[0]
         )
-        logged_claims = launch_log.args[-1]
+        # The INFO line is a summary: no claim values, so nothing to redact.
+        self.assertNotIn('Ada Lovelace', str(summary_log))
+        self.assertNotIn('ada@example.com', str(summary_log))
+
+        claims_log = next(
+            call for call in mock_log.debug.call_args_list
+            if 'launch request claims' in call.args[0]
+        )
+        logged_claims = claims_log.args[-1]
 
         self.assertEqual(logged_claims['name'], '<redacted>')
         self.assertEqual(logged_claims['email'], '<redacted>')
@@ -786,6 +795,59 @@ class TestRedactPiiClaims(TestCase):
             'https://purl.imsglobal.org/spec/lti/claim/roles': ['http://purl.imsglobal.org/vocab/lis/v2/x'],
         }
         self.assertEqual(redact_pii_claims(claims), claims)
+
+    def test_custom_claim_is_reduced_to_parameter_names(self):
+        """
+        The custom claim is not safe to log in full.
+
+        Parameter processors put per-learner data in it by design, `${...}` templates resolve
+        to things like an email or a name, and a static custom parameter is a common place for
+        a tool API key. Only the parameter names are logged, matching what
+        `launch_gate_endpoint` does with `custom_parameter_names`.
+        """
+        redacted = redact_pii_claims({
+            'https://purl.imsglobal.org/spec/lti/claim/custom': {
+                'user_email': 'ada@example.com',
+                'api_key': 's3cr3t',
+            },
+        })
+
+        self.assertEqual(
+            redacted,
+            {
+                'https://purl.imsglobal.org/spec/lti/claim/custom': {
+                    'custom_parameter_names': ['api_key', 'user_email'],
+                },
+            },
+        )
+
+    def test_custom_claim_that_is_not_a_dict_is_redacted(self):
+        """
+        A custom claim of an unexpected shape has no names to take, so redact the whole thing
+        rather than logging something that was never inspected.
+        """
+        redacted = redact_pii_claims({
+            'https://purl.imsglobal.org/spec/lti/claim/custom': 'user_email=ada@example.com',
+        })
+
+        self.assertEqual(
+            redacted,
+            {'https://purl.imsglobal.org/spec/lti/claim/custom': '<redacted>'},
+        )
+
+    def test_session_data_claim_is_redacted(self):
+        """
+        `session_data` is the proctoring anti-CSRF token, checked against the tool's response.
+        Logging it would defeat the check it exists for.
+        """
+        redacted = redact_pii_claims({
+            'https://purl.imsglobal.org/spec/lti-ap/claim/session_data': 'anti-csrf-token',
+        })
+
+        self.assertEqual(
+            redacted,
+            {'https://purl.imsglobal.org/spec/lti-ap/claim/session_data': '<redacted>'},
+        )
 
     def test_input_is_not_mutated(self):
         """

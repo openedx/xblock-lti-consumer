@@ -834,23 +834,26 @@ _AGS_REDACTED_LOG_FIELDS = frozenset({'userId', 'comment'})
 
 def _truncate_for_log(value, max_len=200):
     """
-    Stringify and truncate `value` to `max_len` characters, so a malformed or oversized
-    tool-supplied value can't blow up a log line.
+    Stringify `value`, escape newlines and carriage returns, then truncate to `max_len`
+    characters.
+
+    Escaping keeps a tool-supplied value from forging additional, fake-looking log lines, and
+    truncating keeps an oversized one from blowing up the line. The order matters: escaping
+    after truncating would let `max_len` newlines expand back out to `2 * max_len` characters.
     """
-    return str(value)[:max_len]
+    return str(value).replace('\n', '\\n').replace('\r', '\\r')[:max_len]
 
 
 def _ags_field_value(payload, field, max_len=200):
     """
     Return a log-safe representation of `field` from an AGS request payload.
 
-    Truncated to `max_len` characters so a malformed or oversized tool-supplied payload can't
-    blow up the log line, and with newlines/carriage returns escaped so a tool-supplied value
-    can't be used to forge additional, fake-looking log lines. Returns 'n/a' if the payload
-    doesn't support key lookup, and 'missing' if the key is absent entirely -- as opposed to an
-    explicit `null`, which is returned as the string 'None' so the two remain distinguishable in
-    the log (e.g. an AGS "erase score" request explicitly nulls `scoreGiven` rather than omitting
-    it). See `_AGS_REDACTED_LOG_FIELDS` for fields logged as a length only.
+    Escaped and truncated by `_truncate_for_log`. Returns 'n/a' if `payload` does not support
+    key lookup at all, and 'missing' if the key is absent -- as opposed to an explicit `null`,
+    which is logged as 'None', so the two remain distinguishable (e.g. an AGS "erase score"
+    request explicitly nulls `scoreGiven` rather than omitting it). Fields in
+    `_AGS_REDACTED_LOG_FIELDS` are logged as a length only, and follow the same convention:
+    'missing', 'None', or '<N chars>'.
     """
     if not hasattr(payload, 'get'):
         return 'n/a'
@@ -858,16 +861,32 @@ def _ags_field_value(payload, field, max_len=200):
         return 'missing'
     value = payload.get(field)
     if field in _AGS_REDACTED_LOG_FIELDS:
-        return 'n/a' if value is None else f'<{len(str(value))} chars>'
-    text = _truncate_for_log(value, max_len)
-    return text.replace('\n', '\\n').replace('\r', '\\r')
+        return 'None' if value is None else f'<{len(str(value))} chars>'
+    return _truncate_for_log(value, max_len)
+
+
+def _ags_payload_keys(payload, max_keys=20, max_len=50):
+    """
+    Return a log-safe list of the payload's top-level keys.
+
+    The keys come straight from the tool, so they get the same escaping as values -- an
+    unescaped newline in a key forges a second log line just as well as one in a value -- and
+    the list is capped so a payload with very many keys can't blow up the line by count.
+    """
+    if not hasattr(payload, 'keys'):
+        return []
+    all_keys = list(payload.keys())
+    keys = [_truncate_for_log(key, max_len) for key in all_keys[:max_keys]]
+    if len(all_keys) > max_keys:
+        keys.append(f'<+{len(all_keys) - max_keys} more>')
+    return keys
 
 
 def _summarize_ags_error(response_data, max_len=200):
     """
     Build a short, log-safe summary of a DRF AGS error response body: for each
-    top-level key, the first error message truncated, so a malformed or huge
-    tool-supplied payload can't blow up the log line.
+    top-level key, the first error message escaped and truncated by `_truncate_for_log`,
+    so a malformed or huge tool-supplied payload can't blow up or forge a log line.
     """
     if isinstance(response_data, dict):
         summary = {}
@@ -911,24 +930,41 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
 
     def initial(self, request, *args, **kwargs):
         """
-        Log a structured summary of every incoming LTI AGS request (line item
-        list/create/read/update/delete, score submission, result retrieval)
-        before authentication/permission checks run, so the request is logged
-        even when the tool's credentials or payload turn out to be invalid.
+        Log every incoming LTI AGS request (line item list/create/read/update/delete, score
+        submission, result retrieval), in two parts.
+
+        What is known from the URL and method is logged first, before authentication and
+        permission checks run, so a request is logged even when the tool's credentials turn
+        out to be invalid. The payload is logged only after `super().initial()`, because
+        reading `request.data` is what makes DRF parse the body: doing that first would turn
+        an unparseable body or a wrong Content-Type into a 400/415 before authentication could
+        return 401, and the parse error would be raised from inside the logging call itself --
+        losing the log line for exactly the malformed request worth having one for.
         """
         lti_config_id = self.kwargs.get('lti_config_id')
         line_item_id = self.kwargs.get('pk')
+
+        log.info(
+            'LTI AGS request received: action=%s method=%s lti_config_id=%s line_item_id=%s.',
+            self.action,
+            request.method,
+            lti_config_id,
+            line_item_id,
+        )
+
+        super().initial(request, *args, **kwargs)
+
         payload = request.data if request.method in ('POST', 'PUT', 'PATCH') else request.query_params
 
         log.info(
-            'LTI AGS request received: action=%s method=%s lti_config_id=%s line_item_id=%s '
+            'LTI AGS request payload: action=%s method=%s lti_config_id=%s line_item_id=%s '
             'payload_keys=%s resourceId=%s resourceLinkId=%s scoreMaximum=%s userId=%s '
             'scoreGiven=%s activityProgress=%s gradingProgress=%s comment=%s timestamp=%s.',
             self.action,
             request.method,
             lti_config_id,
             line_item_id,
-            list(payload.keys()) if hasattr(payload, 'keys') else [],
+            _ags_payload_keys(payload),
             _ags_field_value(payload, 'resourceId'),
             _ags_field_value(payload, 'resourceLinkId'),
             _ags_field_value(payload, 'scoreMaximum'),
@@ -940,8 +976,6 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
             _ags_field_value(payload, 'timestamp'),
         )
 
-        super().initial(request, *args, **kwargs)
-
     def finalize_response(self, request, response, *args, **kwargs):
         """
         Log the outcome of every LTI AGS request (status code, and error
@@ -951,7 +985,10 @@ class LtiAgsLineItemViewset(viewsets.ModelViewSet):
         response = super().finalize_response(request, response, *args, **kwargs)
 
         is_error = response.status_code >= 400
-        log.info(
+        # Errors are the actionable case -- a tool integration that is failing -- so they are
+        # logged at WARNING, where they survive a deployment that filters INFO away.
+        log_at = log.warning if is_error else log.info
+        log_at(
             'LTI AGS response returned: action=%s method=%s lti_config_id=%s line_item_id=%s '
             'status_code=%s error=%s.',
             getattr(self, 'action', None),

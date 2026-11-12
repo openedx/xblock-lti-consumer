@@ -12,7 +12,7 @@ from django.utils import timezone
 from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.plugin.views import _ags_field_value, _summarize_ags_error
+from lti_consumer.plugin.views import _ags_field_value, _ags_payload_keys, _summarize_ags_error
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
@@ -108,7 +108,17 @@ class LtiAgsLogHelpersTest(TestBaseWithPatch):
         """
         self.assertEqual(_ags_field_value({'userId': 'abc123'}, 'userId'), '<6 chars>')
         self.assertEqual(_ags_field_value({'comment': 'nice work'}, 'comment'), '<9 chars>')
-        self.assertEqual(_ags_field_value({'comment': None}, 'comment'), 'n/a')
+
+    def test_ags_field_value_redacted_fields_distinguish_absent_from_null(self):
+        """
+        A redacted field follows the same convention as any other: 'missing' when the key is
+        absent and 'None' when it is explicitly null. 'n/a' is reserved for a payload that does
+        not support key lookup at all, so it must not stand in for a null here too.
+        """
+        self.assertEqual(_ags_field_value({}, 'comment'), 'missing')
+        self.assertEqual(_ags_field_value({'comment': None}, 'comment'), 'None')
+        self.assertEqual(_ags_field_value({}, 'userId'), 'missing')
+        self.assertEqual(_ags_field_value({'userId': None}, 'userId'), 'None')
 
     def test_ags_field_value_escapes_newlines(self):
         """
@@ -124,6 +134,48 @@ class LtiAgsLogHelpersTest(TestBaseWithPatch):
         An oversized tool-supplied value must not blow up the log line.
         """
         self.assertEqual(len(_ags_field_value({'resourceId': 'x' * 500}, 'resourceId')), 200)
+
+    def test_ags_field_value_escapes_before_truncating(self):
+        """
+        Escaping has to happen before truncation, not after.
+
+        Each newline becomes two characters, so escaping a value already cut to the limit
+        hands back a string twice the limit -- the cap the truncation exists to enforce.
+        """
+        value = _ags_field_value({'resourceId': '\n' * 500}, 'resourceId')
+
+        self.assertEqual(len(value), 200)
+        self.assertEqual(value, '\\n' * 100)
+
+    def test_ags_payload_keys_escapes_newlines(self):
+        """
+        Keys come from the tool just as values do, so a newline in one must not forge a log line.
+        """
+        self.assertEqual(
+            _ags_payload_keys({'real\nFAKE LOG LINE': 1}),
+            ['real\\nFAKE LOG LINE'],
+        )
+
+    def test_ags_payload_keys_caps_the_count(self):
+        """
+        A payload with very many keys must not blow up the log line by sheer count.
+        """
+        keys = _ags_payload_keys({f'key{i}': i for i in range(50)}, max_keys=20)
+
+        self.assertEqual(len(keys), 21)
+        self.assertEqual(keys[-1], '<+30 more>')
+
+    def test_ags_payload_keys_truncates_a_long_key(self):
+        """
+        A single oversized key must not blow up the log line either.
+        """
+        self.assertEqual(_ags_payload_keys({'k' * 500: 1}, max_len=50), ['k' * 50])
+
+    def test_ags_payload_keys_handles_non_mapping_payload(self):
+        """
+        As with `_ags_field_value`, a payload with no keys is not worth raising from a log call.
+        """
+        self.assertEqual(_ags_payload_keys(['not', 'a', 'mapping']), [])
 
     def test_ags_field_value_handles_non_mapping_payload(self):
         """
@@ -208,8 +260,11 @@ class LtiAgsViewSetTokenTests(LtiAgsLineItemViewSetTestCase):
 
         views_output = ' '.join(str(call) for call in views_log.info.call_args_list)
         self.assertIn('LTI AGS request received', views_output)
-        self.assertIn('LTI AGS response returned', views_output)
-        self.assertIn('403', views_output)
+
+        # The outcome is an error, so it is logged at WARNING rather than INFO.
+        warning_output = ' '.join(str(call) for call in views_log.warning.call_args_list)
+        self.assertIn('LTI AGS response returned', warning_output)
+        self.assertIn('403', warning_output)
 
         # The scope check says why, naming what was required versus what the token granted.
         # Log arguments are left unformatted by design, so assert on them rather than the message.
@@ -218,6 +273,33 @@ class LtiAgsViewSetTokenTests(LtiAgsLineItemViewSetTestCase):
         self.assertFalse(scope_warning.args[-1])
         required_scopes = scope_warning.args[-2]
         self.assertIn('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem', required_scopes)
+
+    @patch('lti_consumer.plugin.views.log')
+    def test_unparseable_body_is_rejected_by_authentication_first(self, views_log):
+        """
+        Reading `request.data` is what makes DRF parse the body, so it must not happen before
+        `super().initial()` has authenticated the request.
+
+        Logging the payload first turned an unparseable body into a 400 (and a wrong
+        Content-Type into a 415) before authentication could reject it -- and the parse error
+        was raised from inside the logging call's own arguments, so the one request most worth
+        a log line produced none at all.
+        """
+        response = self.client.post(
+            self.lineitem_endpoint,
+            data='{not valid json',
+            content_type='application/vnd.ims.lis.v2.lineitem+json',
+        )
+
+        # Rejected by authentication/permissions, not by the body parser: a 400 or a 415 here
+        # would mean the body had been parsed before the credentials were checked.
+        self.assertEqual(response.status_code, 403)
+
+        views_output = ' '.join(str(call) for call in views_log.info.call_args_list)
+        self.assertIn('LTI AGS request received', views_output)
+        # The body is never parsed for a request that fails authentication, so the payload
+        # line is not reached -- but the request itself is still on the record.
+        self.assertNotIn('LTI AGS request payload', views_output)
 
     @patch('lti_consumer.plugin.views.log')
     def test_accepted_request_is_logged_with_its_outcome(self, views_log):

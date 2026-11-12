@@ -16,7 +16,7 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
-11.5.0 - 2026-11-11
+11.5.0 - 2026-11-12
 --------------------
 * Add structured logging across the LTI 1.3 launch and LTI Advantage AGS flows, so
   a failed tool integration can be diagnosed from the logs alone:

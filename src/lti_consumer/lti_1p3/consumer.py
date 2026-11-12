@@ -46,17 +46,42 @@ LTI_1P3_PII_CLAIMS = frozenset({
 })
 
 
+# The custom claim carries whatever the course author and the parameter processors put in it.
+# `${...}` templates routinely resolve to a learner's email or name, and static parameters are
+# a common place to find a tool's API key, so only the parameter names are logged -- the same
+# thing `launch_gate_endpoint` does with `custom_parameter_names`.
+LTI_1P3_CUSTOM_CLAIM = 'https://purl.imsglobal.org/spec/lti/claim/custom'
+
+# Claims whose values are secrets rather than PII. `session_data` is the proctoring anti-CSRF
+# token, which is checked against the tool's response, so logging it would defeat the check.
+LTI_1P3_SECRET_CLAIMS = frozenset({
+    'https://purl.imsglobal.org/spec/lti-ap/claim/session_data',
+})
+
+
 def redact_pii_claims(claims):
     """
-    Return a copy of an LTI 1.3 launch message with PII claim values replaced by a placeholder,
-    so the message can be logged without emitting a learner's name or email address.
+    Return a copy of an LTI 1.3 launch message that is safe to log.
+
+    PII claims and secret claims have their values replaced by a placeholder, and the custom
+    claim is reduced to its parameter names, so the message can be logged without emitting a
+    learner's name or email address, a proctoring anti-CSRF token, or a tool credential that a
+    course author stored in a custom parameter.
     """
     if not isinstance(claims, dict):
         return claims
-    return {
-        key: '<redacted>' if key in LTI_1P3_PII_CLAIMS else value
-        for key, value in claims.items()
-    }
+    redacted = {}
+    for key, value in claims.items():
+        if key in LTI_1P3_PII_CLAIMS or key in LTI_1P3_SECRET_CLAIMS:
+            redacted[key] = '<redacted>'
+        elif key == LTI_1P3_CUSTOM_CLAIM:
+            redacted[key] = (
+                {'custom_parameter_names': sorted(value)} if isinstance(value, dict)
+                else '<redacted>'
+            )
+        else:
+            redacted[key] = value
+    return redacted
 
 
 class LtiConsumer1p3:
@@ -459,8 +484,18 @@ class LtiConsumer1p3:
             "nonce": preflight_response.get("nonce")
         })
 
+        # The full claim set is a fair bit of output on every launch of every block, so it
+        # goes to DEBUG; INFO keeps the fields that identify which launch this was.
         log.info(
-            'LTI 1.3 launch request assembled for target_link_uri=%s: claims=%s.',
+            'LTI 1.3 launch request assembled: target_link_uri=%s message_type=%s '
+            'deployment_id=%s claim_count=%s.',
+            lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/target_link_uri'),
+            lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/message_type'),
+            lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/deployment_id'),
+            len(lti_launch_message),
+        )
+        log.debug(
+            'LTI 1.3 launch request claims for target_link_uri=%s: %s.',
             lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/target_link_uri'),
             redact_pii_claims(lti_launch_message),
         )
@@ -615,7 +650,8 @@ class LtiConsumer1p3:
             granted = any(scope in allowed_scopes for scope in token_scopes)
             log_at = log.info if granted else log.warning
             log_at(
-                'LTI 1.3 token scope check: client_id=%s token_scopes=%s required_scopes=%s granted=%s.',
+                'LTI 1.3 token scope check: client_id=%s token_scopes=%s '
+                'accepted_scopes_any_of=%s granted=%s.',
                 self.client_id,
                 token_scopes,
                 allowed_scopes,
@@ -787,7 +823,15 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
             })
 
             log.info(
-                'LTI 1.3 Deep Linking launch request assembled for target_link_uri=%s: claims=%s.',
+                'LTI 1.3 Deep Linking launch request assembled: target_link_uri=%s '
+                'message_type=%s deployment_id=%s claim_count=%s.',
+                target_link_uri,
+                lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/message_type'),
+                lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/deployment_id'),
+                len(lti_launch_message),
+            )
+            log.debug(
+                'LTI 1.3 Deep Linking launch request claims for target_link_uri=%s: %s.',
                 target_link_uri,
                 redact_pii_claims(lti_launch_message),
             )
