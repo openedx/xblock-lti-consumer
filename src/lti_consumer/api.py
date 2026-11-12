@@ -24,6 +24,7 @@ from .utils import (
     get_lti_deeplinking_content_url,
 )
 
+
 def _get_or_create_local_lti_config(lti_version, block, config_store=LtiConfiguration.CONFIG_ON_XBLOCK):
     """
     Retrieve or create an LtiConfiguration for the block.
