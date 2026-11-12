@@ -5,6 +5,8 @@ These are DB-level journeys: the promises are enforced by the schema itself, not
 services or views, so they are exercised against the real database.
 """
 
+from unittest.mock import patch
+
 from django.core.exceptions import FieldDoesNotExist
 from django.db import IntegrityError, connection, models, transaction
 from django.db.models.deletion import ProtectedError
@@ -215,8 +217,10 @@ class ReusableConfigurationStorageTests(TestCase):
 
     def test_reads_never_generate_signing_keys(self):
         configuration = self.make_configuration(name='No keys')
-        list(ReusableLtiConfiguration.objects.filter(pk=configuration.pk))
-        configuration.refresh_from_db()
-        self.assertEqual(configuration.lti_1p3_internal_private_key, '')
-        self.assertEqual(configuration.lti_1p3_internal_public_jwk, '')
-        self.assertEqual(configuration.lti_1p3_internal_private_key_id, '')
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            list(ReusableLtiConfiguration.objects.filter(pk=configuration.pk))
+            configuration.refresh_from_db()
+            self.assertEqual(configuration.lti_1p3_internal_private_key, '')
+            self.assertEqual(configuration.lti_1p3_internal_public_jwk, '')
+            self.assertEqual(configuration.lti_1p3_internal_private_key_id, '')
+        save_mock.assert_not_called()

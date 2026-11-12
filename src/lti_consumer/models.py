@@ -176,10 +176,9 @@ class ReusableLtiConfiguration(models.Model):
     stays on ``LtiConfiguration``.
 
     Credentials and signing material are stored exactly as they were on a
-    passport: ordinary row reads and saves do not generate RSA material. The lazy
-    key getters (``lti_1p3_private_key``, ``lti_1p3_private_key_id`` and
-    ``lti_1p3_public_jwk``) still call ``generate_lti_1p3_keys_if_missing`` and
-    save, so migrations must read the concrete stored fields instead.
+    passport: ordinary row reads and saves do not generate RSA material. Callers
+    provision keys explicitly with ``generate_lti_1p3_keys_if_missing``; migrations
+    must read the concrete stored fields.
     """
 
     LTI_1P1 = 'lti_1p1'
@@ -355,30 +354,6 @@ class ReusableLtiConfiguration(models.Model):
 
         # Doesn't do anything if model didn't change
         self.save()
-
-    @property
-    def lti_1p3_private_key(self):
-        """
-        Return the platform's private key used in LTI 1.3 authentication flows.
-        """
-        self.generate_lti_1p3_keys_if_missing()
-        return self.lti_1p3_internal_private_key
-
-    @property
-    def lti_1p3_private_key_id(self):
-        """
-        Return the platform's private key ID used in LTI 1.3 authentication flows.
-        """
-        self.generate_lti_1p3_keys_if_missing()
-        return self.lti_1p3_internal_private_key_id
-
-    @property
-    def lti_1p3_public_jwk(self):
-        """
-        Return the platform's public keys used in LTI 1.3 authentication flows.
-        """
-        self.generate_lti_1p3_keys_if_missing()
-        return json.loads(self.lti_1p3_internal_public_jwk)
 
     def __str__(self):
         return f'ReusableLtiConfiguration: {self.name} - {self.passport_id}'

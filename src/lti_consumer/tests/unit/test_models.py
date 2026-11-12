@@ -952,39 +952,61 @@ class ReusableConfigurationModelTests(TestCase):
         values.update(kwargs)
         return ReusableLtiConfiguration.objects.create(**values)
 
-    def test_private_key_accessor_generates_missing_keys(self):
+    def test_generate_lti_1p3_keys_if_missing_stores_signing_material(self):
         configuration = self.make_configuration()
+        self.assertFalse(configuration.lti_1p3_internal_private_key)
+        self.assertFalse(configuration.lti_1p3_internal_private_key_id)
+        self.assertFalse(configuration.lti_1p3_internal_public_jwk)
 
-        private_key = configuration.lti_1p3_private_key
+        configuration.generate_lti_1p3_keys_if_missing()
 
         configuration.refresh_from_db()
-        self.assertTrue(private_key.startswith('-----BEGIN RSA PRIVATE KEY-----'))
-        self.assertEqual(configuration.lti_1p3_internal_private_key, private_key)
-        self.assertTrue(configuration.lti_1p3_internal_private_key_id)
-        key_set = configuration.lti_1p3_public_jwk['keys']
+        self.assertTrue(
+            configuration.lti_1p3_internal_private_key.startswith('-----BEGIN RSA PRIVATE KEY-----')
+        )
+        self.assertEqual(uuid.UUID(configuration.lti_1p3_internal_private_key_id).version, 4)
+        key_set = json.loads(configuration.lti_1p3_internal_public_jwk)['keys']
         self.assertEqual(key_set[0]['kty'], 'RSA')
         self.assertEqual(key_set[0]['kid'], configuration.lti_1p3_internal_private_key_id)
 
-    def test_private_key_id_accessor_generates_missing_keys(self):
+    def test_generate_lti_1p3_keys_if_missing_keeps_an_existing_key_pair(self):
         configuration = self.make_configuration()
+        configuration.generate_lti_1p3_keys_if_missing()
+        configuration.refresh_from_db()
+        stored = (
+            configuration.lti_1p3_internal_private_key,
+            configuration.lti_1p3_internal_private_key_id,
+            configuration.lti_1p3_internal_public_jwk,
+        )
 
-        key_id = configuration.lti_1p3_private_key_id
+        configuration.generate_lti_1p3_keys_if_missing()
 
         configuration.refresh_from_db()
-        self.assertEqual(configuration.lti_1p3_internal_private_key_id, key_id)
-        self.assertEqual(uuid.UUID(key_id).version, 4)
+        self.assertEqual(
+            (
+                configuration.lti_1p3_internal_private_key,
+                configuration.lti_1p3_internal_private_key_id,
+                configuration.lti_1p3_internal_public_jwk,
+            ),
+            stored,
+        )
 
-    def test_public_jwk_accessor_rebuilds_a_missing_jwk_from_the_stored_private_key(self):
+    def test_generate_lti_1p3_keys_if_missing_rebuilds_a_missing_jwk_from_the_stored_private_key(self):
         configuration = self.make_configuration()
-        expected_jwk = configuration.lti_1p3_public_jwk
+        configuration.generate_lti_1p3_keys_if_missing()
+        configuration.refresh_from_db()
+        stored_private_key = configuration.lti_1p3_internal_private_key
+        stored_private_key_id = configuration.lti_1p3_internal_private_key_id
+        stored_jwk = json.loads(configuration.lti_1p3_internal_public_jwk)
         configuration.lti_1p3_internal_public_jwk = ''
         configuration.save()
 
-        self.assertEqual(configuration.lti_1p3_public_jwk, expected_jwk)
+        configuration.generate_lti_1p3_keys_if_missing()
+
         configuration.refresh_from_db()
-        # Read the column, not the accessor: the accessor rebuilds the JWK in memory and
-        # would hide a missing save.
-        self.assertEqual(json.loads(configuration.lti_1p3_internal_public_jwk), expected_jwk)
+        self.assertEqual(json.loads(configuration.lti_1p3_internal_public_jwk), stored_jwk)
+        self.assertEqual(configuration.lti_1p3_internal_private_key, stored_private_key)
+        self.assertEqual(configuration.lti_1p3_internal_private_key_id, stored_private_key_id)
 
     def test_str_names_the_configuration_and_its_passport(self):
         passport_id = uuid.uuid4()
