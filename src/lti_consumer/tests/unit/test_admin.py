@@ -170,11 +170,11 @@ class ReusableAdminJourneyTests(TestCase):
             'block-v1:Org+Course+Run+type@lti_consumer+block@counted-1',
             'block-v1:Org+Course+Run+type@lti_consumer+block@counted-2',
         ]
-        for index, location in enumerate(locations):
-            self.make_placement(configuration, location, f'Counted passport {index}')
+        for location in locations:
+            self.make_placement(configuration, location)
         other_configuration = self.make_configuration(name='Other configuration')
         other_location = 'block-v1:Org+Course+Run+type@lti_consumer+block@other'
-        self.make_placement(other_configuration, other_location, 'Other passport')
+        self.make_placement(other_configuration, other_location)
         filtered_url = self.placements_url(configuration)
 
         view_configuration = Permission.objects.get(
@@ -220,7 +220,7 @@ class ReusableAdminJourneyTests(TestCase):
     def test_placement_count_cost_does_not_grow_with_placement_fanout(self):
         configuration = self.make_configuration(name='Fanout configuration')
         self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@fanout-0', 'Fanout passport',
+            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@fanout-0',
         )
         self.client.force_login(self.make_user('global-staff', is_staff=True))
 
@@ -228,7 +228,7 @@ class ReusableAdminJourneyTests(TestCase):
             self.assertEqual(self.client.get(self.change_url(configuration)).status_code, 200)
         for index in range(1, 8):
             self.make_placement(
-                configuration, f'block-v1:Org+Course+Run+type@lti_consumer+block@fanout-{index}', f'Fanout {index}',
+                configuration, f'block-v1:Org+Course+Run+type@lti_consumer+block@fanout-{index}',
             )
         with CaptureQueriesContext(connection) as eight_placements:
             response = self.client.get(self.change_url(configuration))
