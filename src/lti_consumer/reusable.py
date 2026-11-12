@@ -419,9 +419,7 @@ def create_reusable_configuration(actor, data):
         'context_key': context.key,
     }
     configuration_values.update(service_configuration_values(validated.services))
-    configuration_values.update(
-        {key: validated.defaults[key] for key in _DEFAULT_MEMBERS if key in validated.defaults},
-    )
+    configuration_values.update(validated.defaults)
     configuration_values.update(_privacy_configuration_values(validated.privacy))
 
     credentials = None
@@ -565,7 +563,6 @@ def _validated_changes(configuration, changes):
         provided_services = changes['services']
         if not isinstance(provided_services, dict):
             _invalid('services', _('Invalid reusable configuration settings.'))
-        _reject_unknown(provided_services, _SERVICE_MEMBERS, prefix='services.')
         services = _stored_services(configuration)
         services.update(provided_services)
         for field, value in service_configuration_values(_validated_services(services)).items():
@@ -575,7 +572,6 @@ def _validated_changes(configuration, changes):
         provided_defaults = changes['defaults']
         if not isinstance(provided_defaults, dict):
             _invalid('defaults', _('Invalid reusable configuration settings.'))
-        _reject_unknown(provided_defaults, _DEFAULT_MEMBERS, prefix='defaults.')
         defaults = _stored_defaults(configuration)
         defaults.update(provided_defaults)
         for key, value in _validated_defaults(defaults).items():
@@ -585,7 +581,6 @@ def _validated_changes(configuration, changes):
         provided_privacy = changes['privacy']
         if not isinstance(provided_privacy, dict):
             _invalid('privacy', _('Invalid reusable configuration settings.'))
-        _reject_unknown(provided_privacy, _PRIVACY_MEMBERS, prefix='privacy.')
         privacy = _stored_privacy(configuration)
         privacy.update(provided_privacy)
         for field, value in _privacy_configuration_values(_validated_privacy(privacy)).items():
