@@ -791,16 +791,6 @@ class LtiConfiguration(models.Model):
         return self.get_runtime_identity().client_id
 
     @property
-    def lti_1p3_deployment_id(self):
-        """
-        Return the stored deployment ID, or the historical `"1"` when it is unset.
-
-        Copied registrations keep the single deployed tool registration they were launched
-        with; configurations created through the API store their own deployment ID.
-        """
-        return self.get_runtime_identity().deployment_id
-
-    @property
     def lti_1p3_tool_keyset_url(self):
         """
         Return the tool keyset URL stored on the reusable configuration.

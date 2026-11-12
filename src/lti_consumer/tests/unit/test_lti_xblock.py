@@ -13,6 +13,7 @@ import ddt
 import jwt
 from Cryptodome.PublicKey import RSA
 from django.conf import settings as dj_settings
+from django.http import Http404
 from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
@@ -2644,6 +2645,102 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         request = make_jwt_request(jwt_token)
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 200)
+
+    def test_access_token_constructs_the_consumer_once(self):
+        """
+        A token request builds the consumer once, in the shared endpoint.
+        """
+        with patch.object(
+            LtiConfiguration,
+            'get_lti_consumer',
+            autospec=True,
+            side_effect=LtiConfiguration.get_lti_consumer,
+        ) as get_lti_consumer:
+            response = self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+
+        self.assertEqual(response.status_code, 200)
+        get_lti_consumer.assert_called_once()
+
+    def test_access_token_denies_an_incomplete_registration(self):
+        """
+        A malformed stored keyset is denied by the endpoint without writing.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(
+            lti_1p3_internal_public_jwk='not-json',
+        )
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            response = self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+            save_mock.assert_not_called()
+
+        self.assertEqual(response.status_code, 404)
+        self.assertJSONEqual(response.content, {'error': 'lti_consumer_not_initialized'})
+
+    def test_access_token_propagates_an_unbound_denial(self):
+        """
+        The wrapper does not swallow the endpoint's 404 for an unbound placement.
+        """
+        placement = LtiConfiguration.objects.get(location=self.xblock.scope_ids.usage_id)
+        placement.reusable_configuration = None
+        placement.save()
+        registrations = ReusableLtiConfiguration.objects.count()
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            with self.assertRaises(Http404):
+                self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+            save_mock.assert_not_called()
+
+        placement.refresh_from_db()
+        self.assertIsNone(placement.reusable_configuration_id)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), registrations)
+
+    def test_access_token_succeeds_for_an_external_configuration(self):
+        """
+        An external configuration serves tokens from its own source, with no registration.
+        """
+        external_config = {
+            'version': LtiConfiguration.LTI_1P3,
+            'lti_1p3_client_id': 'external-client-id',
+            'lti_1p3_private_key': RSA.generate(2048).export_key().decode(),
+            'lti_1p3_private_key_id': 'external-key-id',
+            'lti_1p3_tool_public_key': self.public_key.decode(),
+        }
+        self.xblock.config_type = 'external'
+        self.xblock.external_config = 'test:external'
+        placement = LtiConfiguration.objects.get(location=self.xblock.scope_ids.usage_id)
+        placement.reusable_configuration = None
+        placement.save()
+
+        with patch(
+            'lti_consumer.lti_xblock.get_external_config_from_filter',
+            return_value=external_config,
+        ), patch(
+            'lti_consumer.api.get_external_config_from_filter',
+            return_value=external_config,
+        ), patch(
+            'lti_consumer.models.get_external_config_from_filter',
+            return_value=external_config,
+        ), patch(
+            'lti_consumer.models.external_multiple_launch_urls_enabled',
+            return_value=False,
+        ):
+            response = self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+
+        self.assertEqual(response.status_code, 200)
+        placement.refresh_from_db()
+        self.assertIsNone(placement.reusable_configuration_id)
+
+    def test_access_token_denies_an_inactive_registration(self):
+        """
+        An inactive registration refuses tokens even though its identity is complete.
+        """
+        self.configuration.is_active = False
+        self.configuration.save()
+
+        response = self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertJSONEqual(response.content, {'error': 'inactive_configuration'})
 
 
 @patch('lti_consumer.utils.log')

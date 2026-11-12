@@ -1531,15 +1531,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if self.get_resolved_lti_version() != "lti_1p3":
             return Response(status=404)
 
-        # Asserting that the consumer can be created. This makes sure that the LtiConfiguration
-        # object exists before calling the Django View
-        try:
-            assert self.get_lti_consumer()
-        except ReusableConfigurationUnavailable:
-            return Response(status=404)
         # Runtime import because this can only be run in the LMS/Studio Django
         # environments. Importing the views on the top level will cause RuntimeErorr
+        from lti_consumer.api import config_id_for_block  # pylint: disable=import-outside-toplevel
         from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
+
+        # Create the placement before calling the Django view, which validates the
+        # configuration and builds the consumer exactly once.
+        config_id_for_block(self)
         return access_token_endpoint(request, usage_id=str(self.scope_ids.usage_id))
 
     @XBlock.handler
