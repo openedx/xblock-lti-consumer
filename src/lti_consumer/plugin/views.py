@@ -70,6 +70,13 @@ from lti_consumer.track import track_event
 from lti_consumer.utils import _, get_data_from_cache, get_lti_1p3_context_types_claim, get_lti_api_base
 
 
+def _render_launch_error(request, error_msg, status_code):
+    """
+    Render the LTI 1.3 launch error page with the given message and status.
+    """
+    return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=status_code)
+
+
 def _build_url_with_query(request, query_params):
     """
     Build an absolute URL from the request path, merging current query parameters
@@ -275,23 +282,13 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     if not lti_message_hint:
         error_msg = 'The lti_message_hint is missing or empty.'
         log.info(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     login_hint = request_params.get('login_hint')
     if not login_hint:
         error_msg = 'The login_hint is missing or empty.'
         log.info(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     launch_data = get_data_from_cache(lti_message_hint)
     if not launch_data:
@@ -299,24 +296,14 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             f'Unable to find record of an OIDC launch for the provided lti_message_hint: {lti_message_hint}'
         )
         log.warning(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
     if not is_valid:
         validation_message = " ".join(validation_messages)
         error_msg = f"The Lti1p3LaunchData is not valid. {validation_message}"
         log.error(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     config_id = launch_data.config_id
     try:
@@ -331,22 +318,12 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     if effective_version is None:
         error_msg = f"The LTI version of the following configuration is unassigned: {lti_config}"
         log.error(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_404_NOT_FOUND
-        )
+        return _render_launch_error(request, error_msg, HTTP_404_NOT_FOUND)
 
     if effective_version != LtiConfiguration.LTI_1P3:
         error_msg = f"The LTI Version of the following configuration is not LTI 1.3: {lti_config}"
         log.error(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_404_NOT_FOUND
-        )
+        return _render_launch_error(request, error_msg, HTTP_404_NOT_FOUND)
 
     # Identity, keys and binding come from the reusable configuration already bound to
     # the placement; a launch never creates or attaches one. The retained passport table
@@ -357,21 +334,11 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             registration = lti_config.bound_reusable_configuration()
         except ReusableConfigurationUnavailable as exc:
             log.error("LTI launch denied: %s", exc)
-            return render(
-                request,
-                'html/lti_launch_error.html',
-                context={"error_msg": str(exc)},
-                status=HTTP_404_NOT_FOUND
-            )
+            return _render_launch_error(request, str(exc), HTTP_404_NOT_FOUND)
         if not registration.is_active:
             error_msg = f"The following LTI configuration is inactive: {lti_config}"
             log.warning(error_msg)
-            return render(
-                request,
-                'html/lti_launch_error.html',
-                context={"error_msg": error_msg},
-                status=HTTP_403_FORBIDDEN
-            )
+            return _render_launch_error(request, error_msg, HTTP_403_FORBIDDEN)
 
     context = {}
 
@@ -411,12 +378,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
                     f"data does not represent a valid context_type."
                 )
                 log.error(error_msg)
-                return render(
-                    request,
-                    'html/lti_launch_error.html',
-                    context={"error_msg": error_msg},
-                    status=HTTP_400_BAD_REQUEST
-                )
+                return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
         lti_consumer.set_context_claim(
             launch_data.context_id,
@@ -785,23 +747,13 @@ def deep_linking_content_endpoint(request, lti_config_id):
     if not launch_data_key:
         error_msg = 'The launch_data_key query param in the request is missing or empty.'
         log.info(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     launch_data = get_data_from_cache(launch_data_key)
     if not launch_data:
         error_msg = f'There was a cache miss during an LTI 1.3 launch when using the cache_key {launch_data_key}.'
         log.warning(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
     try:
         # Get LTI Configuration
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
@@ -832,20 +784,10 @@ def deep_linking_content_endpoint(request, lti_config_id):
             registration = lti_config.bound_reusable_configuration()
         except ReusableConfigurationUnavailable as exc:
             log.warning("LTI configuration %r has no usable registration: %s", lti_config_id, exc)
-            return render(
-                request,
-                'html/lti_launch_error.html',
-                context={"error_msg": str(exc)},
-                status=HTTP_403_FORBIDDEN,
-            )
+            return _render_launch_error(request, str(exc), HTTP_403_FORBIDDEN)
         if not registration.is_active:
             log.warning("LTI configuration %r is inactive and cannot launch content", lti_config_id)
-            return render(
-                request,
-                'html/lti_launch_error.html',
-                context={"error_msg": "This LTI tool configuration is inactive."},
-                status=HTTP_403_FORBIDDEN,
-            )
+            return _render_launch_error(request, "This LTI tool configuration is inactive.", HTTP_403_FORBIDDEN)
 
     # Render LTI-DL contents. The launch links in the page resolve the registration,
     # so an unusable one is denied here instead of raising from the template.
@@ -861,12 +803,7 @@ def deep_linking_content_endpoint(request, lti_config_id):
             lti_config_id,
             exc,
         )
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": str(exc)},
-            status=HTTP_403_FORBIDDEN,
-        )
+        return _render_launch_error(request, str(exc), HTTP_403_FORBIDDEN)
 
 
 class LtiAgsLineItemViewset(viewsets.ModelViewSet):
