@@ -4,6 +4,8 @@ Admin views for LTI related models.
 from config_models.admin import KeyedConfigurationModelAdmin
 from django.contrib import admin
 from django.contrib.admin.utils import flatten_fieldsets
+from django.urls import reverse
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from lti_consumer.forms import CourseAllowPIISharingInLTIAdminForm
@@ -38,18 +40,6 @@ class LtiConfigurationInline(admin.TabularInline):
         return False
 
 
-class ReusablePlacementsInline(LtiConfigurationInline):
-    """
-    Read-only inline of the placements bound to a reusable configuration.
-    """
-    fk_name = 'reusable_configuration'
-
-    def has_view_permission(self, request, obj=None):
-        # The parent gates by platform role, not by Django model permissions, so an
-        # inline without this override would be dropped for Global Staff who hold none.
-        return compat.user_is_global_staff(request.user)
-
-
 @admin.register(ReusableLtiConfiguration)
 class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     """
@@ -63,7 +53,6 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     list_filter = ('version', 'context_type')
     search_fields = ('name', 'passport_id')
     actions = None
-    inlines = [ReusablePlacementsInline]
 
     fieldsets = (
         (_('Identity'), {
@@ -126,6 +115,29 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
         }),
     )
     readonly_fields = flatten_fieldsets(fieldsets)
+
+    def get_fieldsets(self, request, obj=None):
+        # A count replaces the inline: rendering every bound placement row is unbounded.
+        # The link needs view access the placement admin already grants, or it is refused.
+        placement_admin = self.admin_site.get_model_admin(LtiConfiguration)
+        field = 'placements_link' if placement_admin.has_view_permission(request) else 'placements'
+        return (*self.fieldsets, (_('Placements'), {'fields': (field,)}))
+
+    @admin.display(description=_('Placements'))
+    def placements(self, obj):
+        """
+        Read-only count of the placements bound to the configuration.
+        """
+        return obj.lticonfiguration_set.count()
+
+    @admin.display(description=_('Placements'))
+    def placements_link(self, obj):
+        """
+        The placement count, linked to the existing placement admin when allowed.
+        """
+        changelist = reverse('admin:lti_consumer_lticonfiguration_changelist')
+        url = f'{changelist}?reusable_configuration__id__exact={obj.pk}'
+        return format_html('<a href="{}">{}</a>', url, self.placements(obj))
 
     def has_module_permission(self, request):
         return compat.user_is_global_staff(request.user)
