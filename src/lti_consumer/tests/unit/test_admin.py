@@ -159,7 +159,7 @@ class ReusableAdminJourneyTests(TestCase):
     def test_bound_placements_render_no_usage_count_list_or_inline(self):
         configuration = self.make_configuration(name='Configuration without usage UI')
         placement = self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@unlisted', 'Unlisted passport',
+            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@unlisted',
         )
         self.client.force_login(self.make_user('global-staff', is_staff=True))
 
