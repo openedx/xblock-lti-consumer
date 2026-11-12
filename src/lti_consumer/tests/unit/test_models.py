@@ -680,8 +680,11 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         self.assertEqual(placement.lti_1p3_client_id, configuration.lti_1p3_client_id)
         self.assertEqual(placement.lti_1p3_tool_public_key, configuration.lti_1p3_tool_public_key)
         self.assertEqual(placement.lti_1p3_tool_keyset_url, configuration.lti_1p3_tool_keyset_url)
-        self.assertEqual(placement.lti_1p3_private_key_id, configuration.lti_1p3_private_key_id)
-        self.assertEqual(placement.lti_1p3_public_jwk, configuration.lti_1p3_public_jwk)
+        self.assertEqual(placement.lti_1p3_private_key_id, configuration.lti_1p3_internal_private_key_id)
+        self.assertEqual(
+            placement.lti_1p3_public_jwk,
+            json.loads(configuration.lti_1p3_internal_public_jwk),
+        )
         self.assertEqual(placement.lti_1p3_client_id, 'database-client-id')
         self.assertNotEqual(placement.lti_1p3_client_id, 'legacy-client-id')
 
@@ -696,7 +699,7 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         )
         before = ReusableLtiConfiguration.objects.count()
 
-        for accessor in ('passport_id', 'lti_1p3_client_id', 'lti_1p3_public_jwk', 'lti_1p3_deployment_id'):
+        for accessor in ('passport_id', 'lti_1p3_client_id', 'lti_1p3_public_jwk'):
             with self.assertRaises(ReusableConfigurationUnavailable):
                 getattr(placement, accessor)
 
@@ -744,12 +747,12 @@ class TestLtiConfigurationModel(TestBaseWithPatch):
         self.reusable_configuration_db.lti_1p3_deployment_id = ''
         self.reusable_configuration_db.save()
         placement = LtiConfiguration.objects.get(pk=placement.pk)
-        self.assertEqual(placement.lti_1p3_deployment_id, "1")
+        self.assertEqual(placement.get_runtime_identity().deployment_id, "1")
 
         self.reusable_configuration_db.lti_1p3_deployment_id = 'deployment-7'
         self.reusable_configuration_db.save()
         placement = LtiConfiguration.objects.get(pk=placement.pk)
-        self.assertEqual(placement.lti_1p3_deployment_id, 'deployment-7')
+        self.assertEqual(placement.get_runtime_identity().deployment_id, 'deployment-7')
 
     def test_effective_version_reads_the_reusable_configuration(self):
         """

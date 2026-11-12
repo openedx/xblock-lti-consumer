@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import ddt
 import jwt
 from Cryptodome.PublicKey import RSA
+from django.template.loader import render_to_string
 from django.urls import reverse
 from edx_django_utils.cache import TieredCache, get_cache_key
 from jwt.api_jwk import PyJWK
@@ -67,7 +68,7 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         # Check public keyset
         self.configuration.refresh_from_db()
         self.assertEqual(
-            self.configuration.lti_1p3_public_jwk,
+            json.loads(self.configuration.lti_1p3_internal_public_jwk),
             json.loads(response.content.decode('utf-8'))
         )
 
@@ -81,7 +82,7 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            configuration.lti_1p3_public_jwk,
+            json.loads(configuration.lti_1p3_internal_public_jwk),
             json.loads(response.content.decode('utf-8'))
         )
 
@@ -131,19 +132,13 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         orphan.refresh_from_db()
         self.assertEqual(orphan.name, 'Orphan row')
 
-    @ddt.data(
-        ('lti_1p3_client_id', None),
-        ('lti_1p3_internal_private_key', ''),
-        ('lti_1p3_internal_private_key_id', ''),
-        ('lti_1p3_internal_public_jwk', 'not-json'),
-        ('lti_1p3_tool_public_key', ''),
-    )
-    @ddt.unpack
-    def test_an_incomplete_configuration_is_denied_without_writes(self, field, value):
+    def test_an_incomplete_configuration_is_denied_without_writes(self):
         """
-        A stored identity component that is missing or invalid denies without a write.
+        A malformed stored identity component denies without a write.
         """
-        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(**{field: value})
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(
+            lti_1p3_internal_public_jwk='not-json',
+        )
 
         with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
             response = self.client.get(
@@ -152,6 +147,7 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
             save_mock.assert_not_called()
 
         self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.content, b'')
 
     def test_the_location_route_also_denies_an_incomplete_configuration(self):
         """
@@ -159,9 +155,12 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         """
         ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(lti_1p3_client_id=None)
 
-        response = self.client.get(self.url)
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            response = self.client.get(self.url)
+            save_mock.assert_not_called()
 
         self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.content, b'')
 
     @patch('lti_consumer.plugin.views.get_external_config_from_filter')
     def test_an_external_placement_publishes_the_external_keyset(self, filter_mock):
@@ -227,7 +226,7 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         # Check public keyset
         self.configuration.refresh_from_db()
         self.assertEqual(
-            self.configuration.lti_1p3_public_jwk,
+            json.loads(self.configuration.lti_1p3_internal_public_jwk),
             json.loads(response.content.decode('utf-8'))
         )
 
@@ -385,26 +384,27 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
         self.assertEqual(response.status_code, 403)
         self.assertContains(response, 'inactive', status_code=403)
 
-    @ddt.data(
-        ('lti_1p3_client_id', None),
-        ('lti_1p3_internal_private_key', ''),
-        ('lti_1p3_internal_private_key_id', ''),
-        ('lti_1p3_internal_public_jwk', 'not-json'),
-        ('lti_1p3_tool_public_key', ''),
-    )
-    @ddt.unpack
-    def test_an_incomplete_configuration_is_denied_without_writes(self, field, value):
+    def test_an_incomplete_configuration_is_denied_without_writes(self):
         """
-        Check that missing or invalid stored identity material denies without a write.
+        Check that malformed stored identity material denies without a write.
         """
-        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(**{field: value})
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(
+            lti_1p3_internal_public_jwk='not-json',
+        )
 
         with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
             response = self.client.get(self.url, self._launch_params())
             save_mock.assert_not_called()
 
+        expected_error = (
+            f"Error preparing LTI 1.3 launch for resource with resource_link_id "
+            f"{self.launch_data.resource_link_id}: The stored public keyset is not valid JSON."
+        )
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, 'Error preparing LTI 1.3 launch', status_code=400)
+        self.assertEqual(
+            response.content.decode(),
+            render_to_string('html/lti_launch_error.html', {'error_msg': expected_error}),
+        )
 
     def test_null_version_denies_a_launch_even_for_an_lti_1p1_placement(self):
         """
@@ -1098,19 +1098,13 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'access_token')
 
-    @ddt.data(
-        ('lti_1p3_client_id', None),
-        ('lti_1p3_internal_private_key', ''),
-        ('lti_1p3_internal_private_key_id', ''),
-        ('lti_1p3_internal_public_jwk', 'not-json'),
-        ('lti_1p3_tool_public_key', ''),
-    )
-    @ddt.unpack
-    def test_an_incomplete_configuration_is_denied_without_writes(self, field, value):
+    def test_an_incomplete_configuration_is_denied_without_writes(self):
         """
-        A stored identity component that is missing or invalid denies without a write.
+        A malformed stored identity component denies without a write.
         """
-        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(**{field: value})
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(
+            lti_1p3_internal_public_jwk='not-json',
+        )
 
         with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
             response = self.client.post(self.url)

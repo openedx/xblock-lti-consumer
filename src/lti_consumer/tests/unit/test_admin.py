@@ -44,12 +44,10 @@ class ReusableAdminJourneyTests(TestCase):
         values.update(kwargs)
         return ReusableLtiConfiguration.objects.create(**values)
 
-    def make_placement(self, configuration, location, passport_name):
+    def make_placement(self, configuration, location):
         return LtiConfiguration.objects.create(
             location=location,
             reusable_configuration=configuration,
-            # A bound passport keeps the post_save signal off the modulestore.
-            lti_1p3_passport=Lti1p3Passport.objects.create(name=passport_name),
         )
 
     def change_url(self, configuration):
@@ -66,7 +64,7 @@ class ReusableAdminJourneyTests(TestCase):
     def test_access_is_global_staff_only_and_model_permissions_do_not_bypass(self):
         configuration = self.make_configuration(name='Visible configuration')
         placement = self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@bound', 'Bound passport',
+            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@bound',
         )
         global_staff = self.make_user('global-staff', is_staff=True)
         self.assertFalse(global_staff.has_perm('lti_consumer.view_reusablelticonfiguration'))
@@ -121,7 +119,7 @@ class ReusableAdminJourneyTests(TestCase):
             lti_1p3_internal_public_jwk='{"keys": ["stored-public-jwk"]}',
         )
         placement = self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@read', 'Read passport',
+            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@read',
         )
         self.client.force_login(self.make_user('global-staff', is_staff=True))
 
@@ -253,7 +251,7 @@ class ReusableAdminJourneyTests(TestCase):
             lti_1p1_client_secret='immutable-client-secret',
         )
         self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@immutable', 'Immutable passport',
+            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@immutable',
         )
         staff = self.make_user('global-staff', is_staff=True)
         superuser = self.make_superuser()
