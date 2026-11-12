@@ -760,6 +760,53 @@ class ReusableUpdateTests(ReusableUpdateTestCase):
             update_reusable_configuration(self.actor, self.lti13.passport_id, 'not-a-mapping')
         self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', None))
 
+    def test_unknown_members_keep_their_field_message_and_precedence(self):
+        """The section validators alone refuse unknown members, first among their own checks."""
+        before = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        cases = (
+            ({'services': {'platform_key': 'secret'}}, 'services.platform_key'),
+            ({'defaults': {'not_a_setting': True}}, 'defaults.not_a_setting'),
+            ({'privacy': {'hide_external_tool': True}}, 'privacy.hide_external_tool'),
+            # An unknown member is still reported before a malformed value in the same section.
+            ({'services': {'ags_mode': 'sometimes', 'platform_key': 'secret'}}, 'services.platform_key'),
+            ({'defaults': {'modal_width': 101, 'not_a_setting': True}}, 'defaults.not_a_setting'),
+            ({'privacy': {'share_email': 'yes', 'hide_external_tool': True}}, 'privacy.hide_external_tool'),
+            # Sections keep their order, so services still reports before defaults.
+            ({'services': {'platform_key': 'secret'}, 'defaults': {'modal_width': 101}}, 'services.platform_key'),
+        )
+        for changes, field in cases:
+            with self.subTest(field=field):
+                with self.assertRaises(ReusableConfigurationError) as raised:
+                    self.update(self.lti13, changes)
+                self.assertEqual(
+                    (raised.exception.category, raised.exception.field, raised.exception.messages),
+                    ('invalid', field, ['Unknown field.']),
+                )
+        # A malformed value in an earlier section still reports before a later unknown member.
+        with self.assertRaises(ReusableConfigurationError) as raised:
+            self.update(self.lti13, {
+                'services': {'ags_mode': 'sometimes'},
+                'defaults': {'not_a_setting': True},
+            })
+        self.assertEqual(
+            (raised.exception.category, raised.exception.field, raised.exception.messages),
+            ('invalid', 'services.ags_mode', ['A supported AGS mode is required.']),
+        )
+        # A non-mapping section keeps the section as its field and its own message.
+        for section in ('services', 'defaults', 'privacy'):
+            with self.subTest(section=section):
+                with self.assertRaises(ReusableConfigurationError) as raised:
+                    self.update(self.lti13, {section: []})
+                self.assertEqual(
+                    (raised.exception.category, raised.exception.field, raised.exception.messages),
+                    ('invalid', section, ['Invalid reusable configuration settings.']),
+                )
+        after = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(
+            (after.lti_advantage_ags_mode, after.modal_width, after.pii_share_email),
+            (before.lti_advantage_ags_mode, before.modal_width, before.pii_share_email),
+        )
+
     def test_update_rejects_invalid_values_without_partial_writes(self):
         cases = (
             ({'name': '   '}, 'name'),
