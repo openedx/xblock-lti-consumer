@@ -575,6 +575,13 @@ class DetailAndPatchJourneyTests(ReusableApiTestCase):
 
     def test_lti_1p1_detail_gates_lti_1p3_metadata(self):
         configuration = self.create_configuration(name='One one')
+        ReusableLtiConfiguration.objects.filter(pk=configuration.pk).update(
+            lti_1p3_oidc_url=LTI13_OIDC_URL,
+            lti_1p3_client_id='stray-client',
+            lti_1p3_deployment_id='stray-deployment',
+            lti_1p3_redirect_uris=['https://tool.example/cb'],
+            lti_1p3_tool_keyset_url=TOOL_KEYSET_URL,
+        )
         self.login(self.staff)
 
         response = self.client.get(self.detail_path(configuration))

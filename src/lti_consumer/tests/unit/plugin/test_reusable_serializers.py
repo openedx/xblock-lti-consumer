@@ -380,26 +380,6 @@ class RenderingTests(TestCase):
         self.assertFalse(ReusableDetailSerializer(without_key).data['tool_key_configured'])
         self.assertTrue(ReusableDetailSerializer(with_keyset).data['tool_key_configured'])
 
-    def test_known_lti11_gates_version_specific_metadata(self):
-        configuration = ReusableLtiConfiguration.objects.create(
-            name='Gated 1.1',
-            version='lti_1p1',
-            lti_1p1_launch_url='https://tool.example/launch',
-            lti_1p3_oidc_url='https://tool.example/oidc',
-            lti_1p3_client_id='stray-client',
-            lti_1p3_deployment_id='stray-deployment',
-            lti_1p3_redirect_uris=['https://tool.example/cb'],
-            lti_1p3_tool_keyset_url='https://tool.example/jwks',
-        )
-        data = ReusableDetailSerializer(configuration).data
-        self.assertEqual(data['launch_url'], 'https://tool.example/launch')
-        self.assertIsNone(data['oidc_url'])
-        self.assertIsNone(data['client_id'])
-        self.assertIsNone(data['deployment_id'])
-        self.assertEqual(data['redirect_uris'], [])
-        self.assertFalse(data['tool_key_configured'])
-        self.assertEqual(data['registration_urls'], {})
-
     def test_known_lti13_renders_stored_metadata_and_uuid_registration_urls(self):
         configuration = ReusableLtiConfiguration.objects.create(
             name='Known 1.3',
