@@ -12,6 +12,7 @@ from django.utils import timezone
 from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
+from lti_consumer.plugin.views import _ags_field_value, _ags_payload_keys, _summarize_ags_error
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore, LtiConfiguration
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
@@ -80,6 +81,125 @@ class LtiAgsLineItemViewSetTestCase(APITransactionTestCase, TestBaseWithPatch):
         )
 
 
+class LtiAgsLogHelpersTest(TestBaseWithPatch):
+    """
+    Test the log-sanitizing helpers used by `LtiAgsLineItemViewset` request/response logging.
+    """
+
+    def test_ags_field_value_distinguishes_absent_from_null(self):
+        """
+        An absent key and an explicit `null` must not look the same in the log: an AGS
+        "erase score" request nulls `scoreGiven` rather than omitting it, and that difference
+        is what a reader of the log needs to see.
+        """
+        self.assertEqual(_ags_field_value({}, 'scoreGiven'), 'missing')
+        self.assertEqual(_ags_field_value({'scoreGiven': None}, 'scoreGiven'), 'None')
+
+    def test_ags_field_value_logs_zero(self):
+        """
+        A `scoreGiven` of 0 must be logged as 0, not swallowed by a falsy check.
+        """
+        self.assertEqual(_ags_field_value({'scoreGiven': 0}, 'scoreGiven'), '0')
+
+    def test_ags_field_value_redacts_pii_fields_to_a_length(self):
+        """
+        `userId` and `comment` can carry a persistent user identifier and arbitrary tool-supplied
+        free text, so only their length is logged.
+        """
+        self.assertEqual(_ags_field_value({'userId': 'abc123'}, 'userId'), '<6 chars>')
+        self.assertEqual(_ags_field_value({'comment': 'nice work'}, 'comment'), '<9 chars>')
+
+    def test_ags_field_value_redacted_fields_distinguish_absent_from_null(self):
+        """
+        A redacted field follows the same convention as any other: 'missing' when the key is
+        absent and 'None' when it is explicitly null. 'n/a' is reserved for a payload that does
+        not support key lookup at all, so it must not stand in for a null here too.
+        """
+        self.assertEqual(_ags_field_value({}, 'comment'), 'missing')
+        self.assertEqual(_ags_field_value({'comment': None}, 'comment'), 'None')
+        self.assertEqual(_ags_field_value({}, 'userId'), 'missing')
+        self.assertEqual(_ags_field_value({'userId': None}, 'userId'), 'None')
+
+    def test_ags_field_value_escapes_newlines(self):
+        """
+        A tool-supplied value must not be able to forge extra log lines.
+        """
+        self.assertEqual(
+            _ags_field_value({'resourceId': 'real\nFAKE LOG LINE'}, 'resourceId'),
+            'real\\nFAKE LOG LINE',
+        )
+
+    def test_ags_field_value_truncates(self):
+        """
+        An oversized tool-supplied value must not blow up the log line.
+        """
+        self.assertEqual(len(_ags_field_value({'resourceId': 'x' * 500}, 'resourceId')), 200)
+
+    def test_ags_field_value_escapes_before_truncating(self):
+        """
+        Escaping has to happen before truncation, not after.
+
+        Each newline becomes two characters, so escaping a value already cut to the limit
+        hands back a string twice the limit -- the cap the truncation exists to enforce.
+        """
+        value = _ags_field_value({'resourceId': '\n' * 500}, 'resourceId')
+
+        self.assertEqual(len(value), 200)
+        self.assertEqual(value, '\\n' * 100)
+
+    def test_ags_payload_keys_escapes_newlines(self):
+        """
+        Keys come from the tool just as values do, so a newline in one must not forge a log line.
+        """
+        self.assertEqual(
+            _ags_payload_keys({'real\nFAKE LOG LINE': 1}),
+            ['real\\nFAKE LOG LINE'],
+        )
+
+    def test_ags_payload_keys_caps_the_count(self):
+        """
+        A payload with very many keys must not blow up the log line by sheer count.
+        """
+        keys = _ags_payload_keys({f'key{i}': i for i in range(50)}, max_keys=20)
+
+        self.assertEqual(len(keys), 21)
+        self.assertEqual(keys[-1], '<+30 more>')
+
+    def test_ags_payload_keys_truncates_a_long_key(self):
+        """
+        A single oversized key must not blow up the log line either.
+        """
+        self.assertEqual(_ags_payload_keys({'k' * 500: 1}, max_len=50), ['k' * 50])
+
+    def test_ags_payload_keys_handles_non_mapping_payload(self):
+        """
+        As with `_ags_field_value`, a payload with no keys is not worth raising from a log call.
+        """
+        self.assertEqual(_ags_payload_keys(['not', 'a', 'mapping']), [])
+
+    def test_ags_field_value_handles_non_mapping_payload(self):
+        """
+        `initial()` passes whatever the request carries; a payload with no key lookup is not an
+        error worth raising from a log statement.
+        """
+        self.assertEqual(_ags_field_value(['not', 'a', 'mapping'], 'scoreGiven'), 'n/a')
+
+    def test_summarize_ags_error_takes_first_message_per_key(self):
+        """
+        DRF error bodies map a field to a list of messages; the log needs the field names and a
+        representative message, not the whole structure.
+        """
+        summary = _summarize_ags_error({'scoreMaximum': ['is required', 'and must be positive']})
+        self.assertEqual(summary, {'scoreMaximum': 'is required'})
+
+    def test_summarize_ags_error_truncates_and_handles_non_dict(self):
+        """
+        Same oversized-payload protection as `_ags_field_value`, for error bodies of any shape.
+        """
+        self.assertEqual(len(_summarize_ags_error({'detail': ['x' * 500]})['detail']), 200)
+        self.assertEqual(_summarize_ags_error('plain string error'), 'plain string error')
+
+
 @ddt.ddt
 class LtiAgsViewSetTokenTests(LtiAgsLineItemViewSetTestCase):
     """
@@ -121,6 +241,86 @@ class LtiAgsViewSetTokenTests(LtiAgsLineItemViewSetTestCase):
         self._set_lti_token()
         response = self.client.get(self.lineitem_endpoint)
         self.assertEqual(response.status_code, 403)
+
+    @patch('lti_consumer.lti_1p3.consumer.log')
+    @patch('lti_consumer.plugin.views.log')
+    def test_denied_request_is_logged_with_a_reason(self, views_log, consumer_log):
+        """
+        A 403 must be explainable from the logs alone: the request is logged before
+        authentication runs, and the denial reason is logged by the scope check.
+
+        This is the case the logging exists for -- previously a tool integration failing here
+        produced only an access log line with a status code and no indication of why.
+        """
+        self._set_lti_token()
+
+        response = self.client.get(self.lineitem_endpoint)
+
+        self.assertEqual(response.status_code, 403)
+
+        views_output = ' '.join(str(call) for call in views_log.info.call_args_list)
+        self.assertIn('LTI AGS request received', views_output)
+
+        # The outcome is an error, so it is logged at WARNING rather than INFO.
+        warning_output = ' '.join(str(call) for call in views_log.warning.call_args_list)
+        self.assertIn('LTI AGS response returned', warning_output)
+        self.assertIn('403', warning_output)
+
+        # The scope check says why, naming what was required versus what the token granted.
+        # Log arguments are left unformatted by design, so assert on them rather than the message.
+        scope_warning = consumer_log.warning.call_args
+        self.assertIn('LTI 1.3 token scope check', scope_warning.args[0])
+        self.assertFalse(scope_warning.args[-1])
+        required_scopes = scope_warning.args[-2]
+        self.assertIn('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem', required_scopes)
+
+    @patch('lti_consumer.plugin.views.log')
+    def test_unparseable_body_is_rejected_by_authentication_first(self, views_log):
+        """
+        Reading `request.data` is what makes DRF parse the body, so it must not happen before
+        `super().initial()` has authenticated the request.
+
+        Logging the payload first turned an unparseable body into a 400 (and a wrong
+        Content-Type into a 415) before authentication could reject it -- and the parse error
+        was raised from inside the logging call's own arguments, so the one request most worth
+        a log line produced none at all.
+        """
+        response = self.client.post(
+            self.lineitem_endpoint,
+            data='{not valid json',
+            content_type='application/vnd.ims.lis.v2.lineitem+json',
+        )
+
+        # Rejected by authentication/permissions, not by the body parser: a 400 or a 415 here
+        # would mean the body had been parsed before the credentials were checked.
+        self.assertEqual(response.status_code, 403)
+
+        views_output = ' '.join(str(call) for call in views_log.info.call_args_list)
+        self.assertIn('LTI AGS request received', views_output)
+        # The body is never parsed for a request that fails authentication, so the payload
+        # line is not reached -- but the request itself is still on the record.
+        self.assertNotIn('LTI AGS request payload', views_output)
+
+    @patch('lti_consumer.plugin.views.log')
+    def test_accepted_request_is_logged_with_its_outcome(self, views_log):
+        """
+        An accepted request logs the same request/response pair, with no error summary.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly')
+
+        response = self.client.get(self.lineitem_endpoint)
+
+        self.assertEqual(response.status_code, 200)
+        views_output = ' '.join(str(call) for call in views_log.info.call_args_list)
+        self.assertIn('LTI AGS request received', views_output)
+        self.assertIn('LTI AGS response returned', views_output)
+        # `error` is the last positional argument of the response log line.
+        response_log = next(
+            call for call in views_log.info.call_args_list
+            if 'LTI AGS response returned' in str(call.args[0])
+        )
+        self.assertEqual(response_log.args[-2], 200)
+        self.assertIsNone(response_log.args[-1])
 
 
 @ddt.ddt
