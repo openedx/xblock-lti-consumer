@@ -16,6 +16,18 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.5 - 2026-11-11
+--------------------
+* Send the instance-admin LTI 1.3 role set only to platform-wide staff. The launch
+  role mapping read ``edx-platform.user_is_staff``, which the LMS courseware runtime
+  populates from ``has_access(user, 'staff', course_id)`` -- course-scoped staff
+  access, not ``User.is_staff``. Every course team member therefore matched the global
+  staff branch and had their own course-role mapping short-circuited, so course staff,
+  limited staff and course admins all launched with the system and institution
+  administrator roles instead of their context role. The mapping now reads
+  ``edx-platform.user_is_global_staff``, exposed by the same runtime for exactly this
+  purpose.
+
 11.4.4 - 2026-10-26
 --------------------
 * Omit the LTI 1.3 ``resource_link`` claim from Deep Linking request

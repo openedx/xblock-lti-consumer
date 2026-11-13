@@ -456,16 +456,19 @@ class TestProperties(TestLtiConsumerXBlock):
             _ = self.xblock.role
 
     @ddt.data(
-        ('student', False, None, 'student'),
-        ('guest', False, 'Community TA', 'Community TA'),
-        ('student', False, 'Group Moderator', 'Group Moderator'),
-        ('student', True, 'Group Moderator', 'global_staff'),
-        ('staff', False, 'Community TA', 'staff'),
-        ('limited_staff', False, 'Group Moderator', 'limited_staff'),
-        ('instructor', False, 'Community TA', 'instructor'),
+        # base_role, course-scoped staff, global staff, forum role, expected
+        ('student', False, False, None, 'student'),
+        ('guest', False, False, 'Community TA', 'Community TA'),
+        ('student', False, False, 'Group Moderator', 'Group Moderator'),
+        ('student', False, True, 'Group Moderator', 'global_staff'),
+        ('staff', True, False, 'Community TA', 'staff'),
+        ('limited_staff', True, False, 'Group Moderator', 'limited_staff'),
+        ('instructor', True, False, 'Community TA', 'instructor'),
+        # Global staff outranks a course role.
+        ('instructor', True, True, None, 'global_staff'),
     )
     @ddt.unpack
-    def test_get_lti_1p3_user_role(self, base_role, user_is_staff, forum_role, expected_role):
+    def test_get_lti_1p3_user_role(self, base_role, user_is_staff, user_is_global_staff, forum_role, expected_role):
         """
         Test effective LTI 1.3 role includes global staff and supported forum roles.
         """
@@ -474,6 +477,7 @@ class TestProperties(TestLtiConsumerXBlock):
             'edx-platform.user_id': FAKE_USER_ID,
             'edx-platform.user_role': base_role,
             'edx-platform.user_is_staff': user_is_staff,
+            'edx-platform.user_is_global_staff': user_is_global_staff,
             'edx-platform.is_authenticated': True,
         }
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
@@ -482,7 +486,7 @@ class TestProperties(TestLtiConsumerXBlock):
         # pylint: disable=protected-access
         self.assertEqual(self.xblock._get_lti_1p3_user_role(), expected_role)
 
-        if base_role in {'staff', 'instructor', 'limited_staff'} or user_is_staff:
+        if base_role in {'staff', 'instructor', 'limited_staff'} or user_is_global_staff:
             self.compat.get_user_course_forum_role.assert_not_called()
         else:
             self.compat.get_user_course_forum_role.assert_called_once_with(
@@ -491,6 +495,30 @@ class TestProperties(TestLtiConsumerXBlock):
             )
 
         self.compat.get_user_course_forum_role.reset_mock()
+
+    @ddt.data('staff', 'instructor', 'limited_staff')
+    def test_get_lti_1p3_user_role_course_staff_is_not_global_staff(self, base_role):
+        """
+        Test a course team member keeps their course role rather than the global staff one.
+
+        The LMS courseware runtime sets `edx-platform.user_is_staff` from course-level
+        staff access, so it is true for the whole course team. Reading it as if it were
+        platform-wide staff status returned `global_staff` for all of them, sending the
+        instance-admin role set in the launch instead of their context role.
+        """
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_id': FAKE_USER_ID,
+            'edx-platform.user_role': base_role,
+            # Course-scoped staff access: true for any course team member.
+            'edx-platform.user_is_staff': True,
+            'edx-platform.user_is_global_staff': False,
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+
+        # pylint: disable=protected-access
+        self.assertEqual(self.xblock._get_lti_1p3_user_role(), base_role)
 
     def test_user_is_staff(self):
         """
@@ -520,6 +548,42 @@ class TestProperties(TestLtiConsumerXBlock):
         fake_user.opt_attrs = {}
         self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
         self.assertFalse(self.xblock.user_is_staff)
+
+    def test_user_is_global_staff(self):
+        """
+        Test `user_is_global_staff` reads the platform-wide flag, not the course-scoped one.
+        """
+        fake_user = Mock()
+        fake_user.opt_attrs = {
+            'edx-platform.user_is_global_staff': True,
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertTrue(self.xblock.user_is_global_staff)
+
+        # Course-scoped staff access alone must not read as global staff.
+        fake_user.opt_attrs = {
+            'edx-platform.user_is_staff': True,
+            'edx-platform.user_is_global_staff': False,
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertFalse(self.xblock.user_is_global_staff)
+
+        # Absent from the runtime, as in runtimes that do not supply the flag.
+        fake_user.opt_attrs = {
+            'edx-platform.is_authenticated': True,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertFalse(self.xblock.user_is_global_staff)
+
+        # Unauthenticated.
+        fake_user.opt_attrs = {
+            'edx-platform.user_is_global_staff': True,
+            'edx-platform.is_authenticated': False,
+        }
+        self.xblock.runtime.service(self, 'user').get_current_user = Mock(return_value=fake_user)
+        self.assertFalse(self.xblock.user_is_global_staff)
 
     def test_course(self):
         """
