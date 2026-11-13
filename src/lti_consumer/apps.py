@@ -12,7 +12,7 @@ class LTIConsumerApp(AppConfig):
 
     name = 'lti_consumer'
 
-    # Set LMS urls for LTI endpoints
+    # LMS urls for LTI endpoints, CMS urls for reusable configuration management.
     # Urls are under /api/lti_consumer/
     plugin_app = {
         'url_config': {
@@ -20,7 +20,12 @@ class LTIConsumerApp(AppConfig):
                 'namespace': 'lti_consumer',
                 'regex': '^api/',
                 'relative_path': 'plugin.urls',
-            }
+            },
+            'cms.djangoapp': {
+                'namespace': 'lti_consumer',
+                'regex': '^api/',
+                'relative_path': 'plugin.reusable_urls',
+            },
         }
     }
 

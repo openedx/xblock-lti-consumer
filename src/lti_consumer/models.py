@@ -87,7 +87,7 @@ class Lti1p3Passport(models.Model):
 
     lti_1p3_tool_keyset_url = models.CharField(
         "LTI 1.3 Tool Keyset URL",
-        max_length=255,
+        max_length=500,
         blank=True,
         help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
                   'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
@@ -163,6 +163,243 @@ class Lti1p3Passport(models.Model):
 
     class Meta:
         app_label = 'lti_consumer'
+
+
+class ReusableLtiConfiguration(models.Model):
+    """
+    A reusable LTI configuration, catalog entry and LTI 1.3 passport.
+
+    This is a new table beside the retained ``Lti1p3Passport``: one row is one
+    registration, ``passport_id`` is the only stored identity, and every
+    ``LtiConfiguration.reusable_configuration`` reference binds a placement to it.
+    Placement data (launch context, Deep Linking content, line items, grades)
+    stays on ``LtiConfiguration``.
+
+    Credentials and signing material are stored exactly as they were on a
+    passport: ordinary row reads and saves do not generate RSA material. Callers
+    provision keys explicitly with ``generate_lti_1p3_keys_if_missing``; migrations
+    must read the concrete stored fields.
+    """
+
+    LTI_1P1 = 'lti_1p1'
+    LTI_1P3 = 'lti_1p3'
+    LTI_VERSION_CHOICES = [
+        (LTI_1P1, _('LTI 1.1')),
+        (LTI_1P3, _('LTI 1.3')),
+    ]
+
+    # Passport identity, credentials and signing material.
+    name = models.CharField(max_length=255, null=True, blank=True)
+    context_key = models.CharField(_("Context key"), max_length=255, null=True, blank=True)
+    passport_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+
+    lti_1p3_internal_private_key = models.TextField(
+        blank=True,
+        help_text=_("Platform's generated Private key. Keep this value secret."),
+    )
+
+    lti_1p3_internal_private_key_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text=_("Platform's generated Private key ID"),
+    )
+
+    lti_1p3_internal_public_jwk = models.TextField(
+        blank=True,
+        help_text=_("Platform's generated JWK keyset."),
+    )
+
+    # shortcut: Client ID equality follows DB collation and carries no uniqueness guarantee;
+    # add portable matching only if cross-backend consistency is required.
+    lti_1p3_client_id = models.CharField(
+        max_length=255,
+        default=generate_client_id,
+        null=True,
+        blank=True,
+        help_text=_("Client ID used by LTI tool"),
+    )
+
+    lti_1p3_tool_public_key = models.TextField(
+        "LTI 1.3 Tool Public Key",
+        blank=True,
+        help_text='This is the LTI Tool\'s public key. This should be provided by the LTI Tool. '
+                  'One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
+    )
+
+    lti_1p3_tool_keyset_url = models.CharField(
+        "LTI 1.3 Tool Keyset URL",
+        max_length=500,
+        blank=True,
+        help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
+                  'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
+    )
+
+    # Catalog metadata; all optional so that a converted passport keeps its history.
+    description = models.TextField(_("Description"), blank=True)
+    version = models.CharField(_("LTI Version"), max_length=10, choices=LTI_VERSION_CHOICES, null=True, blank=True)
+    context_type = models.CharField(
+        _("Context type"),
+        max_length=20,
+        choices=[
+            ('course', _('Course')),
+            ('organization', _('Organization')),
+            ('site', _('Site')),
+        ],
+        null=True,
+        blank=True,
+    )
+
+    is_active = models.BooleanField(
+        _("Active"),
+        default=True,
+        help_text=_("Inactive configurations cannot be linked to new placements or used by existing ones."),
+    )
+
+    # LTI 1.1 connection and credentials.
+    lti_1p1_launch_url = models.CharField(_("LTI 1.1 Launch URL"), max_length=255, null=True, blank=True)
+    lti_1p1_client_key = models.CharField(max_length=255, null=True, blank=True)
+    lti_1p1_client_secret = models.CharField(max_length=255, null=True, blank=True)
+
+    # LTI 1.3 tool connection and immutable registration identity.
+    lti_1p3_launch_url = models.CharField(_("LTI 1.3 Launch URL"), max_length=255, null=True, blank=True)
+    lti_1p3_oidc_url = models.CharField(
+        _("LTI 1.3 OpenID Connect (OIDC) Login URL"), max_length=255, null=True, blank=True,
+    )
+    lti_1p3_redirect_uris = models.JSONField(_("LTI 1.3 Redirect URIs"), default=list, blank=True)
+    lti_1p3_deployment_id = models.CharField(_("LTI 1.3 Deployment ID"), max_length=255, null=True, blank=True)
+    lti_1p3_tool_key_mode = models.CharField(
+        _("LTI 1.3 Tool Key Mode"),
+        max_length=20,
+        choices=[('public_key', _('Public Key')), ('keyset_url', _('Keyset URL'))],
+        null=True,
+        blank=True,
+    )
+
+    # Shared LTI Advantage service settings.
+    lti_advantage_deep_linking_enabled = models.BooleanField(_("Enable LTI Advantage Deep Linking"), default=False)
+    lti_advantage_deep_linking_launch_url = models.CharField(
+        _("LTI Advantage Deep Linking launch URL"), max_length=225, blank=True, default='',
+    )
+    lti_advantage_ags_mode = models.CharField(
+        _("LTI Advantage Assignment and Grade Services Mode"),
+        max_length=20,
+        choices=[
+            ('disabled', _('Disabled')),
+            ('declarative', _('Allow tools to submit grades only (declarative)')),
+            ('programmatic', _('Allow tools to manage and submit grade (programmatic)')),
+        ],
+        default='declarative',
+    )
+    lti_advantage_enable_nrps = models.BooleanField(
+        _("Enable LTI Advantage Names and Role Provisioning Services"), default=False,
+    )
+
+    # Shared placement defaults; placements and placement-specific data are not stored here.
+    display_name = models.CharField(_("Display Name"), max_length=255, default='LTI Consumer')
+    enable_grading = models.BooleanField(_("Enable grading"), default=False)
+    grade_weight = models.FloatField(_("Grade Weight"), default=1.0, validators=[MinValueValidator(0)])
+    accept_grades_after_due_date = models.BooleanField(_("Accept grades after due date"), default=True)
+    open_tool_in = models.CharField(
+        _("Open tool in"),
+        max_length=20,
+        choices=[('iframe', _('Inline')), ('modal', _('Modal')), ('new_window', _('New Window'))],
+        default='iframe',
+    )
+    inline_height = models.IntegerField(_("Inline Height (px)"), default=800)
+    modal_height = models.IntegerField(_("Modal Height (%)"), default=80)
+    modal_width = models.IntegerField(_("Modal Width (%)"), default=80)
+    launch_button_text = models.CharField(_("Launch Button Text"), max_length=255, blank=True, default='')
+    send_extra_parameters = models.BooleanField(_("Send extra parameters"), default=False)
+    custom_parameters = models.JSONField(_("Custom Parameters"), default=list, blank=True)
+
+    # Privacy selections and external-tool visibility; staff choices, never learner data.
+    pii_share_username = models.BooleanField(default=False)
+    pii_share_full_name = models.BooleanField(default=False)
+    pii_share_email = models.BooleanField(default=False)
+    data_sharing_notice = models.TextField(blank=True, default='')
+    require_user_confirmation = models.BooleanField(default=True)
+    hide_external_tool = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated at"), auto_now=True)
+
+    def generate_lti_1p3_keys_if_missing(self):
+        """
+        Generate LTI 1.3 RSA256 keys if missing.
+
+        If either the public or private key are missing, regenerate them.
+        The LMS provides a keyset endpoint, so key rotations don't cause any issues
+        for LTI launches (as long as they have a different kid).
+        """
+        # Generate new private key if not present
+        if not self.lti_1p3_internal_private_key:
+            # Private key
+            private_key = RSA.generate(2048)
+            self.lti_1p3_internal_private_key_id = str(uuid.uuid4())
+            self.lti_1p3_internal_private_key = private_key.export_key('PEM').decode('utf-8')
+
+            # Clear public key if any to allow regeneration
+            # in the code below
+            self.lti_1p3_internal_public_jwk = ''
+
+        if not self.lti_1p3_internal_public_jwk:
+            # Public key
+            key_handler = PlatformKeyHandler(
+                key_pem=self.lti_1p3_internal_private_key,
+                kid=self.lti_1p3_internal_private_key_id,
+            )
+            self.lti_1p3_internal_public_jwk = json.dumps(
+                key_handler.get_public_jwk()
+            )
+
+        # Doesn't do anything if model didn't change
+        self.save()
+
+    def __str__(self):
+        return f'ReusableLtiConfiguration: {self.name} - {self.passport_id}'
+
+    def clean(self):
+        """Check tool-key mode/value consistency, when either is present.
+
+        Legacy, incomplete and LTI 1.1 rows may legitimately carry no key material and no
+        mode, so all-absent values are valid here.
+        """
+        if self.lti_1p3_tool_key_mode == 'public_key' and not self.lti_1p3_tool_public_key:
+            raise ValidationError({
+                "lti_1p3_tool_public_key": _("A public key is required in public-key mode."),
+            })
+        if self.lti_1p3_tool_key_mode == 'keyset_url' and not self.lti_1p3_tool_keyset_url:
+            raise ValidationError({
+                "lti_1p3_tool_keyset_url": _("A keyset URL is required in keyset-URL mode."),
+            })
+
+    class Meta:
+        app_label = 'lti_consumer'
+        verbose_name = _("Reusable LTI configuration")
+        verbose_name_plural = _("Reusable LTI configurations")
+        constraints = [
+            # Converted rows may carry no context until one is assigned (Global Staff only).
+            models.CheckConstraint(
+                condition=(
+                    models.Q(context_type__isnull=True) |
+                    models.Q(context_type__in=('course', 'organization', 'site'))
+                ),
+                name='reusable_context_type_valid',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(context_type__isnull=True) |
+                    models.Q(context_type='site', context_key='') |
+                    (
+                        models.Q(context_type__in=('course', 'organization')) &
+                        models.Q(context_key__isnull=False) &
+                        ~models.Q(context_key='')
+                    )
+                ),
+                name='reusable_context_key_shape',
+            ),
+        ]
+        indexes = [models.Index(fields=('context_type', 'context_key'), name='reusable_context_lookup')]
 
 
 class LtiConfiguration(models.Model):
@@ -261,6 +498,12 @@ class LtiConfiguration(models.Model):
     lti_1p3_passport = models.ForeignKey(
         Lti1p3Passport,
         on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    reusable_configuration = models.ForeignKey(
+        ReusableLtiConfiguration,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
     )
