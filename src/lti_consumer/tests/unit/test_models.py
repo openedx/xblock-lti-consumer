@@ -1,6 +1,8 @@
 """
 Unit tests for LTI models.
 """
+import json
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import call, patch
@@ -8,17 +10,22 @@ from unittest.mock import call, patch
 import ddt
 from ccx_keys.locator import CCXBlockUsageLocator
 from Cryptodome.PublicKey import RSA
+from django import forms
 from django.core.exceptions import ValidationError
+from django.db import models
+from django.test import TestCase
 from edx_django_utils.cache import RequestCache
 from opaque_keys.edx.locator import CourseLocator
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import (
     CourseAllowPIISharingInLTIFlag,
+    Lti1p3Passport,
     LtiAgsLineItem,
     LtiAgsScore,
     LtiConfiguration,
     LtiDlContentItem,
+    ReusableLtiConfiguration,
 )
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
@@ -751,7 +758,7 @@ class TestLtiAgsScoreModel(TestBaseWithPatch):
         """
         self.assertEqual(
             str(self.score),
-            "LineItem 1: score 10.0 out of 100.0 - FullyGraded"
+            f"LineItem {self.line_item.id}: score 10.0 out of 100.0 - FullyGraded"
         )
 
 
@@ -867,3 +874,177 @@ class TestLTIConsumerHideFieldsFlag(TestBaseWithPatch):
             enabled_for_course=False
         ):
             self.assertFalse(CourseAllowPIISharingInLTIFlag.lti_access_to_learners_editable(self.course_id, False))
+
+
+class TestLti1p3PassportKeysetUrl(TestCase):
+    """
+    The retained passport keeps its readers and writers, but its keyset URL column widens to 500.
+
+    Validation is Django's ordinary CharField max_length on the field and through the model
+    form: no custom validator and no new placement field.
+    """
+
+    KEYSET_URL = 'http://tool.example/.well-known/jwks.json'
+
+    def keyset_url(self, length):
+        """Return a URL-shaped value of exactly the requested length."""
+        return self.KEYSET_URL + 'x' * (length - len(self.KEYSET_URL))
+
+    def test_a_500_character_keyset_url_is_accepted(self):
+        field = Lti1p3Passport._meta.get_field('lti_1p3_tool_keyset_url')
+        self.assertEqual(field.max_length, 500)
+
+        passport = Lti1p3Passport(lti_1p3_tool_keyset_url=self.keyset_url(500))
+        passport.full_clean()
+        passport.save()
+        passport.refresh_from_db()
+        self.assertEqual(len(passport.lti_1p3_tool_keyset_url), 500)
+
+    def test_the_keyset_url_is_validated_through_the_model_form(self):
+        class PassportForm(forms.ModelForm):
+            class Meta:
+                model = Lti1p3Passport
+                fields = ['name', 'lti_1p3_tool_public_key', 'lti_1p3_tool_keyset_url']
+
+        accepted = PassportForm(data={
+            'name': 'Widened',
+            'lti_1p3_tool_public_key': 'tool-key',
+            'lti_1p3_tool_keyset_url': self.keyset_url(500),
+        })
+        self.assertTrue(accepted.is_valid(), accepted.errors)
+
+        rejected = PassportForm(data={
+            'name': 'Too long',
+            'lti_1p3_tool_public_key': 'tool-key',
+            'lti_1p3_tool_keyset_url': self.keyset_url(501),
+        })
+        self.assertFalse(rejected.is_valid())
+        self.assertIn('lti_1p3_tool_keyset_url', rejected.errors)
+
+        with self.assertRaises(ValidationError):
+            Lti1p3Passport(lti_1p3_tool_keyset_url=self.keyset_url(501)).full_clean()
+
+
+class TestRetainedPassportBinding(TestCase):
+    """The old passport FK stays authoritative and unbinds a placement when its passport goes."""
+
+    def test_deleting_the_retained_passport_unbinds_the_placement(self):
+        self.assertIs(
+            LtiConfiguration._meta.get_field('lti_1p3_passport').remote_field.on_delete,
+            models.SET_NULL,
+        )
+
+        placement = LtiConfiguration.objects.create()
+        placement.refresh_from_db()
+        passport = placement.lti_1p3_passport
+        self.assertIsNotNone(passport)
+
+        passport.delete()
+        placement.refresh_from_db()
+        self.assertIsNone(placement.lti_1p3_passport_id)
+
+
+class ReusableConfigurationModelTests(TestCase):
+    """Signing-key generation, display and tool-key validation."""
+
+    def make_configuration(self, **kwargs):
+        values = {'name': 'Model test', 'version': ReusableLtiConfiguration.LTI_1P3}
+        values.update(kwargs)
+        return ReusableLtiConfiguration.objects.create(**values)
+
+    def test_generate_lti_1p3_keys_if_missing_stores_signing_material(self):
+        configuration = self.make_configuration()
+        self.assertFalse(configuration.lti_1p3_internal_private_key)
+        self.assertFalse(configuration.lti_1p3_internal_private_key_id)
+        self.assertFalse(configuration.lti_1p3_internal_public_jwk)
+
+        configuration.generate_lti_1p3_keys_if_missing()
+
+        configuration.refresh_from_db()
+        self.assertTrue(
+            configuration.lti_1p3_internal_private_key.startswith('-----BEGIN RSA PRIVATE KEY-----')
+        )
+        self.assertEqual(uuid.UUID(configuration.lti_1p3_internal_private_key_id).version, 4)
+        key_set = json.loads(configuration.lti_1p3_internal_public_jwk)['keys']
+        self.assertEqual(key_set[0]['kty'], 'RSA')
+        self.assertEqual(key_set[0]['kid'], configuration.lti_1p3_internal_private_key_id)
+
+    def test_generate_lti_1p3_keys_if_missing_keeps_an_existing_key_pair(self):
+        configuration = self.make_configuration()
+        configuration.generate_lti_1p3_keys_if_missing()
+        configuration.refresh_from_db()
+        stored = (
+            configuration.lti_1p3_internal_private_key,
+            configuration.lti_1p3_internal_private_key_id,
+            configuration.lti_1p3_internal_public_jwk,
+        )
+
+        configuration.generate_lti_1p3_keys_if_missing()
+
+        configuration.refresh_from_db()
+        self.assertEqual(
+            (
+                configuration.lti_1p3_internal_private_key,
+                configuration.lti_1p3_internal_private_key_id,
+                configuration.lti_1p3_internal_public_jwk,
+            ),
+            stored,
+        )
+
+    def test_generate_lti_1p3_keys_if_missing_rebuilds_a_missing_jwk_from_the_stored_private_key(self):
+        configuration = self.make_configuration()
+        configuration.generate_lti_1p3_keys_if_missing()
+        configuration.refresh_from_db()
+        stored_private_key = configuration.lti_1p3_internal_private_key
+        stored_private_key_id = configuration.lti_1p3_internal_private_key_id
+        stored_jwk = json.loads(configuration.lti_1p3_internal_public_jwk)
+        configuration.lti_1p3_internal_public_jwk = ''
+        configuration.save()
+
+        configuration.generate_lti_1p3_keys_if_missing()
+
+        configuration.refresh_from_db()
+        self.assertEqual(json.loads(configuration.lti_1p3_internal_public_jwk), stored_jwk)
+        self.assertEqual(configuration.lti_1p3_internal_private_key, stored_private_key)
+        self.assertEqual(configuration.lti_1p3_internal_private_key_id, stored_private_key_id)
+
+    def test_str_names_the_configuration_and_its_passport(self):
+        passport_id = uuid.uuid4()
+
+        configuration = self.make_configuration(passport_id=passport_id)
+
+        self.assertEqual(
+            str(configuration),
+            f'ReusableLtiConfiguration: Model test - {passport_id}',
+        )
+
+    def test_clean_requires_a_public_key_in_public_key_mode(self):
+        configuration = self.make_configuration(lti_1p3_tool_key_mode='public_key')
+
+        with self.assertRaisesMessage(ValidationError, 'A public key is required in public-key mode.'):
+            configuration.clean()
+
+    def test_clean_requires_a_keyset_url_in_keyset_url_mode(self):
+        configuration = self.make_configuration(lti_1p3_tool_key_mode='keyset_url')
+
+        with self.assertRaisesMessage(ValidationError, 'A keyset URL is required in keyset-URL mode.'):
+            configuration.clean()
+
+    def test_clean_accepts_absent_and_complete_tool_key_settings(self):
+        self.make_configuration().clean()
+        self.make_configuration(
+            lti_1p3_tool_key_mode='public_key',
+            lti_1p3_tool_public_key='-----BEGIN PUBLIC KEY-----',
+        ).clean()
+        self.make_configuration(
+            lti_1p3_tool_key_mode='keyset_url',
+            lti_1p3_tool_keyset_url='https://tool.example/jwks',
+        ).clean()
+
+    def test_clean_accepts_key_material_without_a_mode(self):
+        for label, key_material in (
+            ('public key', {'lti_1p3_tool_public_key': '-----BEGIN PUBLIC KEY-----'}),
+            ('keyset URL', {'lti_1p3_tool_keyset_url': 'https://tool.example/jwks'}),
+        ):
+            with self.subTest(label):
+                self.make_configuration(lti_1p3_tool_key_mode=None, **key_material).clean()
