@@ -19,13 +19,13 @@ from lti_consumer.api import (
     get_lti_1p3_launch_info,
     get_lti_1p3_launch_start_url,
     _get_or_create_local_lti_config,
-    sync_lti_passport_id_to_block,
     validate_lti_1p3_launch_data,
 )
 from lti_consumer.data import Lti1p3LaunchData, Lti1p3ProctoringLaunchData
+from lti_consumer.exceptions import ReusableConfigurationUnavailable
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import Lti1p3Passport, LtiConfiguration, LtiDlContentItem
-from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
+from lti_consumer.models import Lti1p3Passport, LtiConfiguration, LtiDlContentItem, ReusableLtiConfiguration
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_reusable_configuration, make_xblock
 from lti_consumer.utils import get_data_from_cache
 
 # it's convenient to have this in lowercase to compare to URLs
@@ -212,100 +212,25 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
         self.assertEqual(lti_config.config_store, LtiConfiguration.CONFIG_ON_XBLOCK)
         self.assertEqual(lti_config.external_id, None)
 
-    def test_passport_created_on_first_call(self):
+    def test_existing_reusable_binding_is_preserved(self):
         """
-        Check if a passport is created when none exists.
+        Runtime lookups never create, replace or clear a placement's reusable binding.
         """
-        lti_version = LtiConfiguration.LTI_1P3
+        configuration = make_reusable_configuration()
+        placement = LtiConfiguration.objects.create(
+            location=self.location,
+            version=LtiConfiguration.LTI_1P3,
+            reusable_configuration=configuration,
+        )
 
         lti_config = _get_or_create_local_lti_config(
-            lti_version=lti_version,
-            block=self.xblock
-        )
-
-        self.assertIsNotNone(lti_config.lti_1p3_passport)
-
-    def test_passport_updated_when_single_use(self):
-        """
-        Check if passport is updated when it's only used by one config.
-        """
-        passport = Lti1p3Passport.objects.create(
-            lti_1p3_tool_public_key='old_key',
-            lti_1p3_tool_keyset_url='old_url'
-        )
-        LtiConfiguration.objects.create(
-            location=self.location,
-            lti_1p3_passport=passport
-        )
-
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
-
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
-
-        passport.refresh_from_db()
-        self.assertEqual(passport.lti_1p3_tool_public_key, 'new_key')
-        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'new_url')
-
-    def test_passport_not_updated_when_config_store_not_on_xblock(self):
-        """
-        Ensure that when the existing LtiConfiguration is not stored on the XBlock
-        (e.g., CONFIG_ON_DB), the passport is not updated even if block key values differ.
-        """
-        passport = Lti1p3Passport.objects.create(
-            lti_1p3_tool_public_key='shared_key',
-            lti_1p3_tool_keyset_url='shared_url'
-        )
-        # Create a configuration that uses the passport but is stored on DB
-        LtiConfiguration.objects.create(
-            location=self.location,
-            lti_1p3_passport=passport,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
-        )
-
-        # Block has different keys, but since the config is not on XBlock,
-        # _ensure_lti_passport should not update the shared passport.
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'new_url'
-
-        _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
             block=self.xblock,
-            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
         )
 
-        passport.refresh_from_db()
-        # passport should remain unchanged
-        self.assertEqual(passport.lti_1p3_tool_public_key, 'shared_key')
-        self.assertEqual(passport.lti_1p3_tool_keyset_url, 'shared_url')
-
-    def test_passport_not_saved_when_no_changes(self):
-        """
-        Ensure that passport.save() is not called when passport fields already match the
-        XBlock values and no update is required.
-        """
-        passport = Lti1p3Passport.objects.create(
-            lti_1p3_tool_public_key='matching_key',
-            lti_1p3_tool_keyset_url='matching_url'
-        )
-        LtiConfiguration.objects.create(
-            location=self.location,
-            lti_1p3_passport=passport
-        )
-
-        # Make block keys match the passport
-        self.xblock.lti_1p3_tool_public_key = 'matching_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
-
-        with patch.object(Lti1p3Passport, 'save') as mock_save:
-            _get_or_create_local_lti_config(
-                lti_version=LtiConfiguration.LTI_1P3,
-                block=self.xblock
-            )
-            mock_save.assert_not_called()
+        self.assertEqual(lti_config.pk, placement.pk)
+        lti_config.refresh_from_db()
+        self.assertEqual(lti_config.reusable_configuration_id, configuration.pk)
 
     def test_config_not_saved_when_no_changes(self):
         """
@@ -327,124 +252,53 @@ class TestGetOrCreateLocalLtiConfiguration(Lti1P3TestCase):
             )
             mock_save.assert_not_called()
 
-    def test_new_passport_created_on_key_conflict(self):
+    def test_runtime_does_not_create_or_attach_a_registration(self):
         """
-        Check if a new passport is created when block key differs and passport is shared.
+        A runtime lookup never creates a registration or attaches the block's stored UUID.
         """
-        passport = Lti1p3Passport.objects.create(
-            lti_1p3_tool_public_key='shared_key',
-            lti_1p3_tool_keyset_url='shared_url'
-        )
-        # Create two configs sharing the passport
-        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=passport)
-        LtiConfiguration.objects.create(location=self.other_location, lti_1p3_passport=passport)
+        configuration = make_reusable_configuration(name='Orphan row')
+        before = ReusableLtiConfiguration.objects.count()
+        self.xblock.lti_1p3_passport_id = str(configuration.passport_id)
 
-        self.xblock.lti_1p3_tool_key_mode = 'public_key'
-        self.xblock.lti_1p3_tool_public_key = 'new_key'
-
-        with patch('lti_consumer.plugin.compat.save_xblock') as save_xblock_mock:
-            lti_config = _get_or_create_local_lti_config(
-                lti_version=LtiConfiguration.LTI_1P3,
-                block=self.xblock
-            )
-
-        # Original passport unchanged
-        passport.refresh_from_db()
-        self.assertEqual(passport.lti_1p3_tool_public_key, 'shared_key')
-
-        # Configuration points at the new passport, and the block was not written to.
-        self.assertNotEqual(lti_config.lti_1p3_passport, passport)
-        self.assertEqual(lti_config.lti_1p3_passport.lti_1p3_tool_public_key, 'new_key')
-        save_xblock_mock.assert_not_called()
-
-    def test_sync_lti_passport_id_to_block(self):
-        """
-        Check that the block's passport_id field is synced from the configuration.
-        """
-        self.assertTrue(sync_lti_passport_id_to_block(self.xblock))
-
-        lti_config = LtiConfiguration.objects.get(location=self.location)
-        self.assertEqual(self.xblock.lti_1p3_passport_id, str(lti_config.lti_1p3_passport.passport_id))
-
-        # Nothing to do on a second call.
-        self.assertFalse(sync_lti_passport_id_to_block(self.xblock))
-
-    def test_passport_unchanged_when_keys_match(self):
-        """
-        Check if passport is not updated when block keys already match.
-        """
-        passport = Lti1p3Passport.objects.create(
-            lti_1p3_tool_public_key='matching_key',
-            lti_1p3_tool_keyset_url='matching_url'
-        )
-        lti_config = LtiConfiguration.objects.create(
-            location=self.location,
-            lti_1p3_passport=passport
-        )
-
-        self.xblock.lti_1p3_tool_public_key = 'matching_key'
-        self.xblock.lti_1p3_tool_keyset_url = 'matching_url'
-
-        original_passport_id = passport.passport_id
-
-        _get_or_create_local_lti_config(
+        lti_config = _get_or_create_local_lti_config(
             lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
+            block=self.xblock,
         )
 
-        # Same passport used
-        self.assertEqual(Lti1p3Passport.objects.count(), 1)
-        self.assertEqual(str(lti_config.lti_1p3_passport.passport_id), str(original_passport_id))
+        self.assertIsNone(lti_config.reusable_configuration)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
+        self.assertFalse(Lti1p3Passport.objects.exists())
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.name, 'Orphan row')
 
-    @ddt.data(
-        ('public_key', 'lti_1p3_tool_public_key'),
-        ('keyset_url', 'lti_1p3_tool_keyset_url')
-    )
-    @ddt.unpack
-    def test_new_passport_on_key_mode_change(self, key_mode, key_field):
+    def test_runtime_does_not_mutate_the_bound_registration(self):
         """
-        Check if a new passport is created when key_mode-specific field changes.
+        A block key edit never writes the bound registration or the retained table.
         """
-        passport = Lti1p3Passport.objects.create(
-            lti_1p3_tool_public_key='old_key',
-            lti_1p3_tool_keyset_url='old_url'
-        )
-        LtiConfiguration.objects.create(location=self.location, lti_1p3_passport=passport)
-        LtiConfiguration.objects.create(location=self.other_location, lti_1p3_passport=passport)
-
-        self.xblock.lti_1p3_tool_key_mode = key_mode
-        setattr(self.xblock, key_field, 'new_value')
-
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
-
-        self.assertEqual(Lti1p3Passport.objects.count(), 2)
-
-    def test_passport_updated_when_fields_empty(self):
-        """
-        Check if passport is updated when both key fields are empty.
-        """
-        passport = Lti1p3Passport.objects.create(
-            lti_1p3_tool_public_key='',
-            lti_1p3_tool_keyset_url=''
+        configuration = make_reusable_configuration(
+            lti_1p3_tool_public_key='stored_key',
+            lti_1p3_tool_keyset_url='stored_url',
         )
         LtiConfiguration.objects.create(
             location=self.location,
-            lti_1p3_passport=passport
+            reusable_configuration=configuration,
         )
-
         self.xblock.lti_1p3_tool_public_key = 'new_key'
         self.xblock.lti_1p3_tool_keyset_url = 'new_url'
 
-        _get_or_create_local_lti_config(
-            lti_version=LtiConfiguration.LTI_1P3,
-            block=self.xblock
-        )
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock, \
+                patch.object(Lti1p3Passport, 'save') as passport_save_mock:
+            _get_or_create_local_lti_config(
+                lti_version=LtiConfiguration.LTI_1P3,
+                block=self.xblock,
+            )
+            save_mock.assert_not_called()
+            passport_save_mock.assert_not_called()
 
-        passport.refresh_from_db()
-        self.assertEqual(passport.lti_1p3_tool_public_key, 'new_key')
+        configuration.refresh_from_db()
+        self.assertEqual(configuration.lti_1p3_tool_public_key, 'stored_key')
+        self.assertEqual(configuration.lti_1p3_tool_keyset_url, 'stored_url')
+        self.assertEqual(Lti1p3Passport.objects.count(), 0)
 
 
 @ddt.ddt
@@ -642,6 +496,12 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
 
         return super().setUp()
 
+    def _stub_built_identity(self, configuration):
+        """Give the stubbed consumer the identity a real one builds from the row."""
+        identity = configuration.get_runtime_identity()
+        self._get_lti_consumer_patch.return_value.client_id = identity.client_id
+        self._get_lti_consumer_patch.return_value.deployment_id = identity.deployment_id
+
     @staticmethod
     def _get_lti_1p3_launch_data():
         return Lti1p3LaunchData(
@@ -655,10 +515,14 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
         """
         Check if the API retrieves the launch with id.
         """
+        configuration = make_reusable_configuration()
         lti_config = LtiConfiguration.objects.create(
             location=self.location,
+            version=LtiConfiguration.LTI_1P3,
             config_id=_test_config_id,
+            reusable_configuration=configuration,
         )
+        self._stub_built_identity(configuration)
 
         launch_data = self._get_lti_1p3_launch_data()
 
@@ -675,9 +539,13 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
         launch_data = self._get_lti_1p3_launch_data()
 
         # Create LTI Config and Deep linking object
+        configuration = make_reusable_configuration()
+        self._stub_built_identity(configuration)
         lti_config = LtiConfiguration.objects.create(
             location=self.location,
+            version=LtiConfiguration.LTI_1P3,
             config_id=_test_config_id,
+            reusable_configuration=configuration,
         )
         LtiDlContentItem.objects.create(
             lti_configuration=lti_config,
@@ -710,9 +578,12 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
         Check if the API can return launch info for LtiConfiguration objects without
         specified block location.
         """
+        configuration = make_reusable_configuration()
+        self._stub_built_identity(configuration)
         lti_config = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
             config_id=_test_config_id,
+            reusable_configuration=configuration,
         )
         LtiDlContentItem.objects.create(
             lti_configuration=lti_config,
@@ -737,6 +608,69 @@ class TestGetLti1p3LaunchInfo(Lti1P3TestCase):
                     '[\n    {\n        "test": "this is a test attribute"\n    }\n]',
             }
         )
+
+    def test_launch_info_uses_the_reusable_identity_and_deployment_id(self):
+        """
+        Client ID, keyset and token URLs come from the bound reusable configuration.
+        """
+        configuration = make_reusable_configuration(
+            lti_1p3_client_id='reusable-client-id',
+            lti_1p3_deployment_id='deployment-7',
+        )
+        self._stub_built_identity(configuration)
+        LtiConfiguration.objects.create(
+            location=self.location,
+            version=LtiConfiguration.LTI_1P3,
+            config_id=_test_config_id,
+            reusable_configuration=configuration,
+        )
+
+        launch_info = get_lti_1p3_launch_info(self._get_lti_1p3_launch_data())
+
+        self.assertEqual(launch_info['client_id'], 'reusable-client-id')
+        self.assertEqual(launch_info['deployment_id'], 'deployment-7')
+        self.assertIn(str(configuration.passport_id), launch_info['keyset_url'])
+        self.assertIn(str(configuration.passport_id), launch_info['token_url'])
+
+    def test_launch_info_defaults_the_deployment_id_to_one(self):
+        """
+        A copied registration with no stored deployment ID keeps the historical value.
+        """
+        configuration = make_reusable_configuration()
+        self._stub_built_identity(configuration)
+        LtiConfiguration.objects.create(
+            location=self.location,
+            version=LtiConfiguration.LTI_1P3,
+            config_id=_test_config_id,
+            reusable_configuration=configuration,
+        )
+
+        launch_info = get_lti_1p3_launch_info(self._get_lti_1p3_launch_data())
+
+        self.assertEqual(launch_info['deployment_id'], "1")
+
+    def test_launch_info_does_not_rebuild_the_runtime_identity(self):
+        """
+        Identity values come from the consumer already built for this launch.
+        """
+        configuration = make_reusable_configuration(
+            lti_1p3_client_id='built-client-id',
+            lti_1p3_deployment_id='deployment-9',
+        )
+        self._stub_built_identity(configuration)
+        LtiConfiguration.objects.create(
+            location=self.location,
+            version=LtiConfiguration.LTI_1P3,
+            config_id=_test_config_id,
+            reusable_configuration=configuration,
+        )
+
+        with patch.object(LtiConfiguration, 'get_runtime_identity') as mock_identity:
+            launch_info = get_lti_1p3_launch_info(self._get_lti_1p3_launch_data())
+
+        mock_identity.assert_not_called()
+        self.assertEqual(launch_info['client_id'], 'built-client-id')
+        self.assertEqual(launch_info['deployment_id'], 'deployment-9')
 
     @patch('lti_consumer.api.get_external_config_from_filter')
     def test_launch_info_for_lti_config_with_external_configuration(
@@ -793,6 +727,7 @@ class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
             location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            reusable_configuration=make_reusable_configuration(),
         )
 
     def _get_lti_1p3_launch_data(self):
@@ -835,6 +770,35 @@ class TestGetLti1p3LaunchUrl(Lti1P3TestCase):
         self.assertEqual(launch_data.message_type, "LtiDeepLinkingRequest")
         self.assertEqual(launch_data.deep_linking_content_item_id, None)
 
+    def test_unbound_placement_cannot_start_a_launch(self):
+        """
+        Check that a placement without a bound registration refuses the OIDC preflight.
+        """
+        LtiConfiguration.objects.filter(pk=self.lti_config.pk).update(reusable_configuration=None)
+
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            get_lti_1p3_launch_start_url(self._get_lti_1p3_launch_data())
+
+    def test_inactive_configuration_cannot_start_a_launch(self):
+        """
+        Check that an inactive registration refuses the OIDC preflight.
+        """
+        self.lti_config.reusable_configuration.is_active = False
+        self.lti_config.reusable_configuration.save()
+
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            get_lti_1p3_launch_start_url(self._get_lti_1p3_launch_data())
+
+    def test_unassigned_version_cannot_start_a_launch(self):
+        """
+        Check that an unassigned stored version refuses the OIDC preflight.
+        """
+        self.lti_config.reusable_configuration.version = None
+        self.lti_config.reusable_configuration.save()
+
+        with self.assertRaises(ReusableConfigurationUnavailable):
+            get_lti_1p3_launch_start_url(self._get_lti_1p3_launch_data())
+
     def test_get_deep_linking_content_item_launch_url(self):
         """
         Check if the correct launch url is retrieved for a deep linking content item LTI 1.3 launch.
@@ -870,6 +834,7 @@ class TestGetLti1p3ContentUrl(Lti1P3TestCase):
             location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            reusable_configuration=make_reusable_configuration(),
         )
 
     def _get_lti_1p3_launch_data(self):

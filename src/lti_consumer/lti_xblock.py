@@ -73,7 +73,7 @@ except ModuleNotFoundError:  # For backward compatibility with releases older th
     from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .data import Lti1p3LaunchData
-from .exceptions import LtiError
+from .exceptions import LtiError, ReusableConfigurationUnavailable
 from .filters import get_external_config_from_filter
 from .lti_1p1.consumer import LTI_PARAMETERS, LtiConsumer1p1, parse_result_json
 from .lti_1p1.oauth import log_authorization_header
@@ -155,6 +155,29 @@ def valid_config_type_values(block):
         values.append({"display_name": _("Existing"), "value": "external"})
 
     return values
+
+
+def launch_error_fragment(loader, error_msg):
+    """
+    Return the launch error page as a fragment.
+    """
+    fragment = Fragment()
+    fragment.add_content(loader.render_django_template(
+        '/templates/html/lti_launch_error.html',
+        context={"error_msg": error_msg},
+    ))
+    return fragment
+
+
+def launch_error_response(error_msg, status_code):
+    """
+    Return the launch error page as a plain HTML response.
+    """
+    template = ResourceLoader(__name__).render_django_template(
+        '/templates/html/lti_launch_error.html',
+        context={"error_msg": error_msg},
+    )
+    return Response(template, status=status_code, content_type='text/html')
 
 
 LaunchTargetOption = namedtuple('LaunchTargetOption', ['display_name', 'value'])
@@ -307,10 +330,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
     # LTI 1.3 fields
     lti_1p3_passport_id = String(
-        display_name=_("Lti 1.3 passport ID that points to Lti1p3Passport table"),
+        display_name=_("LTI 1.3 configuration ID"),
         scope=Scope.settings,
         default="",
-        help=_("Passport ID for a reusable keys.")
+        help=_("ID of the reusable configuration that holds this tool's registration and keys.")
     )
 
     lti_1p3_launch_url = String(
@@ -1325,20 +1348,6 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
 
         return fragment
 
-    @XBlock.handler
-    def submit_studio_edits(self, request, suffix=''):
-        """
-        Studio Save.
-
-        Reconciles the block's `lti_1p3_passport_id` field with the configuration
-        stored in the database, creating the configuration and its passport if they
-        don't exist yet. Doing it here means passport initialization never has to
-        write to the block from an LMS request, where Scope.settings is read-only.
-        """
-        from lti_consumer.api import sync_lti_passport_id_to_block  # pylint: disable=import-outside-toplevel
-        sync_lti_passport_id_to_block(self)
-        return super().submit_studio_edits(request, suffix)
-
     def author_view(self, context):
         """
         XBlock author view of this component.
@@ -1353,7 +1362,10 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         # Render template
         fragment = Fragment()
         loader = ResourceLoader(__name__)
-        self._add_author_view(context, loader, fragment)
+        try:
+            self._add_author_view(context, loader, fragment)
+        except ReusableConfigurationUnavailable as exc:
+            return launch_error_fragment(loader, str(exc))
 
         fragment.add_css(loader.load_unicode('static/css/student.css'))
         fragment.add_javascript(loader.load_unicode('static/js/xblock_lti_consumer.js'))
@@ -1381,12 +1393,16 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         fragment = Fragment()
         loader = ResourceLoader(__name__)
         context = context or {}
-        context.update(self._get_context_for_template())
+        try:
+            context.update(self._get_context_for_template())
 
-        # Prepend the author view for LTI1.3 when rendering student view to staff users in Studio.
-        # This is needed so course staff can see the author view parameters when configuring within Libraries v2
-        if settings.SERVICE_VARIANT != 'lms' and self.get_resolved_lti_version() == "lti_1p3" and self.user_is_staff:
-            self._add_author_view(context, loader, fragment)
+            # Prepend the author view for LTI1.3 when rendering student view to staff users in Studio.
+            # This is needed so course staff can see the author view parameters when configuring within Libraries v2
+            if (settings.SERVICE_VARIANT != 'lms' and self.get_resolved_lti_version() == "lti_1p3" and
+                    self.user_is_staff):
+                self._add_author_view(context, loader, fragment)
+        except ReusableConfigurationUnavailable as exc:
+            return launch_error_fragment(loader, str(exc))
 
         fragment.add_content(loader.render_mako_template('/templates/html/student.html', context))
 
@@ -1414,7 +1430,15 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response: HTML LTI launch form
         """
-        lti_consumer = self.get_lti_consumer()
+        from lti_consumer.api import (  # pylint: disable=import-outside-toplevel
+            config_id_for_block,
+            get_launchable_configuration,
+        )
+        try:
+            get_launchable_configuration(config_id_for_block(self))
+            lti_consumer = self.get_lti_consumer()
+        except ReusableConfigurationUnavailable as err:
+            return launch_error_response(str(err), 403)
 
         # Occassionally, users try to do an LTI launch while they are unauthenticated. It is not known why this occurs.
         # Sometimes, it is due to a web crawlers; other times, it is due to actual users of the platform. Regardless,
@@ -1430,10 +1454,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             result_sourcedid = self.lis_result_sourcedid
         # Fails if extract_real_user_data() fails
         except LtiError as err:
-            loader = ResourceLoader(__name__)
-            template = loader.render_django_template('/templates/html/lti_launch_error.html',
-                                                     context={"error_msg": err})
-            return Response(template, status=400, content_type='text/html')
+            return launch_error_response(err, 400)
 
         username = None
         full_name = None
@@ -1515,12 +1536,14 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         if self.get_resolved_lti_version() != "lti_1p3":
             return Response(status=404)
 
-        # Asserting that the consumer can be created. This makes sure that the LtiConfiguration
-        # object exists before calling the Django View
-        assert self.get_lti_consumer()
         # Runtime import because this can only be run in the LMS/Studio Django
         # environments. Importing the views on the top level will cause RuntimeErorr
+        from lti_consumer.api import config_id_for_block  # pylint: disable=import-outside-toplevel
         from lti_consumer.plugin.views import access_token_endpoint  # pylint: disable=import-outside-toplevel
+
+        # Create the placement before calling the Django view, which validates the
+        # configuration and builds the consumer exactly once.
+        config_id_for_block(self)
         return access_token_endpoint(request, usage_id=str(self.scope_ids.usage_id))
 
     @XBlock.handler
@@ -1543,7 +1566,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             webob.response: XML Outcome Service response
         """
         outcome_service = OutcomeService(self)
-        return Response(outcome_service.handle_request(request), content_type="application/xml")
+        try:
+            return Response(outcome_service.handle_request(request), content_type="application/xml")
+        except ReusableConfigurationUnavailable as exc:
+            log.warning("LTI outcome request denied for %s: %s", self.scope_ids.usage_id, exc)
+            return Response(status=404)
 
     @XBlock.handler
     def result_service_handler(self, request, suffix=''):
@@ -1573,7 +1600,11 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         Returns:
             webob.response:  response to this request.  See above for details.
         """
-        lti_consumer = self.get_lti_consumer()
+        try:
+            lti_consumer = self.get_lti_consumer()
+        except ReusableConfigurationUnavailable as exc:
+            log.warning("LTI result request denied for %s: %s", self.scope_ids.usage_id, exc)
+            return Response(status=404)
         lti_consumer.set_outcome_service_url(self.outcome_service_url)
 
         if settings.DEBUG:
@@ -1978,26 +2009,3 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
         xblock_body["content_type"] = "LTI Consumer"
 
         return xblock_body
-
-    def add_xml_to_node(self, node):
-        """
-        The lti_1p3_passport_id XBlock field may be empty on blocks that existed before
-        the Lti1p3Passport model was introduced (migration 0021). Rather than backfilling
-        the field in the migration (which requires the XBlock runtime and can fail silently),
-        we read the authoritative passport_id from the DB at export time. This ensures that
-        when a block is duplicated or exported/imported, the receiving block's
-        lti_1p3_passport_id field is populated and can be used to find the shared passport
-        instead of creating new credentials.
-        """
-        super().add_xml_to_node(node)
-
-        try:
-            from .models import LtiConfiguration  # pylint: disable=import-outside-toplevel
-
-            configuration = LtiConfiguration.objects.select_related("lti_1p3_passport").get(
-                location=self.scope_ids.usage_id,
-            )
-            if configuration.lti_1p3_passport:
-                node.set("lti_1p3_passport_id", str(configuration.lti_1p3_passport.passport_id))
-        except LtiConfiguration.DoesNotExist:
-            pass

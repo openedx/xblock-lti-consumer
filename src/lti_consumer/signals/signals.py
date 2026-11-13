@@ -9,7 +9,7 @@ from django.dispatch import Signal, receiver
 from openedx_events.content_authoring.data import DuplicatedXBlockData, LibraryBlockData, XBlockData
 from openedx_events.content_authoring.signals import LIBRARY_BLOCK_DELETED, XBLOCK_DELETED, XBLOCK_DUPLICATED
 
-from lti_consumer.models import Lti1p3Passport, LtiAgsScore, LtiConfiguration
+from lti_consumer.models import LtiAgsScore, LtiConfiguration
 from lti_consumer.plugin import compat
 from lti_consumer.utils import model_to_dict
 
@@ -120,11 +120,6 @@ def publish_grade_on_score_update(sender, instance, **kwargs):  # pylint: disabl
         raise exc
 
 
-@receiver(post_save, sender=LtiConfiguration, dispatch_uid='create_lti_1p3_passport')
-def create_lti_1p3_passport(sender, instance: LtiConfiguration, **kwargs):  # pylint: disable=unused-argument
-    instance.get_or_create_lti_1p3_passport()
-
-
 @receiver(SignalHandler.pre_item_delete if SignalHandler else [])
 def delete_child_lti_configurations(**kwargs):
     """
@@ -143,12 +138,12 @@ def delete_child_lti_configurations(**kwargs):
         for block in compat.yield_dynamic_block_descendants(deleted_block, kwargs.get('user_id')):
             block_locations.add(str(block.location))
 
+        # Deleting a placement never deletes its reusable configuration or a retained
+        # passport row: the catalog is shared and the retained passport table is read-only.
         LtiConfiguration.objects.filter(
             location__in=block_locations
         ).delete()
         log.info(f"Deleted {len(block_locations)} LTI configurations for block and its children in modulestore")
-        result = Lti1p3Passport.objects.filter(lticonfiguration__isnull=True).delete()
-        log.info(f"Deleted {result} lti 1.3 passport objects in library")
 
 
 @receiver(XBLOCK_DELETED)
@@ -164,8 +159,6 @@ def delete_lti_configuration(**kwargs):
     LtiConfiguration.objects.filter(
         location=str(xblock_info.usage_key)
     ).delete()
-    result = Lti1p3Passport.objects.filter(lticonfiguration__isnull=True).delete()
-    log.info(f"Deleted {result} lti 1.3 passport objects in library")
 
 
 @receiver(LIBRARY_BLOCK_DELETED)
@@ -181,8 +174,6 @@ def delete_lib_lti_configuration(**kwargs):
     LtiConfiguration.objects.filter(
         location=str(library_block.usage_key)
     ).delete()
-    result = Lti1p3Passport.objects.filter(lticonfiguration__isnull=True).delete()
-    log.info(f"Deleted {result} lti 1.3 passport objects in library")
 
 
 @receiver(XBLOCK_DUPLICATED)

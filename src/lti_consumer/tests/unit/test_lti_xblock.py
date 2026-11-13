@@ -8,12 +8,12 @@ import string
 from datetime import timedelta
 from itertools import product
 from unittest.mock import Mock, PropertyMock, patch
-from xml.etree.ElementTree import Element
 
 import ddt
 import jwt
 from Cryptodome.PublicKey import RSA
 from django.conf import settings as dj_settings
+from django.http import Http404
 from django.test import override_settings
 from django.test.testcases import TestCase
 from django.utils import timezone
@@ -25,13 +25,14 @@ from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.exceptions import LtiError
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock, parse_handler_suffix, valid_config_type_values
-from lti_consumer.models import Lti1p3Passport, LtiConfiguration
+from lti_consumer.models import LtiConfiguration, ReusableLtiConfiguration
 from lti_consumer.tests import test_utils
 from lti_consumer.tests.test_utils import (
     FAKE_USER_ID,
     TestBaseWithPatch,
     get_mock_lti_configuration,
     make_jwt_request,
+    make_reusable_configuration,
     make_request,
     make_xblock,
 )
@@ -161,36 +162,6 @@ class TestResolveExternalConfigVersion(TestLtiConsumerXBlock):
             result = self._call_handler('test-plugin:test-id')
             self.assertEqual(result, {'found': False, 'version': None})
             mock_filter.assert_called_once()
-
-
-class TestAddXmlToNode(TestCase):
-    """Unit tests for export XML on LtiConsumerXBlock."""
-
-    def test_add_xml_to_node_includes_passport_id_from_database(self):
-        xblock = make_xblock(
-            'lti_consumer',
-            LtiConsumerXBlock,
-            {
-                'lti_version': 'lti_1p3',
-                'lti_1p3_launch_url': 'http://tool.example/launch',
-                'lti_1p3_oidc_url': 'http://tool.example/oidc',
-                'lti_1p3_passport_id': '',
-            },
-        )
-        passport = Lti1p3Passport.objects.create()
-        LtiConfiguration.objects.create(
-            location=xblock.scope_ids.usage_id,
-            version=LtiConfiguration.LTI_1P3,
-            config_store=LtiConfiguration.CONFIG_ON_DB,
-            lti_1p3_passport=passport,
-        )
-        node = Element('lti_consumer')
-
-        with patch('xblock.core.XBlock.add_xml_to_node') as mock_super:
-            xblock.add_xml_to_node(node)
-
-        mock_super.assert_called_once_with(node)
-        self.assertEqual(node.get('lti_1p3_passport_id'), str(passport.passport_id))
 
 
 class TestIndexibility(TestCase):
@@ -781,27 +752,6 @@ class TestProperties(TestLtiConsumerXBlock):
             self.assertTrue(mock_timezone_now.called)
 
 
-class TestSubmitStudioEdits(TestLtiConsumerXBlock):
-    """
-    Unit tests for LtiConsumerXBlock.submit_studio_edits()
-    """
-
-    @patch("lti_consumer.lti_xblock.external_config_filter_enabled", return_value=False)
-    @patch("lti_consumer.lti_xblock.database_config_enabled", return_value=False)
-    def test_passport_id_synced_from_configuration(self, *_args):
-        """
-        Saving in Studio populates the block's passport_id from the configuration.
-        """
-        self.assertEqual(self.xblock.lti_1p3_passport_id, '')
-
-        request = make_request(json.dumps({'values': {}, 'defaults': []}), 'POST')
-        response = self.xblock.submit_studio_edits(request, '')
-
-        self.assertEqual(json.loads(response.body.decode('utf-8')), {'result': 'success'})
-        lti_config = LtiConfiguration.objects.get(location=self.xblock.scope_ids.usage_id)
-        self.assertEqual(self.xblock.lti_1p3_passport_id, str(lti_config.lti_1p3_passport.passport_id))
-
-
 @ddt.ddt
 class TestEditableFields(TestLtiConsumerXBlock):
     """
@@ -1169,6 +1119,137 @@ class TestStudentView(TestLtiConsumerXBlock):
         )
 
 
+class TestLaunchDenialHandling(TestLtiConsumerXBlock):
+    """Runtime launch denials surface as controlled responses, not exceptions."""
+
+    def _bind(self, version, is_active=True, placement_version=None):
+        """Bind this block's placement to a registration with the given state."""
+        configuration = make_reusable_configuration(version=version, is_active=is_active)
+        LtiConfiguration.objects.create(
+            location=self.xblock.scope_ids.usage_id,
+            version=placement_version or LtiConfiguration.LTI_1P1,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            reusable_configuration=configuration,
+        )
+        return configuration
+
+    def test_the_lti_1p1_launch_handler_denies_a_missing_binding_without_creating_one(self):
+        """
+        A launch refuses an unbound placement and never creates a registration.
+        """
+        before = ReusableLtiConfiguration.objects.count()
+
+        response = self.xblock.lti_launch_handler(make_request('', 'GET'))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
+        placement = LtiConfiguration.objects.get(location=self.xblock.scope_ids.usage_id)
+        self.assertIsNone(placement.reusable_configuration_id)
+
+    def test_the_lti_1p1_launch_handler_denies_an_unassigned_version(self):
+        """
+        A stored NULL version denies the LTI 1.1 launch form instead of raising.
+        """
+        self._bind(version=None)
+
+        response = self.xblock.lti_launch_handler(make_request('', 'GET'))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('There was an error while launching the LTI tool', response.text)
+
+    def test_the_lti_1p1_launch_handler_denies_an_inactive_registration(self):
+        """
+        An inactive registration denies the LTI 1.1 launch form instead of raising.
+        """
+        self._bind(version=LtiConfiguration.LTI_1P1, is_active=False)
+
+        response = self.xblock.lti_launch_handler(make_request('', 'GET'))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_the_access_token_handler_denies_an_unusable_registration(self):
+        """
+        A stored NULL version denies the XBlock token handler instead of raising.
+        """
+        self.xblock.lti_version = 'lti_1p3'
+        self.xblock.save()
+        self._bind(version=None, placement_version=LtiConfiguration.LTI_1P3)
+
+        response = self.xblock.lti_1p3_access_token(make_request('', 'POST'))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_the_student_view_denies_an_unusable_registration(self):
+        """
+        A stored NULL version renders a launch error instead of raising.
+        """
+        self.xblock.lti_version = 'lti_1p3'
+        self.xblock.save()
+        self._bind(version=None, placement_version=LtiConfiguration.LTI_1P3)
+
+        with patch.object(LtiConsumerXBlock, 'get_pii_sharing_enabled', return_value=False):
+            fragment = self.xblock.student_view({})
+
+        self.assertIn('There was an error while launching the LTI tool', fragment.content)
+
+    def test_the_author_view_denies_an_unusable_registration(self):
+        """
+        A stored NULL version renders a launch error in the author view instead of raising.
+        """
+        self.xblock.lti_version = 'lti_1p3'
+        self.xblock.save()
+        self._bind(version=None, placement_version=LtiConfiguration.LTI_1P3)
+
+        with patch.object(LtiConsumerXBlock, 'get_pii_sharing_enabled', return_value=False):
+            fragment = self.xblock.author_view({})
+
+        self.assertIn('There was an error while launching the LTI tool', fragment.content)
+
+    def test_the_lti_1p1_launch_handler_denies_a_catalog_lti_1p3_mismatch(self):
+        """
+        A placement toggled to LTI 1.1 does not send an LTI 1.3 catalog registration to 1.1.
+        """
+        self.xblock.lti_version = 'lti_1p1'
+        self.xblock.save()
+        self._bind(version=LtiConfiguration.LTI_1P3)
+
+        response = self.xblock.lti_launch_handler(make_request('', 'GET'))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('There was an error while launching the LTI tool', response.text)
+
+    def test_the_student_view_denies_a_catalog_lti_1p1_mismatch(self):
+        """
+        A placement authored as LTI 1.3 does not render against an LTI 1.1 catalog registration.
+        """
+        self.xblock.lti_version = 'lti_1p3'
+        self.xblock.save()
+        self._bind(version=LtiConfiguration.LTI_1P1, placement_version=LtiConfiguration.LTI_1P3)
+
+        with patch.object(LtiConsumerXBlock, 'get_pii_sharing_enabled', return_value=False):
+            fragment = self.xblock.student_view({})
+
+        self.assertIn('There was an error while launching the LTI tool', fragment.content)
+
+    def test_the_result_service_handler_denies_a_version_mismatch(self):
+        """
+        Outcomes fail closed in both mismatch directions instead of building the wrong consumer.
+        """
+        for placement_version, configuration_version in (
+            (LtiConfiguration.LTI_1P1, LtiConfiguration.LTI_1P3),
+            (LtiConfiguration.LTI_1P3, LtiConfiguration.LTI_1P1),
+        ):
+            with self.subTest(placement=placement_version, configuration=configuration_version):
+                LtiConfiguration.objects.filter(location=self.xblock.scope_ids.usage_id).delete()
+                self.xblock.lti_version = placement_version
+                self.xblock.save()
+                self._bind(version=configuration_version, placement_version=placement_version)
+
+                response = self.xblock.result_service_handler(make_request('', 'GET'))
+
+                self.assertEqual(response.status_code, 404)
+
+
 @ddt.ddt
 class TestLtiLaunchHandler(TestLtiConsumerXBlock):
     """
@@ -1187,6 +1268,13 @@ class TestLtiLaunchHandler(TestLtiConsumerXBlock):
         self.xblock.get_lti_consumer = Mock(return_value=self.mock_lti_consumer)
         self.xblock.due = timezone.now()
         self.xblock.graceperiod = timedelta(days=1)
+        configuration = make_reusable_configuration(version=LtiConfiguration.LTI_1P1)
+        LtiConfiguration.objects.create(
+            location=self.xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P1,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            reusable_configuration=configuration,
+        )
 
         fake_user = Mock()
         fake_user_email = 'abc@example.com'
@@ -2472,6 +2560,17 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         self._load_block_patch = patcher.start()
         self._load_block_patch.return_value = self.xblock
 
+        # Runtime identity is an explicit, bound registration.
+        self.configuration = make_reusable_configuration(
+            lti_1p3_tool_public_key=self.public_key.decode(),
+        )
+        LtiConfiguration.objects.create(
+            location=self.xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            reusable_configuration=self.configuration,
+        )
+
     def test_access_token_endpoint_when_using_lti_1p1(self):
         """
         Test that the LTI 1.3 access token endpoint is unavailable when using 1.1.
@@ -2529,8 +2628,8 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         """
         Test request with valid JWT but no matching key to check signature.
         """
-        self.xblock.lti_1p3_tool_public_key = ''
-        self.xblock.save()
+        self.configuration.lti_1p3_tool_public_key = RSA.generate(2048).publickey().export_key().decode()
+        self.configuration.save()
 
         jwt_token = create_jwt(self.key, {})
         request = make_jwt_request(jwt_token)
@@ -2546,6 +2645,102 @@ class TestLti1p3AccessTokenEndpoint(TestLtiConsumerXBlock):
         request = make_jwt_request(jwt_token)
         response = self.xblock.lti_1p3_access_token(request)
         self.assertEqual(response.status_code, 200)
+
+    def test_access_token_constructs_the_consumer_once(self):
+        """
+        A token request builds the consumer once, in the shared endpoint.
+        """
+        with patch.object(
+            LtiConfiguration,
+            'get_lti_consumer',
+            autospec=True,
+            side_effect=LtiConfiguration.get_lti_consumer,
+        ) as get_lti_consumer:
+            response = self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+
+        self.assertEqual(response.status_code, 200)
+        get_lti_consumer.assert_called_once()
+
+    def test_access_token_denies_an_incomplete_registration(self):
+        """
+        A malformed stored keyset is denied by the endpoint without writing.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(
+            lti_1p3_internal_public_jwk='not-json',
+        )
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            response = self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+            save_mock.assert_not_called()
+
+        self.assertEqual(response.status_code, 404)
+        self.assertJSONEqual(response.content, {'error': 'lti_consumer_not_initialized'})
+
+    def test_access_token_propagates_an_unbound_denial(self):
+        """
+        The wrapper does not swallow the endpoint's 404 for an unbound placement.
+        """
+        placement = LtiConfiguration.objects.get(location=self.xblock.scope_ids.usage_id)
+        placement.reusable_configuration = None
+        placement.save()
+        registrations = ReusableLtiConfiguration.objects.count()
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            with self.assertRaises(Http404):
+                self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+            save_mock.assert_not_called()
+
+        placement.refresh_from_db()
+        self.assertIsNone(placement.reusable_configuration_id)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), registrations)
+
+    def test_access_token_succeeds_for_an_external_configuration(self):
+        """
+        An external configuration serves tokens from its own source, with no registration.
+        """
+        external_config = {
+            'version': LtiConfiguration.LTI_1P3,
+            'lti_1p3_client_id': 'external-client-id',
+            'lti_1p3_private_key': RSA.generate(2048).export_key().decode(),
+            'lti_1p3_private_key_id': 'external-key-id',
+            'lti_1p3_tool_public_key': self.public_key.decode(),
+        }
+        self.xblock.config_type = 'external'
+        self.xblock.external_config = 'test:external'
+        placement = LtiConfiguration.objects.get(location=self.xblock.scope_ids.usage_id)
+        placement.reusable_configuration = None
+        placement.save()
+
+        with patch(
+            'lti_consumer.lti_xblock.get_external_config_from_filter',
+            return_value=external_config,
+        ), patch(
+            'lti_consumer.api.get_external_config_from_filter',
+            return_value=external_config,
+        ), patch(
+            'lti_consumer.models.get_external_config_from_filter',
+            return_value=external_config,
+        ), patch(
+            'lti_consumer.models.external_multiple_launch_urls_enabled',
+            return_value=False,
+        ):
+            response = self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+
+        self.assertEqual(response.status_code, 200)
+        placement.refresh_from_db()
+        self.assertIsNone(placement.reusable_configuration_id)
+
+    def test_access_token_denies_an_inactive_registration(self):
+        """
+        An inactive registration refuses tokens even though its identity is complete.
+        """
+        self.configuration.is_active = False
+        self.configuration.save()
+
+        response = self.xblock.lti_1p3_access_token(make_jwt_request(create_jwt(self.key, {})))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertJSONEqual(response.content, {'error': 'inactive_configuration'})
 
 
 @patch('lti_consumer.utils.log')
@@ -2652,6 +2847,17 @@ class TestLti1p3AccessTokenJWK(TestBaseWithPatch):
         self.addCleanup(patcher.stop)
         self._load_block_patch = patcher.start()
         self._load_block_patch.return_value = self.xblock
+
+        # Runtime identity is an explicit, bound registration.
+        self.configuration = make_reusable_configuration(
+            lti_1p3_tool_keyset_url="http://tool.example/keyset",
+        )
+        LtiConfiguration.objects.create(
+            location=self.xblock.scope_ids.usage_id,
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
+            reusable_configuration=self.configuration,
+        )
 
     def make_keyset(self, keys):
         """
