@@ -16,6 +16,16 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.5 - 2026-11-16
+--------------------
+* Stop reporting course team members as Learners in the NRPS membership container. The LMS
+  course-members API appends ``student`` for every active enrolment, and course team members
+  are enrolled in their own course, so staff, limited staff and course admins were all
+  returned carrying ``membership#Learner`` alongside their real context role. The launch
+  message already omits Learner for those users, so the two disagreed, and a tool reading a
+  single role off the list could pick either one. Enrolment-only roles are now dropped when a
+  privileged course role is present.
+
 11.4.4 - 2026-10-26
 --------------------
 * Omit the LTI 1.3 ``resource_link`` claim from Deep Linking request

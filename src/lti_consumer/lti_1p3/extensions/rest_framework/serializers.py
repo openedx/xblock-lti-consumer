@@ -8,7 +8,11 @@ from opaque_keys.edx.keys import UsageKey
 from rest_framework import ISO_8601, serializers
 from rest_framework.reverse import reverse
 
-from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_ROLE_MAP
+from lti_consumer.lti_1p3.constants import (
+    LTI_1P3_CONTEXT_ROLE_MAP,
+    LTI_1P3_ENROLMENT_ONLY_ROLES,
+    LTI_1P3_PRIVILEGED_COURSE_ROLES,
+)
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore
 
 
@@ -407,9 +411,23 @@ class LtiNrpsContextMemberBasicSerializer(serializers.Serializer):
     def get_roles(self, user_info):
         """
         Prepare and return Context Roles for user.
+
+        A course team member is enrolled in their own course, and the LMS course-members API
+        appends 'student' for every active enrolment, so without filtering every member of the
+        course team is reported as a Learner alongside their real role. Drop the enrolment-only
+        roles when a privileged course role is present: the launch message already omits Learner
+        for those users, and a tool has no way to tell which of the roles it is handed is the
+        one that counts.
         """
+        member_roles = user_info['roles']
+        if LTI_1P3_PRIVILEGED_COURSE_ROLES.intersection(member_roles):
+            member_roles = [
+                role for role in member_roles
+                if role not in LTI_1P3_ENROLMENT_ONLY_ROLES
+            ]
+
         roles = []
-        for role in user_info['roles']:
+        for role in member_roles:
             if LTI_1P3_CONTEXT_ROLE_MAP.get(role):
                 roles += LTI_1P3_CONTEXT_ROLE_MAP[role]
         return set(roles)

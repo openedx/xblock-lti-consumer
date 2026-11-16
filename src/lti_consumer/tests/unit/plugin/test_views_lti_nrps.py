@@ -34,6 +34,8 @@ def generate_mock_members(num, role='student'):
             'name': f'User {i}'
         }
 
+        # The LMS course-members API appends 'student' for every active enrolment, so a
+        # course team member arrives carrying their course role *and* 'student'.
         if role == 'student':
             member.update({
                 'roles': ['student'],
@@ -41,12 +43,12 @@ def generate_mock_members(num, role='student'):
             })
         elif role == 'instructor':
             member.update({
-                'roles': ['instructor'],
+                'roles': ['student', 'instructor'],
                 'id': 2000 + i
             })
         elif role == 'staff':
             member.update({
-                'roles': ['staff'],
+                'roles': ['student', 'staff'],
                 'id': 3000 + i
             })
 
@@ -337,6 +339,42 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
             set(LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
             actual_roles,
         )
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 1,
+            'instructor': 1,
+            'staff': 1,
+        })),
+    )
+    def test_course_team_members_are_not_reported_as_learners(self, expose_pii_fields_patcher):
+        """
+        Test the course team is not also reported as Learner.
+
+        Course team members are enrolled in their own course, and the LMS course-members API
+        appends 'student' for every active enrolment, so before this was filtered every member
+        of the course team came back carrying Learner alongside their real role. The launch
+        message omits Learner for them, so reporting it here contradicted the launch, and a
+        tool reading a single role off the list could pick either one.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(self.context_membership_endpoint)
+
+        expose_pii_fields_patcher.assert_called()
+        members = response.data['members']
+        self.assertEqual(len(members), 3)
+
+        learner = set(LTI_1P3_CONTEXT_ROLE_LEARNER)
+        by_roles = [set(member['roles']) for member in members]
+
+        # Exactly one member -- the actual learner -- carries the Learner role.
+        self.assertEqual(sum(1 for roles in by_roles if roles & learner), 1)
+
+        # The course team members carry their context role and nothing else.
+        self.assertIn(set(LTI_1P3_CONTEXT_ROLE_INSTRUCTOR), by_roles)
+        self.assertIn(set(LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR), by_roles)
 
     @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
     @patch(

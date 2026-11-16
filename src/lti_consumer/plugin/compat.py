@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from opaque_keys.edx.keys import CourseKey, UsageKey
 
+from lti_consumer.lti_1p3.constants import LTI_1P3_PRIVILEGED_COURSE_ROLES
 from lti_consumer.exceptions import LtiError
 
 log = logging.getLogger(__name__)
@@ -405,7 +406,7 @@ def merge_course_forum_roles(course_id, members):  # pragma: nocover
     Privileged course roles keep precedence over forum roles to match launch behavior.
     """
     target_roles = {'Community TA', 'Group Moderator'}
-    privileged_roles = {'staff', 'instructor', 'limited_staff'}
+    privileged_roles = LTI_1P3_PRIVILEGED_COURSE_ROLES
 
     role_model = get_forum_role_model()
     if role_model is not None:
