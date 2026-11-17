@@ -957,6 +957,9 @@ class LtiNrpsContextMembershipViewSet(viewsets.ReadOnlyModelViewSet):
 
         try:
             data = compat.get_course_members(course_key)
+            # The course-members API reports course roles only, so platform-wide staff has to
+            # be resolved separately or an instance admin looks like an ordinary course admin.
+            compat.merge_global_staff_roles(data)
             compat.merge_course_forum_roles(course_key, data)
             self.attach_external_user_ids(data)
 

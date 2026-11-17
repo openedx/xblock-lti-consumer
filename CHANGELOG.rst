@@ -16,6 +16,19 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.4.6 - 2026-11-17
+--------------------
+* Report NRPS membership roles in the system and institution vocabularies as well as the
+  context one, mapping through ``LTI_1P3_ROLE_MAP`` -- the same table the launch message
+  uses -- so a member is described identically whether a tool reads the launch or the
+  membership container. Ordinary members now carry ``system/person#None`` and
+  ``institution/person#None`` rather than no entry at all in those vocabularies.
+* Identify platform-wide staff in the membership container. The LMS course-members API
+  reports course roles only, so an instance admin who also holds a course role was
+  indistinguishable from an ordinary course admin; they are now resolved in a single query
+  and, as on launch, platform-wide staff outranks any course role rather than being merged
+  with it.
+
 11.4.5 - 2026-11-16
 --------------------
 * Stop reporting course team members as Learners in the NRPS membership container. The LMS
