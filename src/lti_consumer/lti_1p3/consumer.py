@@ -29,6 +29,61 @@ from .nprs import LtiNrps
 log = logging.getLogger(__name__)
 
 
+# Launch message claims that carry user PII. The launch message is logged in full to make
+# tool-integration problems diagnosable, so these are replaced with a placeholder first --
+# `sub` is kept, since it is an opaque, platform-generated identifier and is the only way to
+# correlate a launch with the tool's own logs.
+LTI_1P3_PII_CLAIMS = frozenset({
+    'name',
+    'given_name',
+    'family_name',
+    'middle_name',
+    'email',
+    'picture',
+    'preferred_username',
+    'address',
+    'phone_number',
+})
+
+
+# The custom claim carries whatever the course author and the parameter processors put in it.
+# `${...}` templates routinely resolve to a learner's email or name, and static parameters are
+# a common place to find a tool's API key, so only the parameter names are logged -- the same
+# thing `launch_gate_endpoint` does with `custom_parameter_names`.
+LTI_1P3_CUSTOM_CLAIM = 'https://purl.imsglobal.org/spec/lti/claim/custom'
+
+# Claims whose values are secrets rather than PII. `session_data` is the proctoring anti-CSRF
+# token, which is checked against the tool's response, so logging it would defeat the check.
+LTI_1P3_SECRET_CLAIMS = frozenset({
+    'https://purl.imsglobal.org/spec/lti-ap/claim/session_data',
+})
+
+
+def redact_pii_claims(claims):
+    """
+    Return a copy of an LTI 1.3 launch message that is safe to log.
+
+    PII claims and secret claims have their values replaced by a placeholder, and the custom
+    claim is reduced to its parameter names, so the message can be logged without emitting a
+    learner's name or email address, a proctoring anti-CSRF token, or a tool credential that a
+    course author stored in a custom parameter.
+    """
+    if not isinstance(claims, dict):
+        return claims
+    redacted = {}
+    for key, value in claims.items():
+        if key in LTI_1P3_PII_CLAIMS or key in LTI_1P3_SECRET_CLAIMS:
+            redacted[key] = '<redacted>'
+        elif key == LTI_1P3_CUSTOM_CLAIM:
+            redacted[key] = (
+                {'custom_parameter_names': sorted(value)} if isinstance(value, dict)
+                else '<redacted>'
+            )
+        else:
+            redacted[key] = value
+    return redacted
+
+
 class LtiConsumer1p3:
     """
     LTI 1.3 Consumer Implementation
@@ -146,6 +201,18 @@ class LtiConsumer1p3:
             "login_hint": login_hint,
             "lti_message_hint": launch_data_key,
         }
+
+        log.info(
+            'LTI 1.3 OIDC login redirect prepared for oidc_url=%s: iss=%s client_id=%s deployment_id=%s '
+            'target_link_uri=%s login_hint=%s lti_message_hint=%s.',
+            self.oidc_url,
+            self.iss,
+            self.client_id,
+            self.deployment_id,
+            target_link_uri,
+            login_hint,
+            launch_data_key,
+        )
 
         return oidc_url + urlencode(parameters)
 
@@ -417,6 +484,22 @@ class LtiConsumer1p3:
             "nonce": preflight_response.get("nonce")
         })
 
+        # The full claim set is a fair bit of output on every launch of every block, so it
+        # goes to DEBUG; INFO keeps the fields that identify which launch this was.
+        log.info(
+            'LTI 1.3 launch request assembled: target_link_uri=%s message_type=%s '
+            'deployment_id=%s claim_count=%s.',
+            lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/target_link_uri'),
+            lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/message_type'),
+            lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/deployment_id'),
+            len(lti_launch_message),
+        )
+        log.debug(
+            'LTI 1.3 launch request claims for target_link_uri=%s: %s.',
+            lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/target_link_uri'),
+            redact_pii_claims(lti_launch_message),
+        )
+
         return {
             "state": preflight_response.get("state"),
             "id_token": self.key_handler.encode_and_sign(
@@ -504,6 +587,13 @@ class LtiConsumer1p3:
         # https://tools.ietf.org/html/rfc6749
         scopes_str = " ".join(valid_scopes)
 
+        log.info(
+            'LTI 1.3 access token issued: client_id=%s requested_scopes=%s granted_scopes=%s.',
+            self.client_id,
+            requested_scopes,
+            valid_scopes,
+        )
+
         # This response is compliant with RFC 6749
         # https://tools.ietf.org/html/rfc6749#section-4.4.3
         return {
@@ -557,7 +647,17 @@ class LtiConsumer1p3:
         # If `allowed_scopes` is empty, return true (just check
         # token validity).
         if allowed_scopes:
-            return any(scope in allowed_scopes for scope in token_scopes)
+            granted = any(scope in allowed_scopes for scope in token_scopes)
+            log_at = log.info if granted else log.warning
+            log_at(
+                'LTI 1.3 token scope check: client_id=%s token_scopes=%s '
+                'accepted_scopes_any_of=%s granted=%s.',
+                self.client_id,
+                token_scopes,
+                allowed_scopes,
+                granted,
+            )
+            return granted
 
         return True
 
@@ -721,6 +821,20 @@ class LtiAdvantageConsumer(LtiConsumer1p3):
             lti_launch_message.update({
                 "nonce": preflight_response.get("nonce")
             })
+
+            log.info(
+                'LTI 1.3 Deep Linking launch request assembled: target_link_uri=%s '
+                'message_type=%s deployment_id=%s claim_count=%s.',
+                target_link_uri,
+                lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/message_type'),
+                lti_launch_message.get('https://purl.imsglobal.org/spec/lti/claim/deployment_id'),
+                len(lti_launch_message),
+            )
+            log.debug(
+                'LTI 1.3 Deep Linking launch request claims for target_link_uri=%s: %s.',
+                target_link_uri,
+                redact_pii_claims(lti_launch_message),
+            )
 
             # Return new lanch message, used by XBlock to present the launch
             return {

@@ -274,6 +274,16 @@ def get_lti_1p3_launch_start_url(
     elif dl_content_id:
         launch_data.deep_linking_content_item_id = dl_content_id
 
+    log.info(
+        'LTI 1.3 OIDC launch starting: config_id=%s resource_link_id=%s message_type=%s '
+        'deep_link_launch=%s dl_content_id=%s.',
+        launch_data.config_id,
+        launch_data.resource_link_id,
+        launch_data.message_type,
+        deep_link_launch,
+        dl_content_id,
+    )
+
     # Prepare and return OIDC flow start url
     return lti_consumer.prepare_preflight_url(launch_data)
 
