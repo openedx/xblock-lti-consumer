@@ -81,6 +81,23 @@ LTI_1P3_ROLE_MAP = {
 
 # Context membership roles (kept for callers using context map directly)
 # https://www.imsglobal.org/spec/lti/v1p3/#lis-vocabulary-for-context-roles
+# The Open edX role key for platform-wide staff. It is not a course role, so the LMS
+# course-members API never reports it; `compat.merge_global_staff_roles` adds it.
+LTI_1P3_GLOBAL_STAFF_ROLE = 'global_staff'
+
+# Open edX course roles that outrank plain enrolment. A member holding one of these is a
+# member of the course team, not a learner, even though they are also enrolled.
+LTI_1P3_PRIVILEGED_COURSE_ROLES = frozenset({
+    'staff',
+    'instructor',
+    'limited_staff',
+})
+
+# Roles that come from enrolment alone rather than from a course team assignment. The LMS
+# course-members API appends 'student' for every active enrolment, including the course
+# team's own, so it has to be filtered out before mapping when a privileged role is present.
+LTI_1P3_ENROLMENT_ONLY_ROLES = frozenset({'student'})
+
 LTI_1P3_CONTEXT_ROLE_MAP = {
     'global_staff': LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR,
     'staff': LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,

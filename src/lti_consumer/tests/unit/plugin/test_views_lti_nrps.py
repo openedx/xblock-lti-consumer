@@ -13,6 +13,8 @@ from lti_consumer.lti_1p3.constants import (
     LTI_1P3_CONTEXT_ROLE_INSTRUCTOR,
     LTI_1P3_CONTEXT_ROLE_LEARNER,
     LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT,
+    LTI_1P3_ROLE_BASE,
+    LTI_1P3_ROLE_MAP,
 )
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration
@@ -34,6 +36,8 @@ def generate_mock_members(num, role='student'):
             'name': f'User {i}'
         }
 
+        # The LMS course-members API appends 'student' for every active enrolment, so a
+        # course team member arrives carrying their course role *and* 'student'.
         if role == 'student':
             member.update({
                 'roles': ['student'],
@@ -41,13 +45,20 @@ def generate_mock_members(num, role='student'):
             })
         elif role == 'instructor':
             member.update({
-                'roles': ['instructor'],
+                'roles': ['student', 'instructor'],
                 'id': 2000 + i
             })
         elif role == 'staff':
             member.update({
-                'roles': ['staff'],
+                'roles': ['student', 'staff'],
                 'id': 3000 + i
+            })
+        elif role == 'global_staff':
+            # `compat.merge_global_staff_roles` adds 'global_staff'; the course roles alongside
+            # it are what an instance admin who is also on the course team looks like.
+            member.update({
+                'roles': ['student', 'instructor', 'global_staff'],
+                'id': 4000 + i
             })
 
         members.append(member)
@@ -84,6 +95,7 @@ def patch_get_memberships(config=None):
             'student': 4,
             'instructor': 5,
             'staff': 4,
+            'global_staff': 1,
             'exception': False
         }
     """
@@ -98,6 +110,7 @@ def patch_get_memberships(config=None):
             members += generate_mock_members(config.get('student', 0), role='student')
             members += generate_mock_members(config.get('instructor', 0), role='instructor')
             members += generate_mock_members(config.get('staff', 0), role='staff')
+            members += generate_mock_members(config.get('global_staff', 0), role='global_staff')
 
     def _get_memberships(course_key):  # pylint: disable=unused-argument
         """
@@ -326,17 +339,102 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         actual_roles = [set(member['roles']) for member in response.data['members']]
 
         self.assertIn(
-            set(LTI_1P3_CONTEXT_ROLE_LEARNER),
+            set(LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_LEARNER),
             actual_roles,
         )
         self.assertIn(
-            set(LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
+            set(LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR),
             actual_roles,
         )
         self.assertIn(
-            set(LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
+            set(LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR),
             actual_roles,
         )
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'student': 1,
+            'instructor': 1,
+            'staff': 1,
+        })),
+    )
+    def test_course_team_members_are_not_reported_as_learners(self, expose_pii_fields_patcher):
+        """
+        Test the course team is not also reported as Learner.
+
+        Course team members are enrolled in their own course, and the LMS course-members API
+        appends 'student' for every active enrolment, so before this was filtered every member
+        of the course team came back carrying Learner alongside their real role. The launch
+        message omits Learner for them, so reporting it here contradicted the launch, and a
+        tool reading a single role off the list could pick either one.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(self.context_membership_endpoint)
+
+        expose_pii_fields_patcher.assert_called()
+        members = response.data['members']
+        self.assertEqual(len(members), 3)
+
+        learner = set(LTI_1P3_CONTEXT_ROLE_LEARNER)
+        by_roles = [set(member['roles']) for member in members]
+
+        # Exactly one member -- the actual learner -- carries the Learner role.
+        self.assertEqual(sum(1 for roles in by_roles if roles & learner), 1)
+
+        # The course team members carry their context role and nothing else.
+        self.assertIn(set(LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_INSTRUCTOR), by_roles)
+        self.assertIn(set(LTI_1P3_ROLE_BASE + LTI_1P3_CONTEXT_ROLE_ADMINISTRATOR), by_roles)
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'global_staff': 1,
+        })),
+    )
+    def test_instance_admin_is_reported_in_all_three_vocabularies(self, expose_pii_fields_patcher):
+        """
+        Test an instance admin is reported with the system and institution roles too.
+
+        The membership container maps through the same table as the launch, so an instance
+        admin is described identically whichever one a tool reads.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(self.context_membership_endpoint)
+
+        expose_pii_fields_patcher.assert_called()
+        self.assertEqual(
+            set(response.data['members'][0]['roles']),
+            set(LTI_1P3_ROLE_MAP['global_staff']),
+        )
+
+    @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
+    @patch(
+        'lti_consumer.plugin.views.compat.get_course_members',
+        Mock(side_effect=patch_get_memberships({
+            'global_staff': 1,
+        })),
+    )
+    def test_global_staff_outranks_a_course_role(self, expose_pii_fields_patcher):
+        """
+        Test platform-wide staff is not reported as a union with their course role.
+
+        The fixture member is an instance admin who is also a course admin. The launch
+        resolves that to `global_staff` alone, so the membership container must not hand the
+        tool `system/person#None` from the course role next to `system/person#Administrator`
+        from the global one -- contradictory values in the same vocabulary.
+        """
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly')
+        response = self.client.get(self.context_membership_endpoint)
+
+        expose_pii_fields_patcher.assert_called()
+        roles = set(response.data['members'][0]['roles'])
+
+        self.assertNotIn('http://purl.imsglobal.org/vocab/lis/v2/system/person#None', roles)
+        self.assertNotIn('http://purl.imsglobal.org/vocab/lis/v2/institution/person#None', roles)
+        self.assertIn('http://purl.imsglobal.org/vocab/lis/v2/system/person#Administrator', roles)
 
     @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', return_value=False)
     @patch(
@@ -366,7 +464,11 @@ class LtiNrpsContextMembershipViewsetTestCase(LtiNrpsTestCase):
         self.assertEqual(len(response.data['members']), 1)
         self.assertEqual(
             set(response.data['members'][0]['roles']),
-            set(LTI_1P3_CONTEXT_ROLE_LEARNER + LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT),
+            set(
+                LTI_1P3_ROLE_BASE +
+                LTI_1P3_CONTEXT_ROLE_LEARNER +
+                LTI_1P3_CONTEXT_ROLE_TEACHING_ASSISTANT
+            ),
         )
 
     @patch('lti_consumer.plugin.views.get_lti_pii_sharing_state_for_course', Mock(return_value=False))

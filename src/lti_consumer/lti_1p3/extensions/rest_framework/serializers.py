@@ -8,7 +8,12 @@ from opaque_keys.edx.keys import UsageKey
 from rest_framework import ISO_8601, serializers
 from rest_framework.reverse import reverse
 
-from lti_consumer.lti_1p3.constants import LTI_1P3_CONTEXT_ROLE_MAP
+from lti_consumer.lti_1p3.constants import (
+    LTI_1P3_ENROLMENT_ONLY_ROLES,
+    LTI_1P3_GLOBAL_STAFF_ROLE,
+    LTI_1P3_PRIVILEGED_COURSE_ROLES,
+    LTI_1P3_ROLE_MAP,
+)
 from lti_consumer.models import LtiAgsLineItem, LtiAgsScore
 
 
@@ -396,6 +401,33 @@ class LtiContextSerializer(serializers.Serializer):
     id = UsageKeyField()
 
 
+def _effective_member_roles(member_roles):
+    """
+    Reduce a member's Open edX roles to the ones that decide their LTI roles.
+
+    Mirrors the precedence the launch applies in `LtiConsumerXBlock._get_lti_1p3_user_role`:
+
+    * Platform-wide staff outranks everything, so an instance admin is described as one
+      rather than as a union of that and whatever course role they also hold.
+    * A privileged course role outranks plain enrolment. Course team members are enrolled in
+      their own course and the LMS course-members API appends 'student' for every active
+      enrolment, so without this every member of the course team is also reported a Learner.
+
+    The launch keeps its own copy of this precedence because it resolves a single role from
+    the runtime rather than reducing a list; the two should be unified once both have landed.
+    """
+    if LTI_1P3_GLOBAL_STAFF_ROLE in member_roles:
+        return [LTI_1P3_GLOBAL_STAFF_ROLE]
+
+    if LTI_1P3_PRIVILEGED_COURSE_ROLES.intersection(member_roles):
+        return [
+            role for role in member_roles
+            if role not in LTI_1P3_ENROLMENT_ONLY_ROLES
+        ]
+
+    return list(member_roles)
+
+
 class LtiNrpsContextMemberBasicSerializer(serializers.Serializer):
     """
     Non PII fields serializer for Context Member.
@@ -406,12 +438,16 @@ class LtiNrpsContextMemberBasicSerializer(serializers.Serializer):
 
     def get_roles(self, user_info):
         """
-        Prepare and return Context Roles for user.
+        Prepare and return the LTI roles for a member.
+
+        Mapped through `LTI_1P3_ROLE_MAP`, the same table the launch message uses, so the
+        system and institution vocabularies are reported here too and a member is described
+        identically whether a tool reads the launch or the membership container.
         """
         roles = []
-        for role in user_info['roles']:
-            if LTI_1P3_CONTEXT_ROLE_MAP.get(role):
-                roles += LTI_1P3_CONTEXT_ROLE_MAP[role]
+        for role in _effective_member_roles(user_info['roles']):
+            if LTI_1P3_ROLE_MAP.get(role):
+                roles += LTI_1P3_ROLE_MAP[role]
         return set(roles)
 
 

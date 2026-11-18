@@ -9,6 +9,10 @@ from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from opaque_keys.edx.keys import CourseKey, UsageKey
 
+from lti_consumer.lti_1p3.constants import (
+    LTI_1P3_GLOBAL_STAFF_ROLE,
+    LTI_1P3_PRIVILEGED_COURSE_ROLES,
+)
 from lti_consumer.exceptions import LtiError
 
 log = logging.getLogger(__name__)
@@ -398,6 +402,35 @@ def get_user_course_forum_role(user_id, course_id):  # pragma: nocover
         return _select_supported_forum_role(user_forum_roles)
 
 
+def merge_global_staff_roles(members):  # pragma: nocover
+    """
+    Mark platform-wide staff in an NRPS member list.
+
+    `get_course_members` reports course roles only, so an instance admin who also holds a
+    course role is indistinguishable from an ordinary course admin. The launch message
+    distinguishes them, so without this the membership container would contradict it.
+
+    Resolved in one query rather than per member, like the forum roles below.
+    """
+    # pylint: disable=import-outside-toplevel
+    from django.contrib.auth import get_user_model
+
+    if not members:
+        return members
+
+    staff_ids = set(
+        get_user_model().objects
+        .filter(id__in=list(members.keys()), is_staff=True)
+        .values_list('id', flat=True)
+    )
+    for user_id, member in members.items():
+        if user_id in staff_ids:
+            roles = member.setdefault('roles', [])
+            if LTI_1P3_GLOBAL_STAFF_ROLE not in roles:
+                roles.append(LTI_1P3_GLOBAL_STAFF_ROLE)
+    return members
+
+
 def merge_course_forum_roles(course_id, members):  # pragma: nocover
     """
     Merge supported forum roles into NRPS member role lists.
@@ -405,7 +438,7 @@ def merge_course_forum_roles(course_id, members):  # pragma: nocover
     Privileged course roles keep precedence over forum roles to match launch behavior.
     """
     target_roles = {'Community TA', 'Group Moderator'}
-    privileged_roles = {'staff', 'instructor', 'limited_staff'}
+    privileged_roles = LTI_1P3_PRIVILEGED_COURSE_ROLES
 
     role_model = get_forum_role_model()
     if role_model is not None:

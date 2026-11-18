@@ -19,6 +19,29 @@ Unreleased
   Services is disabled on the LTI configuration. A tool could still create line
   items and post scores, which reached the gradebook on a graded block.
 
+11.4.6 - 2026-11-17
+--------------------
+* Report NRPS membership roles in the system and institution vocabularies as well as the
+  context one, mapping through ``LTI_1P3_ROLE_MAP`` -- the same table the launch message
+  uses -- so a member is described identically whether a tool reads the launch or the
+  membership container. Ordinary members now carry ``system/person#None`` and
+  ``institution/person#None`` rather than no entry at all in those vocabularies.
+* Identify platform-wide staff in the membership container. The LMS course-members API
+  reports course roles only, so an instance admin who also holds a course role was
+  indistinguishable from an ordinary course admin; they are now resolved in a single query
+  and, as on launch, platform-wide staff outranks any course role rather than being merged
+  with it.
+
+11.4.5 - 2026-11-16
+--------------------
+* Stop reporting course team members as Learners in the NRPS membership container. The LMS
+  course-members API appends ``student`` for every active enrolment, and course team members
+  are enrolled in their own course, so staff, limited staff and course admins were all
+  returned carrying ``membership#Learner`` alongside their real context role. The launch
+  message already omits Learner for those users, so the two disagreed, and a tool reading a
+  single role off the list could pick either one. Enrolment-only roles are now dropped when a
+  privileged course role is present.
+
 11.4.4 - 2026-10-26
 --------------------
 * Omit the LTI 1.3 ``resource_link`` claim from Deep Linking request
