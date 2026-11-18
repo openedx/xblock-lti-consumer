@@ -259,6 +259,29 @@ def user_has_studio_write_access(*args, **kwargs):  # pragma: nocover
     return has_studio_write_access(*args, **kwargs)
 
 
+def get_active_organizations():
+    """Return active organizations through the supported organizations API."""
+    # pylint: disable=import-error,import-outside-toplevel
+    from organizations.api import get_organizations
+    return get_organizations()
+
+
+def user_is_course_admin(user, course_key):  # pragma: nocover
+    """Check the platform's course-team Admin/Instructor role for a course."""
+    # pylint: disable=import-error,import-outside-toplevel
+    from common.djangoapps.student.roles import CourseInstructorRole
+    return CourseInstructorRole(course_key).has_user(user)
+
+
+def user_is_global_staff(user):
+    """Check Global Staff access while preserving the prior superuser access."""
+    if getattr(user, 'is_superuser', False):
+        return True
+    # pylint: disable=import-error,import-outside-toplevel
+    from common.djangoapps.student.roles import GlobalStaff
+    return GlobalStaff().has_user(user)
+
+
 def get_course_by_id(course_key):  # pragma: nocover
     """
     Import and run `get_course_by_id` from LMS
@@ -468,3 +491,40 @@ def yield_dynamic_block_descendants(block, user_id):  # pragma: nocover
         return yield_dynamic_block_descendants(block, user_id)
     except ImportError:
         return None
+
+
+def _get_studio_course_candidates(request):
+    """Return CMS course candidates, without applying caller-controlled filters."""
+    # pylint: disable=import-error,import-outside-toplevel
+    from cms.djangoapps.contentstore.views.course import get_courses_accessible_to_user
+    return get_courses_accessible_to_user(request)[0]
+
+
+def get_studio_accessible_course_keys(user):
+    """Return distinct normal course keys the CMS catalog reports for ``user``.
+
+    CMS's catalog method takes a request and applies GET filters, so construct a
+    clean request rather than forwarding the catalog endpoint's query string.
+    """
+    if not getattr(user, 'is_authenticated', False):
+        return []
+
+    # pylint: disable=import-outside-toplevel
+    from ccx_keys.locator import CCXLocator
+    from django.http import HttpRequest
+    from opaque_keys.edx.locator import CourseLocator
+
+    request = HttpRequest()
+    request.user = user
+    candidates = _get_studio_course_candidates(request)
+
+    # shortcut: CMS AccessListFallback can return all courses; remove this warning after the upstream fix.
+    # A CCXLocator subclasses CourseLocator, so reject that special key type
+    # explicitly. Library keys are not CourseLocators either.
+    course_keys = {
+        course_key
+        for course in candidates
+        if isinstance((course_key := getattr(course, 'id', None)), CourseLocator)
+        if not isinstance(course_key, CCXLocator)
+    }
+    return sorted(course_keys, key=str)

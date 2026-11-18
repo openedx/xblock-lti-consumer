@@ -26,7 +26,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
 from lti_consumer.api import get_lti_pii_sharing_state_for_course, validate_lti_1p3_launch_data
-from lti_consumer.exceptions import ExternalConfigurationNotFound, LtiError
+from lti_consumer.exceptions import ExternalConfigurationNotFound, LtiError, ReusableConfigurationUnavailable
 from lti_consumer.filters import get_external_config_from_filter
 from lti_consumer.lti_1p3.consumer import LtiConsumer1p3, LtiProctoringConsumer
 from lti_consumer.lti_1p3.exceptions import (
@@ -63,11 +63,18 @@ from lti_consumer.lti_1p3.extensions.rest_framework.serializers import (
     LtiNrpsContextMembershipPIISerializer,
 )
 from lti_consumer.lti_1p3.extensions.rest_framework.utils import IgnoreContentNegotiation
-from lti_consumer.models import Lti1p3Passport, LtiAgsLineItem, LtiConfiguration, LtiDlContentItem
+from lti_consumer.models import LtiAgsLineItem, LtiConfiguration, LtiDlContentItem, ReusableLtiConfiguration
 from lti_consumer.plugin import compat
 from lti_consumer.signals.signals import LTI_1P3_PROCTORING_ASSESSMENT_STARTED
 from lti_consumer.track import track_event
 from lti_consumer.utils import _, get_data_from_cache, get_lti_1p3_context_types_claim, get_lti_api_base
+
+
+def _render_launch_error(request, error_msg, status_code):
+    """
+    Render the LTI 1.3 launch error page with the given message and status.
+    """
+    return render(request, 'html/lti_launch_error.html', context={"error_msg": error_msg}, status=status_code)
 
 
 def _build_url_with_query(request, query_params):
@@ -184,13 +191,17 @@ def public_keyset_endpoint(
     and run the proper handler.
 
     Arguments:
-        passport_id (UUID): passport_id of the Lti1p3Passport
+        passport_id (UUID): passport_id of the ReusableLtiConfiguration
         usage_id (UsageKey): location of the Block
         external_app (str): App name of the external LTI configuration
         external_slug (str): Slug of the external LTI configuration.
 
     Returns:
         JsonResponse or Http404
+
+    A UUID resolves the reusable configuration directly, so a complete LTI 1.3
+    registration publishes its keyset without any placement bound to it. An inactive
+    configuration keeps publishing: messages already issued must stay verifiable.
     """
     external_id = f"{external_app}:{external_slug}"
 
@@ -199,15 +210,23 @@ def public_keyset_endpoint(
         public_jwk = {}
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
-            version = lti_config.version
-            public_jwk = lti_config.lti_1p3_public_jwk
+            if lti_config.config_store == LtiConfiguration.CONFIG_EXTERNAL:
+                # An external configuration keeps its own identity source.
+                external_config = get_external_config_from_filter({}, lti_config.external_id)
+                if not external_config:
+                    raise ExternalConfigurationNotFound("External LTI configuration not found")
+                version = external_config.get("version")
+                public_jwk = external_config.get("lti_1p3_public_jwk", {})
+            else:
+                version = lti_config.get_effective_version()
+                if version == LtiConfiguration.LTI_1P3:
+                    # Published exactly as stored: a reader never generates signing material.
+                    public_jwk = lti_config.get_runtime_identity().public_jwk
         elif passport_id:
-            lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
-            public_jwk = lti_passport.lti_1p3_public_jwk
-            # TODO: move version inside passport from config
-            # We just need any lti_config that is using this passport to check version
-            lti_config = LtiConfiguration.objects.filter(lti_1p3_passport=lti_passport).first()
-            version = lti_config.version
+            configuration = ReusableLtiConfiguration.objects.get(passport_id=passport_id)
+            version = configuration.version
+            if version == ReusableLtiConfiguration.LTI_1P3:
+                public_jwk = configuration.get_runtime_identity().public_jwk
         elif external_app and external_slug:
             lti_config = get_external_config_from_filter({}, external_id)
 
@@ -222,16 +241,13 @@ def public_keyset_endpoint(
                 "LTI Error: LTI 1.1 blocks do not have a public keyset endpoint."
             )
 
-        # Retrieve block's Public JWK
-        # The underlying method will generate a new Private-Public Pair if one does
-        # not exist, and retrieve the values.
         response = JsonResponse(public_jwk)
         response['Content-Disposition'] = 'attachment; filename=keyset.json'
         return response
     except (
         InvalidKeyError,
         LtiConfiguration.DoesNotExist,
-        Lti1p3Passport.DoesNotExist,
+        ReusableLtiConfiguration.DoesNotExist,
         ExternalConfigurationNotFound,
         LtiError,
     ) as exc:
@@ -266,23 +282,13 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
     if not lti_message_hint:
         error_msg = 'The lti_message_hint is missing or empty.'
         log.info(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     login_hint = request_params.get('login_hint')
     if not login_hint:
         error_msg = 'The login_hint is missing or empty.'
         log.info(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     launch_data = get_data_from_cache(lti_message_hint)
     if not launch_data:
@@ -290,24 +296,14 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
             f'Unable to find record of an OIDC launch for the provided lti_message_hint: {lti_message_hint}'
         )
         log.warning(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     is_valid, validation_messages = validate_lti_1p3_launch_data(launch_data)
     if not is_valid:
         validation_message = " ".join(validation_messages)
         error_msg = f"The Lti1p3LaunchData is not valid. {validation_message}"
         log.error(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     config_id = launch_data.config_id
     try:
@@ -318,15 +314,31 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         log.error("Invalid config_id '%s' for LTI 1.3 Launch callback", config_id)
         raise Http404 from exc
 
-    if lti_config.version != LtiConfiguration.LTI_1P3:
+    effective_version = lti_config.get_effective_version()
+    if effective_version is None:
+        error_msg = f"The LTI version of the following configuration is unassigned: {lti_config}"
+        log.error(error_msg)
+        return _render_launch_error(request, error_msg, HTTP_404_NOT_FOUND)
+
+    if effective_version != LtiConfiguration.LTI_1P3:
         error_msg = f"The LTI Version of the following configuration is not LTI 1.3: {lti_config}"
         log.error(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_404_NOT_FOUND
-        )
+        return _render_launch_error(request, error_msg, HTTP_404_NOT_FOUND)
+
+    # Identity, keys and binding come from the reusable configuration already bound to
+    # the placement; a launch never creates or attaches one. The retained passport table
+    # is never a fallback. An inactive registration refuses new launches while still
+    # publishing its keyset for messages already issued.
+    if lti_config.config_store != LtiConfiguration.CONFIG_EXTERNAL:
+        try:
+            registration = lti_config.bound_reusable_configuration()
+        except ReusableConfigurationUnavailable as exc:
+            log.error("LTI launch denied: %s", exc)
+            return _render_launch_error(request, str(exc), HTTP_404_NOT_FOUND)
+        if not registration.is_active:
+            error_msg = f"The following LTI configuration is inactive: {lti_config}"
+            log.warning(error_msg)
+            return _render_launch_error(request, error_msg, HTTP_403_FORBIDDEN)
 
     context = {}
 
@@ -366,12 +378,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
                     f"data does not represent a valid context_type."
                 )
                 log.error(error_msg)
-                return render(
-                    request,
-                    'html/lti_launch_error.html',
-                    context={"error_msg": error_msg},
-                    status=HTTP_400_BAD_REQUEST
-                )
+                return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
         lti_consumer.set_context_claim(
             launch_data.context_id,
@@ -459,7 +466,7 @@ def launch_gate_endpoint(request, suffix=None):  # pylint: disable=unused-argume
         track_event('xblock.launch_request', event)
 
         return render(request, 'html/lti_1p3_launch.html', context)
-    except Lti1p3Exception as exc:
+    except (Lti1p3Exception, ReusableConfigurationUnavailable) as exc:
         resource_link_id = launch_data.resource_link_id
         error_msg = f"Error preparing LTI 1.3 launch for resource with resource_link_id {resource_link_id}: {exc}"
         log.warning(
@@ -498,13 +505,18 @@ def access_token_endpoint(
     This endpoint is only valid when a LTI 1.3 tool is being used.
 
     Arguments:
-        passport_id (UUID): passport_id of the Lti1p3Passport
+        passport_id (UUID): passport_id of the ReusableLtiConfiguration
         usage_id (UsageKey): location of the Block
         external_app (str): App name of the external LTI configuration
         external_slug (str): Slug of the external LTI configuration.
 
     Returns:
         JsonResponse or Http404
+
+    A UUID resolves the reusable configuration directly: its stored version gates the
+    request and it serves tokens without any placement bound to it. An inactive
+    configuration refuses new tokens; its keyset stays published for messages already
+    issued.
 
     References:
         Success: https://tools.ietf.org/html/rfc6749#section-4.4.3
@@ -515,28 +527,41 @@ def access_token_endpoint(
     try:
         version = None
         lti_consumer = None
+        registration = None
         if usage_id:
             lti_config = LtiConfiguration.objects.get(location=UsageKey.from_string(usage_id))
-            version = lti_config.version
-            lti_consumer = lti_config.get_lti_consumer()
+            version = lti_config.get_effective_version()
+            if lti_config.config_store == LtiConfiguration.CONFIG_EXTERNAL:
+                # External configurations keep supplying their own identity.
+                lti_consumer = lti_config.get_lti_consumer()
+            else:
+                registration = lti_config.bound_reusable_configuration()
+                if registration.is_active and version == LtiConfiguration.LTI_1P3:
+                    try:
+                        lti_consumer = lti_config.get_lti_consumer()
+                    except ReusableConfigurationUnavailable as exc:
+                        log.info("Incomplete registration for %s: %s", usage_id, exc)
         elif passport_id:
-            lti_passport = Lti1p3Passport.objects.get(passport_id=passport_id)
-            # TODO: move version inside passport from config
-            # We just need any lti_config that is using this passport to check version
-            lti_config = LtiConfiguration.objects.filter(lti_1p3_passport=lti_passport).first()
-            version = lti_config.version
-            lti_consumer = LtiConsumer1p3(
-                iss=get_lti_api_base(),
-                lti_oidc_url=None,
-                lti_launch_url=None,
-                client_id=lti_passport.lti_1p3_client_id,
-                deployment_id=None,
-                rsa_key=lti_passport.lti_1p3_private_key,
-                rsa_key_id=lti_passport.lti_1p3_private_key_id,
-                redirect_uris=None,
-                tool_key=lti_passport.lti_1p3_tool_public_key,
-                tool_keyset_url=lti_passport.lti_1p3_tool_keyset_url,
-            )
+            registration = ReusableLtiConfiguration.objects.get(passport_id=passport_id)
+            version = registration.version
+            if registration.is_active and version == ReusableLtiConfiguration.LTI_1P3:
+                try:
+                    identity = registration.get_runtime_identity()
+                except ReusableConfigurationUnavailable as exc:
+                    log.info("Incomplete registration for %s: %s", passport_id, exc)
+                else:
+                    lti_consumer = LtiConsumer1p3(
+                        iss=get_lti_api_base(),
+                        lti_oidc_url=None,
+                        lti_launch_url=None,
+                        client_id=identity.client_id,
+                        deployment_id=identity.deployment_id,
+                        rsa_key=identity.private_key,
+                        rsa_key_id=identity.private_key_id,
+                        redirect_uris=None,
+                        tool_key=identity.tool_public_key,
+                        tool_keyset_url=identity.tool_keyset_url,
+                    )
         elif external_app and external_slug:
             lti_config = get_external_config_from_filter({}, external_id)
 
@@ -560,9 +585,11 @@ def access_token_endpoint(
             )
     except (
         InvalidKeyError,
+        Lti1p3Exception,
         LtiConfiguration.DoesNotExist,
-        Lti1p3Passport.DoesNotExist,
+        ReusableLtiConfiguration.DoesNotExist,
         ExternalConfigurationNotFound,
+        ReusableConfigurationUnavailable,
     ) as exc:
         log.info(
             "Error while retrieving access token for ID %s: %s",
@@ -574,6 +601,9 @@ def access_token_endpoint(
 
     if version is None or version != LtiConfiguration.LTI_1P3:
         return JsonResponse({"error": "invalid_lti_version"}, status=HTTP_404_NOT_FOUND)
+
+    if registration is not None and not registration.is_active:
+        return JsonResponse({"error": "inactive_configuration"}, status=HTTP_403_FORBIDDEN)
 
     if lti_consumer is None:
         return JsonResponse({"error": "lti_consumer_not_initialized"}, status=HTTP_404_NOT_FOUND)
@@ -685,8 +715,10 @@ def deep_linking_response_endpoint(request, lti_config_id=None):
             {"error": _("The selected content type is not supported by Open edX.")},
             status=400
         )
-    # Bad JWT message, invalid token, or any other message validation issues
-    except (Lti1p3Exception, PermissionDenied, jwt.exceptions.DecodeError) as exc:
+    # Bad JWT message, invalid token, unusable registration or any other message
+    # validation issue
+    except (Lti1p3Exception, ReusableConfigurationUnavailable, PermissionDenied,
+            jwt.exceptions.DecodeError) as exc:
         log.warning(
             "Permission on LTI Config %r denied for user %r: %s",
             lti_config,
@@ -715,23 +747,13 @@ def deep_linking_content_endpoint(request, lti_config_id):
     if not launch_data_key:
         error_msg = 'The launch_data_key query param in the request is missing or empty.'
         log.info(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
 
     launch_data = get_data_from_cache(launch_data_key)
     if not launch_data:
         error_msg = f'There was a cache miss during an LTI 1.3 launch when using the cache_key {launch_data_key}.'
         log.warning(error_msg)
-        return render(
-            request,
-            'html/lti_launch_error.html',
-            context={"error_msg": error_msg},
-            status=HTTP_400_BAD_REQUEST
-        )
+        return _render_launch_error(request, error_msg, HTTP_400_BAD_REQUEST)
     try:
         # Get LTI Configuration
         lti_config = LtiConfiguration.objects.get(id=lti_config_id)
@@ -757,12 +779,31 @@ def deep_linking_content_endpoint(request, lti_config_id):
         log.info("There's no Deep linking content for LTI configuration %s.", lti_config)
         raise Http404
 
-    # Render LTI-DL contents
-    return render(request, 'html/lti-dl/render_dl_content.html', {
-        'content_items': content_items,
-        'block': block,
-        'launch_data': launch_data,
-    })
+    if lti_config.config_store != LtiConfiguration.CONFIG_EXTERNAL:
+        try:
+            registration = lti_config.bound_reusable_configuration()
+        except ReusableConfigurationUnavailable as exc:
+            log.warning("LTI configuration %r has no usable registration: %s", lti_config_id, exc)
+            return _render_launch_error(request, str(exc), HTTP_403_FORBIDDEN)
+        if not registration.is_active:
+            log.warning("LTI configuration %r is inactive and cannot launch content", lti_config_id)
+            return _render_launch_error(request, "This LTI tool configuration is inactive.", HTTP_403_FORBIDDEN)
+
+    # Render LTI-DL contents. The launch links in the page resolve the registration,
+    # so an unusable one is denied here instead of raising from the template.
+    try:
+        return render(request, 'html/lti-dl/render_dl_content.html', {
+            'content_items': content_items,
+            'block': block,
+            'launch_data': launch_data,
+        })
+    except ReusableConfigurationUnavailable as exc:
+        log.warning(
+            "LTI configuration %r cannot launch content: %s",
+            lti_config_id,
+            exc,
+        )
+        return _render_launch_error(request, str(exc), HTTP_403_FORBIDDEN)
 
 
 class LtiAgsLineItemViewset(viewsets.ModelViewSet):
@@ -1037,7 +1078,7 @@ def start_proctoring_assessment_endpoint(request):
 
     try:
         lti_config = LtiConfiguration.objects.get(
-            lti_1p3_passport__lti_1p3_client_id=iss,
+            reusable_configuration__lti_1p3_client_id=iss,
             location=resource_link_id
         )
     except LtiConfiguration.DoesNotExist:
@@ -1047,7 +1088,23 @@ def start_proctoring_assessment_endpoint(request):
         )
         return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_404_NOT_FOUND)
 
-    lti_consumer = lti_config.get_lti_consumer()
+    registration = lti_config.reusable_configuration
+    if not registration.is_active:
+        log.info(
+            "Proctoring launch denied for inactive LTIConfiguration with config_id %s",
+            lti_config.config_id,
+        )
+        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_403_FORBIDDEN)
+
+    try:
+        lti_consumer = lti_config.get_lti_consumer()
+    except ReusableConfigurationUnavailable as exc:
+        log.info(
+            "Proctoring launch denied for LTIConfiguration with config_id %s: %s",
+            lti_config.config_id,
+            exc,
+        )
+        return render(request, 'html/lti_proctoring_start_error.html', status=HTTP_404_NOT_FOUND)
 
     if not isinstance(lti_consumer, LtiProctoringConsumer):
         log.info("Proctoring Services for LTIConfiguration with config_id %s are not enabled", lti_config.config_id)

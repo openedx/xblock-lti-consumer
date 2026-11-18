@@ -2,12 +2,14 @@
 Tests for LTI 1.3 endpoint views.
 """
 import json
+import re
 import urllib.parse
 from unittest.mock import Mock, patch
 
 import ddt
 import jwt
 from Cryptodome.PublicKey import RSA
+from django.template.loader import render_to_string
 from django.urls import reverse
 from edx_django_utils.cache import TieredCache, get_cache_key
 from jwt.api_jwk import PyJWK
@@ -25,8 +27,8 @@ from lti_consumer.lti_1p3.exceptions import (
 )
 from lti_consumer.lti_1p3.tests.utils import create_jwt
 from lti_consumer.lti_xblock import LtiConsumerXBlock
-from lti_consumer.models import LtiConfiguration, LtiDlContentItem
-from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
+from lti_consumer.models import LtiConfiguration, LtiDlContentItem, ReusableLtiConfiguration
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_reusable_configuration, make_xblock
 from lti_consumer.utils import cache_lti_1p3_launch_data
 
 
@@ -42,11 +44,13 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
         self.url = f'/lti_consumer/v1/public_keysets/{self.location}'
 
-        # Set up LTI Configuration
+        # Set up LTI Configuration; runtime keys live on the reusable registration.
+        self.configuration = make_reusable_configuration()
         self.lti_config = LtiConfiguration.objects.create(
             version=LtiConfiguration.LTI_1P3,
             config_store=LtiConfiguration.CONFIG_ON_XBLOCK,
-            location=UsageKey.from_string(self.location)
+            location=UsageKey.from_string(self.location),
+            reusable_configuration=self.configuration,
         )
 
     def test_public_keyset_endpoint(self):
@@ -62,11 +66,121 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         self.assertEqual(response['Content-Disposition'], 'attachment; filename=keyset.json')
 
         # Check public keyset
-        self.lti_config.refresh_from_db()
+        self.configuration.refresh_from_db()
         self.assertEqual(
-            self.lti_config.lti_1p3_public_jwk,
+            json.loads(self.configuration.lti_1p3_internal_public_jwk),
             json.loads(response.content.decode('utf-8'))
         )
+
+    def test_a_configuration_without_a_placement_publishes_its_keyset(self):
+        """
+        A UUID resolves the reusable configuration directly; binding is only needed to launch.
+        """
+        configuration = make_reusable_configuration(name='Unplaced')
+
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{configuration.passport_id}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            json.loads(configuration.lti_1p3_internal_public_jwk),
+            json.loads(response.content.decode('utf-8'))
+        )
+
+    def test_an_inactive_configuration_still_publishes_its_keyset(self):
+        """
+        Inactive denies launches and new tokens, not keyset reads for messages already issued.
+        """
+        self.configuration.is_active = False
+        self.configuration.save()
+        stored_jwk = self.configuration.lti_1p3_internal_public_jwk
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            response = self.client.get(f'/lti_consumer/v1/public_keysets/{self.configuration.passport_id}')
+            save_mock.assert_not_called()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content.decode('utf-8')), json.loads(stored_jwk))
+        self.configuration.refresh_from_db()
+        self.assertEqual(self.configuration.lti_1p3_internal_public_jwk, stored_jwk)
+
+    def test_an_unassigned_version_is_denied(self):
+        """
+        A NULL stored version has no keyset instead of borrowing a placement's version.
+        """
+        self.configuration.version = None
+        self.configuration.save()
+
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{self.configuration.passport_id}')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_an_unbound_placement_is_denied_without_attaching(self):
+        """
+        The location route denies an unbound placement and never attaches a registration.
+        """
+        orphan = make_reusable_configuration(name='Orphan row')
+        before = ReusableLtiConfiguration.objects.count()
+        self.lti_config.reusable_configuration = None
+        self.lti_config.save()
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 404)
+        self.lti_config.refresh_from_db()
+        self.assertIsNone(self.lti_config.reusable_configuration_id)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.name, 'Orphan row')
+
+    def test_an_incomplete_configuration_is_denied_without_writes(self):
+        """
+        A malformed stored identity component denies without a write.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(
+            lti_1p3_internal_public_jwk='not-json',
+        )
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            response = self.client.get(
+                f'/lti_consumer/v1/public_keysets/{self.configuration.passport_id}'
+            )
+            save_mock.assert_not_called()
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.content, b'')
+
+    def test_the_location_route_also_denies_an_incomplete_configuration(self):
+        """
+        An incomplete registration is denied consistently on both keyset routes.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(lti_1p3_client_id=None)
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            response = self.client.get(self.url)
+            save_mock.assert_not_called()
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.content, b'')
+
+    @patch('lti_consumer.plugin.views.get_external_config_from_filter')
+    def test_an_external_placement_publishes_the_external_keyset(self, filter_mock):
+        """
+        The location route keeps an external configuration's own identity source.
+        """
+        external_jwk = {'keys': [{'kid': 'external-key'}]}
+        filter_mock.return_value = {'version': LtiConfiguration.LTI_1P3, 'lti_1p3_public_jwk': external_jwk}
+        placement = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            external_id='test:external',
+            location='block-v1:course+test+2020+type@problem+block@external-keyset',
+        )
+
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{placement.location}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content.decode('utf-8')), external_jwk)
+        filter_mock.assert_called_once_with({}, 'test:external')
 
     def test_invalid_usage_key(self):
         """
@@ -92,17 +206,17 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         """
         Check if trying to fetch the public keyset for LTI 1.1 yields a HTTP code 404.
         """
-        self.lti_config.version = LtiConfiguration.LTI_1P1
-        self.lti_config.save()
+        self.configuration.version = ReusableLtiConfiguration.LTI_1P1
+        self.configuration.save()
 
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 404)
 
     def test_public_keyset_endpoint_using_lti_config_id_in_url(self):
         """
-        Check that the endpoint is accessible using the ID of the LTI Config object
+        Check that the endpoint is accessible using the reusable passport ID.
         """
-        response = self.client.get(f'/lti_consumer/v1/public_keysets/{self.lti_config.passport_id}')
+        response = self.client.get(f'/lti_consumer/v1/public_keysets/{self.configuration.passport_id}')
 
         # Check response
         self.assertEqual(response.status_code, 200)
@@ -110,9 +224,9 @@ class TestLti1p3KeysetEndpoint(TestBaseWithPatch):
         self.assertEqual(response['Content-Disposition'], 'attachment; filename=keyset.json')
 
         # Check public keyset
-        self.lti_config.refresh_from_db()
+        self.configuration.refresh_from_db()
         self.assertEqual(
-            self.lti_config.lti_1p3_public_jwk,
+            json.loads(self.configuration.lti_1p3_internal_public_jwk),
             json.loads(response.content.decode('utf-8'))
         )
 
@@ -147,11 +261,13 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
 
         self.location = 'block-v1:course+test+2020+type@problem+block@test'
         self.url = '/lti_consumer/v1/launch/'
+        self.configuration = make_reusable_configuration(lti_1p3_client_id='launch-client-id')
         self.config = LtiConfiguration(
             version=LtiConfiguration.LTI_1P3,
             location=self.location,
             config_store=LtiConfiguration.CONFIG_ON_DB,
-            lti_1p3_redirect_uris=["https://tool.example", "http://tool.example/launch"]
+            lti_1p3_redirect_uris=["https://tool.example", "http://tool.example/launch"],
+            reusable_configuration=self.configuration,
         )
         self.config.save()
 
@@ -197,8 +313,8 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
         """
         Check that a LTI 1.1 tool accessing this endpoint is returned a 404.
         """
-        self.config.version = LtiConfiguration.LTI_1P1
-        self.config.save()
+        self.configuration.version = ReusableLtiConfiguration.LTI_1P1
+        self.configuration.save()
 
         response = self.client.get(
             self.url,
@@ -210,8 +326,150 @@ class TestLti1p3LaunchGateEndpoint(TestBaseWithPatch):
         self.assertEqual(response.status_code, 404)
 
         # Rollback
-        self.config.version = LtiConfiguration.LTI_1P3
+        self.configuration.version = ReusableLtiConfiguration.LTI_1P3
+        self.configuration.save()
+
+    def _launch_params(self):
+        return {
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": self.launch_data_key,
+        }
+
+    @ddt.data(
+        (LtiConfiguration.LTI_1P1, LtiConfiguration.LTI_1P3, 400, 'Error preparing LTI 1.3 launch'),
+        (LtiConfiguration.LTI_1P3, LtiConfiguration.LTI_1P1, 404, 'not LTI 1.3'),
+    )
+    @ddt.unpack
+    def test_version_mismatch_is_denied_without_a_server_error(
+        self, placement_version, configuration_version, expected_status, expected_text,
+    ):
+        """
+        A placement/catalog version mismatch is a controlled denial in either direction.
+        """
+        self.config.version = placement_version
         self.config.save()
+        self.configuration.version = configuration_version
+        self.configuration.save()
+
+        response = self.client.get(self.url, self._launch_params())
+
+        self.assertEqual(response.status_code, expected_status)
+        self.assertContains(response, expected_text, status_code=expected_status)
+        self.config.refresh_from_db()
+        self.configuration.refresh_from_db()
+        self.assertEqual(self.config.version, placement_version)
+        self.assertEqual(self.configuration.version, configuration_version)
+
+    def test_unassigned_version_is_denied(self):
+        """
+        Check that a NULL stored version refuses the launch instead of guessing one.
+        """
+        self.configuration.version = None
+        self.configuration.save()
+
+        response = self.client.get(self.url, self._launch_params())
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, 'unassigned', status_code=404)
+
+    def test_inactive_configuration_is_denied(self):
+        """
+        Check that an inactive registration refuses new launches.
+        """
+        self.configuration.is_active = False
+        self.configuration.save()
+
+        response = self.client.get(self.url, self._launch_params())
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, 'inactive', status_code=403)
+
+    def test_an_incomplete_configuration_is_denied_without_writes(self):
+        """
+        Check that malformed stored identity material denies without a write.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(
+            lti_1p3_internal_public_jwk='not-json',
+        )
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            response = self.client.get(self.url, self._launch_params())
+            save_mock.assert_not_called()
+
+        expected_error = (
+            f"Error preparing LTI 1.3 launch for resource with resource_link_id "
+            f"{self.launch_data.resource_link_id}: The stored public keyset is not valid JSON."
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.content.decode(),
+            render_to_string('html/lti_launch_error.html', {'error_msg': expected_error}),
+        )
+
+    def test_null_version_denies_a_launch_even_for_an_lti_1p1_placement(self):
+        """
+        Check that the stored version gate is not bypassed for an LTI 1.1 placement.
+        """
+        self.configuration.version = None
+        self.configuration.save()
+        self.config.version = LtiConfiguration.LTI_1P1
+        self.config.save()
+
+        response = self.client.get(self.url, self._launch_params())
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, 'unassigned', status_code=404)
+
+    def test_an_unbound_placement_is_denied_without_the_retained_table(self):
+        """
+        Check that a launch refuses an unbound placement and never adopts the retained row.
+        """
+        from lti_consumer.models import Lti1p3Passport  # pylint: disable=import-outside-toplevel
+
+        passport = Lti1p3Passport.objects.create(
+            passport_id=self.configuration.passport_id,
+            lti_1p3_client_id='legacy-client-id',
+            lti_1p3_tool_public_key=self.configuration.lti_1p3_tool_public_key,
+        )
+        before = ReusableLtiConfiguration.objects.count()
+        self.config.reusable_configuration = None
+        self.config.lti_1p3_passport_id = passport.pk
+        self.config.save()
+
+        response = self.client.get(self.url, self._launch_params())
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, 'no reusable configuration bound', status_code=404)
+        self.config.refresh_from_db()
+        self.assertIsNone(self.config.reusable_configuration_id)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
+
+    def test_launch_uses_the_reusable_identity_and_deployment_id(self):
+        """
+        Check that the launch JWT carries the reusable client ID and stored deployment ID.
+        """
+        self.configuration.lti_1p3_deployment_id = 'deployment-7'
+        self.configuration.save()
+        params = {
+            "nonce": "nonce-value",
+            "state": "hello-world",
+            "redirect_uri": "https://tool.example",
+            "client_id": self.config.lti_1p3_client_id,
+            "login_hint": self.launch_data.user_id,
+            "lti_message_hint": self.launch_data_key,
+        }
+
+        response = self.client.get(self.url, params)
+
+        self.assertEqual(response.status_code, 200)
+        match = re.search(r'name="id_token"\s+value="([^"]+)"', response.content.decode())
+        self.assertIsNotNone(match)
+        id_token = jwt.decode(match.group(1), options={'verify_signature': False})
+        self.assertEqual(id_token['aud'], 'launch-client-id')
+        self.assertEqual(
+            id_token['https://purl.imsglobal.org/spec/lti/claim/deployment_id'],
+            'deployment-7',
+        )
 
     def test_nonexistent_lti_config(self):
         """
@@ -673,9 +931,17 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
         super().setUp()
 
         location = 'block-v1:course+test+2020+type@problem+block@test'
-        self.config = LtiConfiguration(version=LtiConfiguration.LTI_1P3, location=location)
+        self.configuration = make_reusable_configuration(lti_1p3_client_id='test-client-id')
+        self.config = LtiConfiguration(
+            version=LtiConfiguration.LTI_1P3,
+            location=location,
+            reusable_configuration=self.configuration,
+        )
         self.config.save()
-        self.url = reverse('lti_consumer:lti_consumer.access_token', args=[str(self.config.passport_id)])
+        self.url = reverse(
+            'lti_consumer:lti_consumer.access_token',
+            args=[str(self.configuration.passport_id)],
+        )
         # Generate RSA and save exports
         rsa_key = RSA.generate(2048)
         algo_obj = jwt.get_algorithm_by_name('RS256')
@@ -684,8 +950,8 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
         private_jwk['kid'] = 1
         self.key = PyJWK.from_dict(private_jwk)
         self.public_key = rsa_key.public_key().export_key('PEM')
-        self.config.lti_1p3_passport.lti_1p3_tool_public_key = self.public_key.decode()
-        self.config.lti_1p3_passport.save()
+        self.configuration.lti_1p3_tool_public_key = self.public_key.decode()
+        self.configuration.save()
 
     def get_body(self, token, **overrides):
         """
@@ -797,18 +1063,153 @@ class TestLti1p3AccessTokenEndpoint(TestBaseWithPatch):
 
     def test_verify_lti_version_is_1p3(self):
         """
-        Check that 400 is returned when the LTI version of the configuration is not 1.3
+        Check that 404 is returned when the stored configuration version is not 1.3
         """
-        self.config.version = LtiConfiguration.LTI_1P1
-        self.config.save()
+        self.configuration.version = ReusableLtiConfiguration.LTI_1P1
+        self.configuration.save()
 
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {'error': 'invalid_lti_version'})
 
         # Reset to 1P3 so other tests aren't affected.
-        self.config.version = LtiConfiguration.LTI_1P3
+        self.configuration.version = ReusableLtiConfiguration.LTI_1P3
+        self.configuration.save()
+
+    def test_a_configuration_without_a_placement_serves_a_token(self):
+        """
+        A UUID token request needs no placement: binding is only needed to launch.
+        """
+        configuration = make_reusable_configuration(
+            name='Unplaced configuration',
+            lti_1p3_client_id='test-client-id',
+            lti_1p3_tool_public_key=self.public_key.decode(),
+        )
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            body = urllib.parse.urlencode(self.get_body(create_jwt(self.key, {})))
+            response = self.client.post(
+                reverse('lti_consumer:lti_consumer.access_token', args=[str(configuration.passport_id)]),
+                data=body,
+                content_type='application/json',
+            )
+            save_mock.assert_not_called()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'access_token')
+
+    def test_an_incomplete_configuration_is_denied_without_writes(self):
+        """
+        A malformed stored identity component denies without a write.
+        """
+        ReusableLtiConfiguration.objects.filter(pk=self.configuration.pk).update(
+            lti_1p3_internal_public_jwk='not-json',
+        )
+
+        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
+            response = self.client.post(self.url)
+            save_mock.assert_not_called()
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {'error': 'lti_consumer_not_initialized'})
+
+    @patch('lti_consumer.plugin.views.LtiConsumer1p3')
+    def test_the_uuid_token_consumer_uses_the_stored_deployment_id(self, consumer_class):
+        """
+        The UUID token registration keeps its stored deployment ID, or the historical one.
+        """
+        consumer_class.return_value.access_token.return_value = {'access_token': 'test-token'}
+        self.configuration.lti_1p3_deployment_id = 'deployment-7'
+        self.configuration.save()
+
+        self.client.post(self.url)
+
+        self.assertEqual(consumer_class.call_args.kwargs['deployment_id'], 'deployment-7')
+
+        self.configuration.lti_1p3_deployment_id = ''
+        self.configuration.save()
+        self.client.post(self.url)
+
+        self.assertEqual(consumer_class.call_args.kwargs['deployment_id'], '1')
+
+    def test_an_inactive_configuration_is_denied(self):
+        """
+        An inactive registration refuses new tokens while its keyset stays published.
+        """
+        self.configuration.is_active = False
+        self.configuration.save()
+
+        body = urllib.parse.urlencode(self.get_body(create_jwt(self.key, {})))
+        response = self.client.post(self.url, data=body, content_type='application/json')
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json(), {'error': 'inactive_configuration'})
+
+    @patch('lti_consumer.plugin.views.LtiConfiguration.get_lti_consumer')
+    def test_external_configuration_keeps_its_location_token_route(self, get_lti_consumer):
+        """
+        An external configuration keeps supplying identity on the location route.
+        """
+        get_lti_consumer.return_value.access_token.return_value = {'access_token': 'external-token'}
+        placement = LtiConfiguration.objects.create(
+            version=LtiConfiguration.LTI_1P3,
+            config_store=LtiConfiguration.CONFIG_EXTERNAL,
+            external_id='test:external',
+            location='block-v1:course+test+2020+type@problem+block@external-token',
+        )
+
+        url = reverse(
+            'lti_consumer:lti_consumer.access_token_via_location',
+            args=[str(placement.location)],
+        )
+        response = self.client.post(url)
+
+        get_lti_consumer.assert_called_once_with()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'access_token': 'external-token'})
+
+    def test_an_incomplete_configuration_is_denied(self):
+        """
+        An LTI 1.3 row without a client ID cannot authenticate a new token request.
+        """
+        self.configuration.lti_1p3_client_id = None
+        self.configuration.save()
+
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {'error': 'lti_consumer_not_initialized'})
+
+    def test_an_unassigned_version_is_denied(self):
+        """
+        A NULL stored version returns no token instead of borrowing a placement version.
+        """
+        self.configuration.version = None
+        self.configuration.save()
+
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {'error': 'invalid_lti_version'})
+
+    def test_an_unbound_placement_is_denied_without_attaching(self):
+        """
+        The location token route denies an unbound placement and attaches nothing.
+        """
+        before = ReusableLtiConfiguration.objects.count()
+        self.config.reusable_configuration = None
         self.config.save()
+
+        url = reverse(
+            'lti_consumer:lti_consumer.access_token_via_location',
+            args=[str(self.config.location)],
+        )
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, 404)
+        self.config.refresh_from_db()
+        self.assertIsNone(self.config.reusable_configuration_id)
+        self.assertEqual(ReusableLtiConfiguration.objects.count(), before)
 
     @patch('lti_consumer.lti_1p3.consumer.LtiConsumer1p3.access_token')
     def test_missing_required_claim(self, access_token_mock):
