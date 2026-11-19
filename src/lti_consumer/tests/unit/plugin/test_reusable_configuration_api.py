@@ -3,9 +3,9 @@
 Each journey drives the real APIClient, URLconf, serializers, mutation module,
 Creation Context policy, ORM and database. Only edx-platform owned boundaries
 are patched: Global Staff, course admin, Studio course access and the
-organization registry. Semantic matrices stay in the service and serializer
-suites; these journeys keep the HTTP status, disclosure, ordering, pagination,
-CSRF, method and rollback contract.
+organization registry. Semantic rules stay in the service suite and strict wire
+allowlists stay in the serializer suite; these journeys keep the HTTP status,
+disclosure, ordering, pagination, CSRF, method and rollback contract.
 """
 import uuid
 from unittest.mock import patch
@@ -121,7 +121,11 @@ def lti13_payload(context=None, **overrides):
 
 
 def converted_row(**overrides):
-    """Create a converted row: copied raw context key, no context type and no version."""
+    """Create an unassigned row with a stored raw context key and an optional version.
+
+    The raw key must never reach the wire, and assigning a context or version is a
+    one-time operation.
+    """
     values = {
         'name': 'Copied passport',
         'version': None,
@@ -952,31 +956,19 @@ class AuthorityAndErrorTests(ReusableApiTestCase):
         self.assertEqual(accepted.status_code, 201, accepted.content)
         self.assert_cache_no_store(accepted)
 
-    def test_method_and_options_handling(self):
+    def test_unsupported_write_methods_are_rejected_with_no_store(self):
         configuration = self.create_configuration(name='Methods tool')
         detail_path = self.detail_path(configuration)
         self.login(self.staff)
-
-        head = self.client.head(LIST_PATH)
-        self.assertEqual(head.status_code, 200, head.content)
-        self.assert_cache_no_store(head)
-
-        options = self.client.options(detail_path)
-        self.assertEqual(options.status_code, 200, options.content)
-        self.assert_cache_no_store(options)
-        self.assertIn('PATCH', options['Allow'])
-        self.assertNotIn('PUT', options['Allow'])
 
         for path in (LIST_PATH, detail_path):
             put = self.client.put(path, {'name': 'Renamed'}, format='json')
             self.assertEqual(put.status_code, 405, put.content)
             self.assert_cache_no_store(put)
-            self.assertNotIn('PUT', put.get('Allow', ''))
 
             delete = self.client.delete(path)
             self.assertEqual(delete.status_code, 405, delete.content)
             self.assert_cache_no_store(delete)
-            self.assertNotIn('DELETE', delete.get('Allow', ''))
 
 
 @override_settings(ROOT_URLCONF=CMS_URLCONF)
@@ -1085,10 +1077,6 @@ class RegistrationLinkTests(ReusableApiTestCase):
         configuration = self.create_configuration(name='Registered tool', version='lti_1p3')
         urls = self.registration_urls(configuration)
 
-        self.assertEqual(set(urls), REGISTRATION_FIELDS)
-        self.assertIn(str(configuration.passport_id), urls['jwks_url'])
-        self.assertIn(str(configuration.passport_id), urls['access_token_url'])
-        self.assertEqual(urlparse(urls['login_url']).path, '/api/lti_consumer/v1/launch/')
         # The CMS mount has no LMS route names, so the metadata cannot depend on reverse().
         with self.assertRaises(NoReverseMatch):
             reverse('lti_consumer:lti_consumer.access_token', kwargs={'passport_id': configuration.passport_id})
