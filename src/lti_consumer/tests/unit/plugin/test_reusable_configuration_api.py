@@ -495,6 +495,8 @@ class ListJourneyTests(ReusableApiTestCase):
 
         everything = self.client.get(LIST_PATH).json()
         self.assertEqual(everything['count'], 4)
+        self.assertTrue(everything['results'])
+        self.assertTrue(all(row['can_manage'] is True for row in everything['results']))
         ignored = self.client.get(LIST_PATH, {'nonsense': 'ignored'}).json()
         self.assertEqual(ignored['count'], everything['count'])
 
@@ -554,6 +556,7 @@ class DetailAndPatchJourneyTests(ReusableApiTestCase):
         self.assert_cache_no_store(response)
         body = response.json()
         self.assert_detail_shape(body)
+        self.assertIs(body['can_manage'], True)
         for field in DEFAULT_FIELDS:
             self.assertEqual(body[field], AUTHORED_DEFAULTS[field], field)
         self.assertEqual(body['privacy'], AUTHORED_PRIVACY)
