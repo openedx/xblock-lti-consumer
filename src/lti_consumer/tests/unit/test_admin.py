@@ -174,6 +174,28 @@ class ReusableAdminJourneyTests(TestCase):
             LtiConfiguration.objects.get(pk=placement.pk).reusable_configuration_id, configuration.pk,
         )
 
+    def test_changelist_filters_only_the_declared_fields(self):
+        self.make_configuration(name='Versioned tool', version=ReusableLtiConfiguration.LTI_1P3)
+        self.make_configuration(name='Unversioned tool', version=None, context_type=None, context_key=None)
+        self.client.force_login(self.make_user('global-staff', is_staff=True))
+
+        for query, shown, hidden in (
+            ({'version__exact': ReusableLtiConfiguration.LTI_1P3}, 'Versioned tool', 'Unversioned tool'),
+            ({'version__isnull': 'True'}, 'Unversioned tool', 'Versioned tool'),
+            ({'context_type__exact': 'course'}, 'Versioned tool', 'Unversioned tool'),
+            ({'context_type__isnull': 'True'}, 'Unversioned tool', 'Versioned tool'),
+        ):
+            with self.subTest(query=query):
+                response = self.client.get(self.changelist_url, query)
+                self.assertContains(response, shown)
+                self.assertNotContains(response, hidden)
+
+        # A hidden signing-key field is not a permitted changelist lookup.
+        response = self.client.get(
+            self.changelist_url, {'lti_1p3_internal_private_key__exact': 'synthetic-value'},
+        )
+        self.assertEqual(response.status_code, 400)
+
     def test_legacy_passport_and_reusable_changelists_show_the_shared_uuid(self):
         passport = Lti1p3Passport.objects.create(name='Retained passport')
         self.make_configuration(name='Matched reusable copy', passport_id=passport.passport_id)

@@ -114,6 +114,16 @@ class ReusableLtiConfigurationAdmin(admin.ModelAdmin):
     )
     readonly_fields = flatten_fieldsets(fieldsets)
 
+    def lookup_allowed(self, lookup, value, request=None):
+        # Only the declared list filters may query the changelist; a hidden field
+        # such as the signing private key must not be filterable.
+        return lookup in {
+            'version__exact',
+            'version__isnull',
+            'context_type__exact',
+            'context_type__isnull',
+        }
+
     def has_module_permission(self, request):
         return compat.user_is_global_staff(request.user)
 
