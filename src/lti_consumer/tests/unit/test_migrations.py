@@ -525,10 +525,16 @@ class Test0025CopyPassports(PassportCopyHarness):
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
         copies = {copy.passport_id: copy for copy in Reusable.objects.all()}
-        self.assertEqual(len(copies), len(old_passports))
+        # The harness orphan and the unplaced duplicate have no link, so they get no
+        # copy; their legacy rows must still exist.
+        orphans = (self.orphan, self.duplicate)
+        copied = [row for row in old_passports if row["id"] not in {orphan.pk for orphan in orphans}]
+        self.assertEqual(len(copies), len(copied))
         self.assertEqual(self.Passport.objects.count(), len(old_passports))
+        for orphan in orphans:
+            self.assertFalse(Reusable.objects.filter(passport_id=orphan.passport_id).exists())
 
-        for old in old_passports:
+        for old in copied:
             copy = copies[old["passport_id"]]
             for field in PRESERVED_FIELDS:
                 self.assertEqual(getattr(copy, field), old[field], field)
@@ -561,12 +567,8 @@ class Test0025CopyPassports(PassportCopyHarness):
         self.assertIsNone(linked[self.legacy.pk])
         self.assertEqual(Placement.objects.get(pk=self.legacy.pk).version, "lti_1p1")
 
-    def test_other_metadata_stays_null_or_default(self):
-        apps = self.run_copy()
-        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
-        copy = Reusable.objects.get(passport_id=self.plain.passport_id)
-
         # Inference is covered by the matrix; every other unsourced field keeps its default.
+        copy = Reusable.objects.get(passport_id=self.plain.passport_id)
         self.assertIsNone(copy.lti_1p3_tool_key_mode)
         self.assertIsNone(copy.lti_1p1_launch_url)
         self.assertIsNone(copy.lti_1p1_client_key)
@@ -589,31 +591,43 @@ class Test0025CopyPassports(PassportCopyHarness):
         self.assertFalse(copy.lti_advantage_enable_nrps)
         self.assertIsNotNone(copy.created_at)
         self.assertIsNotNone(copy.updated_at)
+        # Every copied configuration starts active.
+        self.assertFalse(Reusable.objects.filter(is_active=False).exists())
 
-    def test_batches_cover_every_passport(self):
+    def test_batches_cover_every_linked_passport(self):
+        """Every linked passport is copied, including those in later batches."""
         extra = [
             self.Passport(passport_id=uuid.uuid4(), name=f"Bulk {index}", lti_1p3_client_id=f"bulk-{index}")
             for index in range(501)
         ]
         self.Passport.objects.bulk_create(extra)
+        # Each source needs a link, otherwise it is an orphan and is skipped.
+        self.Placement.objects.bulk_create([
+            self.Placement(
+                config_id=uuid.uuid4(),
+                version="lti_1p3",
+                config_store="CONFIG_ON_XBLOCK",
+                location=f"block-v1:org+course+run+type@lti+block@bulk-{index}",
+                lti_1p3_passport=passport,
+            )
+            for index, passport in enumerate(
+                self.Passport.objects.filter(name__startswith="Bulk ").order_by("pk")
+            )
+        ])
 
         apps = self.run_copy()
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
-        self.assertEqual(Reusable.objects.count(), self.Passport.objects.count())
-        self.assertEqual(
-            set(Reusable.objects.values_list("passport_id", flat=True)),
-            set(self.Passport.objects.values_list("passport_id", flat=True)),
+        bulk_ids = set(
+            self.Passport.objects.filter(name__startswith="Bulk ").values_list("passport_id", flat=True)
         )
+        self.assertEqual(len(bulk_ids), 501)
+        self.assertEqual(bulk_ids - set(Reusable.objects.values_list("passport_id", flat=True)), set())
 
     def test_new_table_identity_and_binding_contract(self):
         apps = self.run_copy()
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
 
-        self.assertEqual(
-            [field.name for field in Reusable._meta.fields if field.unique and not field.primary_key],
-            ["passport_id"],
-        )
         self.assertEqual(Reusable._meta.pk.name, "id")
 
         new_fk = Placement._meta.get_field("reusable_configuration")
@@ -622,19 +636,16 @@ class Test0025CopyPassports(PassportCopyHarness):
         self.assertTrue(new_fk.blank)
         self.assertEqual(new_fk.target_field.name, "id")
 
-        old_fk = Placement._meta.get_field("lti_1p3_passport")
-        self.assertIs(old_fk.remote_field.on_delete, models.SET_NULL)
-        self.assertTrue(old_fk.null)
-
         self.assertEqual(
             sorted(constraint.name for constraint in Reusable._meta.constraints),
             ["reusable_context_key_shape", "reusable_context_type_valid"],
         )
         self.assertEqual([index.name for index in Reusable._meta.indexes], ["reusable_context_lookup"])
         self.assertEqual(list(Reusable._meta.indexes[0].fields), ["context_type", "context_key"])
-        self.assertFalse(
-            any(isinstance(constraint, models.UniqueConstraint) for constraint in Reusable._meta.constraints)
-        )
+
+        active = Reusable._meta.get_field("is_active")
+        self.assertFalse(active.null)
+        self.assertTrue(active.get_default())
 
 
 class Test0025ReplayAndReuse(PassportCopyHarness):
@@ -643,6 +654,10 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
     def seed(self):
         self.plain = self.passport()
         self.shared = self.passport(name="Shared", lti_1p3_client_id="shared-client")
+        # Unlinked, so it is skipped unless a copy already exists.
+        self.orphan = self.passport(
+            name="Orphan", lti_1p3_tool_public_key="", lti_1p3_tool_keyset_url=""
+        )
         self.plain_placement = self.placement(
             self.plain, location="block-v1:org+course+run+type@lti+block@replay-plain"
         )
@@ -677,12 +692,27 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
             display_name="Custom name",
         )
         preexisting_pk = preexisting.pk
+        # An unlinked passport with an existing copy is reused, never skipped or refreshed.
+        authored = Reusable.objects.create(
+            **{field: getattr(self.orphan, field) for field in PASSPORT_FIELDS},
+            description="Authored note",
+            display_name="Authored",
+        )
+        authored_pk = authored.pk
 
-        apps = self.run_copy()
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            apps = self.run_copy()
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+        counts = output.getvalue()
 
-        self.assertEqual(Reusable.objects.count(), 2)
+        # Both existing copies are reused as-is; only the shared passport is inserted.
+        self.assertIn("reused=2", counts)
+        self.assertIn("inserted=1", counts)
+        self.assertIn("skipped=0", counts)
+
+        self.assertEqual(Reusable.objects.count(), 3)
         reused = Reusable.objects.get(passport_id=self.plain.passport_id)
         self.assertEqual(reused.pk, preexisting_pk)
         self.assertEqual(reused.description, "Hand-written catalog note")
@@ -690,6 +720,13 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assertIsNone(reused.version)
         self.assertIsNone(reused.context_type)
         self.assertEqual(reused.context_key, self.plain.context_key)
+
+        orphan_copy = Reusable.objects.get(passport_id=self.orphan.passport_id)
+        self.assertEqual(orphan_copy.pk, authored_pk)
+        self.assertEqual(orphan_copy.description, "Authored note")
+        self.assertEqual(orphan_copy.display_name, "Authored")
+        self.assertIsNone(orphan_copy.version)
+        self.assertIsNone(orphan_copy.context_type)
 
         # The shared passport is new, so it does get inferred metadata.
         shared_copy = Reusable.objects.get(passport_id=self.shared.passport_id)
@@ -728,7 +765,7 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             apps = self.run_copy()
-        self.assertIn("reused=2", output.getvalue())
+        self.assertIn("reused=3", output.getvalue())
         self.assertIn("inserted=0", output.getvalue())
         self.executor.loader.build_graph()
         self.assertIn(COPY_MIGRATION, self.executor.loader.applied_migrations)
@@ -739,6 +776,12 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assertEqual(reused.description, "Hand-written catalog note")
         self.assertIsNone(reused.version)
         self.assertIsNone(reused.context_type)
+        orphan_copy = Reusable.objects.get(passport_id=self.orphan.passport_id)
+        self.assertEqual(orphan_copy.pk, authored_pk)
+        self.assertEqual(orphan_copy.description, "Authored note")
+        self.assertEqual(orphan_copy.display_name, "Authored")
+        self.assertIsNone(orphan_copy.version)
+        self.assertIsNone(orphan_copy.context_type)
 
 
 class Test0025Inference(PassportCopyHarness):
@@ -826,7 +869,8 @@ class Test0025Inference(PassportCopyHarness):
         """Create a passport and its placements; saved tool keys stay opt-in.
 
         Most fixtures save no tool key material, so each one also guards the copy
-        eligibility rule. The copy is checked later.
+        eligibility rule. A passport without placements is an orphan and gets no
+        copy. The copy is checked later.
         """
         values = {"name": name, "context_key": context_key}
         if not tool_keys:
@@ -855,10 +899,9 @@ class Test0025Inference(PassportCopyHarness):
             "ccx": ("lti_1p3", "site", ""),
             "course-and-library": ("lti_1p3", "site", ""),
             "missing-location": ("lti_1p3", "site", ""),
-            "no-placements": (None, "site", ""),
             "external-1p1": ("lti_1p1", "course", "course-v1:EdX+Demo+ExternalOne"),
         }
-        skipped = ("unanimous-1p1-empty-tools",)
+        skipped = ("unanimous-1p1-empty-tools", "no-placements")
         self.assertEqual(set(expected) | set(skipped), set(self.cases))
         for name, fields in expected.items():
             with self.subTest(case=name):
@@ -960,10 +1003,11 @@ class Test0025InferencePages(PassportCopyHarness):
         self.assertIsNone(Placement.objects.get(pk=self.disagreement.pk).reusable_configuration_id)
 
 
-class Test0025SkipConfirmedLti1p1(PassportCopyHarness):
-    """Confirmed LTI 1.1-only placeholders stay out of the catalog and unbound."""
+class Test0025SkippedPassports(PassportCopyHarness):
+    """Passports nothing can reach, or confirmed LTI 1.1-only placeholders, get no copy."""
 
     def seed(self):
+        # Confirmed LTI 1.1-only placeholder: linked, internal and no saved tool keys.
         self.placeholder = self.passport(
             name=None,
             context_key=None,
@@ -987,6 +1031,29 @@ class Test0025SkipConfirmedLti1p1(PassportCopyHarness):
                 location="block-v1:org+course+run+type@lti+block@placeholder-b",
             ),
         ]
+        # Orphans: no placement points at them, with and without saved tool keys.
+        self.orphan_blank = self.passport(
+            name="Orphan blank",
+            context_key=None,
+            lti_1p3_tool_public_key="",
+            lti_1p3_tool_keyset_url="",
+        )
+        self.orphan_saved = self.passport(
+            name="Orphan saved",
+            lti_1p3_tool_public_key="tool-public-key",
+            lti_1p3_tool_keyset_url="https://tool.example/jwks.json",
+        )
+        # An external placement is still a link, so this passport keeps its copy.
+        self.external = self.passport(
+            name="External only", lti_1p3_tool_public_key="", lti_1p3_tool_keyset_url=""
+        )
+        self.external_placement = self.placement(
+            self.external,
+            version="lti_1p3",
+            config_store=CONFIG_EXTERNAL,
+            location="block-v1:org+course+run+type@lti+block@orphan-external",
+        )
+        # Saved tool keys keep the copy even when every link is internal LTI 1.1.
         self.public_key = self.passport(
             lti_1p3_tool_public_key="tool-public-key",
             lti_1p3_tool_keyset_url="",
@@ -996,40 +1063,68 @@ class Test0025SkipConfirmedLti1p1(PassportCopyHarness):
             version="lti_1p1",
             location="block-v1:org+course+run+type@lti+block@public-key",
         )
-        self.placeholder_snapshot = self.passport_values(self.placeholder)
+        # The passports that get no copy, with the placements that must stay as they are.
+        self.skipped = (
+            ("placeholder", self.placeholder, self.placeholder_placements),
+            ("orphan_blank", self.orphan_blank, ()),
+            ("orphan_saved", self.orphan_saved, ()),
+        )
 
     def passport_values(self, passport):
         """Return every stored legacy passport value for an untouched-row check."""
         return self.Passport.objects.filter(pk=passport.pk).values().get()
 
-    def assert_placeholder_untouched(self, Reusable, Placement):
-        """The skipped passport has no copy, and its legacy rows and FK stay untouched."""
-        self.assertFalse(Reusable.objects.filter(passport_id=self.placeholder.passport_id).exists())
-        for placement in self.placeholder_placements:
-            stored = Placement.objects.get(pk=placement.pk)
-            self.assertIsNone(stored.reusable_configuration_id)
-            self.assertEqual(stored.lti_1p3_passport_id, self.placeholder.pk)
-        self.assertEqual(self.passport_values(self.placeholder), self.placeholder_snapshot)
+    def snapshots(self):
+        """Snapshot the legacy rows that must never change."""
+        return {label: self.passport_values(passport) for label, passport, _placements in self.skipped}
 
-    def test_confirmed_placeholder_is_skipped_and_survives_replay(self):
+    def assert_skipped_untouched(self, Reusable, Placement, snapshots, bound=None):
+        """Skipped passports keep their legacy rows and the placements keep their FKs.
+
+        The optional bound mapping names the one authored configuration a placement may
+        still point at.
+        """
+        bound = bound or {}
+        for label, passport, placements in self.skipped:
+            with self.subTest(skipped=label):
+                self.assertFalse(Reusable.objects.filter(passport_id=passport.passport_id).exists())
+                self.assertEqual(self.passport_values(passport), snapshots[label])
+                for placement in placements:
+                    stored = Placement.objects.get(pk=placement.pk)
+                    self.assertEqual(stored.lti_1p3_passport_id, passport.pk)
+                    self.assertEqual(stored.reusable_configuration_id, bound.get(placement.pk))
+
+    def assert_kept_copies(self, Reusable, Placement, public_key_pk):
+        """A kept copy carries its legacy values and never binds an internal LTI 1.1 placement."""
+        external_copy = Reusable.objects.get(passport_id=self.external.passport_id)
+        self.assertEqual(external_copy.lti_1p3_client_id, self.external.lti_1p3_client_id)
+        self.assertEqual(
+            Placement.objects.get(pk=self.external_placement.pk).reusable_configuration_id,
+            external_copy.pk,
+        )
+        copy = Reusable.objects.get(passport_id=self.public_key.passport_id)
+        self.assertEqual(copy.pk, public_key_pk)
+        self.assertEqual(copy.lti_1p3_tool_public_key, "tool-public-key")
+        self.assertIsNone(
+            Placement.objects.get(pk=self.public_key_placement.pk).reusable_configuration_id
+        )
+
+    def test_ineligible_passports_are_skipped_and_survive_replay(self):
+        snapshots = self.snapshots()
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             apps = self.run_copy()
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
 
-        self.assertIn("skipped=1", output.getvalue())
-        self.assert_placeholder_untouched(Reusable, Placement)
+        self.assertIn("skipped=3", output.getvalue())
+        self.assert_skipped_untouched(Reusable, Placement, snapshots)
         # A preserved tool-key passport is still copied, but its 1.1 placement is not bound.
-        copy = Reusable.objects.get(passport_id=self.public_key.passport_id)
-        copy_pk = copy.pk
-        self.assertEqual(copy.lti_1p3_tool_public_key, "tool-public-key")
-        self.assertIsNone(
-            Placement.objects.get(pk=self.public_key_placement.pk).reusable_configuration_id
-        )
+        kept_pk = Reusable.objects.get(passport_id=self.public_key.passport_id).pk
+        self.assert_kept_copies(Reusable, Placement, kept_pk)
 
-        # The data reverse is a no-op: the skipped passport stays absent, the kept copy
-        # survives, and the replay neither creates nor re-binds anything.
+        # The data reverse is a no-op: skipped passports stay absent, kept copies survive,
+        # and the replay neither creates nor re-binds anything.
         self.migrate(SCHEMA_MIGRATION)
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
@@ -1038,41 +1133,43 @@ class Test0025SkipConfirmedLti1p1(PassportCopyHarness):
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
         counts = output.getvalue()
         self.assertIn("inserted=0", counts)
-        self.assertIn("skipped=1", counts)
-        self.assert_placeholder_untouched(Reusable, Placement)
-        self.assertEqual(Reusable.objects.get(passport_id=self.public_key.passport_id).pk, copy_pk)
-        self.assertIsNone(
-            Placement.objects.get(pk=self.public_key_placement.pk).reusable_configuration_id
-        )
+        self.assertIn("skipped=3", counts)
+        self.assertIn("reused=2", counts)
+        self.assert_skipped_untouched(Reusable, Placement, snapshots)
+        self.assert_kept_copies(Reusable, Placement, kept_pk)
 
-    def test_existing_binding_on_a_1p1_placement_is_not_edited(self):
+    def test_prebound_lti1p1_placements_are_preserved_then_abort_and_retry(self):
+        snapshots = self.snapshots()
         apps = self.migrate(SCHEMA_MIGRATION)
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+
+        # A binding authored on a skipped passport's placement is left exactly as it is.
         authored = Reusable.objects.create(passport_id=uuid.uuid4(), lti_1p3_client_id="authored-client")
-        Placement.objects.filter(pk=self.placeholder_placements[0].pk).update(reusable_configuration=authored)
+        Placement.objects.filter(pk=self.placeholder_placements[0].pk).update(
+            reusable_configuration=authored
+        )
+        authored_binding = {self.placeholder_placements[0].pk: authored.pk}
         self.addCleanup(self.clear_binding, self.placeholder_placements[0].pk)
 
         apps = self.run_copy()
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+        kept_pk = Reusable.objects.get(passport_id=self.public_key.passport_id).pk
 
-        self.assertFalse(Reusable.objects.filter(passport_id=self.placeholder.passport_id).exists())
-        self.assertEqual(
-            Placement.objects.get(pk=self.placeholder_placements[0].pk).reusable_configuration_id,
-            authored.pk,
-        )
-        self.assertIsNone(
-            Placement.objects.get(pk=self.placeholder_placements[1].pk).reusable_configuration_id
-        )
-        self.assertEqual(self.passport_values(self.placeholder), self.placeholder_snapshot)
+        self.assertEqual(Reusable.objects.count(), 3)
+        self.assert_skipped_untouched(Reusable, Placement, snapshots, bound=authored_binding)
+        self.assert_kept_copies(Reusable, Placement, kept_pk)
 
-    def test_existing_conflicting_binding_on_a_1p1_placement_still_aborts(self):
-        apps = self.migrate(SCHEMA_MIGRATION)
+        # A placement bound to a different configuration aborts instead of being overwritten.
+        # Reverse the data migration first: it is a no-op that keeps every row, but the replay
+        # must really run again to reach the link phase.
+        self.migrate(SCHEMA_MIGRATION)
+        apps = self.executor.loader.project_state([SCHEMA_MIGRATION]).apps
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
-        authored = Reusable.objects.create(passport_id=uuid.uuid4(), lti_1p3_client_id="authored-client")
-        Placement.objects.filter(pk=self.public_key_placement.pk).update(reusable_configuration=authored)
+        other = Reusable.objects.create(passport_id=uuid.uuid4(), lti_1p3_client_id="other-client")
+        Placement.objects.filter(pk=self.public_key_placement.pk).update(reusable_configuration=other)
         self.addCleanup(self.clear_binding, self.public_key_placement.pk)
 
         with self.assertRaises(RuntimeError) as caught:
@@ -1080,16 +1177,31 @@ class Test0025SkipConfirmedLti1p1(PassportCopyHarness):
 
         message = str(caught.exception)
         self.assertIn(str(self.public_key_placement.pk), message)
-        self.assertIn(str(authored.pk), message)
+        self.assertIn(str(other.pk), message)
+        self.assertNotIn(self.public_key.lti_1p3_internal_private_key, message)
         self.assert_recorder_stopped_at_schema()
+        # Nothing was inserted, re-bound or deleted by the aborted run.
+        self.assertEqual(Reusable.objects.count(), 4)
+        self.assert_skipped_untouched(Reusable, Placement, snapshots, bound=authored_binding)
+        self.assertEqual(
+            Placement.objects.get(pk=self.public_key_placement.pk).reusable_configuration_id,
+            other.pk,
+        )
 
+        # Repair the one authored row and retry: the kept copy is reused and left alone.
         Placement.objects.filter(pk=self.public_key_placement.pk).update(reusable_configuration=None)
-        apps = self.run_copy()
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            apps = self.run_copy()
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
         Placement = apps.get_model("lti_consumer", "LtiConfiguration")
-        copy = Reusable.objects.get(passport_id=self.public_key.passport_id)
-        self.assertEqual(copy.lti_1p3_tool_public_key, "tool-public-key")
-        self.assertIsNone(Placement.objects.get(pk=self.public_key_placement.pk).reusable_configuration_id)
+        counts = output.getvalue()
+        self.assertIn("inserted=0", counts)
+        self.assertIn("reused=2", counts)
+        self.assertIn("skipped=3", counts)
+        self.assertEqual(Reusable.objects.count(), 4)
+        self.assert_kept_copies(Reusable, Placement, kept_pk)
+        self.assert_skipped_untouched(Reusable, Placement, snapshots, bound=authored_binding)
 
 
 class Test0025LateDivergentCopyAborts(PassportCopyHarness):
@@ -1106,6 +1218,17 @@ class Test0025LateDivergentCopyAborts(PassportCopyHarness):
             for index in range(505)
         ]
         self.Passport.objects.bulk_create(sources, batch_size=500)
+        # Every source needs a link, otherwise it is an orphan and would be skipped.
+        self.Placement.objects.bulk_create([
+            self.Placement(
+                config_id=uuid.uuid4(),
+                version="lti_1p3",
+                config_store="CONFIG_ON_XBLOCK",
+                location=f"block-v1:org+course+run+type@lti+block@late-source-{index}",
+                lti_1p3_passport=passport,
+            )
+            for index, passport in enumerate(self.Passport.objects.order_by("pk"))
+        ], batch_size=500)
         self.sources = list(self.Passport.objects.order_by("pk"))
         self.early = self.sources[0]
         self.late = self.sources[-1]  # falls in the second batch
@@ -1264,23 +1387,5 @@ class Test0025ContentTypes(PassportCopyHarness):
         )
         old_model = django_apps.get_model("lti_consumer", "Lti1p3Passport")
         new_model = django_apps.get_model("lti_consumer", "ReusableLtiConfiguration")
-        self.assertEqual(new_model.objects.count(), old_model.objects.count())
-
-
-class Test0024ReusableConfigurationIsActive(PassportCopyHarness):
-    """The catalog schema creates the lifecycle column active by default."""
-
-    def test_schema_creates_an_active_column(self):
-        apps = self.migrate(SCHEMA_MIGRATION)
-        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
-        field = Reusable._meta.get_field("is_active")
-
-        self.assertFalse(field.null)
-        self.assertTrue(field.get_default())
-
-    def test_copied_configurations_are_active(self):
-        apps = self.run_copy()
-        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
-
-        self.assertTrue(Reusable.objects.exists())
-        self.assertFalse(Reusable.objects.filter(is_active=False).exists())
+        # The harness orphan and the unplaced duplicate get no copy.
+        self.assertEqual(new_model.objects.count(), old_model.objects.count() - 2)

@@ -1,7 +1,8 @@
 """Copy legacy passports into the reusable catalog without changing legacy data.
 
-Skip confirmed LTI 1.1-only placeholders and infer scope and version only for new copies.
-Abort on conflicts instead of overwriting existing copies or links.
+Skip orphaned passports and confirmed LTI 1.1-only placeholders, and infer scope and
+version only for new copies. Abort on conflicts instead of overwriting existing copies
+or links.
 """
 from ccx_keys.locator import CCXLocator
 from django.db import migrations
@@ -158,30 +159,34 @@ def _infer(Placement, alias, passports):
     return {pk: _inferred(state) for pk, state in states.items()}
 
 
-def _skippable_placeholders(Placement, alias, passports):
-    """Return the passports positively confirmed as LTI 1.1-only placeholders.
+def _skippable_passports(Placement, alias, passports):
+    """Return the passports that get no copy: orphans and confirmed 1.1-only placeholders.
 
-    A passport qualifies when it stores no tool key material and its linked
-    placements group to zero disqualifying rows, i.e. every one is internal and
-    stored ``lti_1p1``. A group exists only for a passport with at least one link,
-    so that also proves at least one internal 1.1 placement. No links, an external
-    link, an unknown or invalid version, or saved tool key material keep the copy.
+    An orphan has no legacy placement pointing at it, so nothing can reach its copy.
+    A placeholder saved no tool key material and has at least one linked placement,
+    all internal and stored ``lti_1p1``; an external link, an unknown or invalid
+    version, or saved tool key material keeps the copy. One bounded aggregate query
+    supplies both decisions for a batch.
     """
-    candidates = [passport.pk for passport in passports if not _has_tool_key_material(passport)]
-    if not candidates:
+    by_pk = {passport.pk: passport for passport in passports}
+    if not by_pk:
         return set()
+    blank_tools = {pk for pk, passport in by_pk.items() if not _has_tool_key_material(passport)}
     disqualifying = Count(
         'pk', filter=Q(config_store=CONFIG_EXTERNAL) | ~Q(version=LTI_1P1)
     )
     rows = (
         Placement.objects.using(alias)
-        .filter(lti_1p3_passport_id__in=candidates)
+        .filter(lti_1p3_passport_id__in=list(by_pk))
         .values('lti_1p3_passport_id')
         .annotate(disqualifying=disqualifying)
-        .filter(disqualifying=0)
-        .values_list('lti_1p3_passport_id', flat=True)
     )
-    return set(rows)
+    # Absent from the groups means no legacy placement points at the passport.
+    linked = {row['lti_1p3_passport_id']: row['disqualifying'] for row in rows}
+    return {
+        pk for pk in by_pk
+        if pk not in linked or (pk in blank_tools and linked[pk] == 0)
+    }
 
 
 def _has_tool_key_material(passport):
@@ -228,9 +233,9 @@ def _copy_passports(Passport, Reusable, Placement, alias, counts):
             raise RuntimeError(_divergence_message(conflicts, counts))
         if not missing:
             continue
-        # A confirmed 1.1-only placeholder keeps its legacy placement and gets no copy;
-        # existing copies are never deleted or re-created here.
-        skipped = _skippable_placeholders(Placement, alias, missing)
+        # An orphan or a confirmed 1.1-only placeholder gets no copy; existing copies
+        # are never deleted or re-created here.
+        skipped = _skippable_passports(Placement, alias, missing)
         if skipped:
             counts['skipped'] += len(skipped)
             missing = [passport for passport in missing if passport.pk not in skipped]
