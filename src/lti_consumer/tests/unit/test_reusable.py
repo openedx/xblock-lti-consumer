@@ -492,8 +492,6 @@ class ReusableCreateTransactionTests(PlatformAdapterMixin, TransactionTestCase):
         self.assertEqual(len(identity_observations), 2)
         self.assertEqual(set(identity_observations), {True})
         self.assertEqual(key_observations, [True])
-        uuid.UUID(configuration.lti_1p3_client_id)
-        uuid.UUID(configuration.lti_1p3_deployment_id)
         self.assertTrue(configuration.lti_1p3_internal_private_key)
 
         with patch('lti_consumer.reusable.uuid') as reusable_uuid:

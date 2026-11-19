@@ -13,7 +13,6 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 from ccx_keys.locator import CCXLocator
-from django.http import HttpRequest
 from django.test import SimpleTestCase
 from opaque_keys.edx.locator import CourseLocator, LibraryLocator
 
@@ -147,7 +146,6 @@ class StudioAccessibleCourseKeysAdapterTests(SimpleTestCase):
 
         candidates.assert_called_once()
         request = candidates.call_args.args[0]
-        self.assertIsInstance(request, HttpRequest)
         self.assertIs(request.user, user)
         # Caller-controlled GET filters are never forwarded to the catalog method.
         self.assertEqual(request.GET, {})

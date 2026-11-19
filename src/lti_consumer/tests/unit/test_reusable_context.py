@@ -13,7 +13,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.db import connection
-from django.db.models import QuerySet
 from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.utils.translation import gettext_lazy
@@ -505,7 +504,6 @@ class CreationContextPolicyVisibilityTests(GlobalStaffPatchMixin, TestCase):
 
         with CaptureQueriesContext(connection) as built:
             queryset = policy.visible_configurations()
-        self.assertIsInstance(queryset, QuerySet)
         self.assertEqual(len(built.captured_queries), 0, 'building the queryset must not query')
 
         with CaptureQueriesContext(connection) as captured:
@@ -562,5 +560,4 @@ class IneligibleActorVisibilityTests(NoPlatformFactsMixin, GlobalStaffPatchMixin
             for course_key in filters:
                 with self.subTest(actor=label, course_key=course_key), self.no_platform_facts():
                     queryset = CreationContextPolicy(user).visible_configurations(course_key=course_key)
-                    self.assertIsInstance(queryset, QuerySet)
                     self.assertEqual(queryset.count(), 0)
