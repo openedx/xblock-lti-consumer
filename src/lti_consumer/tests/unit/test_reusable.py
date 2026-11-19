@@ -114,7 +114,7 @@ def complete_lti13_section(**overrides):
 
 
 def converted_row(**overrides):
-    """Create a converted row: copied raw context key, no context type and no version."""
+    """Create a synthetic incomplete configuration fixture: a raw context key, no context type or version."""
     values = {
         'name': 'Copied passport',
         'version': None,

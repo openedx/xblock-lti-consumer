@@ -1,11 +1,9 @@
 """Direct tests for the reusable Creation Context policy.
 
-One journey per user-visible outcome: normalization, create/assignment authority,
-manage authority, ineligible refusal and visibility. The standalone import check lives
-with the compat adapter it also covers. Every
-denied actor/context combination is preserved -- they are merged into shared
-matrices rather than reduced. Only the platform seam is faked; the policy and the
-queryset are real, and the visibility journeys run against the real database.
+One journey per user-visible outcome: context normalization, create/assignment
+authority, manage authority, ineligible refusal and database-backed visibility.
+Only the platform fact seams are faked; the policy, the queryset and the visibility
+journeys run against the real database.
 """
 
 from contextlib import ExitStack, contextmanager

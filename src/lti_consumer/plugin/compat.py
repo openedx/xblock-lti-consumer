@@ -518,7 +518,8 @@ def get_studio_accessible_course_keys(user):
     request.user = user
     candidates = _get_studio_course_candidates(request)
 
-    # shortcut: CMS AccessListFallback can return all courses; remove this warning after the upstream fix.
+    # shortcut: CMS AccessListFallback can return every course and this adapter does not recheck
+    # per-course access; revisit when CMS offers an authoritative per-course read check.
     # A CCXLocator subclasses CourseLocator, so reject that special key type
     # explicitly. Library keys are not CourseLocators either.
     course_keys = {

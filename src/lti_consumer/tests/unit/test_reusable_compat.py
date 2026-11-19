@@ -107,8 +107,8 @@ print(json.dumps(ATTEMPTS))
 class StudioAccessibleCourseKeysAdapterTests(SimpleTestCase):
     """The CMS catalog is authoritative and is consulted without a per-course AuthZ call.
 
-    Accepted risk, documented on PR #715: the platform catalog's AccessListFallback
-    branch can list every course, and this adapter re-applies no per-course read check.
+    Accepted risk: the platform catalog's AccessListFallback branch can list every
+    course, and this adapter re-applies no per-course read check.
     """
 
     def catalog(self, candidates=None, **kwargs):
@@ -174,7 +174,7 @@ class GlobalStaffCompatTests(SimpleTestCase):
         global_staff.assert_called_once_with()
         role.has_user.assert_called_once_with(user)
 
-        # The previous superuser-only authorization must not be narrowed here.
+        # A superuser bypasses the platform role lookup and keeps access.
         superuser = SimpleNamespace(is_superuser=True, is_staff=False)
         role = Mock()
         role.has_user.return_value = False
@@ -212,7 +212,7 @@ class LazyPlatformImportTests(SimpleTestCase):
     """The app modules import on a standalone install, with no platform package installed."""
 
     def run_script(self, script):
-        """Run one script in a fresh interpreter that prefers this worktree's source."""
+        """Run one script in a fresh interpreter that prefers the source checkout over an installed copy."""
         environment = dict(os.environ)
         environment['PYTHONPATH'] = os.pathsep.join(
             [SOURCE_ROOT] + [part for part in os.environ.get('PYTHONPATH', '').split(os.pathsep) if part]
