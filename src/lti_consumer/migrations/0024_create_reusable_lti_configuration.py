@@ -14,11 +14,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='lti1p3passport',
-            name='lti_1p3_tool_keyset_url',
-            field=models.CharField(blank=True, help_text="This is the LTI Tool's JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.", max_length=500, verbose_name='LTI 1.3 Tool Keyset URL'),
-        ),
         migrations.CreateModel(
             name='ReusableLtiConfiguration',
             fields=[
@@ -45,7 +40,7 @@ class Migration(migrations.Migration):
                 ('lti_1p3_deployment_id', models.CharField(blank=True, max_length=255, null=True, verbose_name='LTI 1.3 Deployment ID')),
                 ('lti_1p3_tool_key_mode', models.CharField(blank=True, choices=[('public_key', 'Public Key'), ('keyset_url', 'Keyset URL')], max_length=20, null=True, verbose_name='LTI 1.3 Tool Key Mode')),
                 ('lti_advantage_deep_linking_enabled', models.BooleanField(default=False, verbose_name='Enable LTI Advantage Deep Linking')),
-                ('lti_advantage_deep_linking_launch_url', models.CharField(blank=True, default='', max_length=225, verbose_name='LTI Advantage Deep Linking launch URL')),
+                ('lti_advantage_deep_linking_launch_url', models.CharField(blank=True, default='', max_length=500, verbose_name='LTI Advantage Deep Linking launch URL')),
                 ('lti_advantage_ags_mode', models.CharField(choices=[('disabled', 'Disabled'), ('declarative', 'Allow tools to submit grades only (declarative)'), ('programmatic', 'Allow tools to manage and submit grade (programmatic)')], default='declarative', max_length=20, verbose_name='LTI Advantage Assignment and Grade Services Mode')),
                 ('lti_advantage_enable_nrps', models.BooleanField(default=False, verbose_name='Enable LTI Advantage Names and Role Provisioning Services')),
                 ('display_name', models.CharField(default='LTI Consumer', max_length=255, verbose_name='Display Name')),

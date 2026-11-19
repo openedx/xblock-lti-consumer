@@ -1,32 +1,11 @@
-"""Copy passports into the reusable catalog (data-only; schema is ``0024``).
+"""Copy legacy passports into the reusable catalog without changing legacy data.
 
-for each old passport, orphans included, in primary-key order (negative keys too)
-  find destination by passport_id
-  absent: copy legacy identity, credentials and keys; infer from
-    old-FK placements excluding CONFIG_EXTERNAL:
-      version: unanimous lti_1p1 or lti_1p3, otherwise NULL
-      context:
-        missing location, no eligible placement, or any unsupported -> site, empty
-        one canonical course -> course, canonical context_key
-        several courses in one normalized organization -> organization, trimmed lowercase org
-        otherwise -> site, empty
-    inference applies to new copies only; the old raw context_key is kept
-  existing: compare preserved fields only, never context_key/version/context_type
-    match -> reuse unchanged, authored metadata is not refreshed
-    differ -> abort the whole transaction
-
-then link every placement with an old FK set, CONFIG_EXTERNAL included
-  null old FK -> unchanged
-  conflicting existing destination binding -> abort the whole transaction
-  destination binding never filters inference eligibility
-
-Constraints:
-  data-only, no schema change here; historical models and this alias only
-  reads, inserts and lookups use BATCH_SIZE pages, fixed memory
-  no modulestore, registry, provider, key or client-ID generation
+Skip confirmed LTI 1.1-only placeholders and infer scope and version only for new copies.
+Abort on conflicts instead of overwriting existing copies or links.
 """
 from ccx_keys.locator import CCXLocator
 from django.db import migrations
+from django.db.models import Count, Q
 from opaque_keys.edx.locator import CourseLocator
 
 BATCH_SIZE = 500
@@ -57,7 +36,7 @@ REPLAY_FIELDS = tuple(field for field in COPIED_FIELDS if field != 'context_key'
 
 
 def _batches(queryset):
-    """Yield primary-key ordered batches, negative legacy keys included, with bounded memory."""
+    """Yield primary-key ordered batches with bounded memory."""
     last_pk = None
     while True:
         page = queryset if last_pk is None else queryset.filter(pk__gt=last_pk)
@@ -73,7 +52,8 @@ def _counts_message(counts, aborts):
     """Render safe counters only: no key, secret or other stored value appears here."""
     return (
         f"read={counts['read']} inserted={counts['inserted']} reused={counts['reused']} "
-        f"linked={counts['linked']} null_old_fk={counts['null_old_fk']} aborts={aborts}"
+        f"skipped={counts['skipped']} linked={counts['linked']} unbound_1p1={counts['unbound_1p1']} "
+        f"null_old_fk={counts['null_old_fk']} aborts={aborts}"
     )
 
 
@@ -178,6 +158,42 @@ def _infer(Placement, alias, passports):
     return {pk: _inferred(state) for pk, state in states.items()}
 
 
+def _skippable_placeholders(Placement, alias, passports):
+    """Return the passports positively confirmed as LTI 1.1-only placeholders.
+
+    A passport qualifies when it stores no tool key material and its linked
+    placements group to zero disqualifying rows, i.e. every one is internal and
+    stored ``lti_1p1``. A group exists only for a passport with at least one link,
+    so that also proves at least one internal 1.1 placement. No links, an external
+    link, an unknown or invalid version, or saved tool key material keep the copy.
+    """
+    candidates = [passport.pk for passport in passports if not _has_tool_key_material(passport)]
+    if not candidates:
+        return set()
+    disqualifying = Count(
+        'pk', filter=Q(config_store=CONFIG_EXTERNAL) | ~Q(version=LTI_1P1)
+    )
+    rows = (
+        Placement.objects.using(alias)
+        .filter(lti_1p3_passport_id__in=candidates)
+        .values('lti_1p3_passport_id')
+        .annotate(disqualifying=disqualifying)
+        .filter(disqualifying=0)
+        .values_list('lti_1p3_passport_id', flat=True)
+    )
+    return set(rows)
+
+
+def _has_tool_key_material(passport):
+    """True when the passport saved a tool public key or a tool keyset URL."""
+    return bool(passport.lti_1p3_tool_public_key or passport.lti_1p3_tool_keyset_url)
+
+
+def _is_internal_lti_1p1(placement):
+    """True for an internal placement whose stored version is LTI 1.1."""
+    return placement.config_store != CONFIG_EXTERNAL and placement.version == LTI_1P1
+
+
 def _copy_passports(Passport, Reusable, Placement, alias, counts):
     """Copy each passport, reuse a matching copy as-is, and update the shared counters."""
     old = Passport.objects.using(alias)
@@ -212,6 +228,14 @@ def _copy_passports(Passport, Reusable, Placement, alias, counts):
             raise RuntimeError(_divergence_message(conflicts, counts))
         if not missing:
             continue
+        # A confirmed 1.1-only placeholder keeps its legacy placement and gets no copy;
+        # existing copies are never deleted or re-created here.
+        skipped = _skippable_placeholders(Placement, alias, missing)
+        if skipped:
+            counts['skipped'] += len(skipped)
+            missing = [passport for passport in missing if passport.pk not in skipped]
+        if not missing:
+            continue
         # Pass every copied field explicitly so blanks and identity are kept, not model defaults.
         # New rows then get inferred metadata in place of the old raw context key.
         inference = _infer(Placement, alias, missing)
@@ -226,6 +250,16 @@ def _copy_passports(Passport, Reusable, Placement, alias, counts):
             batch_size=BATCH_SIZE,
         )
         counts['inserted'] += len(missing)
+
+
+def _wrong_binding_message(placement, expected_pk, counts):
+    """Name a mismatched binding by ids only; never include stored values."""
+    return (
+        f"0025_copy_lti1p3_passports: placement {placement.pk} is bound to reusable "
+        f"configuration {placement.reusable_configuration_id}, expected {expected_pk} "
+        f"for passport {placement.lti_1p3_passport_id}; "
+        f"aborting with {_counts_message(counts, aborts=1)}"
+    )
 
 
 def _destination_ids(Passport, Reusable, alias, passport_pks):
@@ -246,7 +280,12 @@ def _destination_ids(Passport, Reusable, alias, passport_pks):
 
 
 def _link_placements(Placement, Passport, Reusable, alias, counts):
-    """Link placements to their copies, leaving placements without an old passport alone."""
+    """Link placements that have a passport to that passport's copy.
+
+    Leave placements with no legacy passport unchanged, and do not add a new link for
+    internal LTI 1.1 placements. If a copy exists and the placement already points at a
+    different reusable row, abort instead of overwriting it.
+    """
     placements = Placement.objects.using(alias)
 
     for batch in _batches(placements):
@@ -260,21 +299,22 @@ def _link_placements(Placement, Passport, Reusable, alias, counts):
                 counts['null_old_fk'] += 1
                 continue
             destination_pk = destinations.get(placement.lti_1p3_passport_id)
+            bound_pk = placement.reusable_configuration_id
+            if bound_pk is not None and destination_pk is not None and bound_pk != destination_pk:
+                raise RuntimeError(_wrong_binding_message(placement, destination_pk, counts))
+            if _is_internal_lti_1p1(placement):
+                # A passport copy contains LTI 1.3 registration data, not LTI 1.1 credentials.
+                if bound_pk is None:
+                    counts['unbound_1p1'] += 1
+                continue
             if destination_pk is None:
                 raise RuntimeError(
                     f"0025_copy_lti1p3_passports: placement {placement.pk} references passport "
                     f"{placement.lti_1p3_passport_id}, which has no copied configuration; "
                     f"aborting with {_counts_message(counts, aborts=1)}"
                 )
-            if placement.reusable_configuration_id is None:
+            if bound_pk is None:
                 pending.setdefault(destination_pk, []).append(placement.pk)
-            elif placement.reusable_configuration_id != destination_pk:
-                raise RuntimeError(
-                    f"0025_copy_lti1p3_passports: placement {placement.pk} is bound to reusable "
-                    f"configuration {placement.reusable_configuration_id}, expected {destination_pk} "
-                    f"for passport {placement.lti_1p3_passport_id}; "
-                    f"aborting with {_counts_message(counts, aborts=1)}"
-                )
         for destination_pk, placement_pks in pending.items():
             counts['linked'] += placements.filter(
                 pk__in=placement_pks, reusable_configuration__isnull=True
@@ -282,13 +322,21 @@ def _link_placements(Placement, Passport, Reusable, alias, counts):
 
 
 def copy_passports(apps, schema_editor):
-    """Copy every passport, infer new catalog metadata and link every placement bound to one."""
+    """Copy the eligible passports, infer metadata and link the placements that need a copy."""
     alias = schema_editor.connection.alias
     Passport = apps.get_model('lti_consumer', 'Lti1p3Passport')
     Reusable = apps.get_model('lti_consumer', 'ReusableLtiConfiguration')
     Placement = apps.get_model('lti_consumer', 'LtiConfiguration')
 
-    counts = {'read': 0, 'inserted': 0, 'reused': 0, 'linked': 0, 'null_old_fk': 0}
+    counts = {
+        'read': 0,
+        'inserted': 0,
+        'reused': 0,
+        'skipped': 0,
+        'linked': 0,
+        'unbound_1p1': 0,
+        'null_old_fk': 0,
+    }
     _copy_passports(Passport, Reusable, Placement, alias, counts)
     _link_placements(Placement, Passport, Reusable, alias, counts)
     print(f"0025_copy_lti1p3_passports: {_counts_message(counts, aborts=0)}")

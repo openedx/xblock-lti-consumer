@@ -87,7 +87,7 @@ class Lti1p3Passport(models.Model):
 
     lti_1p3_tool_keyset_url = models.CharField(
         "LTI 1.3 Tool Keyset URL",
-        max_length=500,
+        max_length=255,
         blank=True,
         help_text='This is the LTI Tool\'s JWK (JSON Web Key) Keyset (JWKS) URL. This should be provided by the LTI '
                   'Tool. One of either lti_1p3_tool_public_key or lti_1p3_tool_keyset_url must not be blank.'
@@ -209,8 +209,8 @@ class ReusableLtiConfiguration(models.Model):
         help_text=_("Platform's generated JWK keyset."),
     )
 
-    # shortcut: Client ID equality follows DB collation and carries no uniqueness guarantee;
-    # add portable matching only if cross-backend consistency is required.
+    # Nullable because LTI 1.1 configurations have no 1.3 client ID; not unique because
+    # converted legacy rows may share the same client ID.
     lti_1p3_client_id = models.CharField(
         max_length=255,
         default=generate_client_id,
@@ -278,7 +278,7 @@ class ReusableLtiConfiguration(models.Model):
     # Shared LTI Advantage service settings.
     lti_advantage_deep_linking_enabled = models.BooleanField(_("Enable LTI Advantage Deep Linking"), default=False)
     lti_advantage_deep_linking_launch_url = models.CharField(
-        _("LTI Advantage Deep Linking launch URL"), max_length=225, blank=True, default='',
+        _("LTI Advantage Deep Linking launch URL"), max_length=500, blank=True, default='',
     )
     lti_advantage_ags_mode = models.CharField(
         _("LTI Advantage Assignment and Grade Services Mode"),

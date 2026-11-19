@@ -10,7 +10,6 @@ from unittest.mock import call, patch
 import ddt
 from ccx_keys.locator import CCXBlockUsageLocator
 from Cryptodome.PublicKey import RSA
-from django import forms
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.test import TestCase
@@ -876,53 +875,42 @@ class TestLTIConsumerHideFieldsFlag(TestBaseWithPatch):
             self.assertFalse(CourseAllowPIISharingInLTIFlag.lti_access_to_learners_editable(self.course_id, False))
 
 
-class TestLti1p3PassportKeysetUrl(TestCase):
+class TestToolUrlFieldLengths(TestCase):
     """
-    The retained passport keeps its readers and writers, but its keyset URL column widens to 500.
+    Tool-URL lengths the passport copy and the new catalog depend on.
 
-    Validation is Django's ordinary CharField max_length on the field and through the model
-    form: no custom validator and no new placement field.
+    The retained passport keeps its released 255 limit on the keyset URL; the new reusable
+    configuration allows 500 for its keyset and deep linking URLs. Validation is Django's
+    ordinary CharField max_length, so a boundary check covers it.
     """
 
-    KEYSET_URL = 'http://tool.example/.well-known/jwks.json'
+    URL_PREFIX = 'http://tool.example/.well-known/jwks.json'
 
-    def keyset_url(self, length):
+    def url_of_length(self, length):
         """Return a URL-shaped value of exactly the requested length."""
-        return self.KEYSET_URL + 'x' * (length - len(self.KEYSET_URL))
+        return self.URL_PREFIX + 'x' * (length - len(self.URL_PREFIX))
 
-    def test_a_500_character_keyset_url_is_accepted(self):
-        field = Lti1p3Passport._meta.get_field('lti_1p3_tool_keyset_url')
-        self.assertEqual(field.max_length, 500)
-
-        passport = Lti1p3Passport(lti_1p3_tool_keyset_url=self.keyset_url(500))
+    def test_retained_passport_keyset_url_stays_at_255(self):
+        passport = Lti1p3Passport(lti_1p3_tool_keyset_url=self.url_of_length(255))
         passport.full_clean()
         passport.save()
         passport.refresh_from_db()
-        self.assertEqual(len(passport.lti_1p3_tool_keyset_url), 500)
-
-    def test_the_keyset_url_is_validated_through_the_model_form(self):
-        class PassportForm(forms.ModelForm):
-            class Meta:
-                model = Lti1p3Passport
-                fields = ['name', 'lti_1p3_tool_public_key', 'lti_1p3_tool_keyset_url']
-
-        accepted = PassportForm(data={
-            'name': 'Widened',
-            'lti_1p3_tool_public_key': 'tool-key',
-            'lti_1p3_tool_keyset_url': self.keyset_url(500),
-        })
-        self.assertTrue(accepted.is_valid(), accepted.errors)
-
-        rejected = PassportForm(data={
-            'name': 'Too long',
-            'lti_1p3_tool_public_key': 'tool-key',
-            'lti_1p3_tool_keyset_url': self.keyset_url(501),
-        })
-        self.assertFalse(rejected.is_valid())
-        self.assertIn('lti_1p3_tool_keyset_url', rejected.errors)
+        self.assertEqual(len(passport.lti_1p3_tool_keyset_url), 255)
 
         with self.assertRaises(ValidationError):
-            Lti1p3Passport(lti_1p3_tool_keyset_url=self.keyset_url(501)).full_clean()
+            Lti1p3Passport(lti_1p3_tool_keyset_url=self.url_of_length(256)).full_clean()
+
+    def test_reusable_configuration_accepts_500_character_tool_urls(self):
+        config = ReusableLtiConfiguration(
+            lti_1p3_tool_keyset_url=self.url_of_length(500),
+            lti_advantage_deep_linking_launch_url=self.url_of_length(500),
+        )
+        config.full_clean()
+
+        with self.assertRaises(ValidationError):
+            ReusableLtiConfiguration(
+                lti_advantage_deep_linking_launch_url=self.url_of_length(501),
+            ).full_clean()
 
 
 class TestRetainedPassportBinding(TestCase):
