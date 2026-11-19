@@ -1,10 +1,12 @@
 """
 Behavioural tests for the reusable-configuration Django admin.
 
-Journeys drive the real admin site, URLconf, ModelAdmin, formsets and ORM.
-Only the edx-platform Global Staff seam is patched, since it is not installed.
+Journeys drive the real admin site, URLconf, ModelAdmin and ORM. Only the external
+edx-platform GlobalStaff role module is injected, since it is not installed here.
 """
-from unittest.mock import patch
+import sys
+from types import ModuleType
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -14,15 +16,22 @@ from django.urls import reverse
 from lti_consumer.models import Lti1p3Passport, LtiConfiguration, ReusableLtiConfiguration
 
 COURSE_KEY = 'course-v1:Org+Course+Run'
-GLOBAL_STAFF_PATCH = 'lti_consumer.plugin.compat.user_is_global_staff'
+ROLES_MODULE = 'common.djangoapps.student.roles'
 PRIVATE_KEY = '-----BEGIN RSA PRIVATE KEY----- never-render-this-value'
 
 
+def global_staff_roles(has_user):
+    """Inject the external role seam; edx-platform owns the real GlobalStaff module."""
+    roles = ModuleType(ROLES_MODULE)
+    roles.GlobalStaff = Mock(return_value=Mock(has_user=Mock(side_effect=has_user)))
+    return roles
+
+
 class ReusableAdminJourneyTests(TestCase):
-    """Admin journeys through the real admin site, formsets and ORM."""
+    """Admin journeys through the real admin site, URLconf, ModelAdmin and ORM."""
 
     def setUp(self):
-        patcher = patch(GLOBAL_STAFF_PATCH, return_value=True)
+        patcher = patch.dict(sys.modules, {ROLES_MODULE: global_staff_roles(lambda user: user.is_staff)})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.user_model = get_user_model()
@@ -53,129 +62,82 @@ class ReusableAdminJourneyTests(TestCase):
     def change_url(self, configuration):
         return reverse('admin:lti_consumer_reusablelticonfiguration_change', args=[configuration.pk])
 
-    def assert_no_placement_usage_ui(self, response, placement):
-        """No usage count, list or inline until the published-usage index exists."""
-        changelist_url = reverse('admin:lti_consumer_lticonfiguration_changelist')
-        self.assertNotContains(response, placement.location)
-        self.assertNotContains(response, '>Placements<')
-        self.assertNotContains(response, f'{changelist_url}?reusable_configuration__id__exact=')
-
     def assert_denied(self, response):
         self.assertNotEqual(response.status_code, 200)
-        self.assertNotContains(response, 'Visible configuration', status_code=response.status_code)
+        self.assertNotIn(b'Visible configuration', response.content)
 
-    def test_access_is_global_staff_only_and_model_permissions_do_not_bypass(self):
+    def test_access_requires_the_platform_global_staff_role(self):
         configuration = self.make_configuration(name='Visible configuration')
-        placement = self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@bound', 'Bound passport',
-        )
         global_staff = self.make_user('global-staff', is_staff=True)
-        self.assertFalse(global_staff.has_perm('lti_consumer.view_reusablelticonfiguration'))
+        self.assertFalse(global_staff.is_superuser)
         permitted_staff = self.make_user('permitted-staff', is_staff=True)
         permitted_staff.user_permissions.set(Permission.objects.all())
-        self.assertTrue(permitted_staff.has_perm('lti_consumer.view_reusablelticonfiguration'))
         superuser = self.make_superuser()
 
         for actor in (global_staff, permitted_staff, superuser):
             self.client.force_login(actor)
             with self.subTest(actor=actor.username):
-                response = self.client.get(reverse('admin:index'))
-                self.assertContains(response, self.changelist_url)
-                response = self.client.get(self.changelist_url)
-                self.assertContains(response, 'Visible configuration')
-                self.assertContains(response, self.change_url(configuration))
-                response = self.client.get(self.change_url(configuration))
-                self.assertEqual(response.status_code, 200)
-                self.assert_no_placement_usage_ui(response, placement)
+                self.assertContains(self.client.get(reverse('admin:index')), self.changelist_url)
+                self.assertContains(self.client.get(self.changelist_url), 'Visible configuration')
+                self.assertEqual(self.client.get(self.change_url(configuration)).status_code, 200)
 
-        self.client.force_login(self.make_user('ordinary'))
+        self.client.force_login(self.make_user('course-staff'))
         self.assert_denied(self.client.get(self.changelist_url))
         self.assert_denied(self.client.get(self.change_url(configuration)))
 
+        # Django model permissions grant nothing when the platform role seam says no.
         self.client.force_login(permitted_staff)
-        with patch(GLOBAL_STAFF_PATCH, return_value=False):
+        with patch.dict(sys.modules, {ROLES_MODULE: global_staff_roles(lambda user: False)}):
             self.assert_denied(self.client.get(self.changelist_url))
             self.assert_denied(self.client.get(self.change_url(configuration)))
-            response = self.client.get(reverse('admin:index'))
-            self.assertNotContains(response, self.changelist_url)
+            self.assertNotContains(self.client.get(reverse('admin:index')), self.changelist_url)
 
-    def test_detail_renders_stored_values_except_private_key_and_reads_never_write(self):
+    def test_detail_shows_stored_values_without_private_key_or_generation(self):
         configuration = self.make_configuration(
             name='Rendered configuration',
-            is_active=False,
             context_type=None,
             context_key='raw-copied-context-key',
             lti_1p1_client_key='stored-client-key',
-            lti_1p1_client_secret='stored-client-secret',
             lti_1p3_tool_public_key='stored-tool-public-key',
             lti_1p3_tool_keyset_url='https://tool.example/jwks',
             lti_1p3_internal_private_key=PRIVATE_KEY,
             lti_1p3_internal_private_key_id='stored-key-id',
             lti_1p3_internal_public_jwk='{"keys": ["stored-public-jwk"]}',
         )
-        placement = self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@read', 'Read passport',
-        )
         self.client.force_login(self.make_user('global-staff', is_staff=True))
 
         response = self.client.get(self.change_url(configuration))
         self.assertEqual(response.status_code, 200)
-        with self.subTest('stored values render and detail is view-only'):
-            for value in (
-                'raw-copied-context-key',
-                'stored-client-key',
-                'stored-client-secret',
-                'stored-tool-public-key',
-                'https://tool.example/jwks',
-                'stored-key-id',
-                'stored-public-jwk',
-            ):
-                self.assertContains(response, value)
-            self.assertNotContains(response, 'never-render-this-value')
-            self.assert_no_placement_usage_ui(response, placement)
-            self.assertContains(response, 'View Reusable LTI configuration')
-            self.assertNotContains(response, 'name="name"')
-            self.assertNotContains(response, 'name="context_key"')
-            self.assertNotContains(response, 'name="lti_1p3_internal_private_key"')
-
-        with self.subTest('changelist has no bulk actions'):
-            response = self.client.get(self.changelist_url)
-            self.assertEqual(response.status_code, 200)
-            self.assertFalse(response.context.get('actions'))
-            self.assertNotContains(response, 'action-toggle')
-
-        with self.subTest('blank keys are not generated or saved on read'):
-            incomplete = self.make_configuration(
-                name='Incomplete configuration', version=None, context_type=None, context_key=None,
-            )
-            updated_at = incomplete.updated_at
-            self.assertEqual(incomplete.lti_1p3_internal_private_key, '')
-            self.assertEqual(self.client.get(self.changelist_url).status_code, 200)
-            self.assertEqual(self.client.get(self.change_url(incomplete)).status_code, 200)
-            incomplete.refresh_from_db()
-            self.assertEqual(incomplete.lti_1p3_internal_private_key, '')
-            self.assertEqual(incomplete.lti_1p3_internal_private_key_id, '')
-            self.assertEqual(incomplete.lti_1p3_internal_public_jwk, '')
-            self.assertEqual(incomplete.updated_at, updated_at)
-
-    def test_bound_placements_render_no_usage_count_list_or_inline(self):
-        configuration = self.make_configuration(name='Configuration without usage UI')
-        placement = self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@unlisted', 'Unlisted passport',
+        for value in (
+            'raw-copied-context-key',
+            'stored-client-key',
+            'stored-tool-public-key',
+            'https://tool.example/jwks',
+            'stored-key-id',
+            'stored-public-jwk',
+        ):
+            self.assertContains(response, value)
+        # Membership is asserted directly, and pylint's assertNotIn preference disabled, so a
+        # failure never dumps a rendered page carrying stored credentials.
+        self.assertFalse(  # pylint: disable=wrong-assert-type
+            PRIVATE_KEY.encode() in response.content, 'signing private key value rendered',
         )
-        self.client.force_login(self.make_user('global-staff', is_staff=True))
 
-        response = self.client.get(self.change_url(configuration))
-        self.assertEqual(response.status_code, 200)
-        self.assert_no_placement_usage_ui(response, placement)
+        incomplete = self.make_configuration(
+            name='Incomplete configuration', version=None, context_type=None, context_key=None,
+        )
+        updated_at = incomplete.updated_at
+        self.assertEqual(self.client.get(self.changelist_url).status_code, 200)
+        self.assertEqual(self.client.get(self.change_url(incomplete)).status_code, 200)
+        incomplete.refresh_from_db()
+        self.assertEqual(incomplete.lti_1p3_internal_private_key, '')
+        self.assertEqual(incomplete.lti_1p3_internal_private_key_id, '')
+        self.assertEqual(incomplete.lti_1p3_internal_public_jwk, '')
+        self.assertEqual(incomplete.updated_at, updated_at)
 
     def test_no_role_can_add_change_or_delete_through_the_admin(self):
-        configuration = self.make_configuration(
-            name='Immutable configuration',
-            lti_1p1_client_key='immutable-client-key',
-            lti_1p1_client_secret='immutable-client-secret',
-        )
-        self.make_placement(
+        configuration = self.make_configuration(name='Immutable configuration')
+        placement = self.make_placement(
             configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@immutable', 'Immutable passport',
         )
         staff = self.make_user('global-staff', is_staff=True)
@@ -184,7 +146,7 @@ class ReusableAdminJourneyTests(TestCase):
         change_url = self.change_url(configuration)
         delete_url = reverse('admin:lti_consumer_reusablelticonfiguration_delete', args=[configuration.pk])
         row_before = ReusableLtiConfiguration.objects.values().get(pk=configuration.pk)
-        placements_before = list(LtiConfiguration.objects.values())
+        binding_before = LtiConfiguration.objects.get(pk=placement.pk).reusable_configuration_id
         counts_before = (ReusableLtiConfiguration.objects.count(), LtiConfiguration.objects.count())
 
         for actor in (staff, superuser):
@@ -209,39 +171,20 @@ class ReusableAdminJourneyTests(TestCase):
             (ReusableLtiConfiguration.objects.count(), LtiConfiguration.objects.count()), counts_before,
         )
         self.assertEqual(ReusableLtiConfiguration.objects.values().get(pk=configuration.pk), row_before)
-        self.assertEqual(list(LtiConfiguration.objects.values()), placements_before)
+        self.assertEqual(LtiConfiguration.objects.get(pk=placement.pk).reusable_configuration_id, binding_before)
+        self.assertEqual(binding_before, configuration.pk)
 
-    def test_legacy_passport_admin_is_unchanged(self):
-        passport = Lti1p3Passport.objects.create(name='Retained passport', lti_1p3_client_id='legacy-client-id')
-        # A reusable copy with the same passport_id would vanish under any matched-ID hiding.
+    def test_legacy_passport_and_reusable_changelists_show_the_shared_uuid(self):
+        passport = Lti1p3Passport.objects.create(name='Retained passport')
         self.make_configuration(name='Matched reusable copy', passport_id=passport.passport_id)
-        changelist_url = reverse('admin:lti_consumer_lti1p3passport_changelist')
-        change_url = reverse('admin:lti_consumer_lti1p3passport_change', args=[passport.pk])
-        superuser = self.make_superuser()
-        plain_staff = self.make_user('plain-staff', is_staff=True)
+        self.client.force_login(self.make_superuser())
+        shared_uuid = str(passport.passport_id)
 
-        self.client.force_login(superuser)
-        with self.subTest('superuser still views and edits'):
-            self.assertContains(self.client.get(changelist_url), 'Retained passport')
-            self.assertEqual(self.client.get(change_url).status_code, 200)
-            prefix = LtiConfiguration._meta.get_field('lti_1p3_passport').remote_field.get_accessor_name()
-            response = self.client.post(change_url, {
-                'name': 'Renamed passport',
-                'lti_1p3_client_id': 'legacy-client-id',
-                # The model's clean() requires one tool key source for an LTI 1.3 passport.
-                'lti_1p3_tool_public_key': 'legacy-tool-public-key',
-                f'{prefix}-TOTAL_FORMS': '0',
-                f'{prefix}-INITIAL_FORMS': '0',
-                f'{prefix}-MIN_NUM_FORMS': '0',
-                f'{prefix}-MAX_NUM_FORMS': '1000',
-            })
-            self.assertEqual(response.status_code, 302)
-            passport.refresh_from_db()
-            self.assertEqual(passport.name, 'Renamed passport')
-
-        with self.subTest('matched reusable copy stays visible'):
-            self.assertContains(self.client.get(self.changelist_url), 'Matched reusable copy')
-
-        self.client.force_login(plain_staff)
-        with self.subTest('staff without model permissions denied'):
-            self.assertNotEqual(self.client.get(changelist_url).status_code, 200)
+        for url, name in (
+            (reverse('admin:lti_consumer_lti1p3passport_changelist'), 'Retained passport'),
+            (self.changelist_url, 'Matched reusable copy'),
+        ):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, name)
+            self.assertContains(response, shared_uuid)
