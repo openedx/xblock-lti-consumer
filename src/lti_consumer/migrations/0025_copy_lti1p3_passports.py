@@ -81,7 +81,7 @@ def _course(location):
         return None
     if not all((course_key.org, course_key.course, course_key.run)):
         return None
-    # The same canonical form the service layer stores: no branch and no version.
+    # Strip the branch and version from the course key.
     course_key = course_key.for_branch(None).version_agnostic()
     canonical, organization = str(course_key), course_key.org.strip().lower()
     if not canonical or not organization:

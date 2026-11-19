@@ -324,13 +324,7 @@ class ReusableLtiConfiguration(models.Model):
     updated_at = models.DateTimeField(_("Updated at"), auto_now=True)
 
     def generate_lti_1p3_keys_if_missing(self):
-        """
-        Generate LTI 1.3 RSA256 keys if missing.
-
-        If either the public or private key are missing, regenerate them.
-        The LMS provides a keyset endpoint, so key rotations don't cause any issues
-        for LTI launches (as long as they have a different kid).
-        """
+        """Generate a missing private key and (re)build a missing public JWK from the stored key."""
         # Generate new private key if not present
         if not self.lti_1p3_internal_private_key:
             # Private key
@@ -378,7 +372,7 @@ class ReusableLtiConfiguration(models.Model):
         verbose_name = _("Reusable LTI configuration")
         verbose_name_plural = _("Reusable LTI configurations")
         constraints = [
-            # Converted rows may carry no context until one is assigned (Global Staff only).
+            # Incomplete configurations may have no Creation Context.
             models.CheckConstraint(
                 condition=(
                     models.Q(context_type__isnull=True) |
