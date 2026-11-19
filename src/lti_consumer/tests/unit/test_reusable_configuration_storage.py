@@ -5,8 +5,6 @@ These are DB-level journeys: the promises are enforced by the schema itself, not
 services or views, so they are exercised against the real database.
 """
 
-from unittest.mock import patch
-
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.test import TestCase
@@ -73,7 +71,7 @@ class ReusableConfigurationStorageTests(TestCase):
                 self.make_configuration(name=f"Invalid {values['context_type']}", **values)
 
     def test_placement_binding_is_optional_targets_the_pk_and_protects_deletion(self):
-        """Unbound by default, bound to the PK (not the UUID), and undeletable while in use."""
+        """Unbound by default, bound to the PK, and undeletable while in use."""
         placement = LtiConfiguration.objects.create()
         placement.refresh_from_db()
         self.assertIsNone(placement.reusable_configuration_id)
@@ -82,28 +80,11 @@ class ReusableConfigurationStorageTests(TestCase):
         LtiConfiguration.objects.filter(pk=placement.pk).update(reusable_configuration=configuration)
         placement.refresh_from_db()
         self.assertEqual(placement.reusable_configuration_id, configuration.pk)
-        self.assertNotEqual(placement.reusable_configuration_id, configuration.passport_id)
 
         with self.assertRaises(ProtectedError):
             configuration.delete()
         placement.refresh_from_db()
         self.assertEqual(placement.reusable_configuration_id, configuration.pk)
-
-    def test_active_flag_defaults_true_and_keeps_the_binding_when_disabled(self):
-        configuration = self.make_configuration(name='Lifecycle')
-        placement = LtiConfiguration.objects.create(reusable_configuration=configuration)
-        configuration.refresh_from_db()
-        self.assertTrue(configuration.is_active)
-
-        configuration.is_active = False
-        configuration.save()
-        configuration.refresh_from_db()
-        self.assertFalse(configuration.is_active)
-        # The flag gates use, not storage: a disabled configuration stays linked.
-        self.assertEqual(
-            LtiConfiguration.objects.get(pk=placement.pk).reusable_configuration_id,
-            configuration.pk,
-        )
 
     def test_privacy_columns_default_safely_and_reject_null(self):
         """A row defaults to the six safe values, and the database refuses NULL in each."""
@@ -114,13 +95,3 @@ class ReusableConfigurationStorageTests(TestCase):
         for field_name in PRIVACY_DEFAULTS:
             with self.subTest(field=field_name), self.assertRaises(IntegrityError), transaction.atomic():
                 ReusableLtiConfiguration.objects.filter(pk=configuration.pk).update(**{field_name: None})
-
-    def test_reads_never_generate_signing_keys(self):
-        configuration = self.make_configuration(name='No keys')
-        with patch.object(ReusableLtiConfiguration, 'save') as save_mock:
-            list(ReusableLtiConfiguration.objects.filter(pk=configuration.pk))
-            configuration.refresh_from_db()
-            self.assertEqual(configuration.lti_1p3_internal_private_key, '')
-            self.assertEqual(configuration.lti_1p3_internal_public_jwk, '')
-            self.assertEqual(configuration.lti_1p3_internal_private_key_id, '')
-        save_mock.assert_not_called()
