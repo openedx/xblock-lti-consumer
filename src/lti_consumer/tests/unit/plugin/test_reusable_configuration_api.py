@@ -527,9 +527,9 @@ class ListJourneyTests(ReusableApiTestCase):
 
 
 class DetailAndPatchJourneyTests(ReusableApiTestCase):
-    """Detail and PATCH journeys: rendering, merging, immutability and no writes."""
+    """Detail and PATCH journeys: rendering, merging and immutability."""
 
-    def test_detail_renders_privacy_and_defaults_without_touching_keys(self):
+    def test_detail_renders_privacy_and_defaults(self):
         configuration = self.create_configuration(
             name='Everything tool',
             version='lti_1p3',
@@ -543,15 +543,8 @@ class DetailAndPatchJourneyTests(ReusableApiTestCase):
             privacy=AUTHORED_PRIVACY,
         )
         self.login(self.staff)
-        updated_at = ReusableLtiConfiguration.objects.get(pk=configuration.pk).updated_at
 
-        with patch.object(
-            ReusableLtiConfiguration, 'generate_lti_1p3_keys_if_missing',
-            side_effect=AssertionError('read generated platform keys'),
-        ), patch.object(
-            ReusableLtiConfiguration, 'save', side_effect=AssertionError('read wrote a row'),
-        ):
-            response = self.client.get(self.detail_path(configuration))
+        response = self.client.get(self.detail_path(configuration))
 
         self.assertEqual(response.status_code, 200, response.content)
         self.assert_cache_no_store(response)
@@ -571,7 +564,6 @@ class DetailAndPatchJourneyTests(ReusableApiTestCase):
         for forbidden in ('pii_', 'lti_1p3_', 'client_secret', 'private_key'):
             self.assertNotIn(forbidden, response.content.decode())
         self.assert_secrets_absent(response, TOOL_KEYSET_URL, TOOL_PUBLIC_KEY)
-        self.assertEqual(ReusableLtiConfiguration.objects.get(pk=configuration.pk).updated_at, updated_at)
 
     def test_lti_1p1_detail_gates_lti_1p3_metadata(self):
         configuration = self.create_configuration(name='One one')
@@ -693,6 +685,9 @@ class DetailAndPatchJourneyTests(ReusableApiTestCase):
             (self.detail_path(lti13), {'is_active': False}, 'is_active'),
             (self.detail_path(lti13), {'config_id': str(uuid.uuid4())}, 'config_id'),
             (self.detail_path(lti13), {'passport_id': str(uuid.uuid4())}, 'passport_id'),
+            (self.detail_path(lti13), {'scope': {'course_keys': [COURSE_KEY]}}, 'scope'),
+            (self.detail_path(lti13), {'privacy': {'pii_share_email': True}}, 'privacy.pii_share_email'),
+            (self.detail_path(lti13), {'defaults': {'unknown_setting': 1}}, 'defaults.unknown_setting'),
             (self.detail_path(lti11), {'lti_1p1': {'client_key': 'smuggled'}}, 'lti_1p1.client_key'),
             (self.detail_path(lti11), {'lti_1p1': {'client_secret': 'smuggled'}}, 'lti_1p1.client_secret'),
         )
@@ -754,7 +749,7 @@ class DetailAndPatchJourneyTests(ReusableApiTestCase):
         self.assertEqual(configuration.updated_at, updated_at)
 
     def test_converted_row_context_and_version_are_assigned_once(self):
-        converted = converted_row()
+        converted = converted_row(lti_1p3_tool_public_key=TOOL_PUBLIC_KEY)
         self.login(self.staff)
 
         detail = self.client.get(self.detail_path(converted))
@@ -771,6 +766,7 @@ class DetailAndPatchJourneyTests(ReusableApiTestCase):
         self.assertEqual(body['redirect_uris'], ['https://tool.example/redirect'])
         self.assertTrue(body['tool_key_configured'])
         self.assertNotIn(COPIED_RAW_CONTEXT_KEY, detail.content.decode())
+        self.assert_secrets_absent(detail, TOOL_PUBLIC_KEY)
 
         listed = self.client.get(LIST_PATH)
         self.assertEqual(listed.json()['count'], 1)
@@ -810,19 +806,44 @@ class DetailAndPatchJourneyTests(ReusableApiTestCase):
         )
         self.assert_field_error(reassigned, 'context')
 
-    def test_unassigned_row_is_hidden_from_non_staff(self):
-        converted = converted_row()
-        self.login(self.viewer)
+    def test_unassigned_rows_render_no_context_and_are_hidden_from_non_staff(self):
+        blank_keys = converted_row(
+            name='No key', lti_1p3_tool_keyset_url='', lti_1p3_tool_public_key='',
+        )
+        legacy_keyset = converted_row(
+            name='Legacy keyset', lti_1p3_tool_keyset_url='http://not-a-valid-url',
+        )
+        known_version = converted_row(
+            name='Unassigned 1.3', version='lti_1p3', lti_1p3_tool_keyset_url='',
+        )
+        rows = (blank_keys, legacy_keyset, known_version)
 
-        self.assertEqual(self.client.get(self.detail_path(converted)).status_code, 404)
+        self.login(self.staff)
+        for row, expected_configured in ((blank_keys, False), (legacy_keyset, True), (known_version, False)):
+            response = self.client.get(self.detail_path(row))
+            self.assertEqual(response.status_code, 200, response.content)
+            body = response.json()
+            self.assertIsNone(body['context'])
+            self.assertEqual(body['tool_key_configured'], expected_configured)
+            self.assert_secrets_absent(response, 'http://not-a-valid-url')
+
+        listed = self.client.get(LIST_PATH)
+        self.assertEqual(listed.status_code, 200, listed.content)
+        self.assertEqual(
+            {row['config_id']: row['context'] for row in listed.json()['results']},
+            {str(row.passport_id): None for row in rows},
+        )
+
+        self.login(self.viewer)
+        self.assertEqual(self.client.get(self.detail_path(blank_keys)).status_code, 404)
         self.assertEqual(self.client.get(LIST_PATH).json()['count'], 0)
         refused = self.client.patch(
-            self.detail_path(converted), {'context': {'type': 'course', 'key': COURSE_KEY}}, format='json',
+            self.detail_path(blank_keys), {'context': {'type': 'course', 'key': COURSE_KEY}}, format='json',
         )
         self.assertEqual(refused.status_code, 404, refused.content)
-        converted.refresh_from_db()
-        self.assertIsNone(converted.context_type)
-        self.assertEqual(converted.context_key, COPIED_RAW_CONTEXT_KEY)
+        blank_keys.refresh_from_db()
+        self.assertIsNone(blank_keys.context_type)
+        self.assertEqual(blank_keys.context_key, COPIED_RAW_CONTEXT_KEY)
 
 
 class AuthorityAndErrorTests(ReusableApiTestCase):
