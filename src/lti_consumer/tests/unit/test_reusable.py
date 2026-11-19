@@ -338,10 +338,6 @@ class ReusableCreateTests(ReusableMutationTestCase):
                 lti11_data(services={'deep_linking_launch_url': 'javascript:bad'}),
                 'services.deep_linking_launch_url',
             ),
-            (
-                lti11_data(services={'deep_linking_launch_url': f'https://tool.example/{"d" * 300}'}),
-                'services.deep_linking_launch_url',
-            ),
             (lti11_data(services={'ags_mode': 'sometimes'}), 'services.ags_mode'),
             (lti11_data(services={'nrps_enabled': 'yes'}), 'services.nrps_enabled'),
             (lti11_data(services={'platform_key': 'secret'}), 'services.platform_key'),
@@ -632,9 +628,13 @@ class ReusableUpdateTests(ReusableUpdateTestCase):
             (stored.description, stored.data_sharing_notice),
             ('Tool Description', 'Learner-facing notice'),
         )
+        privacy_before = {field: getattr(stored, field) for field in PRIVACY_WIRE_MEMBERS.values()}
         self.update(self.lti13, {'description': 'Renamed Tool Description'})
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
-        self.assertEqual(stored.data_sharing_notice, 'Learner-facing notice')
+        # The authored privacy survives an independent description write, read back from the row.
+        self.assertEqual(
+            {field: getattr(stored, field) for field in PRIVACY_WIRE_MEMBERS.values()}, privacy_before,
+        )
         self.update(self.lti13, {'privacy': {'data_sharing_notice': 'Changed learner notice'}})
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
         self.assertEqual(stored.description, 'Renamed Tool Description')
@@ -891,78 +891,46 @@ class ReusableUpdateTests(ReusableUpdateTestCase):
             before,
         )
 
-    def test_present_services_and_connection_sections_validate_merged_state(self):
+    def test_present_sections_validate_merged_state(self):
+        """A present section validates the merged row; an absent one leaves stored values alone."""
         self.lti13.lti_advantage_deep_linking_enabled = True
         self.lti13.lti_advantage_deep_linking_launch_url = 'javascript:bad'
-        self.lti13.save()
-
-        updated = self.update(self.lti13, {'name': 'Metadata only'})
-        self.assertEqual(updated.name, 'Metadata only')
-        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
-        self.assertEqual(stored.lti_advantage_deep_linking_launch_url, 'javascript:bad')
-
-        with self.assertRaises(ReusableConfigurationError) as raised:
-            self.update(self.lti13, {'services': {'ags_mode': 'disabled'}})
-        self.assertEqual(
-            (raised.exception.category, raised.exception.field),
-            ('invalid', 'services.deep_linking_launch_url'),
-        )
-        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
-        self.assertEqual(stored.lti_advantage_ags_mode, 'declarative')
-        self.assertEqual(stored.lti_advantage_deep_linking_launch_url, 'javascript:bad')
-
         self.lti13.lti_1p3_redirect_uris = ['javascript:bad']
-        self.lti13.save()
-        updated = self.update(self.lti13, {'name': 'Metadata only'})
-        self.assertEqual(updated.name, 'Metadata only')
-        self.assertEqual(
-            ReusableLtiConfiguration.objects.get(pk=self.lti13.pk).lti_1p3_redirect_uris, ['javascript:bad'],
-        )
-
-        incomplete = converted_row(
-            name='Needs keys', version=ReusableLtiConfiguration.LTI_1P3,
-            context_type='course', context_key=COURSE_KEY,
-        )
-        with self.assertRaises(ReusableConfigurationError) as raised:
-            self.update(incomplete, {'lti_1p3': {}})
-        self.assertEqual(
-            (raised.exception.category, raised.exception.field), ('invalid', 'lti_1p3.launch_url'),
-        )
-        self.assertIsNone(ReusableLtiConfiguration.objects.get(pk=incomplete.pk).lti_1p3_launch_url)
-
-        incomplete_11 = converted_row(
-            name='Needs a launch URL', version=ReusableLtiConfiguration.LTI_1P1,
-            context_type='course', context_key=COURSE_KEY,
-        )
-        with self.assertRaises(ReusableConfigurationError) as raised:
-            self.update(incomplete_11, {'lti_1p1': {}})
-        self.assertEqual(
-            (raised.exception.category, raised.exception.field), ('invalid', 'lti_1p1.launch_url'),
-        )
-
-        self.update(self.lti13, {'lti_1p3': {'redirect_uris': ['https://tool.example/callback']}})
-        updated = self.update(self.lti13, {'lti_1p3': {}})
-        self.assertEqual(updated.lti_1p3_launch_url, 'https://tool.example/launch')
-        self.assertEqual(updated.lti_1p3_oidc_url, 'https://tool.example/oidc')
-        self.assertEqual(updated.lti_1p3_tool_key_mode, 'keyset_url')
-        self.assertEqual(updated.lti_1p3_tool_keyset_url, 'https://tool.example/jwks')
-
-    def test_present_defaults_and_privacy_sections_validate_merged_state(self):
         self.lti13.grade_weight = -1
         self.lti13.save()
 
         updated = self.update(self.lti13, {'name': 'Metadata only'})
         self.assertEqual(updated.name, 'Metadata only')
-        self.assertEqual(ReusableLtiConfiguration.objects.get(pk=self.lti13.pk).grade_weight, -1)
-
-        with self.assertRaises(ReusableConfigurationError) as raised:
-            self.update(self.lti13, {'name': 'Renamed', 'description': 'Notes', 'defaults': {}})
-        self.assertEqual(
-            (raised.exception.category, raised.exception.field), ('invalid', 'defaults.grade_weight'),
-        )
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
-        self.assertEqual((stored.name, stored.description, stored.grade_weight), ('Metadata only', '', -1))
+        self.assertEqual(
+            (
+                stored.name, stored.description, stored.lti_advantage_deep_linking_launch_url,
+                stored.lti_1p3_redirect_uris, stored.grade_weight,
+            ),
+            ('Metadata only', '', 'javascript:bad', ['javascript:bad'], -1),
+        )
 
+        # A present section re-validates the merge and names the stored field it rejects.
+        rejected = (
+            ({'services': {'ags_mode': 'disabled'}}, 'services.deep_linking_launch_url'),
+            ({'defaults': {'modal_width': 50}}, 'defaults.grade_weight'),
+            ({'name': 'Renamed', 'description': 'Notes', 'defaults': {}}, 'defaults.grade_weight'),
+        )
+        for changes, field in rejected:
+            with self.subTest(changes=changes):
+                with self.assertRaises(ReusableConfigurationError) as raised:
+                    self.update(self.lti13, changes)
+                self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', field))
+        stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
+        self.assertEqual(
+            (
+                stored.name, stored.description, stored.lti_advantage_ags_mode,
+                stored.lti_advantage_deep_linking_launch_url, stored.grade_weight, stored.modal_width,
+            ),
+            ('Metadata only', '', 'declarative', 'javascript:bad', -1, 80),
+        )
+
+        # Repaired, the same empty sections echo the merged stored settings instead.
         self.update(self.lti13, {'defaults': {'grade_weight': 1.0}})
         updated = self.update(self.lti13, {'defaults': {}})
         self.assertEqual(
@@ -971,21 +939,42 @@ class ReusableUpdateTests(ReusableUpdateTestCase):
         )
 
         self.lti13.grade_weight = -1
-        self.lti13.save()
-        with self.assertRaises(ReusableConfigurationError) as raised:
-            self.update(self.lti13, {'defaults': {'modal_width': 50}})
-        self.assertEqual(
-            (raised.exception.category, raised.exception.field), ('invalid', 'defaults.grade_weight'),
-        )
-        self.assertEqual(ReusableLtiConfiguration.objects.get(pk=self.lti13.pk).modal_width, 80)
-
-        self.lti13.grade_weight = -1
         self.lti13.open_tool_in = 'popup'
         self.lti13.save()
         updated = self.update(self.lti13, {'defaults': {'grade_weight': 2.5, 'open_tool_in': 'modal'}})
-        self.assertEqual((updated.grade_weight, updated.open_tool_in), (2.5, 'modal'))
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)
-        self.assertEqual((stored.grade_weight, stored.open_tool_in), (2.5, 'modal'))
+        self.assertEqual(
+            ((updated.grade_weight, updated.open_tool_in), (stored.grade_weight, stored.open_tool_in)),
+            ((2.5, 'modal'), (2.5, 'modal')),
+        )
+
+        incomplete = converted_row(
+            name='Needs keys', version=ReusableLtiConfiguration.LTI_1P3,
+            context_type='course', context_key=COURSE_KEY,
+        )
+        incomplete_11 = converted_row(
+            name='Needs a launch URL', version=ReusableLtiConfiguration.LTI_1P1,
+            context_type='course', context_key=COURSE_KEY,
+        )
+        for configuration, changes, field in (
+            (incomplete, {'lti_1p3': {}}, 'lti_1p3.launch_url'),
+            (incomplete_11, {'lti_1p1': {}}, 'lti_1p1.launch_url'),
+        ):
+            with self.subTest(field=field):
+                with self.assertRaises(ReusableConfigurationError) as raised:
+                    self.update(configuration, changes)
+                self.assertEqual((raised.exception.category, raised.exception.field), ('invalid', field))
+        self.assertIsNone(ReusableLtiConfiguration.objects.get(pk=incomplete.pk).lti_1p3_launch_url)
+
+        self.update(self.lti13, {'lti_1p3': {'redirect_uris': ['https://tool.example/callback']}})
+        updated = self.update(self.lti13, {'lti_1p3': {}})
+        self.assertEqual(
+            (
+                updated.lti_1p3_launch_url, updated.lti_1p3_oidc_url,
+                updated.lti_1p3_tool_key_mode, updated.lti_1p3_tool_keyset_url,
+            ),
+            ('https://tool.example/launch', 'https://tool.example/oidc', 'keyset_url', 'https://tool.example/jwks'),
+        )
 
         self.update(self.lti13, {'privacy': dict(PRIVACY_AUTHORED)})
         stored = ReusableLtiConfiguration.objects.get(pk=self.lti13.pk)

@@ -49,18 +49,45 @@ class _RecordingPlatformImports:
 sys.meta_path.insert(0, _RecordingPlatformImports())
 '''.replace('{blocked}', repr(PLATFORM_ROOTS))
 
-LAZY_COMPAT_SCRIPT = PLATFORM_IMPORT_RECORDER + '''
+LAZY_IMPORT_SCRIPT = PLATFORM_IMPORT_RECORDER + '''
 import json
 
+# Stage 1: the adapter imports on a bare interpreter, before any app registry exists.
 import lti_consumer.plugin.compat as compat
 
-print(json.dumps({
-    'attempts': ATTEMPTS,
+compat_report = {
+    'attempts': list(ATTEMPTS),
     'path': compat.__file__,
     'modules': [
         compat.get_studio_accessible_course_keys.__module__,
         compat.user_is_global_staff.__module__,
     ],
+}
+del ATTEMPTS[:]
+
+# Stage 2: the same interpreter then loads the policy and mutation modules through a real registry.
+from django.conf import settings
+
+settings.configure(
+    INSTALLED_APPS=['django.contrib.contenttypes', 'django.contrib.auth', 'lti_consumer'],
+    DATABASES={'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}},
+    USE_TZ=True,
+)
+
+import django
+
+django.setup()
+
+# Only the import of the modules under test counts: the app registry may load its own seams.
+del ATTEMPTS[:]
+
+import lti_consumer.reusable
+import lti_consumer.reusable_context
+
+print(json.dumps({
+    'compat': compat_report,
+    'attempts': list(ATTEMPTS),
+    'paths': [lti_consumer.reusable.__file__, lti_consumer.reusable_context.__file__],
 }))
 '''
 
@@ -184,7 +211,7 @@ class OtherPlatformAdaptersTests(SimpleTestCase):
 
 
 class LazyPlatformImportTests(SimpleTestCase):
-    """The adapter module imports on a standalone install, with no platform package installed."""
+    """The app modules import on a standalone install, with no platform package installed."""
 
     def run_script(self, script):
         """Run one script in a fresh interpreter that prefers this worktree's source."""
@@ -201,16 +228,23 @@ class LazyPlatformImportTests(SimpleTestCase):
             timeout=120,
         )
 
-    def test_compat_imports_without_cms_lms_openedx_or_common(self):
+    def test_modules_import_without_cms_lms_openedx_or_common(self):
         """Self-check first: the lazy-import assertion cannot pass vacuously."""
         recorder = self.run_script(RECORDER_SELF_CHECK_SCRIPT)
         self.assertEqual(recorder.returncode, 0, recorder.stderr)
         self.assertEqual(json.loads(recorder.stdout), list(PLATFORM_ROOTS))
 
-        completed = self.run_script(LAZY_COMPAT_SCRIPT)
+        completed = self.run_script(LAZY_IMPORT_SCRIPT)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         report = json.loads(completed.stdout)
         self.assertEqual(report['attempts'], [])
-        # The real module was imported, not a shadow copy from the installed package.
-        self.assertTrue(report['path'].startswith(SOURCE_ROOT + os.sep), report['path'])
-        self.assertEqual(report['modules'], ['lti_consumer.plugin.compat', 'lti_consumer.plugin.compat'])
+        # The adapter imported before any app registry existed, not a shadow installed copy.
+        self.assertEqual(report['compat']['attempts'], [])
+        self.assertTrue(report['compat']['path'].startswith(SOURCE_ROOT + os.sep), report['compat']['path'])
+        self.assertEqual(
+            report['compat']['modules'], ['lti_consumer.plugin.compat', 'lti_consumer.plugin.compat'],
+        )
+        # The policy and mutation modules then import through a real app registry.
+        self.assertEqual(len(report['paths']), 2)
+        for path in report['paths']:
+            self.assertTrue(path.startswith(SOURCE_ROOT + os.sep), path)

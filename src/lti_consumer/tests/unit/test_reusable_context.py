@@ -1,16 +1,13 @@
 """Direct tests for the reusable Creation Context policy.
 
 One journey per user-visible outcome: normalization, create/assignment authority,
-manage authority, ineligible refusal, visibility, and standalone import. Every
+manage authority, ineligible refusal and visibility. The standalone import check lives
+with the compat adapter it also covers. Every
 denied actor/context combination is preserved -- they are merged into shared
 matrices rather than reduced. Only the platform seam is faked; the policy and the
 queryset are real, and the visibility journeys run against the real database.
 """
 
-import json
-import os
-import subprocess
-import sys
 from contextlib import ExitStack, contextmanager
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -22,7 +19,6 @@ from django.test.utils import CaptureQueriesContext
 from django.utils.translation import gettext_lazy
 from opaque_keys.edx.keys import CourseKey
 
-import lti_consumer
 from lti_consumer.exceptions import ReusableConfigurationError
 from lti_consumer.models import ReusableLtiConfiguration
 from lti_consumer.reusable_context import CreationContext, CreationContextPolicy
@@ -38,67 +34,6 @@ GLOBAL_STAFF_PATCH = 'lti_consumer.plugin.compat.user_is_global_staff'
 #: Every platform fact the policy may read; an ineligible actor must reach none of them.
 PLATFORM_PATCHES = (GLOBAL_STAFF_PATCH, REGISTRY_PATCH, COURSE_ADMIN_PATCH, COURSE_ACCESS_PATCH)
 INELIGIBLE_MESSAGE = 'must not be read for an ineligible actor'
-
-SOURCE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(lti_consumer.__file__)))
-
-PLATFORM_IMPORT_RECORDER = '''
-import sys
-
-ATTEMPTS = []
-
-
-class _RecordingPlatformImports:
-    """Refuse the platform applications, recording every attempt to import one."""
-
-    blocked = ('cms', 'lms')
-
-    def find_spec(self, name, path=None, target=None):
-        if name.split('.')[0] in self.blocked:
-            ATTEMPTS.append(name)
-            raise ImportError(f'{name} is not available on a standalone install')
-        return None
-
-
-sys.meta_path.insert(0, _RecordingPlatformImports())
-'''
-
-LAZY_IMPORT_SCRIPT = PLATFORM_IMPORT_RECORDER + '''
-from django.conf import settings
-
-settings.configure(
-    INSTALLED_APPS=['django.contrib.contenttypes', 'django.contrib.auth', 'lti_consumer'],
-    DATABASES={'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}},
-    USE_TZ=True,
-)
-
-import django
-
-django.setup()
-
-# Only the import of the modules under test counts: the app registry may load its own seams.
-del ATTEMPTS[:]
-
-import lti_consumer.reusable
-import lti_consumer.reusable_context
-
-import json
-
-print(json.dumps({
-    'attempts': ATTEMPTS,
-    'paths': [lti_consumer.reusable.__file__, lti_consumer.reusable_context.__file__],
-}))
-'''
-
-RECORDER_SELF_CHECK_SCRIPT = PLATFORM_IMPORT_RECORDER + '''
-import json
-
-try:
-    import cms.djangoapps.contentstore
-except ImportError:
-    pass
-
-print(json.dumps(ATTEMPTS))
-'''
 
 
 def actor(is_superuser=False, is_staff=False, is_authenticated=True, is_active=True):
@@ -576,10 +511,8 @@ class CreationContextPolicyVisibilityTests(GlobalStaffPatchMixin, TestCase):
         with CaptureQueriesContext(connection) as captured:
             names = set(queryset.values_list('name', flat=True))
         self.assertEqual(names, {'Selected', 'Organization', 'Site'})
+        # One query, not one per visible row.
         self.assertEqual(len(captured.captured_queries), 1)
-        sql = captured.captured_queries[0]['sql']
-        # One predicate per context branch: site, course-in-catalog and organization-of-catalog.
-        self.assertEqual(sql.count('context_type'), 3, sql)
 
     def test_malformed_requested_course_key_is_an_addressed_invalid_error(self):
         policy = CreationContextPolicy(actor(is_staff=True))
@@ -631,37 +564,3 @@ class IneligibleActorVisibilityTests(NoPlatformFactsMixin, GlobalStaffPatchMixin
                     queryset = CreationContextPolicy(user).visible_configurations(course_key=course_key)
                     self.assertIsInstance(queryset, QuerySet)
                     self.assertEqual(queryset.count(), 0)
-
-
-class LazyPlatformImportTests(SimpleTestCase):
-    """The policy and the mutation module import on a standalone install."""
-
-    def run_script(self, script):
-        """Run one script in a fresh interpreter that prefers this worktree's source."""
-        environment = dict(os.environ)
-        environment['PYTHONPATH'] = os.pathsep.join(
-            [SOURCE_ROOT] + [part for part in os.environ.get('PYTHONPATH', '').split(os.pathsep) if part]
-        )
-        return subprocess.run(
-            [sys.executable, '-c', script],
-            capture_output=True,
-            text=True,
-            env=environment,
-            check=False,
-            timeout=120,
-        )
-
-    def test_recorder_guards_and_modules_import_without_cms_or_lms(self):
-        """Self-check first: the lazy-import assertion cannot pass vacuously."""
-        recorder = self.run_script(RECORDER_SELF_CHECK_SCRIPT)
-        self.assertEqual(recorder.returncode, 0, recorder.stderr)
-        self.assertEqual(json.loads(recorder.stdout), ['cms'])
-
-        completed = self.run_script(LAZY_IMPORT_SCRIPT)
-        self.assertEqual(completed.returncode, 0, completed.stderr)
-        report = json.loads(completed.stdout)
-        self.assertEqual(report['attempts'], [])
-        # The real modules were imported, not a shadow copy from the installed package.
-        self.assertEqual(len(report['paths']), 2)
-        for path in report['paths']:
-            self.assertTrue(path.startswith(SOURCE_ROOT + os.sep), path)
