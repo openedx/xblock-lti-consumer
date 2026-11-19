@@ -649,37 +649,29 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
             Placement.objects.get(pk=self.shared_placement.pk).reusable_configuration_id, shared_pk, phase
         )
 
-    def test_replay_reuses_copies_without_refreshing_or_comparing_inferred_fields(self):
-        apps = self.migrate(SCHEMA_MIGRATION)
-        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
-        values = {field: getattr(self.plain, field) for field in PASSPORT_FIELDS}
-        # Existing copies must keep these values unset.
+    def run_and_count(self):
+        """Run the copy migration and return its apps with the safe counter output."""
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            apps = self.run_copy()
+        return apps, output.getvalue()
+
+    def seed_existing_copies(self, Reusable):
+        """Create the plain copy and the unlinked passport's authored copy."""
         preexisting = Reusable.objects.create(
-            **values,
+            **{field: getattr(self.plain, field) for field in PASSPORT_FIELDS},
             description="Hand-written catalog note",
             display_name="Custom name",
         )
-        preexisting_pk = preexisting.pk
-        # An unlinked passport with an existing copy is reused, never skipped or refreshed.
         authored = Reusable.objects.create(
             **{field: getattr(self.orphan, field) for field in PASSPORT_FIELDS},
             description="Authored note",
             display_name="Authored",
         )
-        authored_pk = authored.pk
+        return preexisting.pk, authored.pk
 
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            apps = self.run_copy()
-        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
-        Placement = apps.get_model("lti_consumer", "LtiConfiguration")
-        counts = output.getvalue()
-
-        # Both existing copies are reused as-is; only the shared passport is inserted.
-        self.assertIn("reused=2", counts)
-        self.assertIn("inserted=1", counts)
-        self.assertIn("skipped=0", counts)
-
+    def assert_reused_as_is(self, Reusable, Placement, preexisting_pk, authored_pk):
+        """Both existing copies are reused unchanged; only the shared passport is new."""
         self.assertEqual(Reusable.objects.count(), 3)
         reused = Reusable.objects.get(passport_id=self.plain.passport_id)
         self.assertEqual(reused.pk, preexisting_pk)
@@ -697,28 +689,61 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assertIsNone(orphan_copy.context_type)
 
         # The shared passport is new, so it does get inferred metadata.
-        shared_copy = Reusable.objects.get(passport_id=self.shared.passport_id)
-        self.assertEqual(shared_copy.version, "lti_1p3")
-        self.assertEqual(shared_copy.context_type, "course")
-        self.assertEqual(shared_copy.context_key, "course-v1:org+course+run")
+        shared = Reusable.objects.get(passport_id=self.shared.passport_id)
+        self.assertEqual(shared.version, "lti_1p3")
+        self.assertEqual(shared.context_type, "course")
+        self.assertEqual(shared.context_key, "course-v1:org+course+run")
         self.assertEqual(
             Placement.objects.get(pk=self.plain_placement.pk).reusable_configuration_id,
             preexisting_pk,
         )
+        return shared.pk
 
-        # Edit the new copy and the old raw keys.
-        # Replay must keep the edits without comparing those keys.
-        Reusable.objects.filter(pk=shared_copy.pk).update(
+    def edit_shared_copy_and_raw_keys(self, Reusable, shared_pk):
+        """Edit the new copy and the old raw keys; replay must not compare either."""
+        Reusable.objects.filter(pk=shared_pk).update(
             version=None, context_type="site", context_key="", description="Edited after the copy"
         )
         self.Passport.objects.filter(pk__in=[self.plain.pk, self.shared.pk]).update(
             context_key="changed raw key"
         )
 
+    def assert_authored_copies_kept(self, Reusable, authored_pk):
+        """Reverse and replay keep the authored values on every existing copy."""
+        reused = Reusable.objects.get(passport_id=self.plain.passport_id)
+        self.assertEqual(reused.description, "Hand-written catalog note")
+        self.assertIsNone(reused.version)
+        self.assertIsNone(reused.context_type)
+        orphan_copy = Reusable.objects.get(passport_id=self.orphan.passport_id)
+        self.assertEqual(orphan_copy.pk, authored_pk)
+        self.assertEqual(orphan_copy.description, "Authored note")
+        self.assertEqual(orphan_copy.display_name, "Authored")
+        self.assertIsNone(orphan_copy.version)
+        self.assertIsNone(orphan_copy.context_type)
+
+    def test_replay_reuses_copies_without_refreshing_or_comparing_inferred_fields(self):
+        apps = self.migrate(SCHEMA_MIGRATION)
+        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+        preexisting_pk, authored_pk = self.seed_existing_copies(Reusable)
+
+        apps, counts = self.run_and_count()
+        Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
+        Placement = apps.get_model("lti_consumer", "LtiConfiguration")
+
+        # Both existing copies are reused as-is; only the shared passport is inserted.
+        self.assertIn("reused=2", counts)
+        self.assertIn("inserted=1", counts)
+        self.assertIn("skipped=0", counts)
+        shared_pk = self.assert_reused_as_is(Reusable, Placement, preexisting_pk, authored_pk)
+
+        # Edit the new copy and the old raw keys.
+        # Replay must keep the edits without comparing those keys.
+        self.edit_shared_copy_and_raw_keys(Reusable, shared_pk)
+
         snapshot = (
             {copy.passport_id: copy.pk for copy in Reusable.objects.all()},
             dict(Placement.objects.values_list("pk", "reusable_configuration_id")),
-            shared_copy.pk,
+            shared_pk,
         )
 
         # The data-only reverse is a noop: rows, links and edited data survive, and the
@@ -730,26 +755,15 @@ class Test0025ReplayAndReuse(PassportCopyHarness):
         self.assert_replayed(apps, "noop reverse", snapshot)
 
         # The replay must really run again, not be skipped as already applied.
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            apps = self.run_copy()
-        self.assertIn("reused=3", output.getvalue())
-        self.assertIn("inserted=0", output.getvalue())
+        apps, counts = self.run_and_count()
+        self.assertIn("reused=3", counts)
+        self.assertIn("inserted=0", counts)
         self.executor.loader.build_graph()
         self.assertIn(COPY_MIGRATION, self.executor.loader.applied_migrations)
         self.assert_replayed(apps, "replay", snapshot)
 
         Reusable = apps.get_model("lti_consumer", "ReusableLtiConfiguration")
-        reused = Reusable.objects.get(passport_id=self.plain.passport_id)
-        self.assertEqual(reused.description, "Hand-written catalog note")
-        self.assertIsNone(reused.version)
-        self.assertIsNone(reused.context_type)
-        orphan_copy = Reusable.objects.get(passport_id=self.orphan.passport_id)
-        self.assertEqual(orphan_copy.pk, authored_pk)
-        self.assertEqual(orphan_copy.description, "Authored note")
-        self.assertEqual(orphan_copy.display_name, "Authored")
-        self.assertIsNone(orphan_copy.version)
-        self.assertIsNone(orphan_copy.context_type)
+        self.assert_authored_copies_kept(Reusable, authored_pk)
 
 
 class Test0025Inference(PassportCopyHarness):
