@@ -71,7 +71,7 @@ class LtiAgsPermissions(LTIBasePermissions):
                 'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly',
                 'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
             ]
-        elif view.action in ['create', 'update', 'partial_update', 'delete']:
+        elif view.action in ['create', 'update', 'partial_update', 'destroy']:
             scopes = [
                 'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
             ]

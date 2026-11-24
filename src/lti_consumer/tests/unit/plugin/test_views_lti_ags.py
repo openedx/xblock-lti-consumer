@@ -9,6 +9,7 @@ import ddt
 from Cryptodome.PublicKey import RSA
 from django.urls import reverse
 from django.utils import timezone
+from opaque_keys.edx.keys import UsageKey
 from rest_framework.test import APITransactionTestCase
 
 from lti_consumer.lti_xblock import LtiConsumerXBlock
@@ -334,6 +335,85 @@ class LtiAgsViewSetLineItemTests(LtiAgsLineItemViewSetTestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def _create_line_item(self):
+        """
+        Create a LineItem and return it with its detail URL.
+        """
+        line_item = LtiAgsLineItem.objects.create(
+            lti_configuration=self.lti_config,
+            resource_id="test",
+            resource_link_id=self.xblock.scope_ids.usage_id,
+            label="test label",
+            score_maximum=100
+        )
+        lineitem_detail_url = reverse(
+            'lti_consumer:lti-ags-view-detail',
+            kwargs={
+                "lti_config_id": self.lti_config.id,
+                "pk": line_item.id
+            }
+        )
+        return line_item, lineitem_detail_url
+
+    def test_delete_lineitem(self):
+        """
+        Test that a token with the lineitem scope can delete a LineItem.
+        """
+        line_item, lineitem_detail_url = self._create_line_item()
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem')
+
+        response = self.client.delete(lineitem_detail_url)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(LtiAgsLineItem.objects.filter(id=line_item.id).exists())
+
+        # The deleted LineItem is no longer listed
+        response = self.client.get(self.lineitem_endpoint)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, [])
+
+    def test_delete_lineitem_readonly_scope(self):
+        """
+        Test that a token with only the readonly scope cannot delete a LineItem.
+        """
+        line_item, lineitem_detail_url = self._create_line_item()
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly')
+
+        response = self.client.delete(lineitem_detail_url)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(LtiAgsLineItem.objects.filter(id=line_item.id).exists())
+
+    def test_delete_lineitem_other_configuration(self):
+        """
+        Test that a token cannot delete a LineItem of another LTI configuration.
+        """
+        other_config = LtiConfiguration.objects.create(
+            location=UsageKey.from_string('block-v1:course+test+2020+type@lti_consumer+block@other'),
+            version=LtiConfiguration.LTI_1P3,
+        )
+        line_item = LtiAgsLineItem.objects.create(
+            lti_configuration=other_config,
+            resource_id="test",
+            resource_link_id=self.xblock.scope_ids.usage_id,
+            label="test label",
+            score_maximum=100
+        )
+        self._set_lti_token('https://purl.imsglobal.org/spec/lti-ags/scope/lineitem')
+
+        response = self.client.delete(
+            reverse(
+                'lti_consumer:lti-ags-view-detail',
+                kwargs={
+                    "lti_config_id": self.lti_config.id,
+                    "pk": line_item.id
+                }
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(LtiAgsLineItem.objects.filter(id=line_item.id).exists())
 
 
 @ddt.ddt

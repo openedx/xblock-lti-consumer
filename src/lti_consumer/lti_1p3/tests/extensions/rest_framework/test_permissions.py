@@ -171,7 +171,7 @@ class TestLtiAuthentication(TestCase):
             "Authorization": f"Bearer {token}"
         }
 
-        for action in ['create', 'update', 'partial_update', 'delete']:
+        for action in ['create', 'update', 'partial_update', 'destroy']:
             # Test list view
             mock_view.action = action
             self.assertEqual(
