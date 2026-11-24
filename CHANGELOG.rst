@@ -18,6 +18,9 @@ Unreleased
 * Security: deny the AGS endpoints with HTTP 403 when Assignment and Grades
   Services is disabled on the LTI configuration. A tool could still create line
   items and post scores, which reached the gradebook on a graded block.
+* Allow deleting an AGS line item with the ``lineitem`` scope. The permission
+  class listed the ``delete`` action, but DRF routes DELETE to ``destroy``, so
+  every delete request was denied with HTTP 403.
 
 11.4.4 - 2026-10-26
 --------------------
