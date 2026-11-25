@@ -168,6 +168,22 @@ def get_lti_nrps_context_membership_url(lti_config_id):
     )
 
 
+CUSTOM_PARAMETER_SEPARATOR = '='
+CUSTOM_PARAMETER_REGEX = re.compile(rf'^(.+{CUSTOM_PARAMETER_SEPARATOR}.+)$')
+
+
+def is_valid_custom_parameter(value):
+    """
+    Return whether value is a key=value custom parameter string.
+
+    Surrounding whitespace is ignored; callers decide whether to store the
+    original or the trimmed value.
+    """
+    if not isinstance(value, str):
+        return False
+    return bool(CUSTOM_PARAMETER_REGEX.match(value.strip()))
+
+
 def resolve_custom_parameter_template(xblock, template):
     """
     Return the value processed according to the template processor.
