@@ -51,12 +51,10 @@ class ReusableAdminJourneyTests(TestCase):
         values.update(kwargs)
         return ReusableLtiConfiguration.objects.create(**values)
 
-    def make_placement(self, configuration, location, passport_name):
+    def make_placement(self, configuration, location):
         return LtiConfiguration.objects.create(
             location=location,
             reusable_configuration=configuration,
-            # A bound passport keeps the post_save signal off the modulestore.
-            lti_1p3_passport=Lti1p3Passport.objects.create(name=passport_name),
         )
 
     def change_url(self, configuration):
@@ -137,7 +135,7 @@ class ReusableAdminJourneyTests(TestCase):
     def test_no_role_can_add_change_or_delete_through_the_admin(self):
         configuration = self.make_configuration(name='Immutable configuration')
         placement = self.make_placement(
-            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@immutable', 'Immutable passport',
+            configuration, 'block-v1:Org+Course+Run+type@lti_consumer+block@immutable',
         )
         staff = self.make_user('global-staff', is_staff=True)
         superuser = self.make_superuser()
@@ -209,3 +207,26 @@ class ReusableAdminJourneyTests(TestCase):
             response = self.client.get(url)
             self.assertContains(response, name)
             self.assertContains(response, shared_uuid)
+
+    def test_legacy_passport_admin_is_read_only(self):
+        passport = Lti1p3Passport.objects.create(name='Retained passport', lti_1p3_client_id='legacy-client-id')
+        self.make_configuration(name='Matched reusable copy', passport_id=passport.passport_id)
+        changelist_url = reverse('admin:lti_consumer_lti1p3passport_changelist')
+        change_url = reverse('admin:lti_consumer_lti1p3passport_change', args=[passport.pk])
+        add_url = reverse('admin:lti_consumer_lti1p3passport_add')
+        delete_url = reverse('admin:lti_consumer_lti1p3passport_delete', args=[passport.pk])
+        superuser = self.make_superuser()
+
+        self.client.force_login(superuser)
+        self.assertContains(self.client.get(changelist_url), 'Retained passport')
+        self.assertEqual(self.client.get(change_url).status_code, 200)
+        self.assertEqual(self.client.get(add_url).status_code, 403)
+        self.assertEqual(self.client.get(delete_url).status_code, 403)
+        self.assertEqual(self.client.post(change_url, {'name': 'Renamed passport'}).status_code, 403)
+        self.client.post(changelist_url, {
+            'action': 'delete_selected',
+            '_selected_action': [str(passport.pk)],
+        })
+        passport.refresh_from_db()
+        self.assertEqual(passport.name, 'Retained passport')
+        self.assertTrue(Lti1p3Passport.objects.filter(pk=passport.pk).exists())

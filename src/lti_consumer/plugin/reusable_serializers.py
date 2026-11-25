@@ -11,6 +11,11 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from lti_consumer.models import ReusableLtiConfiguration
+from lti_consumer.utils import (
+    get_lms_lti_access_token_link,
+    get_lms_lti_keyset_link,
+    get_lms_lti_launch_link,
+)
 
 
 class StrictSerializer(serializers.Serializer):
@@ -318,6 +323,7 @@ class ReusableDetailSerializer(ReusableListSerializer):
     tool_key_configured = serializers.SerializerMethodField()
     client_id = serializers.SerializerMethodField()
     deployment_id = serializers.SerializerMethodField()
+    registration_urls = serializers.SerializerMethodField()
     deep_linking_launch_url = serializers.CharField(
         source='lti_advantage_deep_linking_launch_url',
         read_only=True,
@@ -362,6 +368,16 @@ class ReusableDetailSerializer(ReusableListSerializer):
 
     def get_deployment_id(self, obj):
         return None if obj.version == ReusableLtiConfiguration.LTI_1P1 else obj.lti_1p3_deployment_id
+
+    def get_registration_urls(self, obj):
+        """Resolve the LMS endpoints a tool registers against; no CMS reverse names exist."""
+        if obj.version != ReusableLtiConfiguration.LTI_1P3:
+            return {}
+        return {
+            'login_url': get_lms_lti_launch_link(),
+            'jwks_url': get_lms_lti_keyset_link(obj.passport_id),
+            'access_token_url': get_lms_lti_access_token_link(obj.passport_id),
+        }
 
     def get_privacy(self, obj):
         return {

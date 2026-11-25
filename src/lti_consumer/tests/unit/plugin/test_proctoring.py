@@ -19,7 +19,7 @@ from lti_consumer.lti_1p3.exceptions import (
 )
 from lti_consumer.lti_1p3.key_handlers import PlatformKeyHandler
 from lti_consumer.models import LtiConfiguration
-from lti_consumer.tests.test_utils import TestBaseWithPatch
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_reusable_configuration
 from lti_consumer.utils import get_data_from_cache
 
 
@@ -37,11 +37,13 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestBaseWithPatch):
 
         self.resource_link_id = "block-v1:course+test+2020+type@problem+block@test"
         # Set up an LtiConfiguration instance for the integration.
+        self.configuration = make_reusable_configuration()
         self.lti_config = LtiConfiguration.objects.create(
             location=self.resource_link_id,
             version=LtiConfiguration.LTI_1P3,
             lti_1p3_proctoring_enabled=True,
             config_store=LtiConfiguration.CONFIG_ON_DB,
+            reusable_configuration=self.configuration,
         )
 
         # Set up cached data necessary for this endpoint: launch_data and session_data.
@@ -52,8 +54,8 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestBaseWithPatch):
         self.private_key = RSA.generate(2048)
         self.public_key = self.private_key.publickey().export_key().decode()
 
-        self.lti_config.lti_1p3_passport.lti_1p3_tool_public_key = self.public_key
-        self.lti_config.save()
+        self.configuration.lti_1p3_tool_public_key = self.public_key
+        self.configuration.save()
 
     def _setup_user(self):
         """Sets up the requesting user instance."""
@@ -165,25 +167,36 @@ class TestLti1p3ProctoringStartProctoringAssessmentEndpoint(TestBaseWithPatch):
         )
         self.assertEqual(response.status_code, 404)
 
+    def test_inactive_configuration_is_denied(self):
+        """Tests that an inactive registration refuses the proctoring launch."""
+        self.lti_config.reusable_configuration.is_active = False
+        self.lti_config.reusable_configuration.save()
+
+        response = self.client.post(
+            self.url,
+            {
+                "JWT": self.create_tool_jwt_token()
+            },
+        )
+        self.assertEqual(response.status_code, 403)
+
     def test_not_proctoring_consumer(self):
         """
         Tests that a call to the start_assessment_endpoint with an "iss" Tool JWT token claim that corresponds to
         an LtiConfiguration instance that does not have proctoring enabled results in a 400 response.
         """
-        # Disable LTI Assessment and Grades Services so we don't set it up unnecessarily. Otherwise, an exception is
-        # raised because there is no location field set on the LtiConfiguration instance.
-        with patch("lti_consumer.models.LtiConfiguration.get_lti_advantage_ags_mode") as get_lti_ags_mode_mock:
-            get_lti_ags_mode_mock.return_value = self.lti_config.LTI_ADVANTAGE_AGS_DISABLED
-            self.lti_config.lti_1p3_proctoring_enabled = False
-            self.lti_config.save()
+        # Disable LTI Assessment and Grades Services on the row so it is not set up unnecessarily.
+        self.lti_config.lti_advantage_ags_mode = self.lti_config.LTI_ADVANTAGE_AGS_DISABLED
+        self.lti_config.lti_1p3_proctoring_enabled = False
+        self.lti_config.save()
 
-            response = self.client.post(
-                self.url,
-                {
-                    "JWT": self.create_tool_jwt_token()
-                },
-            )
-            self.assertEqual(response.status_code, 400)
+        response = self.client.post(
+            self.url,
+            {
+                "JWT": self.create_tool_jwt_token()
+            },
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_cache_miss_launch_data(self):
         """Tests that a call to the start_assessment_endpoint with no cached launch_data results in a 400 response."""

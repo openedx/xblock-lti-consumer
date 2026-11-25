@@ -7,18 +7,24 @@ organization registry. Semantic rules stay in the service suite and strict wire
 allowlists stay in the serializer suite; these journeys keep the HTTP status,
 disclosure, ordering, pagination, CSRF, method and rollback contract.
 """
+import json
 import uuid
 from unittest.mock import patch
+from urllib.parse import urlencode, urlparse
 
+import jwt
+from Cryptodome.PublicKey import RSA
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
-from django.urls import Resolver404, resolve, reverse
+from django.urls import NoReverseMatch, Resolver404, resolve, reverse
+from jwt.api_jwk import PyJWK
 from rest_framework.test import APIClient
 
 from lti_consumer.apps import LTIConsumerApp
-from lti_consumer.models import ReusableLtiConfiguration
+from lti_consumer.lti_1p3.tests.utils import create_jwt
+from lti_consumer.models import LtiConfiguration, ReusableLtiConfiguration
 from lti_consumer.reusable import create_reusable_configuration
 
 COURSE_KEY = 'course-v1:Org+Course+Run'
@@ -37,6 +43,7 @@ LTI13_LAUNCH_URL = 'https://tool.example/launch'
 LTI13_OIDC_URL = 'https://tool.example/oidc'
 TOOL_KEYSET_URL = 'https://tool.example/jwks'
 TOOL_PUBLIC_KEY = '-----BEGIN PUBLIC KEY----- tool key material'
+REGISTRATION_FIELDS = frozenset({'login_url', 'jwks_url', 'access_token_url'})
 
 COMPAT_HELPERS = (
     'get_active_organizations',
@@ -59,7 +66,7 @@ DEFAULT_FIELDS = frozenset({
 })
 DETAIL_FIELDS = LIST_FIELDS | DEFAULT_FIELDS | frozenset({
     'privacy', 'description', 'launch_url', 'oidc_url', 'redirect_uris', 'tool_key_mode',
-    'tool_key_configured', 'client_id', 'deployment_id', 'deep_linking_launch_url',
+    'tool_key_configured', 'client_id', 'deployment_id', 'registration_urls', 'deep_linking_launch_url',
 })
 AUTHORED_DEFAULTS = {
     'display_name': 'Authored default',
@@ -286,6 +293,7 @@ class CreateJourneyTests(ReusableApiTestCase):
         self.assertEqual(body['name'], 'Created tool')
         self.assertEqual(body['context'], {'type': 'course', 'key': COURSE_KEY})
         self.assertEqual(body['launch_url'], LTI11_LAUNCH_URL)
+        self.assertEqual(body['registration_urls'], {})
         self.assertTrue(body['can_manage'])
         self.assertEqual(body['privacy'], AUTHORED_PRIVACY)
         for key, value in {**AUTHORED_DEFAULTS, **AUTHORED_SERVICES}.items():
@@ -334,6 +342,13 @@ class CreateJourneyTests(ReusableApiTestCase):
         self.assertTrue(body['deployment_id'])
         self.assertEqual(body['redirect_uris'], [])
         self.assertEqual(body['oidc_url'], LTI13_OIDC_URL)
+        self.assertEqual(set(body['registration_urls']), REGISTRATION_FIELDS)
+        self.assertIn(body['config_id'], body['registration_urls']['jwks_url'])
+        self.assertIn(body['config_id'], body['registration_urls']['access_token_url'])
+        self.assertEqual(
+            urlparse(body['registration_urls']['login_url']).path,
+            '/api/lti_consumer/v1/launch/',
+        )
 
         configuration = ReusableLtiConfiguration.objects.get(passport_id=body['config_id'])
         self.assertTrue(configuration.lti_1p3_internal_private_key)
@@ -1128,3 +1143,117 @@ class LmsMountTests(SimpleTestCase):
     def test_management_routes_are_absent_from_the_lms_mount(self):
         with self.assertRaises(Resolver404):
             resolve(LIST_PATH)
+
+
+class RegistrationLinkTests(ReusableApiTestCase):
+    """Registration metadata renders under the CMS mount and works in the LMS mount."""
+
+    def registration_urls(self, configuration):
+        """Return the detail registration metadata for one configuration."""
+        self.login(self.staff)
+        response = self.client.get(self.detail_path(configuration))
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assert_cache_no_store(response)
+        return response.json()['registration_urls']
+
+    def test_registration_urls_target_the_real_lms_routes(self):
+        configuration = self.create_configuration(name='Registered tool', version='lti_1p3')
+        urls = self.registration_urls(configuration)
+
+        # The CMS mount has no LMS route names, so the metadata cannot depend on reverse().
+        with self.assertRaises(NoReverseMatch):
+            reverse('lti_consumer:lti_consumer.access_token', kwargs={'passport_id': configuration.passport_id})
+        with override_settings(ROOT_URLCONF=LMS_URLCONF):
+            self.assertEqual(resolve(urlparse(urls['login_url']).path).url_name, 'lti_consumer.launch_gate')
+            self.assertEqual(
+                resolve(urlparse(urls['jwks_url']).path).url_name, 'lti_consumer.public_keyset_endpoint',
+            )
+            self.assertEqual(resolve(urlparse(urls['access_token_url']).path).url_name, 'lti_consumer.access_token')
+
+    def test_registration_url_base_precedence(self):
+        configuration = self.create_configuration(name='Based tool', version='lti_1p3')
+
+        with override_settings(LTI_BASE='https://lti-base.test', LTI_API_BASE='https://api.test'):
+            split = self.registration_urls(configuration)
+            self.assertTrue(split['login_url'].startswith('https://lti-base.test/'))
+            self.assertTrue(split['jwks_url'].startswith('https://api.test/'))
+            self.assertTrue(split['access_token_url'].startswith('https://api.test/'))
+
+    def create_lti13_configuration_with_tool_key(self):
+        """Create an LTI 1.3 configuration over the CMS API and return its body plus its tool key.
+
+        The tool registers the public half here and signs the client assertion with the
+        private half, as a real tool would.
+        """
+        rsa_key = RSA.generate(2048)
+        algorithm = jwt.get_algorithm_by_name('RS256')
+        private_jwk = json.loads(algorithm.to_jwk(algorithm.prepare_key(rsa_key.export_key())))
+        private_jwk['kid'] = 1
+
+        self.login(self.staff)
+        response = self.client.post(LIST_PATH, lti13_payload(lti_1p3={
+            'launch_url': LTI13_LAUNCH_URL,
+            'oidc_url': LTI13_OIDC_URL,
+            'tool_key_mode': 'public_key',
+            'tool_public_key': rsa_key.public_key().export_key('PEM').decode(),
+        }), format='json')
+
+        self.assertEqual(response.status_code, 201, response.content)
+        return response.json(), PyJWK.from_dict(private_jwk)
+
+    def test_created_links_serve_the_keyset_and_token_without_a_placement(self):
+        """The links a CMS create renders are truthful: the rows behind them answer.
+
+        Both endpoints resolve the configuration by UUID, so a freshly created
+        registration serves them before any placement binds it.
+        """
+        body, tool_key = self.create_lti13_configuration_with_tool_key()
+        configuration = ReusableLtiConfiguration.objects.get(passport_id=body['config_id'])
+        links = body['registration_urls']
+        self.assertEqual(set(links), REGISTRATION_FIELDS)
+        self.assertFalse(LtiConfiguration.objects.filter(reusable_configuration=configuration).exists())
+        self.assertEqual(
+            urlparse(links['jwks_url']).path,
+            f'/api/lti_consumer/v1/public_keysets/{configuration.passport_id}',
+        )
+        self.assertEqual(
+            urlparse(links['access_token_url']).path,
+            f'/api/lti_consumer/v1/token/{configuration.passport_id}',
+        )
+
+        with override_settings(ROOT_URLCONF=LMS_URLCONF):
+            keyset_response = self.client.get(urlparse(links['jwks_url']).path)
+            token_response = self.client.post(
+                urlparse(links['access_token_url']).path,
+                data=urlencode({
+                    'grant_type': 'client_credentials',
+                    'client_assertion_type': 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+                    'client_assertion': create_jwt(tool_key, {}),
+                    'scope': '',
+                }),
+                content_type='application/json',
+            )
+
+        self.assertEqual(keyset_response.status_code, 200, keyset_response.content)
+        self.assertEqual(
+            json.loads(keyset_response.content.decode()),
+            json.loads(configuration.lti_1p3_internal_public_jwk),
+        )
+        self.assertEqual(token_response.status_code, 200, token_response.content)
+        self.assertIn('access_token', token_response.json())
+
+    def test_created_launch_link_resolves_and_a_launch_needs_a_placement(self):
+        """The launch link resolves on the LMS mount, while launching still needs a placement.
+
+        A registration created in Studio has no placement, so the gate is reachable and
+        refuses a launch instead of resolving a configuration.
+        """
+        body = self.create_lti13_configuration_with_tool_key()[0]
+        links = body['registration_urls']
+
+        with override_settings(ROOT_URLCONF=LMS_URLCONF):
+            self.assertEqual(resolve(urlparse(links['login_url']).path).url_name, 'lti_consumer.launch_gate')
+            launch_response = self.client.post(urlparse(links['login_url']).path, {})
+
+        self.assertEqual(launch_response.status_code, 400)
+        self.assertIn('The lti_message_hint is missing or empty.', launch_response.content.decode())
