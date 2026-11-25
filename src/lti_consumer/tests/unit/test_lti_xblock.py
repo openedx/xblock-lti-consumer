@@ -42,6 +42,7 @@ HTML_ERROR_MESSAGE = '<h3 class="error_message">'
 HTML_LAUNCH_MODAL_BUTTON = 'btn-lti-modal'
 HTML_LAUNCH_NEW_WINDOW_BUTTON = 'btn-lti-new-window'
 HTML_IFRAME = '<iframe'
+STUDIO_CUSTOM_PARAMETER_ERROR = 'Custom Parameters should be strings in "x=y" format.'
 
 
 class TestLtiConsumerXBlock(TestBaseWithPatch):
@@ -272,16 +273,38 @@ class TestProperties(TestLtiConsumerXBlock):
         self.assertEqual(self.xblock.context_id, str(self.xblock.scope_ids.usage_id.context_key))
 
     @ddt.data(
-        ['x=y'], [' x x = y y '], ['x= '], [' =y'], [' = '], [' x = = y = z '],
-        ['x=y', ' x x = y y ', 'x= ', ' =y', ' = ', ' x = = y = z '],
+        # Whitespace around a real key and value is accepted.
+        (['x=y'], None),
+        ([' x x = y y '], None),
+        ([' x = = y = z '], None),
+        (['mode=practice'], None),
+        (['a=b=c'], None),
+        (['x=y', ' x x = y y ', ' x = = y = z ', 'mode=practice', 'a=b=c'], None),
+        # Missing keys or values are rejected, including whitespace-only and non-string entries.
+        (['x'], STUDIO_CUSTOM_PARAMETER_ERROR),
+        (['x='], STUDIO_CUSTOM_PARAMETER_ERROR),
+        (['=y'], STUDIO_CUSTOM_PARAMETER_ERROR),
+        (['key='], STUDIO_CUSTOM_PARAMETER_ERROR),
+        (['x= '], STUDIO_CUSTOM_PARAMETER_ERROR),
+        ([' =y'], STUDIO_CUSTOM_PARAMETER_ERROR),
+        ([' = '], STUDIO_CUSTOM_PARAMETER_ERROR),
+        ([1], STUDIO_CUSTOM_PARAMETER_ERROR),
+        (['x', 'x=', '=y'], STUDIO_CUSTOM_PARAMETER_ERROR),
+        (['x=y', 'x= '], STUDIO_CUSTOM_PARAMETER_ERROR),
     )
-    def test_validate_with_valid_custom_parameters(self, custom_parameters):
+    @ddt.unpack
+    def test_validate_custom_parameters(self, custom_parameters, expected_error):
         """
-        Test if all custom_parameters item are valid
+        Test custom parameters accept key=value strings and reject malformed entries.
         """
         self.xblock.custom_parameters = custom_parameters
-        validation = self.xblock.validate()
-        self.assertEqual(validation.messages, [])
+        i18n = Mock()
+        i18n.ugettext = lambda text: text
+        self.xblock.runtime.service.side_effect = lambda block, name: i18n
+
+        messages = [message.text for message in self.xblock.validate().messages]
+
+        self.assertEqual(messages, [] if expected_error is None else [expected_error])
 
     @patch('lti_consumer.lti_xblock.ValidationMessage')
     @patch.object(Validation, 'add')
@@ -296,22 +319,6 @@ class TestProperties(TestLtiConsumerXBlock):
 
         add_mock.assert_called_once_with(
             mock_validation_message('error', 'Custom Parameters must be a list'),
-        )
-
-    @ddt.data(['x'], ['x='], ['=y'], ['x', 'x=', '=y'])
-    @patch('lti_consumer.lti_xblock.ValidationMessage')
-    @patch.object(Validation, 'add')
-    def test_validate_with_invalid_custom_parameters(self, custom_parameters, add_mock, mock_validation_message):
-        """
-        Test if a custom_parameters item is not valid, a validation error is added
-        """
-        mock_validation_message.ERROR.return_value = 'error'
-        self.xblock.custom_parameters = custom_parameters
-
-        self.xblock.validate()
-
-        add_mock.assert_called_once_with(
-            mock_validation_message('error', 'Custom Parameters should be strings in "x=y" format.'),
         )
 
     def test_validate_external_config_with_external_config_type(self):

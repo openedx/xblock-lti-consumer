@@ -35,6 +35,7 @@ dependencies = [
     "pycryptodomex",
     "edx-opaque-keys[django]",
     "edx-ccx-keys",
+    "edx-drf-extensions",
     "django-filter",
     "jsonfield",
     "django-config-models",

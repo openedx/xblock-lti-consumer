@@ -81,12 +81,14 @@ from .outcomes import OutcomeService
 from .plugin import compat
 from .track import track_event
 from .utils import (
+    CUSTOM_PARAMETER_SEPARATOR,
     EXTERNAL_ID_REGEX,
     _,
     database_config_enabled,
     external_config_filter_enabled,
     external_multiple_launch_urls_enabled,
     external_user_id_1p1_launches_enabled,
+    is_valid_custom_parameter,
     resolve_custom_parameter_template,
 )
 
@@ -105,8 +107,6 @@ LTI_1P1_ROLE_MAP = {
     'staff': 'Administrator',
     'instructor': 'Instructor',
 }
-CUSTOM_PARAMETER_SEPARATOR = '='
-CUSTOM_PARAMETER_REGEX = re.compile(rf'^(.+{CUSTOM_PARAMETER_SEPARATOR}.+)$')
 # Catch a value enclosed by ${}, the value enclosed can contain any charater except "=".
 CUSTOM_PARAMETER_TEMPLATE_REGEX = re.compile(r'^(\${[^%s]+})$' % CUSTOM_PARAMETER_SEPARATOR)
 
@@ -629,7 +629,7 @@ class LtiConsumerXBlock(StudioEditableXBlockMixin, XBlock):
             )))
 
         # Validate custom parameters format.
-        if not all(map(CUSTOM_PARAMETER_REGEX.match, data.custom_parameters)):
+        if not all(map(is_valid_custom_parameter, data.custom_parameters)):
             _ = self.runtime.service(self, 'i18n').ugettext
             validation.add(ValidationMessage(ValidationMessage.ERROR, str(
                 _('Custom Parameters should be strings in "x=y" format.'),
