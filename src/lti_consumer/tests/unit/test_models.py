@@ -1,6 +1,7 @@
 """
 Unit tests for LTI models.
 """
+import json
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import call, patch
@@ -9,6 +10,7 @@ import ddt
 from ccx_keys.locator import CCXBlockUsageLocator
 from Cryptodome.PublicKey import RSA
 from django.core.exceptions import ValidationError
+from django.test import TestCase
 from edx_django_utils.cache import RequestCache
 from opaque_keys.edx.locator import CourseLocator
 
@@ -19,6 +21,7 @@ from lti_consumer.models import (
     LtiAgsScore,
     LtiConfiguration,
     LtiDlContentItem,
+    ReusableLtiConfiguration,
 )
 from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
 
@@ -751,7 +754,7 @@ class TestLtiAgsScoreModel(TestBaseWithPatch):
         """
         self.assertEqual(
             str(self.score),
-            "LineItem 1: score 10.0 out of 100.0 - FullyGraded"
+            f"LineItem {self.line_item.id}: score 10.0 out of 100.0 - FullyGraded"
         )
 
 
@@ -867,3 +870,85 @@ class TestLTIConsumerHideFieldsFlag(TestBaseWithPatch):
             enabled_for_course=False
         ):
             self.assertFalse(CourseAllowPIISharingInLTIFlag.lti_access_to_learners_editable(self.course_id, False))
+
+
+class ReusableConfigurationModelTests(TestCase):
+    """Signing-key generation and tool-key validation."""
+
+    def make_configuration(self, **kwargs):
+        values = {'name': 'Model test', 'version': ReusableLtiConfiguration.LTI_1P3}
+        values.update(kwargs)
+        return ReusableLtiConfiguration.objects.create(**values)
+
+    def test_generate_lti_1p3_keys_if_missing_lifecycle(self):
+        """One key pair, generated once, reused on re-read and rebuilt if only the JWK is lost."""
+        configuration = self.make_configuration()
+        self.assertFalse(configuration.lti_1p3_internal_private_key)
+        self.assertFalse(configuration.lti_1p3_internal_private_key_id)
+        self.assertFalse(configuration.lti_1p3_internal_public_jwk)
+
+        # Phase 1: the first call generates and stores one valid key pair. Sequential on
+        # purpose: later phases compare against these values, so a failure here must stop.
+        configuration.generate_lti_1p3_keys_if_missing()
+        configuration.refresh_from_db()
+        self.assertTrue(configuration.lti_1p3_internal_private_key)
+        self.assertTrue(configuration.lti_1p3_internal_private_key_id)
+        key_set = json.loads(configuration.lti_1p3_internal_public_jwk)['keys']
+        self.assertEqual(key_set[0]['kid'], configuration.lti_1p3_internal_private_key_id)
+        stored_private_key = configuration.lti_1p3_internal_private_key
+        stored_private_key_id = configuration.lti_1p3_internal_private_key_id
+        stored_jwk = configuration.lti_1p3_internal_public_jwk
+
+        # Phase 2: a second call keeps the exact stored tuple.
+        configuration.generate_lti_1p3_keys_if_missing()
+        configuration.refresh_from_db()
+        self.assertEqual(
+            (
+                configuration.lti_1p3_internal_private_key,
+                configuration.lti_1p3_internal_private_key_id,
+                configuration.lti_1p3_internal_public_jwk,
+            ),
+            (stored_private_key, stored_private_key_id, stored_jwk),
+        )
+
+        # Phase 3: a blank JWK is rebuilt from the stored private key.
+        configuration.lti_1p3_internal_public_jwk = ''
+        configuration.save()
+        configuration.generate_lti_1p3_keys_if_missing()
+        configuration.refresh_from_db()
+        self.assertEqual(json.loads(configuration.lti_1p3_internal_public_jwk), json.loads(stored_jwk))
+        self.assertEqual(configuration.lti_1p3_internal_private_key, stored_private_key)
+        self.assertEqual(configuration.lti_1p3_internal_private_key_id, stored_private_key_id)
+
+    def test_clean_validates_tool_key_mode_and_key_material(self):
+        """Each mode still enforces its own message, and every legitimate key setting is accepted."""
+        with self.subTest('public-key mode without a key is rejected'):
+            with self.assertRaisesMessage(ValidationError, 'A public key is required in public-key mode.'):
+                self.make_configuration(lti_1p3_tool_key_mode='public_key').clean()
+
+        with self.subTest('keyset-URL mode without a URL is rejected'):
+            with self.assertRaisesMessage(ValidationError, 'A keyset URL is required in keyset-URL mode.'):
+                self.make_configuration(lti_1p3_tool_key_mode='keyset_url').clean()
+
+        with self.subTest('absent tool key settings are accepted'):
+            self.make_configuration().clean()
+
+        with self.subTest('public-key mode with a key is accepted'):
+            self.make_configuration(
+                lti_1p3_tool_key_mode='public_key',
+                lti_1p3_tool_public_key='-----BEGIN PUBLIC KEY-----',
+            ).clean()
+
+        with self.subTest('keyset-URL mode with a URL is accepted'):
+            self.make_configuration(
+                lti_1p3_tool_key_mode='keyset_url',
+                lti_1p3_tool_keyset_url='https://tool.example/jwks',
+            ).clean()
+
+        with self.subTest('key material without a mode is accepted'):
+            for label, key_material in (
+                ('public key', {'lti_1p3_tool_public_key': '-----BEGIN PUBLIC KEY-----'}),
+                ('keyset URL', {'lti_1p3_tool_keyset_url': 'https://tool.example/jwks'}),
+            ):
+                with self.subTest(label):
+                    self.make_configuration(lti_1p3_tool_key_mode=None, **key_material).clean()
