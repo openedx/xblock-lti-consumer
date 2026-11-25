@@ -12,7 +12,7 @@ from rest_framework.test import APITransactionTestCase
 from lti_consumer.data import Lti1p3LaunchData
 from lti_consumer.lti_xblock import LtiConsumerXBlock
 from lti_consumer.models import LtiConfiguration, LtiDlContentItem
-from lti_consumer.tests.test_utils import TestBaseWithPatch, make_xblock
+from lti_consumer.tests.test_utils import TestBaseWithPatch, make_reusable_configuration, make_xblock
 from lti_consumer.utils import cache_lti_1p3_launch_data
 
 
@@ -27,15 +27,19 @@ class LtiDeepLinkingTestCase(TestBaseWithPatch, APITransactionTestCase):
         # LTI 1.3 keys. Later, we set the necessary XBlock attributes.
         self.xblock = make_xblock('lti_consumer', LtiConsumerXBlock, {})
 
-        # Create configuration
+        # Create configuration and bind it; runtime readers only use stored material.
+        self.configuration = make_reusable_configuration()
         self.lti_config = LtiConfiguration.objects.create(
             location=self.xblock.scope_ids.usage_id,
             version=LtiConfiguration.LTI_1P3,
+            reusable_configuration=self.configuration,
         )
 
-        # Create custom LTI Block
-        rsa_key = RSA.import_key(self.lti_config.lti_1p3_private_key)
+        # Create custom LTI Block. The tool key is seeded before any identity read.
+        rsa_key = RSA.import_key(self.configuration.lti_1p3_internal_private_key)
         self.public_key = rsa_key.publickey().export_key()
+        self.configuration.lti_1p3_tool_public_key = self.public_key.decode()
+        self.configuration.save()
 
         self.xblock_attributes = {
             'lti_version': 'lti_1p3',
@@ -456,6 +460,23 @@ class LtiDeepLinkingContentEndpointTestCase(LtiDeepLinkingTestCase):
         )
         response = self.client.get(url, {"launch_data_key": "launch_data_key"})
         self.assertEqual(response.status_code, 400)
+
+    @patch('lti_consumer.plugin.views.has_block_access', return_value=True)
+    def test_inactive_configuration_is_denied(self, has_block_access_patcher):  # pylint: disable=unused-argument
+        """
+        An inactive registration cannot present launchable content.
+        """
+        LtiDlContentItem.objects.create(
+            lti_configuration=self.lti_config,
+            content_type=LtiDlContentItem.IMAGE,
+            attributes={}
+        )
+        self.lti_config.reusable_configuration.is_active = False
+        self.lti_config.reusable_configuration.save()
+
+        resp = self.client.get(self.url)
+
+        self.assertEqual(resp.status_code, 403)
 
     @patch('lti_consumer.plugin.views.has_block_access', return_value=True)
     def test_no_dl_contents(self, has_block_access_patcher):  # pylint: disable=unused-argument

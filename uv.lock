@@ -646,6 +646,20 @@ wheels = [
 ]
 
 [[package]]
+name = "drf-jwt"
+version = "1.19.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "djangorestframework" },
+    { name = "pyjwt", extra = ["crypto"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/19/8e/3c60992bafd0ac51bcfa136ff9f5e1cff65ef45ebbcb393477672e699e82/drf-jwt-1.19.2.tar.gz", hash = "sha256:660bc66f992065cef59832adcbbdf871847e9738671c19e5121971e773768235", size = 38208, upload-time = "2022-01-09T09:23:38.903Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b6/48/d72115d8c0d27c5d806fdd6cd61197cef6a7e34df2b8cb63b218ffa674b8/drf_jwt-1.19.2-py2.py3-none-any.whl", hash = "sha256:63c3d4ed61a1013958cd63416e2d5c84467d8ae3e6e1be44b1fb58743dbd1582", size = 21926, upload-time = "2022-01-09T09:23:37.257Z" },
+]
+
+[[package]]
 name = "edx-ccx-keys"
 version = "2.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -674,6 +688,26 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/87/68/96a58ff4e9d0173d2ad8cc2b2f446ae00c462cd84d8efd39f085a4589801/edx_django_utils-8.0.1.tar.gz", hash = "sha256:fadf4954b12556a79fadd9cc6bc8efd45da4a90c043a63c915339a3cc90d610b", size = 109365, upload-time = "2025-09-29T18:17:06.138Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/ae/a8e618fee2be5f1a8ae3e2d1b6ce0b405fbca2726dd11557e1b982cf58ae/edx_django_utils-8.0.1-py2.py3-none-any.whl", hash = "sha256:849c253b5e14ddfbdc47c5e36143fad54147778a53e0b49095c1fecab24edd9e", size = 121130, upload-time = "2025-09-29T18:17:04.628Z" },
+]
+
+[[package]]
+name = "edx-drf-extensions"
+version = "10.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "django-waffle" },
+    { name = "djangorestframework" },
+    { name = "drf-jwt" },
+    { name = "edx-django-utils" },
+    { name = "edx-opaque-keys" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "requests" },
+    { name = "semantic-version" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/70/d3/c19e79bc66879d096c9fc66756eb568f722c7237ee3884a52aedfe3cb9c4/edx_drf_extensions-10.11.0.tar.gz", hash = "sha256:65feeb849576c47a8c506ad827722a4a10e19c0e9b518f8ed749f4e53916851d", size = 90810, upload-time = "2026-11-05T20:58:15.135Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/5a/a4f6836b28c2e64fa6cf0fb936781d1be1ff3b5c30d8ebb1813167a0ae4d/edx_drf_extensions-10.11.0-py3-none-any.whl", hash = "sha256:001e7927096935f4175433568615ab236d8895d2b9a71390ca3de1b3ef7ad57d", size = 92491, upload-time = "2026-11-05T20:58:13.542Z" },
 ]
 
 [[package]]
@@ -961,6 +995,7 @@ dependencies = [
     { name = "django-filter" },
     { name = "django-statici18n" },
     { name = "edx-ccx-keys" },
+    { name = "edx-drf-extensions" },
     { name = "edx-opaque-keys" },
     { name = "jsonfield" },
     { name = "lazy" },
@@ -1068,6 +1103,7 @@ requires-dist = [
     { name = "django-filter" },
     { name = "django-statici18n" },
     { name = "edx-ccx-keys" },
+    { name = "edx-drf-extensions" },
     { name = "edx-opaque-keys", extras = ["django"] },
     { name = "jsonfield" },
     { name = "lazy" },
@@ -1600,6 +1636,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a3/5e/ecf12fdb62546d64385c158514e9b2b671f7832108ef2ecd2020ce0af2d1/pyjwt-2.13.0-py3-none-any.whl", hash = "sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728", size = 31274, upload-time = "2026-05-21T19:54:35.362Z" },
 ]
 
+[package.optional-dependencies]
+crypto = [
+    { name = "cryptography" },
+]
+
 [[package]]
 name = "pylint"
 version = "4.0.6"
@@ -1973,6 +2014,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/46/f5af3402b579fd5e11573ce652019a67074317e18c1935cc0b4ba9b35552/secretstorage-3.5.0-py3-none-any.whl", hash = "sha256:0ce65888c0725fcb2c5bc0fdb8e5438eece02c523557ea40ce0703c266248137", size = 15554, upload-time = "2025-11-23T19:02:51.545Z" },
+]
+
+[[package]]
+name = "semantic-version"
+version = "2.10.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/31/f2289ce78b9b473d582568c234e104d2a342fd658cc288a7553d83bb8595/semantic_version-2.10.0.tar.gz", hash = "sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c", size = 52289, upload-time = "2022-05-26T13:35:23.454Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/23/8146aad7d88f4fcb3a6218f41a60f6c2d4e3a72de72da1825dc7c8f7877c/semantic_version-2.10.0-py2.py3-none-any.whl", hash = "sha256:de78a3b8e0feda74cabc54aab2da702113e33ac9d9eb9d2389bcf1f58b7d9177", size = 15552, upload-time = "2022-05-26T13:35:21.206Z" },
 ]
 
 [[package]]
